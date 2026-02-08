@@ -60,8 +60,7 @@ class HomeScreen extends StatelessWidget {
         ),
       ),
     );
-  }
-  @override
+  }@override
   Widget build(BuildContext context) {
     return Scaffold(
       body: Stack(
@@ -105,9 +104,9 @@ class HomeScreen extends StatelessWidget {
 
                 bigButton(
                   context,
-                  "📍 Ψάχνω κοντά μου",
+                  "🧑‍🔧👨‍⚕️ Βρες επαγγελματία...",
                   Colors.greenAccent,
-                  const SearchScreen(),
+                  const ChatScreen(mode: "services"),
                 ),
               ],
             ),
@@ -116,9 +115,7 @@ class HomeScreen extends StatelessWidget {
       ),
     );
   }
-}
-
-/* ---------------- CHAT SCREEN ---------------- */
+}/* ---------------- CHAT SCREEN ---------------- */
 
 class ChatScreen extends StatefulWidget {
   final String mode;
@@ -156,10 +153,37 @@ class _ChatScreenState extends State<ChatScreen> {
       });
     });
   }
+Future<void> sendRecommend() async {
+  final response = await http.post(
+    Uri.parse("https://ai-backend-kkt7.onrender.com/chat"),
+    headers: {"Content-Type": "application/json"},
+    body: jsonEncode({
+      "mode": widget.mode,
+      "history": messages,
+      "askOptions": true,   // ⭐ ΤΟ ΜΟΝΟ ΣΗΜΑΝΤΙΚΟ
+    }),
+  );
 
+  final data = jsonDecode(response.body);
+
+  setState(() {
+    messages.add({
+      "text": data["reply"],
+      "links": data["links"],
+      "isUser": false,
+    });
+  });
+}
   void openLink(String url) async {
     await launchUrl(Uri.parse(url),
         mode: LaunchMode.externalApplication);
+  }
+
+  String getTitle() {
+    if (widget.mode == "shopping") return "Αγορές";
+    if (widget.mode == "travel") return "Διακοπές";
+    if (widget.mode == "services") return "Επαγγελματίες";
+    return "GorealAI";
   }
 
   @override
@@ -167,7 +191,7 @@ class _ChatScreenState extends State<ChatScreen> {
     return Scaffold(
       backgroundColor: Colors.black,
       appBar: AppBar(
-        title: Text(widget.mode == "shopping" ? "Αγορές" : "Διακοπές"),
+        title: Text(getTitle()),   // ⭐ ΤΟ ΚΡΙΣΙΜΟ FIX
       ),
       body: Column(
         children: [
@@ -256,52 +280,6 @@ class _ChatScreenState extends State<ChatScreen> {
             ),
           )
         ],
-      ),
-    );
-  }
-}
-
-/* ---------------- SEARCH SCREEN ---------------- */
-
-class SearchScreen extends StatelessWidget {
-  const SearchScreen({super.key});
-
-  void openMaps(String query) async {
-    final url =
-        "https://www.google.com/maps/search/${Uri.encodeComponent(query)}";
-    launchUrl(Uri.parse(url), mode: LaunchMode.externalApplication);
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final controller = TextEditingController();
-
-    return Scaffold(
-      backgroundColor: Colors.black,
-      appBar: AppBar(title: const Text("Ψάχνω κοντά μου")),
-      body: Padding(
-        padding: const EdgeInsets.all(18),
-        child: Column(
-          children: [
-            TextField(
-              controller: controller,
-              style: const TextStyle(color: Colors.white),
-              decoration: const InputDecoration(
-                hintText: "π.χ. φαρμακείο κοντά μου",
-                hintStyle: TextStyle(color: Colors.white54),
-              ),
-            ),
-            const SizedBox(height: 15),
-            ElevatedButton(
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.amber,
-                foregroundColor: Colors.black,
-              ),
-              onPressed: () => openMaps(controller.text),
-              child: const Text("Αναζήτηση στο Google Maps"),
-            )
-          ],
-        ),
       ),
     );
   }
