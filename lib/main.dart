@@ -75,9 +75,7 @@ class HomeScreen extends StatelessWidget {
           ),
           Positioned.fill(
             child: IgnorePointer(
-              child: Container(
-                color: Colors.black.withOpacity(0.25),
-              ),
+              child: Container(color: Colors.black.withOpacity(0.25)),
             ),
           ),
           Positioned(
@@ -87,7 +85,6 @@ class HomeScreen extends StatelessWidget {
             child: Column(
               children: [
                 const SizedBox(height: 40),
-
                 bigButton(
                   context,
                   "🛒 Αγορές",
@@ -95,7 +92,6 @@ class HomeScreen extends StatelessWidget {
                   const ChatScreen(mode: "shopping"),
                 ),
                 const SizedBox(height: 18),
-
                 bigButton(
                   context,
                   "✈️ Διακοπές",
@@ -103,7 +99,6 @@ class HomeScreen extends StatelessWidget {
                   const ChatScreen(mode: "travel"),
                 ),
                 const SizedBox(height: 18),
-
                 bigButton(
                   context,
                   "🧑‍🔧👨‍⚕️ Βρες επαγγελματία...",
@@ -131,6 +126,8 @@ class ChatScreen extends StatefulWidget {
   final TextEditingController controller = TextEditingController();
   List<Map<String, dynamic>> messages = [];
 
+  bool showUserButton = false; // ⭐ ΚΟΥΜΠΙ-ΧΡΗΣΤΗ
+
   Future<void> sendMessage(String text) async {
     setState(() {
       messages.add({"text": text, "isUser": true});
@@ -153,6 +150,9 @@ class ChatScreen extends StatefulWidget {
         "links": data["links"],
         "isUser": false,
       });
+
+      // ⭐ ΜΕΤΑ ΤΗΝ ΠΡΩΤΗ AI ΑΠΑΝΤΗΣΗ → ΕΜΦΑΝΙΣΗ ΚΟΥΜΠΙΟΥ
+      showUserButton = true;
     });
   }
 
@@ -187,12 +187,6 @@ class ChatScreen extends StatefulWidget {
     if (widget.mode == "travel") return "Διακοπές";
     if (widget.mode == "services") return "Επαγγελματίες";
     return "GorealAI";
-  }
-
-  bool shouldShowButton() {
-    if (messages.isEmpty) return false;
-    final last = messages.last;
-    return last["isUser"] == false && last["links"] == null;
   }
 
   @override
@@ -248,10 +242,7 @@ class ChatScreen extends StatefulWidget {
                     ),
                     child: Text(
                       msg["text"] ?? "",
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 16,
-                      ),
+                      style: const TextStyle(color: Colors.white, fontSize: 16),
                     ),
                   ),
                 );
@@ -259,7 +250,8 @@ class ChatScreen extends StatefulWidget {
             ),
           ),
 
-          if (shouldShowButton())
+          // ⭐ ΚΟΥΜΠΙ-ΧΡΗΣΤΗ
+          if (showUserButton)
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 12),
               child: SizedBox(
@@ -270,7 +262,7 @@ class ChatScreen extends StatefulWidget {
                     backgroundColor: Colors.amber,
                     foregroundColor: Colors.black,
                   ),
-                  child: const Text("Εμφάνισε επιλογές"),
+                  child: const Text("Βρες το καλύτερο για μένα"),
                 ),
               ),
             ),
