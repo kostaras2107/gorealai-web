@@ -60,7 +60,9 @@ class HomeScreen extends StatelessWidget {
         ),
       ),
     );
-  }@override
+  }
+
+  @override
   Widget build(BuildContext context) {
     return Scaffold(
       body: Stack(
@@ -153,30 +155,31 @@ class _ChatScreenState extends State<ChatScreen> {
       });
     });
   }
-Future<void> sendRecommend() async {
-  final response = await http.post(
-    Uri.parse("https://ai-backend-kkt7.onrender.com/chat"),
-    headers: {"Content-Type": "application/json"},
-    body: jsonEncode({
-      "mode": widget.mode,
-      "history": messages,
-      "askOptions": true,   // ⭐ ΤΟ ΜΟΝΟ ΣΗΜΑΝΤΙΚΟ
-    }),
-  );
 
-  final data = jsonDecode(response.body);
+  Future<void> sendRecommend() async {
+    final response = await http.post(
+      Uri.parse("https://ai-backend-kkt7.onrender.com/chat"),
+      headers: {"Content-Type": "application/json"},
+      body: jsonEncode({
+        "mode": widget.mode,
+        "history": messages,
+        "askOptions": true,
+      }),
+    );
 
-  setState(() {
-    messages.add({
-      "text": data["reply"],
-      "links": data["links"],
-      "isUser": false,
+    final data = jsonDecode(response.body);
+
+    setState(() {
+      messages.add({
+        "text": data["reply"],
+        "links": data["links"],
+        "isUser": false,
+      });
     });
-  });
-}
+  }
+
   void openLink(String url) async {
-    await launchUrl(Uri.parse(url),
-        mode: LaunchMode.externalApplication);
+    await launchUrl(Uri.parse(url), mode: LaunchMode.externalApplication);
   }
 
   String getTitle() {
@@ -191,7 +194,7 @@ Future<void> sendRecommend() async {
     return Scaffold(
       backgroundColor: Colors.black,
       appBar: AppBar(
-        title: Text(getTitle()),   // ⭐ ΤΟ ΚΡΙΣΙΜΟ FIX
+        title: Text(getTitle()),
       ),
       body: Column(
         children: [
