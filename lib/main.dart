@@ -117,7 +117,9 @@ class HomeScreen extends StatelessWidget {
       ),
     );
   }
-}/* ---------------- CHAT SCREEN ---------------- */
+}
+
+/* ---------------- CHAT SCREEN ---------------- */
 
 class ChatScreen extends StatefulWidget {
   final String mode;
@@ -125,9 +127,7 @@ class ChatScreen extends StatefulWidget {
 
   @override
   State<ChatScreen> createState() => _ChatScreenState();
-}
-
-class _ChatScreenState extends State<ChatScreen> {
+}class _ChatScreenState extends State<ChatScreen> {
   final TextEditingController controller = TextEditingController();
   List<Map<String, dynamic>> messages = [];
 
@@ -187,6 +187,12 @@ class _ChatScreenState extends State<ChatScreen> {
     if (widget.mode == "travel") return "Διακοπές";
     if (widget.mode == "services") return "Επαγγελματίες";
     return "GorealAI";
+  }
+
+  bool shouldShowButton() {
+    if (messages.isEmpty) return false;
+    final last = messages.last;
+    return last["isUser"] == false && last["links"] == null;
   }
 
   @override
@@ -253,21 +259,21 @@ class _ChatScreenState extends State<ChatScreen> {
             ),
           ),
 
-          // ✅ ΜΟΝΟ ΕΝΑ κουμπί
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 12),
-            child: SizedBox(
-              width: double.infinity,
-              child: ElevatedButton(
-                onPressed: sendRecommend,
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.amber,
-                  foregroundColor: Colors.black,
+          if (shouldShowButton())
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 12),
+              child: SizedBox(
+                width: double.infinity,
+                child: ElevatedButton(
+                  onPressed: sendRecommend,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.amber,
+                    foregroundColor: Colors.black,
+                  ),
+                  child: const Text("Εμφάνισε επιλογές"),
                 ),
-                child: const Text("Εμφάνισε επιλογές"),
               ),
             ),
-          ),
 
           Padding(
             padding: const EdgeInsets.all(10),
