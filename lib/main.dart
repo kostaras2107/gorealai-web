@@ -193,9 +193,7 @@ class _ChatScreenState extends State<ChatScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.black,
-      appBar: AppBar(
-        title: Text(getTitle()),
-      ),
+      appBar: AppBar(title: Text(getTitle())),
       body: Column(
         children: [
           Expanded(
@@ -252,6 +250,22 @@ class _ChatScreenState extends State<ChatScreen> {
                   ),
                 );
               },
+            ),
+          ),
+
+          // ✅ ΜΟΝΟ ΕΝΑ κουμπί
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 12),
+            child: SizedBox(
+              width: double.infinity,
+              child: ElevatedButton(
+                onPressed: sendRecommend,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.amber,
+                  foregroundColor: Colors.black,
+                ),
+                child: const Text("Εμφάνισε επιλογές"),
+              ),
             ),
           ),
 
