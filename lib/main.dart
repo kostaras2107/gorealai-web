@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:http/http.dart' as http;
 import 'package:url_launcher/url_launcher.dart';
 
@@ -122,9 +123,7 @@ class ChatScreen extends StatefulWidget {
 
   @override
   State<ChatScreen> createState() => _ChatScreenState();
-}
-
-class _ChatScreenState extends State<ChatScreen> {
+}class _ChatScreenState extends State<ChatScreen> {
   final TextEditingController controller = TextEditingController();
   final ScrollController scrollController = ScrollController();
 
@@ -168,11 +167,13 @@ class _ChatScreenState extends State<ChatScreen> {
         "isUser": false,
       });
 
-      showUserButton = true;
+      showUserButton = data["showButton"] == true;
     });
 
     scrollToBottom();
-  }Future<void> sendRecommend() async {
+  }
+
+  Future<void> sendRecommend() async {
     final response = await http.post(
       Uri.parse("https://ai-backend-kkt7.onrender.com/chat"),
       headers: {"Content-Type": "application/json"},
@@ -191,6 +192,8 @@ class _ChatScreenState extends State<ChatScreen> {
         "links": data["links"],
         "isUser": false,
       });
+
+      showUserButton = data["showButton"] == true;
     });
 
     scrollToBottom();
@@ -198,6 +201,13 @@ class _ChatScreenState extends State<ChatScreen> {
 
   void openLink(String url) async {
     await launchUrl(Uri.parse(url), mode: LaunchMode.externalApplication);
+  }
+
+  void copyText(String text) {
+    Clipboard.setData(ClipboardData(text: text));
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text("Αντιγράφηκε")),
+    );
   }
 
   String getTitle() {
@@ -210,7 +220,6 @@ class _ChatScreenState extends State<ChatScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.black,
       appBar: AppBar(title: Text(getTitle())),
       body: Column(
         children: [
@@ -229,19 +238,10 @@ class _ChatScreenState extends State<ChatScreen> {
                         color: Colors.grey[900],
                         margin: const EdgeInsets.symmetric(
                             horizontal: 14, vertical: 8),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(18),
-                        ),
                         child: ListTile(
-                          title: Text(
-                            link["title"],
-                            style: const TextStyle(
-                              color: Colors.white,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                          trailing:
-                              const Icon(Icons.open_in_new, color: Colors.amber),
+                          title: Text(link["title"]),
+                          trailing: const Icon(Icons.open_in_new,
+                              color: Colors.amber),
                           onTap: () => openLink(link["url"]),
                         ),
                       );
@@ -249,20 +249,23 @@ class _ChatScreenState extends State<ChatScreen> {
                   );
                 }
 
-                return Align(
-                  alignment:
-                      isUser ? Alignment.centerRight : Alignment.centerLeft,
-                  child: Container(
-                    margin: const EdgeInsets.all(10),
-                    padding: const EdgeInsets.all(14),
-                    decoration: BoxDecoration(
-                      color: isUser ? Colors.green : Colors.grey[850],
-                      borderRadius: BorderRadius.circular(16),
-                    ),
-                    child: SelectableText(
-                      msg["text"] ?? "",
-                      style:
-                          const TextStyle(color: Colors.white, fontSize: 16),
+                return GestureDetector(
+                  onLongPress: () => copyText(msg["text"] ?? ""),
+                  child: Align(
+                    alignment:
+                        isUser ? Alignment.centerRight : Alignment.centerLeft,
+                    child: Container(
+                      margin: const EdgeInsets.all(10),
+                      padding: const EdgeInsets.all(14),
+                      decoration: BoxDecoration(
+                        color: isUser ? Colors.green : Colors.grey[850],
+                        borderRadius: BorderRadius.circular(16),
+                      ),
+                      child: Text(
+                        msg["text"] ?? "",
+                        style:
+                            const TextStyle(color: Colors.white, fontSize: 16),
+                      ),
                     ),
                   ),
                 );
@@ -271,31 +274,19 @@ class _ChatScreenState extends State<ChatScreen> {
           ),
 
           if (showUserButton)
-            Column(
-              children: [
-                const Padding(
-                  padding: EdgeInsets.only(top: 6, bottom: 4),
-                  child: Text(
-                    "Αν θέλεις να δεις έτοιμες επιλογές πάτα το κουμπί.\nΑλλιώς συνεχίζουμε μαζί μέχρι να βρούμε το ιδανικό.",
-                    textAlign: TextAlign.center,
-                    style: TextStyle(color: Colors.white70, fontSize: 13),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 12),
+              child: SizedBox(
+                width: double.infinity,
+                child: ElevatedButton(
+                  onPressed: sendRecommend,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.amber,
+                    foregroundColor: Colors.black,
                   ),
+                  child: const Text("Βρες το καλύτερο για μένα"),
                 ),
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 12),
-                  child: SizedBox(
-                    width: double.infinity,
-                    child: ElevatedButton(
-                      onPressed: sendRecommend,
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.amber,
-                        foregroundColor: Colors.black,
-                      ),
-                      child: const Text("Βρες το καλύτερο για μένα"),
-                    ),
-                  ),
-                ),
-              ],
+              ),
             ),
 
           Padding(
@@ -305,17 +296,12 @@ class _ChatScreenState extends State<ChatScreen> {
                 Expanded(
                   child: TextField(
                     controller: controller,
-                    style: const TextStyle(color: Colors.white),
-                    onSubmitted: (value) {
-                      final text = value.trim();
-                      if (text.isEmpty) return;
-                      sendMessage(text);
+                    onSubmitted: (text) {
+                      final t = text.trim();
+                      if (t.isEmpty) return;
+                      sendMessage(t);
                       controller.clear();
                     },
-                    decoration: const InputDecoration(
-                      hintText: "Γράψε κάτι...",
-                      hintStyle: TextStyle(color: Colors.white54),
-                    ),
                   ),
                 ),
                 IconButton(
