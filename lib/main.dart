@@ -167,6 +167,7 @@ class ChatScreen extends StatefulWidget {
         "isUser": false,
       });
 
+      // 🔹 ΔΥΝΑΜΙΚΟ ΚΟΥΜΠΙ από server
       showUserButton = data["showButton"] == true;
     });
 
@@ -193,6 +194,7 @@ class ChatScreen extends StatefulWidget {
         "isUser": false,
       });
 
+      // 🔹 παραμένει δυναμικό
       showUserButton = data["showButton"] == true;
     });
 
@@ -263,8 +265,8 @@ class ChatScreen extends StatefulWidget {
                       ),
                       child: Text(
                         msg["text"] ?? "",
-                        style:
-                            const TextStyle(color: Colors.white, fontSize: 16),
+                        style: const TextStyle(
+                            color: Colors.white, fontSize: 16),
                       ),
                     ),
                   ),
