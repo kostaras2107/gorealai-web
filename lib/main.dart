@@ -126,14 +126,29 @@ class ChatScreen extends StatefulWidget {
 
 class _ChatScreenState extends State<ChatScreen> {
   final TextEditingController controller = TextEditingController();
-  List<Map<String, dynamic>> messages = [];
+  final ScrollController scrollController = ScrollController();
 
+  List<Map<String, dynamic>> messages = [];
   bool showUserButton = false;
+
+  void scrollToBottom() {
+    Future.delayed(const Duration(milliseconds: 100), () {
+      if (scrollController.hasClients) {
+        scrollController.animateTo(
+          scrollController.position.maxScrollExtent,
+          duration: const Duration(milliseconds: 300),
+          curve: Curves.easeOut,
+        );
+      }
+    });
+  }
 
   Future<void> sendMessage(String text) async {
     setState(() {
       messages.add({"text": text, "isUser": true});
     });
+
+    scrollToBottom();
 
     final response = await http.post(
       Uri.parse("https://ai-backend-kkt7.onrender.com/chat"),
@@ -155,9 +170,9 @@ class _ChatScreenState extends State<ChatScreen> {
 
       showUserButton = true;
     });
-  }
 
-  Future<void> sendRecommend() async {
+    scrollToBottom();
+  }Future<void> sendRecommend() async {
     final response = await http.post(
       Uri.parse("https://ai-backend-kkt7.onrender.com/chat"),
       headers: {"Content-Type": "application/json"},
@@ -177,6 +192,8 @@ class _ChatScreenState extends State<ChatScreen> {
         "isUser": false,
       });
     });
+
+    scrollToBottom();
   }
 
   void openLink(String url) async {
@@ -188,7 +205,9 @@ class _ChatScreenState extends State<ChatScreen> {
     if (widget.mode == "travel") return "Διακοπές";
     if (widget.mode == "services") return "Επαγγελματίες";
     return "GorealAI";
-  }@override
+  }
+
+  @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.black,
@@ -197,6 +216,7 @@ class _ChatScreenState extends State<ChatScreen> {
         children: [
           Expanded(
             child: ListView.builder(
+              controller: scrollController,
               itemCount: messages.length,
               itemBuilder: (_, i) {
                 final msg = messages[i];
@@ -220,8 +240,8 @@ class _ChatScreenState extends State<ChatScreen> {
                               fontWeight: FontWeight.bold,
                             ),
                           ),
-                          trailing: const Icon(Icons.open_in_new,
-                              color: Colors.amber),
+                          trailing:
+                              const Icon(Icons.open_in_new, color: Colors.amber),
                           onTap: () => openLink(link["url"]),
                         ),
                       );
@@ -286,15 +306,16 @@ class _ChatScreenState extends State<ChatScreen> {
                   child: TextField(
                     controller: controller,
                     style: const TextStyle(color: Colors.white),
+                    onSubmitted: (value) {
+                      final text = value.trim();
+                      if (text.isEmpty) return;
+                      sendMessage(text);
+                      controller.clear();
+                    },
                     decoration: const InputDecoration(
                       hintText: "Γράψε κάτι...",
                       hintStyle: TextStyle(color: Colors.white54),
                     ),
-                    onSubmitted: (text) {
-                      if (text.trim().isEmpty) return;
-                      sendMessage(text.trim());
-                      controller.clear();
-                    },
                   ),
                 ),
                 IconButton(
