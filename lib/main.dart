@@ -122,11 +122,13 @@ class ChatScreen extends StatefulWidget {
 
   @override
   State<ChatScreen> createState() => _ChatScreenState();
-}class _ChatScreenState extends State<ChatScreen> {
+}
+
+class _ChatScreenState extends State<ChatScreen> {
   final TextEditingController controller = TextEditingController();
   List<Map<String, dynamic>> messages = [];
 
-  bool showUserButton = false; // ⭐ ΚΟΥΜΠΙ-ΧΡΗΣΤΗ
+  bool showUserButton = false;
 
   Future<void> sendMessage(String text) async {
     setState(() {
@@ -151,7 +153,6 @@ class ChatScreen extends StatefulWidget {
         "isUser": false,
       });
 
-      // ⭐ ΜΕΤΑ ΤΗΝ ΠΡΩΤΗ AI ΑΠΑΝΤΗΣΗ → ΕΜΦΑΝΙΣΗ ΚΟΥΜΠΙΟΥ
       showUserButton = true;
     });
   }
@@ -187,9 +188,7 @@ class ChatScreen extends StatefulWidget {
     if (widget.mode == "travel") return "Διακοπές";
     if (widget.mode == "services") return "Επαγγελματίες";
     return "GorealAI";
-  }
-
-  @override
+  }@override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.black,
@@ -240,9 +239,10 @@ class ChatScreen extends StatefulWidget {
                       color: isUser ? Colors.green : Colors.grey[850],
                       borderRadius: BorderRadius.circular(16),
                     ),
-                    child: Text(
+                    child: SelectableText(
                       msg["text"] ?? "",
-                      style: const TextStyle(color: Colors.white, fontSize: 16),
+                      style:
+                          const TextStyle(color: Colors.white, fontSize: 16),
                     ),
                   ),
                 );
@@ -250,38 +250,33 @@ class ChatScreen extends StatefulWidget {
             ),
           ),
 
-          // ⭐ ΚΟΥΜΠΙ-ΧΡΗΣΤΗ
-         // ⭐ ΚΟΥΜΠΙ-ΧΡΗΣΤΗ
-if (showUserButton)
-  Column(
-    children: [
-      const Padding(
-        padding: EdgeInsets.only(top: 6, bottom: 4),
-        child: Text(
-          "Αν θέλεις να δεις έτοιμες επιλογές πάτα το κουμπί.\nΑλλιώς συνεχίζουμε μαζί μέχρι να βρούμε το ιδανικό.",
-          textAlign: TextAlign.center,
-          style: TextStyle(
-            color: Colors.white70,
-            fontSize: 13,
-          ),
-        ),
-      ),
-      Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 12),
-        child: SizedBox(
-          width: double.infinity,
-          child: ElevatedButton(
-            onPressed: sendRecommend,
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.amber,
-              foregroundColor: Colors.black,
+          if (showUserButton)
+            Column(
+              children: [
+                const Padding(
+                  padding: EdgeInsets.only(top: 6, bottom: 4),
+                  child: Text(
+                    "Αν θέλεις να δεις έτοιμες επιλογές πάτα το κουμπί.\nΑλλιώς συνεχίζουμε μαζί μέχρι να βρούμε το ιδανικό.",
+                    textAlign: TextAlign.center,
+                    style: TextStyle(color: Colors.white70, fontSize: 13),
+                  ),
+                ),
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 12),
+                  child: SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton(
+                      onPressed: sendRecommend,
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.amber,
+                        foregroundColor: Colors.black,
+                      ),
+                      child: const Text("Βρες το καλύτερο για μένα"),
+                    ),
+                  ),
+                ),
+              ],
             ),
-            child: const Text("Βρες το καλύτερο για μένα"),
-          ),
-        ),
-      ),
-    ],
-  ),
 
           Padding(
             padding: const EdgeInsets.all(10),
@@ -295,6 +290,11 @@ if (showUserButton)
                       hintText: "Γράψε κάτι...",
                       hintStyle: TextStyle(color: Colors.white54),
                     ),
+                    onSubmitted: (text) {
+                      if (text.trim().isEmpty) return;
+                      sendMessage(text.trim());
+                      controller.clear();
+                    },
                   ),
                 ),
                 IconButton(
@@ -302,7 +302,6 @@ if (showUserButton)
                   onPressed: () {
                     final text = controller.text.trim();
                     if (text.isEmpty) return;
-
                     sendMessage(text);
                     controller.clear();
                   },
