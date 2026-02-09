@@ -251,21 +251,37 @@ class ChatScreen extends StatefulWidget {
           ),
 
           // ⭐ ΚΟΥΜΠΙ-ΧΡΗΣΤΗ
-          if (showUserButton)
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 12),
-              child: SizedBox(
-                width: double.infinity,
-                child: ElevatedButton(
-                  onPressed: sendRecommend,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.amber,
-                    foregroundColor: Colors.black,
-                  ),
-                  child: const Text("Βρες το καλύτερο για μένα"),
-                ),
-              ),
+         // ⭐ ΚΟΥΜΠΙ-ΧΡΗΣΤΗ
+if (showUserButton)
+  Column(
+    children: [
+      const Padding(
+        padding: EdgeInsets.only(top: 6, bottom: 4),
+        child: Text(
+          "Αν θέλεις να δεις έτοιμες επιλογές πάτα το κουμπί.\nΑλλιώς συνεχίζουμε μαζί μέχρι να βρούμε το ιδανικό.",
+          textAlign: TextAlign.center,
+          style: TextStyle(
+            color: Colors.white70,
+            fontSize: 13,
+          ),
+        ),
+      ),
+      Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 12),
+        child: SizedBox(
+          width: double.infinity,
+          child: ElevatedButton(
+            onPressed: sendRecommend,
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.amber,
+              foregroundColor: Colors.black,
             ),
+            child: const Text("Βρες το καλύτερο για μένα"),
+          ),
+        ),
+      ),
+    ],
+  ),
 
           Padding(
             padding: const EdgeInsets.all(10),
