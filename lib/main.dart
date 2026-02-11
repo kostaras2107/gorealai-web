@@ -102,7 +102,7 @@ class HomeScreen extends StatelessWidget {
                 const SizedBox(height: 18),
                 bigButton(
                   context,
-                  "🧑‍🔧👨‍⚕️ Βρες επαγγελματία...",
+                  "🧑‍🔧👨‍⚕️ Βρες επαγγελματία",
                   Colors.greenAccent,
                   const ChatScreen(mode: "services"),
                 ),
@@ -123,14 +123,47 @@ class ChatScreen extends StatefulWidget {
 
   @override
   State<ChatScreen> createState() => _ChatScreenState();
-}class _ChatScreenState extends State<ChatScreen> {
+}
+
+class _ChatScreenState extends State<ChatScreen> {
   final TextEditingController controller = TextEditingController();
   final ScrollController scrollController = ScrollController();
 
   List<Map<String, dynamic>> messages = [];
   bool showUserButton = false;
 
-  void scrollToBottom() {
+  @override
+  void initState() {
+    super.initState();
+
+    /// 🔹 ΖΗΤΑΜΕ WELCOME ΑΠΟ SERVER
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      loadWelcome();
+    });
+  }
+
+  Future<void> loadWelcome() async {
+    final response = await http.post(
+      Uri.parse("https://ai-backend-kkt7.onrender.com/chat"),
+      headers: {"Content-Type": "application/json"},
+      body: jsonEncode({
+        "mode": widget.mode,
+        "history": [],
+      }),
+    );
+
+    final data = jsonDecode(response.body);
+
+    setState(() {
+      messages.add({
+        "text": data["reply"],
+        "isUser": false,
+      });
+      showUserButton = data["showButton"] == true;
+    });
+
+    scrollToBottom();
+  }void scrollToBottom() {
     Future.delayed(const Duration(milliseconds: 100), () {
       if (scrollController.hasClients) {
         scrollController.animateTo(
@@ -167,7 +200,6 @@ class ChatScreen extends StatefulWidget {
         "isUser": false,
       });
 
-      // 🔹 ΔΥΝΑΜΙΚΟ ΚΟΥΜΠΙ από server
       showUserButton = data["showButton"] == true;
     });
 
@@ -194,7 +226,6 @@ class ChatScreen extends StatefulWidget {
         "isUser": false,
       });
 
-      // 🔹 παραμένει δυναμικό
       showUserButton = data["showButton"] == true;
     });
 
@@ -286,7 +317,7 @@ class ChatScreen extends StatefulWidget {
                     backgroundColor: Colors.amber,
                     foregroundColor: Colors.black,
                   ),
-                  child: const Text("Βρες το καλύτερο για μένα"),
+                  child: const Text("Δείξε επιλογές"),
                 ),
               ),
             ),
