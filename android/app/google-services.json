@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "451660365555",
+    "project_id": "shoppilot-app-e4104",
+    "storage_bucket": "shoppilot-app-e4104.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:451660365555:android:4bfc804f4a304a81888186",
+        "android_client_info": {
+          "package_name": "com.example.shoppilot"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAb7hJlPIaBOq8JnhVqSYbM2OmUE5WVD08"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
