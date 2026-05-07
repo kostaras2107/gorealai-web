@@ -1,6 +1,5 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
-import 'package:shoppilot/main.dart';
 import 'main.dart';
 
 class SplashScreen extends StatefulWidget {
@@ -11,55 +10,79 @@ class SplashScreen extends StatefulWidget {
 }
 
 class _SplashScreenState extends State<SplashScreen>
-    with SingleTickerProviderStateMixin {
-  late AnimationController controller;
-  late Animation<double> glow;
-  late Animation<double> scale;
+    with TickerProviderStateMixin {
 
-  String text = "Go";
+  late AnimationController _mainCtrl;
+  late AnimationController _shimmerCtrl;
+
+  late Animation<double> _fade;
+  late Animation<double> _scale;
+  late Animation<double> _glow;
+  late Animation<double> _shimmer;
+
+  String _text = "Go";
 
   @override
   void initState() {
     super.initState();
 
-    controller = AnimationController(
+    _mainCtrl = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 1800),
     );
 
-    glow = Tween<double>(begin: 0.2, end: 1).animate(
-      CurvedAnimation(parent: controller, curve: Curves.easeOut),
+    _shimmerCtrl = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1500),
+    )..repeat();
+
+    _fade = Tween<double>(begin: 0.0, end: 1.0).animate(
+      CurvedAnimation(parent: _mainCtrl, curve: Curves.easeOut),
     );
 
-    scale = Tween<double>(begin: 0.9, end: 1.05).animate(
-      CurvedAnimation(parent: controller, curve: Curves.easeOut),
+    _scale = Tween<double>(begin: 0.85, end: 1.0).animate(
+      CurvedAnimation(parent: _mainCtrl, curve: Curves.easeOut),
     );
 
-    controller.forward();
+    _glow = Tween<double>(begin: 0.0, end: 1.0).animate(
+      CurvedAnimation(parent: _mainCtrl, curve: Curves.easeOut),
+    );
 
+    _shimmer = Tween<double>(begin: -1.0, end: 2.0).animate(
+      CurvedAnimation(parent: _shimmerCtrl, curve: Curves.easeInOut),
+    );
+
+    _mainCtrl.forward();
     _runSequence();
   }
 
   Future<void> _runSequence() async {
-    await Future.delayed(const Duration(milliseconds: 700));
-    setState(() => text = "GoReal");
+    await Future.delayed(const Duration(milliseconds: 600));
+    if (!mounted) return;
+    setState(() => _text = "GoReal");
 
     await Future.delayed(const Duration(milliseconds: 700));
-    setState(() => text = "GoRealAI");
+    if (!mounted) return;
+    setState(() => _text = "GoRealAI");
 
-    await Future.delayed(const Duration(milliseconds: 900));
-
+    await Future.delayed(const Duration(milliseconds: 1000));
     if (!mounted) return;
 
     Navigator.pushReplacement(
       context,
-      MaterialPageRoute(builder: (_) => const AuthGate()),
+      PageRouteBuilder(
+        transitionDuration: const Duration(milliseconds: 800),
+        pageBuilder: (_, __, ___) => const AuthGate(),
+        transitionsBuilder: (_, anim, __, child) =>
+            FadeTransition(opacity: anim, child: child),
+      ),
     );
   }
 
   @override
   void dispose() {
-    controller.dispose();
+    _mainCtrl.dispose();
+    _shimmerCtrl.dispose();
     super.dispose();
   }
 
@@ -67,32 +90,161 @@ class _SplashScreenState extends State<SplashScreen>
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.black,
-      body: Center(
-        child: AnimatedBuilder(
-          animation: controller,
-          builder: (_, __) {
-            return Transform.scale(
-              scale: scale.value,
-              child: Text(
-                text,
-                style: TextStyle(
-                  fontSize: 42,
-                  fontWeight: FontWeight.w600,
-                  color: Colors.white,
-                  letterSpacing: 1.2,
-                  shadows: [
-                    BoxShadow(
-                      color: Colors.orange.withOpacity(glow.value),
-                      blurRadius: 25 * glow.value,
-                      spreadRadius: 5 * glow.value,
-                    ),
-                  ],
+      body: Stack(
+        children: [
+          // Ambient glow background
+          Positioned.fill(
+            child: AnimatedBuilder(
+              animation: _glow,
+              builder: (_, __) => DecoratedBox(
+                decoration: BoxDecoration(
+                  gradient: RadialGradient(
+                    center: Alignment.center,
+                    radius: 0.8,
+                    colors: [
+                      const Color(0xFFD4A843).withOpacity(0.12 * _glow.value),
+                      Colors.transparent,
+                    ],
+                  ),
                 ),
               ),
-            );
-          },
-        ),
+            ),
+          ),
+
+          // Main content
+          Center(
+            child: AnimatedBuilder(
+              animation: Listenable.merge([_mainCtrl, _shimmerCtrl]),
+              builder: (_, __) {
+                return FadeTransition(
+                  opacity: _fade,
+                  child: Transform.scale(
+                    scale: _scale.value,
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+
+                        // Shimmer text
+                        ShaderMask(
+                          shaderCallback: (bounds) {
+                            return LinearGradient(
+                              begin: Alignment.centerLeft,
+                              end: Alignment.centerRight,
+                              colors: const [
+                                Color(0xFFD4A843),
+                                Color(0xFFFFF0A0),
+                                Color(0xFFD4A843),
+                                Color(0xFF8A6010),
+                                Color(0xFFD4A843),
+                              ],
+                              stops: [
+                                0.0,
+                                (_shimmer.value - 0.1).clamp(0.0, 1.0),
+                                _shimmer.value.clamp(0.0, 1.0),
+                                (_shimmer.value + 0.1).clamp(0.0, 1.0),
+                                1.0,
+                              ],
+                            ).createShader(bounds);
+                          },
+                          child: Text(
+                            _text,
+                            style: const TextStyle(
+                              fontSize: 46,
+                              fontWeight: FontWeight.w700,
+                              fontFamily: 'Georgia',
+                              color: Colors.white,
+                              letterSpacing: 1.5,
+                            ),
+                          ),
+                        ),
+
+                        const SizedBox(height: 10),
+
+                        // Tagline fade in
+                        Opacity(
+                          opacity: _text == "GoRealAI" ? _glow.value : 0.0,
+                          child: Text(
+                            'Βρες το σωστό. Με τη δύναμη του AI.',
+                            style: TextStyle(
+                              fontSize: 13,
+                              color: Colors.white.withOpacity(0.4),
+                              fontWeight: FontWeight.w300,
+                              letterSpacing: 0.3,
+                            ),
+                          ),
+                        ),
+
+                        const SizedBox(height: 40),
+
+                        // Gold animated dots
+                        _GoldDots(),
+                      ],
+                    ),
+                  ),
+                );
+              },
+            ),
+          ),
+        ],
       ),
+    );
+  }
+}
+
+// Animated loading dots
+class _GoldDots extends StatefulWidget {
+  @override
+  State<_GoldDots> createState() => _GoldDotsState();
+}
+
+class _GoldDotsState extends State<_GoldDots>
+    with SingleTickerProviderStateMixin {
+  late AnimationController _ctrl;
+
+  @override
+  void initState() {
+    super.initState();
+    _ctrl = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 900),
+    )..repeat();
+  }
+
+  @override
+  void dispose() {
+    _ctrl.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedBuilder(
+      animation: _ctrl,
+      builder: (_, __) {
+        return Row(
+          mainAxisSize: MainAxisSize.min,
+          children: List.generate(3, (i) {
+            final delay = i / 3;
+            final value = ((_ctrl.value - delay) % 1.0).clamp(0.0, 1.0);
+            final opacity = (value < 0.5 ? value * 2 : (1 - value) * 2)
+                .clamp(0.2, 1.0);
+            return Container(
+              margin: const EdgeInsets.symmetric(horizontal: 4),
+              width: 5, height: 5,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: const Color(0xFFD4A843).withOpacity(opacity),
+                boxShadow: [
+                  BoxShadow(
+                    color: const Color(0xFFD4A843).withOpacity(opacity * 0.5),
+                    blurRadius: 6,
+                  ),
+                ],
+              ),
+            );
+          }),
+        );
+      },
     );
   }
 }

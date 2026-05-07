@@ -1,5 +1,15 @@
 {
   "projects": {
     "default": "shoppilot-app-e4104"
-  }
+  },
+  "targets": {
+    "shoppilot-app-e4104": {
+      "hosting": {
+        "gorealai": [
+          "gorealai"
+        ]
+      }
+    }
+  },
+  "etags": {}
 }
