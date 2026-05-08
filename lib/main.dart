@@ -21,11 +21,11 @@ import 'package:speech_to_text/speech_to_text.dart' as stt;
 // CONSTANTS
 // ═══════════════════════════════════════
 const String kBackendUrl = 'https://ai-backend-kkt7.onrender.com';
-const Color kGold = Color(0xFFD4A843);
-const Color kGoldLight = Color(0xFFF0CC6A);
-const Color kGoldDark = Color(0xFF8A6010);
-const Color kBg = Color(0xFF060401);
-const Color kGreen = Color(0xFF3DBA7E);
+const Color kGold = Color(0xFFFFB340);
+const Color kGoldLight = Color(0xFFFFD47A);
+const Color kGoldDark = Color(0xFFCC8800);
+const Color kBg = Color(0xFF060D1E);
+const Color kGreen = Color(0xFF00D4AA);
 
 // ═══════════════════════════════════════
 // FCM PUSH NOTIFICATION SERVICE
@@ -35,7 +35,7 @@ class NotificationService {
 
   static Future<void> init() async {
     await _fcm.requestPermission(alert: true, badge: true, sound: true);
-    final token = await _fcm.getToken();
+    final token = await _fcm.getToken(vapidKey: 'BJsbku1gXCS_uLwKrDcSJ9hIDGEUdthxe7wc_dfbeIcwq4aE1SqK3IdMPZ6j1vj0or-SWNloikIXmzWfW0_YqTY');
     if (token != null) {
       final user = FirebaseAuth.instance.currentUser;
       if (user != null) {
@@ -136,7 +136,7 @@ class ReminderService {
             const SizedBox(height: 10),
             Text(message,
                 textAlign: TextAlign.center,
-                style: const TextStyle(color: Colors.white, fontSize: 14, height: 1.5)),
+                style: TextStyle(color: _gw, fontSize: 14, height: 1.5)),
             const SizedBox(height: 20),
             GestureDetector(
               onTap: () => Navigator.pop(ctx),
@@ -210,11 +210,32 @@ class AppTheme {
   final Color accent;
   final Color background;
   final Color backgroundGradientEnd;
-  const AppTheme(
-      {required this.id,
-      required this.accent,
-      required this.background,
-      required this.backgroundGradientEnd});
+  final bool isLight;
+  final Color _textBase;
+  const AppTheme({
+    required this.id,
+    required this.accent,
+    required this.background,
+    required this.backgroundGradientEnd,
+    this.isLight = false,
+    Color textBase = Colors.white,
+  }) : _textBase = textBase;
+
+  // Returns adaptive color — used everywhere instead of Colors.white.withValues(alpha:X)
+  // Low alpha (<0.15) = surface/border — boosted in light mode for visibility
+  // High alpha (>0.15) = text/icon — same alpha in both modes
+  Color adaptive(double alpha) {
+    if (!isLight) return Color.fromRGBO(255, 255, 255, alpha);
+    final a = alpha < 0.15 ? (alpha * 3.5).clamp(0.0, 1.0) : alpha;
+    return Color.fromRGBO(_textBase.red, _textBase.green, _textBase.blue, a);
+  }
+
+  // Pure text color (replaces Colors.white as text)
+  Color get text => _textBase;
+
+  // Card surface for explicit dark hex cards
+  Color get cardColor => isLight ? const Color(0xFFFFFFFF) : const Color(0xFF0E0B04);
+
   static const Map<String, AppTheme> themes = {
     'obsidian': AppTheme(
         id: 'obsidian',
@@ -241,9 +262,29 @@ class AppTheme {
         accent: Color(0xFF64B5F6),
         background: Color(0xFF080C14),
         backgroundGradientEnd: Color(0xFF040710)),
+    'white': AppTheme(
+        id: 'white',
+        accent: Color(0xFFFFB340),
+        background: Color(0xFFF5F5F7),
+        backgroundGradientEnd: Color(0xFFEBEBF0),
+        isLight: true,
+        textBase: Color(0xFF0D0D1E)),
+    'grey': AppTheme(
+        id: 'grey',
+        accent: Color(0xFFFFB340),
+        background: Color(0xFFE5E5EA),
+        backgroundGradientEnd: Color(0xFFD8D8E0),
+        isLight: true,
+        textBase: Color(0xFF0D0D1E)),
   };
   static AppTheme get(String id) => themes[id] ?? themes['obsidian']!;
 }
+
+// ── Global helpers ──────────────────────────────────────────────
+// Replaces _g(X) throughout the codebase
+Color _g(double alpha) => appThemeNotifier.value.adaptive(alpha);
+// Replaces Colors.white as text/icon color
+Color get _gw => appThemeNotifier.value.text;
 
 final ValueNotifier<AppTheme> appThemeNotifier =
     ValueNotifier<AppTheme>(AppTheme.themes['obsidian']!);
@@ -277,7 +318,7 @@ class _GorealAiAppState extends State<GorealAiApp> {
       debugShowCheckedModeBanner: false,
       title: 'GorealAI',
       theme: ThemeData(
-        brightness: Brightness.dark,
+        brightness: theme.isLight ? Brightness.light : Brightness.dark,
         scaffoldBackgroundColor: theme.background,
         primaryColor: accent,
         appBarTheme: AppBarTheme(
@@ -286,17 +327,13 @@ class _GorealAiAppState extends State<GorealAiApp> {
           centerTitle: true,
           iconTheme: IconThemeData(color: accent),
         ),
-        colorScheme: ColorScheme.dark(
-          primary: accent,
-          secondary: accent.withValues(alpha: 0.7),
-          surface: const Color(0xFF111111),
-          onPrimary: Colors.black,
-          onSecondary: Colors.black,
-        ),
-        dialogTheme: const DialogThemeData(backgroundColor: Color(0xFF111111)),
+        colorScheme: theme.isLight
+            ? ColorScheme.light(primary: accent, secondary: accent.withValues(alpha: 0.8), surface: theme.background, onPrimary: Colors.black, onSecondary: Colors.black)
+            : ColorScheme.dark(primary: accent, secondary: accent.withValues(alpha: 0.7), surface: const Color(0xFF111111), onPrimary: Colors.black, onSecondary: Colors.black),
+        dialogTheme: DialogThemeData(backgroundColor: theme.isLight ? Colors.white : const Color(0xFF111111)),
         snackBarTheme: SnackBarThemeData(
-          backgroundColor: const Color(0xFF1A1A1A),
-          contentTextStyle: const TextStyle(color: Colors.white),
+          backgroundColor: theme.isLight ? const Color(0xFFF0F0F0) : const Color(0xFF1A1A1A),
+          contentTextStyle: TextStyle(color: theme.isLight ? const Color(0xFF0D0D1E) : Colors.white),
           shape:
               RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
         ),
@@ -506,7 +543,7 @@ class _LoginScreenState extends State<LoginScreen>
                     margin: const EdgeInsets.symmetric(vertical: 32),
                     padding: const EdgeInsets.all(28),
                     decoration: BoxDecoration(
-                      color: Colors.white.withValues(alpha: 0.06),
+                      color: _g(0.06),
                       borderRadius: BorderRadius.circular(30),
                       border: Border.all(color: Colors.white12),
                     ),
@@ -524,7 +561,7 @@ class _LoginScreenState extends State<LoginScreen>
                       Text('Βρες τον κατάλληλο επαγγελματία',
                           style: TextStyle(
                               fontSize: 12,
-                              color: Colors.white.withValues(alpha: 0.4))),
+                              color: _g(0.4))),
                       const SizedBox(height: 20),
 
                       // Role toggle
@@ -532,7 +569,7 @@ class _LoginScreenState extends State<LoginScreen>
                         Container(
                           decoration: BoxDecoration(
                               borderRadius: BorderRadius.circular(14),
-                              color: Colors.white.withValues(alpha: 0.05)),
+                              color: _g(0.05)),
                           child: Row(children: [
                             Expanded(
                                 child: GestureDetector(
@@ -716,7 +753,7 @@ class _LoginScreenState extends State<LoginScreen>
                             _isLogin
                                 ? 'Δεν έχεις λογαριασμό; Sign up'
                                 : 'Έχεις λογαριασμό; Login',
-                            style: const TextStyle(color: Colors.white70)),
+                            style: TextStyle(color: _g(0.7))),
                       ),
                     ]),
                   ),
@@ -741,7 +778,7 @@ class _DropdownField extends StatelessWidget {
         padding:
             const EdgeInsets.symmetric(horizontal: 14, vertical: 15),
         decoration: BoxDecoration(
-          color: Colors.white.withValues(alpha: 0.05),
+          color: _g(0.05),
           borderRadius: BorderRadius.circular(12),
           border: Border.all(
               color: value != null
@@ -754,7 +791,7 @@ class _DropdownField extends StatelessWidget {
                   style: TextStyle(
                       color: value != null
                           ? Colors.white
-                          : Colors.white.withValues(alpha: 0.4),
+                          : _g(0.4),
                       fontSize: 14))),
           Icon(Icons.arrow_drop_down, color: kGold.withValues(alpha: 0.6)),
         ]),
@@ -916,6 +953,41 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
         ));
   }
 
+  void _openRequestWithProfession(String profession) {
+    Navigator.push(
+        context,
+        PageRouteBuilder(
+          transitionDuration: const Duration(milliseconds: 400),
+          pageBuilder: (_, __, ___) => RequestScreen(
+              userId: _userId ?? '',
+              userName: _userName ?? 'Χρήστης',
+              initialProfession: profession,
+              initialLocation: 'Κοντά μου'),
+          transitionsBuilder: (_, a, __, c) => SlideTransition(
+              position: Tween<Offset>(
+                      begin: const Offset(0, 1), end: Offset.zero)
+                  .animate(CurvedAnimation(
+                      parent: a, curve: Curves.easeOutCubic)),
+              child: c),
+        ));
+  }
+
+  void _openProjectRequest() {
+    Navigator.push(
+        context,
+        PageRouteBuilder(
+          transitionDuration: const Duration(milliseconds: 400),
+          pageBuilder: (_, __, ___) => ProjectRequestScreen(
+              userId: _userId ?? '', userName: _userName ?? 'Χρήστης'),
+          transitionsBuilder: (_, a, __, c) => SlideTransition(
+              position: Tween<Offset>(
+                      begin: const Offset(0, 1), end: Offset.zero)
+                  .animate(CurvedAnimation(
+                      parent: a, curve: Curves.easeOutCubic)),
+              child: c),
+        ));
+  }
+
   void _openMyOffers() {
     if (_activeRequests.isEmpty) {
       _openRequest();
@@ -937,7 +1009,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
         ),
         child: Column(mainAxisSize: MainAxisSize.min, children: [
           Container(width: 36, height: 4,
-              decoration: BoxDecoration(color: Colors.white.withValues(alpha: 0.2),
+              decoration: BoxDecoration(color: _g(0.2),
                   borderRadius: BorderRadius.circular(2))),
           const SizedBox(height: 16),
           const Text('Τα αιτήματά σου', style: TextStyle(
@@ -945,7 +1017,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
               fontWeight: FontWeight.w800, color: Colors.white)),
           const SizedBox(height: 4),
           Text('Επέλεξε ποιο θέλεις να δεις',
-              style: TextStyle(fontSize: 12, color: Colors.white.withValues(alpha: 0.4))),
+              style: TextStyle(fontSize: 12, color: _g(0.4))),
           const SizedBox(height: 16),
           ..._activeRequests.asMap().entries.map((e) {
             final req = e.value;
@@ -1002,7 +1074,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                     const SizedBox(height: 2),
                     Text(req['desc'] ?? '', maxLines: 1,
                         overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(color: Colors.white,
+                        style: TextStyle(color: _gw,
                             fontSize: 13, fontWeight: FontWeight.w600)),
                     if (timeLeft.isNotEmpty) ...[
                       const SizedBox(height: 3),
@@ -1012,7 +1084,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                     ],
                   ])),
                   Icon(Icons.arrow_forward_ios,
-                      color: Colors.white.withValues(alpha: 0.3), size: 14),
+                      color: _g(0.3), size: 14),
                 ]),
               ),
             );
@@ -1045,7 +1117,9 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
           criteria: req['criteria'] ?? 'cheap',
         ),
         transitionsBuilder: (_, a, __, c) => FadeTransition(opacity: a, child: c),
-      ));
+      )).then((_) {
+        if (mounted) setState(() => _activeRequests.removeWhere((r) => r['id'] == req['id'] && r['status'] == 'completed'));
+      });
     }
   }
 
@@ -1093,7 +1167,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                               style: TextStyle(
                                   fontSize: 10,
                                   color:
-                                      Colors.white.withValues(alpha: 0.3))),
+                                      _g(0.3))),
                         ]);
                       },
                     ),
@@ -1115,7 +1189,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
             hasActiveRequest: _activeRequests.isNotEmpty,
             activeRequestId: _activeRequests.isNotEmpty ? _activeRequests.first['id'] as String? : null,
             onHome: () => setState(() => _navIndex = 0),
-            onFab: _openMyOffers,
+            onFab: _activeRequests.isEmpty ? _openProjectRequest : _openMyOffers,
             onHistory: () {
               setState(() => _navIndex = 2);
               Navigator.push(
@@ -1149,6 +1223,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     return ListView(
       padding: const EdgeInsets.only(bottom: 24),
       children: [
+        const _MarqueeBanner(text: 'Η πρώτη εφαρμογή στην Ελλάδα με reverse auction   •   '),
         const SizedBox(height: 24),
 
         // Greeting
@@ -1177,7 +1252,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
             const SizedBox(height: 6),
             Text('Χρειάζεσαι κάποιον επαγγελματία;',
                 style: TextStyle(
-                    color: Colors.white.withValues(alpha: 0.45),
+                    color: _g(0.45),
                     fontSize: 14)),
           ]),
         ),
@@ -1202,7 +1277,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
           padding: const EdgeInsets.fromLTRB(20, 0, 20, 12),
           child: Text('Πώς λειτουργεί;',
               style: TextStyle(
-                  color: Colors.white.withValues(alpha: 0.8),
+                  color: _g(0.8),
                   fontSize: 16,
                   fontWeight: FontWeight.w700)),
         ),
@@ -1239,7 +1314,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
           padding: const EdgeInsets.fromLTRB(20, 0, 20, 12),
           child: Text('Δημοφιλείς υπηρεσίες',
               style: TextStyle(
-                  color: Colors.white.withValues(alpha: 0.8),
+                  color: _g(0.8),
                   fontSize: 16,
                   fontWeight: FontWeight.w700)),
         ),
@@ -1249,23 +1324,23 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
             scrollDirection: Axis.horizontal,
             padding: const EdgeInsets.symmetric(horizontal: 20),
             children: [
-              {'emoji': '⚡', 'label': 'Ηλεκτρολόγος'},
-              {'emoji': '🔧', 'label': 'Υδραυλικός'},
-              {'emoji': '❄️', 'label': 'Κλιματισμός'},
-              {'emoji': '🎨', 'label': 'Βαφές'},
-              {'emoji': '🌿', 'label': 'Κηπουρός'},
-              {'emoji': '🧹', 'label': 'Καθαρισμός'},
-              {'emoji': '🏗️', 'label': 'Ανακαίνιση'},
-              {'emoji': '🔒', 'label': 'Ασφάλεια'},
+              {'emoji': '⚡', 'label': 'Ηλεκτρολόγος', 'profession': 'Ηλεκτρολόγος'},
+              {'emoji': '🔧', 'label': 'Υδραυλικός', 'profession': 'Υδραυλικός'},
+              {'emoji': '❄️', 'label': 'Κλιματισμός', 'profession': 'Συντήρηση Κλιματιστικών'},
+              {'emoji': '🎨', 'label': 'Βαφές', 'profession': 'Ελαιοχρωματιστής'},
+              {'emoji': '🌿', 'label': 'Κηπουρός', 'profession': 'Κηπουρός'},
+              {'emoji': '🧹', 'label': 'Καθαρισμός', 'profession': 'Καθαρίστρια'},
+              {'emoji': '🏗️', 'label': 'Ανακαίνιση', 'profession': 'Συνεργείο Ανακαίνισης'},
+              {'emoji': '🔒', 'label': 'Ασφάλεια', 'profession': 'Τεχνικός Ασφαλείας'},
             ]
                 .map((c) => GestureDetector(
-                      onTap: _openRequest,
+                      onTap: () => _openRequestWithProfession(c['profession']!),
                       child: Container(
                         width: 80,
                         margin: const EdgeInsets.only(right: 10),
                         decoration: BoxDecoration(
                             borderRadius: BorderRadius.circular(16),
-                            color: Colors.white.withValues(alpha: 0.04)),
+                            color: _g(0.04)),
                         child: Column(
                             mainAxisAlignment: MainAxisAlignment.center,
                             children: [
@@ -1277,7 +1352,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                                   style: TextStyle(
                                       fontSize: 9,
                                       color:
-                                          Colors.white.withValues(alpha: 0.6),
+                                          _g(0.6),
                                       fontWeight: FontWeight.w500)),
                             ]),
                       ),
@@ -1297,7 +1372,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                 children: [
                   Text('Τα αιτήματά σου',
                       style: TextStyle(
-                          color: Colors.white.withValues(alpha: 0.8),
+                          color: _g(0.8),
                           fontSize: 16,
                           fontWeight: FontWeight.w700)),
                   GestureDetector(
@@ -1331,7 +1406,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
             const SizedBox(width: 8),
             Text('Live Activity',
                 style: TextStyle(
-                    color: Colors.white.withValues(alpha: 0.8),
+                    color: _g(0.8),
                     fontSize: 16, fontWeight: FontWeight.w700)),
           ]),
         ),
@@ -1405,22 +1480,22 @@ class _LiveActivityFeedState extends State<_LiveActivityFeed>
             borderRadius: BorderRadius.circular(14),
             color: idx == 0
                 ? kGold.withValues(alpha: 0.07)
-                : Colors.white.withValues(alpha: 0.03),
+                : _g(0.03),
             border: Border.all(
                 color: idx == 0
                     ? kGold.withValues(alpha: 0.2)
-                    : Colors.white.withValues(alpha: 0.05)),
+                    : _g(0.05)),
           ),
           child: Row(children: [
             Text(act['icon']!, style: const TextStyle(fontSize: 16)),
             const SizedBox(width: 10),
             Expanded(child: Text(act['text']!,
                 style: TextStyle(
-                    color: idx == 0 ? Colors.white : Colors.white.withValues(alpha: 0.5),
+                    color: idx == 0 ? Colors.white : _g(0.5),
                     fontSize: 12, height: 1.3))),
             Text(act['time']!,
                 style: TextStyle(
-                    color: Colors.white.withValues(alpha: 0.25), fontSize: 10)),
+                    color: _g(0.25), fontSize: 10)),
           ]),
         ),
       );
@@ -1469,7 +1544,7 @@ class _EmptyHeroCard extends StatelessWidget {
                 fontWeight: FontWeight.w800, color: Colors.white, height: 1.2)),
         const SizedBox(height: 8),
         Text('Στείλε αίτημα → το AI ειδοποιεί επαγγελματίες → παίρνεις τις 3 καλύτερες προσφορές σε 15 λεπτά.',
-            style: TextStyle(fontSize: 12, color: Colors.white.withValues(alpha: 0.5), height: 1.5)),
+            style: TextStyle(fontSize: 12, color: _g(0.5), height: 1.5)),
         const SizedBox(height: 20),
         Container(
           width: double.infinity, padding: const EdgeInsets.symmetric(vertical: 14),
@@ -1614,9 +1689,9 @@ class _ActiveRequestHeroCardState extends State<_ActiveRequestHeroCard> {
             if (widget.requests.length == 2)
               Container(padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                   decoration: BoxDecoration(borderRadius: BorderRadius.circular(8),
-                      color: Colors.white.withValues(alpha: 0.07)),
+                      color: _g(0.07)),
                   child: Text('+1 αίτημα', style: TextStyle(
-                      color: Colors.white.withValues(alpha: 0.5), fontSize: 9))),
+                      color: _g(0.5), fontSize: 9))),
           ]),
 
           const SizedBox(height: 14),
@@ -1624,7 +1699,7 @@ class _ActiveRequestHeroCardState extends State<_ActiveRequestHeroCard> {
           // Description
           Text('"${req['desc'] ?? ''}"',
               maxLines: 1, overflow: TextOverflow.ellipsis,
-              style: const TextStyle(color: Colors.white, fontSize: 13,
+              style: TextStyle(color: _gw, fontSize: 13,
                   fontStyle: FontStyle.italic, height: 1.4)),
 
           const SizedBox(height: 16),
@@ -1642,7 +1717,7 @@ class _ActiveRequestHeroCardState extends State<_ActiveRequestHeroCard> {
                         fontFamily: 'Raleway', fontSize: 14,
                         fontWeight: FontWeight.w800, color: kGold, letterSpacing: 1)),
                     Text('λεπτά', style: TextStyle(
-                        fontSize: 7, color: Colors.white.withValues(alpha: 0.4))),
+                        fontSize: 7, color: _g(0.4))),
                   ]),
                 ]),
               ),
@@ -1664,8 +1739,8 @@ class _ActiveRequestHeroCardState extends State<_ActiveRequestHeroCard> {
               const Text('🏆', style: TextStyle(fontSize: 36)),
               const SizedBox(width: 16),
               Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                const Text('Οι προσφορές σου είναι έτοιμες!',
-                    style: TextStyle(color: Colors.white, fontSize: 15,
+                Text('Οι προσφορές σου είναι έτοιμες!',
+                    style: TextStyle(color: _gw, fontSize: 15,
                         fontWeight: FontWeight.w700)),
                 const SizedBox(height: 4),
                 Text('$_offersCount προσφορές · Πάτα για να δεις τις 3 καλύτερες',
@@ -1693,7 +1768,7 @@ class _ActiveRequestHeroCardState extends State<_ActiveRequestHeroCard> {
               Text(isCompleted ? '🏆' : '⏱', style: const TextStyle(fontSize: 16)),
               const SizedBox(width: 8),
               Text(isCompleted ? 'Δες τις 3 καλύτερες προσφορές' : 'Παρακολούθησε ζωντανά',
-                  style: const TextStyle(color: Colors.white, fontSize: 13,
+                  style: TextStyle(color: _gw, fontSize: 13,
                       fontWeight: FontWeight.w800)),
             ]),
           ),
@@ -1703,7 +1778,7 @@ class _ActiveRequestHeroCardState extends State<_ActiveRequestHeroCard> {
             GestureDetector(
               onTap: widget.onNewRequest,
               child: Center(child: Text('+ Νέο αίτημα',
-                  style: TextStyle(color: Colors.white.withValues(alpha: 0.4),
+                  style: TextStyle(color: _g(0.4),
                       fontSize: 11, decoration: TextDecoration.underline))),
             ),
           ],
@@ -1723,7 +1798,7 @@ class _StatRow extends StatelessWidget {
     const SizedBox(width: 6),
     Text(label, style: TextStyle(
         fontSize: 12, height: 1.3,
-        color: highlight ? kGreen : Colors.white.withValues(alpha: 0.65),
+        color: highlight ? kGreen : _g(0.65),
         fontWeight: highlight ? FontWeight.w600 : FontWeight.w400)),
   ]);
 }
@@ -1745,7 +1820,7 @@ class _HowItWorksStep extends StatelessWidget {
           borderRadius: BorderRadius.circular(16),
           color: active
               ? kGold.withValues(alpha: 0.06)
-              : Colors.white.withValues(alpha: 0.03),
+              : _g(0.03),
         ),
         child: Row(children: [
           Container(
@@ -1755,7 +1830,7 @@ class _HowItWorksStep extends StatelessWidget {
               borderRadius: BorderRadius.circular(12),
               color: active
                   ? kGold.withValues(alpha: 0.15)
-                  : Colors.white.withValues(alpha: 0.05),
+                  : _g(0.05),
             ),
             child:
                 Center(child: Text(emoji, style: const TextStyle(fontSize: 22))),
@@ -1768,20 +1843,20 @@ class _HowItWorksStep extends StatelessWidget {
                 style: TextStyle(
                     color: active
                         ? Colors.white
-                        : Colors.white.withValues(alpha: 0.6),
+                        : _g(0.6),
                     fontSize: 13,
                     fontWeight: FontWeight.w600)),
             const SizedBox(height: 2),
             Text(subtitle,
                 style: TextStyle(
-                    color: Colors.white.withValues(alpha: 0.35), fontSize: 11)),
+                    color: _g(0.35), fontSize: 11)),
           ])),
           Container(
             width: 24,
             height: 24,
             decoration: BoxDecoration(
               shape: BoxShape.circle,
-              color: active ? kGold : Colors.white.withValues(alpha: 0.05),
+              color: active ? kGold : _g(0.05),
             ),
             child: Center(
                 child: Text(num,
@@ -1790,7 +1865,7 @@ class _HowItWorksStep extends StatelessWidget {
                         fontWeight: FontWeight.w800,
                         color: active
                             ? Colors.black
-                            : Colors.white.withValues(alpha: 0.3)))),
+                            : _g(0.3)))),
           ),
         ]),
       );
@@ -1817,13 +1892,13 @@ class _ActiveRequestsPreview extends StatelessWidget {
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
                   borderRadius: BorderRadius.circular(16),
-                  color: Colors.white.withValues(alpha: 0.03)),
+                  color: _g(0.03)),
               child: Row(children: [
                 const Text('📋', style: TextStyle(fontSize: 24)),
                 const SizedBox(width: 12),
                 Text('Δεν έχεις αιτήματα ακόμα',
                     style: TextStyle(
-                        color: Colors.white.withValues(alpha: 0.4),
+                        color: _g(0.4),
                         fontSize: 13)),
               ]),
             ),
@@ -1872,7 +1947,7 @@ class _ActiveRequestsPreview extends StatelessWidget {
                   padding: const EdgeInsets.all(14),
                   decoration: BoxDecoration(
                       borderRadius: BorderRadius.circular(16),
-                      color: Colors.white.withValues(alpha: 0.04)),
+                      color: _g(0.04)),
                   child: Row(children: [
                     Container(
                       width: 44,
@@ -1913,7 +1988,7 @@ class _ActiveRequestsPreview extends StatelessWidget {
                                   fontSize: 11)),
                         ])),
                     Icon(Icons.arrow_forward_ios,
-                        color: Colors.white.withValues(alpha: 0.2), size: 14),
+                        color: _g(0.2), size: 14),
                   ]),
                 ),
               ),
@@ -2012,8 +2087,8 @@ class _BottomNav extends StatelessWidget {
                           width: 18, height: 18,
                           decoration: const BoxDecoration(
                               color: Colors.red, shape: BoxShape.circle),
-                          child: const Center(child: Text('!',
-                              style: TextStyle(color: Colors.white,
+                          child: Center(child: Text('!',
+                              style: TextStyle(color: _gw,
                                   fontSize: 11, fontWeight: FontWeight.bold))),
                         ),
                       ),
@@ -2061,9 +2136,9 @@ class _ProStatChip extends StatelessWidget {
       borderRadius: BorderRadius.circular(12),
       color: highlight
           ? kGold.withValues(alpha: 0.12)
-          : Colors.white.withValues(alpha: 0.06),
+          : _g(0.06),
       border: Border.all(
-          color: highlight ? kGold.withValues(alpha: 0.4) : Colors.white.withValues(alpha: 0.08)),
+          color: highlight ? kGold.withValues(alpha: 0.4) : _g(0.08)),
     ),
     child: Row(mainAxisSize: MainAxisSize.min, children: [
       Text(icon, style: const TextStyle(fontSize: 14)),
@@ -2074,7 +2149,7 @@ class _ProStatChip extends StatelessWidget {
             fontSize: 14, fontWeight: FontWeight.w800,
             fontFamily: 'Raleway')),
         Text(sub, style: TextStyle(
-            color: Colors.white.withValues(alpha: 0.4), fontSize: 9)),
+            color: _g(0.4), fontSize: 9)),
       ]),
     ]),
   );
@@ -2094,6 +2169,7 @@ class _ProfessionalHomeScreenState extends State<ProfessionalHomeScreen> {
   String? _proName;
   String? _proId;
   String _activeTab = 'requests';
+  final Set<String> _submittedIds = {};
 
   @override
   void initState() {
@@ -2189,7 +2265,7 @@ class _ProfessionalHomeScreenState extends State<ProfessionalHomeScreen> {
             style: TextStyle(
                 fontSize: 11,
                 fontWeight: active ? FontWeight.w800 : FontWeight.w400,
-                color: active ? Colors.black : Colors.white.withValues(alpha: 0.4))),
+                color: active ? Colors.black : _g(0.4))),
       ),
     );
   }
@@ -2350,8 +2426,8 @@ class _ProfessionalHomeScreenState extends State<ProfessionalHomeScreen> {
               padding: const EdgeInsets.all(4),
               decoration: BoxDecoration(
                 borderRadius: BorderRadius.circular(16),
-                color: Colors.white.withValues(alpha: 0.04),
-                border: Border.all(color: Colors.white.withValues(alpha: 0.07)),
+                color: _g(0.04),
+                border: Border.all(color: _g(0.07)),
               ),
               child: SingleChildScrollView(
                 scrollDirection: Axis.horizontal,
@@ -2391,12 +2467,12 @@ class _ProfessionalHomeScreenState extends State<ProfessionalHomeScreen> {
                           mainAxisSize: MainAxisSize.min,
                           children: [
                         Icon(Icons.inbox_outlined,
-                            color: Colors.white.withValues(alpha: 0.15),
+                            color: _g(0.15),
                             size: 48),
                         const SizedBox(height: 12),
                         Text('Δεν υπάρχουν αιτήματα',
                             style: TextStyle(
-                                color: Colors.white.withValues(alpha: 0.3))),
+                                color: _g(0.3))),
                       ]));
                 }
                 return ListView.builder(
@@ -2412,7 +2488,7 @@ class _ProfessionalHomeScreenState extends State<ProfessionalHomeScreen> {
                       margin: const EdgeInsets.only(bottom: 12),
                       decoration: BoxDecoration(
                           borderRadius: BorderRadius.circular(18),
-                          color: Colors.white.withValues(alpha: 0.05)),
+                          color: _g(0.05)),
                       child: Column(children: [
                         Container(
                           height: 1,
@@ -2481,13 +2557,13 @@ class _ProfessionalHomeScreenState extends State<ProfessionalHomeScreen> {
                             const SizedBox(height: 5),
                             Row(children: [
                               Icon(Icons.access_time,
-                                  color: Colors.white.withValues(alpha: 0.38),
+                                  color: _g(0.38),
                                   size: 14),
                               const SizedBox(width: 6),
                               Text(d['scheduledTime'] ?? '',
                                   style: TextStyle(
                                       color:
-                                          Colors.white.withValues(alpha: 0.5),
+                                          _g(0.5),
                                       fontSize: 12)),
                             ]),
                             if (_activeTab == 'pending') ...[
@@ -2602,7 +2678,9 @@ class _ProfessionalHomeScreenState extends State<ProfessionalHomeScreen> {
         if (!snap.hasData) {
           return const Center(child: CircularProgressIndicator(color: kGold));
         }
-        final docs = snap.data!.docs;
+        final docs = snap.data!.docs
+            .where((d) => !_submittedIds.contains(d.id))
+            .toList();
         if (docs.isEmpty) {
           return Center(child: Column(mainAxisSize: MainAxisSize.min, children: [
             Container(
@@ -2614,13 +2692,13 @@ class _ProfessionalHomeScreenState extends State<ProfessionalHomeScreen> {
               child: const Center(child: Text('🔔', style: TextStyle(fontSize: 36))),
             ),
             const SizedBox(height: 16),
-            const Text('Κανένα ενεργό αίτημα',
-                style: TextStyle(color: Colors.white, fontSize: 16,
+            Text('Κανένα ενεργό αίτημα',
+                style: TextStyle(color: _gw, fontSize: 16,
                     fontWeight: FontWeight.w700, fontFamily: 'Raleway')),
             const SizedBox(height: 6),
             Text('Θα ειδοποιηθείς αμέσως όταν έρθει νέο αίτημα',
                 textAlign: TextAlign.center,
-                style: TextStyle(color: Colors.white.withValues(alpha: 0.35), fontSize: 12)),
+                style: TextStyle(color: _g(0.35), fontSize: 12)),
           ]));
         }
         return ListView.builder(
@@ -2634,6 +2712,17 @@ class _ProfessionalHomeScreenState extends State<ProfessionalHomeScreen> {
             final criteriaLabel = criteria == 'cheap' ? 'Φθηνότερο' : criteria == 'value' ? 'Value' : 'Άμεσα';
             final profession = d['profession'] as String? ?? '';
             final location = d['location'] as String? ?? '';
+            final expiresAt = d['expiresAt'] as Timestamp?;
+            final now = DateTime.now();
+            final remaining = expiresAt != null
+                ? expiresAt.toDate().difference(now)
+                : null;
+            final remainingStr = remaining != null && remaining.isNegative
+                ? 'Έληξε'
+                : remaining != null
+                    ? '${remaining.inMinutes}λ ${(remaining.inSeconds % 60).toString().padLeft(2, '0')}δ'
+                    : '';
+            final offersCountInCard = d['offersCount'] as int? ?? 0;
             return Container(
               margin: const EdgeInsets.only(bottom: 14),
               decoration: BoxDecoration(
@@ -2691,7 +2780,7 @@ class _ProfessionalHomeScreenState extends State<ProfessionalHomeScreen> {
                           ],
                           if (location.isNotEmpty)
                             Text('📍 $location', style: TextStyle(
-                                color: Colors.white.withValues(alpha: 0.4), fontSize: 10)),
+                                color: _g(0.4), fontSize: 10)),
                         ]),
                       ])),
                       // Criteria badge
@@ -2712,19 +2801,55 @@ class _ProfessionalHomeScreenState extends State<ProfessionalHomeScreen> {
                     const SizedBox(height: 12),
                     // Divider
                     Container(height: 1,
-                        color: Colors.white.withValues(alpha: 0.06)),
+                        color: _g(0.06)),
                     const SizedBox(height: 12),
 
                     // Description
                     Text(d['description'] ?? '',
                         style: TextStyle(fontSize: 13,
-                            color: Colors.white.withValues(alpha: 0.75), height: 1.5)),
+                            color: _g(0.75), height: 1.5)),
 
                     // Images
                     if ((d['hasImages'] == true || (d['imageCount'] ?? 0) > 0)) ...[
                       const SizedBox(height: 10),
-                      _RequestImageGallery(requestData: d),
+                      _RequestImageGallery(requestData: d, requestId: requestId),
                     ],
+
+                    const SizedBox(height: 10),
+                    Row(children: [
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(8),
+                          color: kGold.withValues(alpha: 0.08),
+                          border: Border.all(color: kGold.withValues(alpha: 0.2)),
+                        ),
+                        child: Row(mainAxisSize: MainAxisSize.min, children: [
+                          const Text('📨', style: TextStyle(fontSize: 10)),
+                          const SizedBox(width: 4),
+                          Text('$offersCountInCard προσφορές',
+                              style: const TextStyle(color: kGold, fontSize: 10, fontWeight: FontWeight.w600)),
+                        ]),
+                      ),
+                      if (remainingStr.isNotEmpty) ...[
+                        const SizedBox(width: 8),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                          decoration: BoxDecoration(
+                            borderRadius: BorderRadius.circular(8),
+                            color: _g(0.04),
+                            border: Border.all(color: _g(0.1)),
+                          ),
+                          child: Row(mainAxisSize: MainAxisSize.min, children: [
+                            const Text('⏱️', style: TextStyle(fontSize: 10)),
+                            const SizedBox(width: 4),
+                            Text(remainingStr,
+                                style: TextStyle(color: _g(0.6),
+                                    fontSize: 10, fontWeight: FontWeight.w500)),
+                          ]),
+                        ),
+                      ],
+                    ]),
 
                     const SizedBox(height: 14),
 
@@ -2769,21 +2894,21 @@ class _ProfessionalHomeScreenState extends State<ProfessionalHomeScreen> {
               Text(requestData['description'] ?? '',
                   maxLines: 2, overflow: TextOverflow.ellipsis,
                   textAlign: TextAlign.center,
-                  style: TextStyle(fontSize: 11, color: Colors.white.withValues(alpha: 0.4))),
+                  style: TextStyle(fontSize: 11, color: _g(0.4))),
               const SizedBox(height: 20),
               // Τιμή
               TextField(
                 controller: priceCtrl,
                 keyboardType: TextInputType.number,
-                style: const TextStyle(color: Colors.white, fontSize: 22,
+                style: TextStyle(color: _gw, fontSize: 22,
                     fontWeight: FontWeight.w800),
                 textAlign: TextAlign.center,
                 decoration: InputDecoration(
                   hintText: '0',
-                  hintStyle: TextStyle(color: Colors.white.withValues(alpha: 0.2), fontSize: 22),
+                  hintStyle: TextStyle(color: _g(0.2), fontSize: 22),
                   suffixText: '€',
                   suffixStyle: const TextStyle(color: kGold, fontSize: 18),
-                  filled: true, fillColor: Colors.white.withValues(alpha: 0.05),
+                  filled: true, fillColor: _g(0.05),
                   border: OutlineInputBorder(borderRadius: BorderRadius.circular(14),
                       borderSide: BorderSide(color: kGold.withValues(alpha: 0.3))),
                   enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(14),
@@ -2798,7 +2923,7 @@ class _ProfessionalHomeScreenState extends State<ProfessionalHomeScreen> {
               // Διαθεσιμότητα
               Row(children: [
                 Text('Διαθέσιμος: ', style: TextStyle(
-                    fontSize: 12, color: Colors.white.withValues(alpha: 0.5))),
+                    fontSize: 12, color: _g(0.5))),
                 const SizedBox(width: 8),
                 ...['Σήμερα', 'Αύριο', 'Μεθαύριο'].map((a) =>
                   GestureDetector(
@@ -2810,12 +2935,12 @@ class _ProfessionalHomeScreenState extends State<ProfessionalHomeScreen> {
                       decoration: BoxDecoration(
                           borderRadius: BorderRadius.circular(10),
                           color: available == a
-                              ? kGold.withValues(alpha: 0.2) : Colors.white.withValues(alpha: 0.05),
+                              ? kGold.withValues(alpha: 0.2) : _g(0.05),
                           border: Border.all(
                               color: available == a ? kGold : Colors.transparent)),
                       child: Text(a, style: TextStyle(
                           fontSize: 11,
-                          color: available == a ? kGold : Colors.white.withValues(alpha: 0.4))),
+                          color: available == a ? kGold : _g(0.4))),
                     ),
                   )
                 ),
@@ -2825,11 +2950,11 @@ class _ProfessionalHomeScreenState extends State<ProfessionalHomeScreen> {
               TextField(
                 controller: msgCtrl,
                 maxLines: 2,
-                style: const TextStyle(color: Colors.white, fontSize: 13),
+                style: TextStyle(color: _gw, fontSize: 13),
                 decoration: InputDecoration(
                   hintText: 'πχ. "Έχω εμπειρία σε βαφές εσωτερικών χώρων..."',
-                  hintStyle: TextStyle(color: Colors.white.withValues(alpha: 0.25), fontSize: 12),
-                  filled: true, fillColor: Colors.white.withValues(alpha: 0.05),
+                  hintStyle: TextStyle(color: _g(0.25), fontSize: 12),
+                  filled: true, fillColor: _g(0.05),
                   border: OutlineInputBorder(borderRadius: BorderRadius.circular(14),
                       borderSide: BorderSide(color: kGold.withValues(alpha: 0.3))),
                   enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(14),
@@ -2837,7 +2962,7 @@ class _ProfessionalHomeScreenState extends State<ProfessionalHomeScreen> {
                   focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(14),
                       borderSide: const BorderSide(color: kGold)),
                   labelText: 'Μήνυμα (προαιρετικό)',
-                  labelStyle: TextStyle(color: Colors.white.withValues(alpha: 0.4), fontSize: 12),
+                  labelStyle: TextStyle(color: _g(0.4), fontSize: 12),
                 ),
               ),
               const SizedBox(height: 20),
@@ -2847,7 +2972,7 @@ class _ProfessionalHomeScreenState extends State<ProfessionalHomeScreen> {
                   child: Container(
                     padding: const EdgeInsets.symmetric(vertical: 12),
                     decoration: BoxDecoration(borderRadius: BorderRadius.circular(14),
-                        color: Colors.white.withValues(alpha: 0.06)),
+                        color: _g(0.06)),
                     child: const Center(child: Text('Άκυρο',
                         style: TextStyle(color: Colors.white54, fontSize: 13))),
                   ),
@@ -2908,6 +3033,7 @@ Future<void> _submitOffer(String requestId, Map<String, dynamic> requestData,
 
     if (response.statusCode == 200) {
       if (mounted) {
+        setState(() => _submittedIds.add(requestId));
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: const Text('✅ Η προσφορά στάλθηκε!'),
@@ -2964,6 +3090,7 @@ Future<void> _submitOfferFallback(String requestId, double price,
         .update({'offersCount': FieldValue.increment(1)});
 
     if (mounted) {
+      setState(() => _submittedIds.add(requestId));
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: const Text('✅ Η προσφορά στάλθηκε!'),
@@ -2993,6 +3120,8 @@ class _RequestProfessionPicker extends StatefulWidget {
 class _RequestProfessionPickerState extends State<_RequestProfessionPicker> {
   // Fallback list — ίδιο με τη σελίδα admin
   static const _fallback = [
+    'Συνεργείο Ανακαίνισης', 'Συνεργείο Κατασκευών', 'Συνεργείο Βαφής & Διακόσμησης',
+    'Συνεργείο Ηλεκτρολόγων', 'Συνεργείο Υδραυλικών', 'Συνεργείο Κλιματισμού',
     'Ηλεκτρολόγος', 'Υδραυλικός', 'Ψυκτικός', 'Ελαιοχρωματιστής',
     'Μηχανικός', 'Κτίστης', 'Ξυλουργός', 'Υαλουργός',
     'Τεχνικός Ανελκυστήρων', 'Αποφράξεις', 'Αλουμινάς', 'Πλακάς',
@@ -3062,7 +3191,7 @@ class _RequestProfessionPickerState extends State<_RequestProfessionPicker> {
             style: TextStyle(
                 color: widget.value != null
                     ? Colors.white
-                    : Colors.white.withValues(alpha: 0.35),
+                    : _g(0.35),
                 fontSize: 14))),
         Icon(Icons.arrow_drop_down,
             color: kGold.withValues(alpha: 0.6)),
@@ -3132,7 +3261,7 @@ class _RequestLocationPickerState extends State<_RequestLocationPicker> {
             style: TextStyle(
                 color: widget.value != null
                     ? Colors.white
-                    : Colors.white.withValues(alpha: 0.35),
+                    : _g(0.35),
                 fontSize: 14))),
         Icon(Icons.arrow_drop_down,
             color: kGold.withValues(alpha: 0.6)),
@@ -3169,7 +3298,7 @@ class _SimpleListPickerState extends State<_SimpleListPicker> {
       Container(width: 36, height: 4,
           margin: const EdgeInsets.only(top: 12, bottom: 14),
           decoration: BoxDecoration(
-              color: Colors.white.withValues(alpha: 0.15),
+              color: _g(0.15),
               borderRadius: BorderRadius.circular(2))),
       Text(widget.title, style: const TextStyle(
           color: Colors.white, fontSize: 16,
@@ -3200,11 +3329,11 @@ class _SimpleListPickerState extends State<_SimpleListPicker> {
                 borderRadius: BorderRadius.circular(12),
                 color: isSel
                     ? kGold.withValues(alpha: 0.12)
-                    : Colors.white.withValues(alpha: 0.04),
+                    : _g(0.04),
                 border: Border.all(
                     color: isSel
                         ? kGold.withValues(alpha: 0.5)
-                        : Colors.white.withValues(alpha: 0.06)),
+                        : _g(0.06)),
               ),
               child: Row(children: [
                 AnimatedContainer(
@@ -3213,7 +3342,7 @@ class _SimpleListPickerState extends State<_SimpleListPicker> {
                   decoration: BoxDecoration(
                       shape: BoxShape.circle,
                       border: Border.all(
-                          color: isSel ? kGold : Colors.white.withValues(alpha: 0.25),
+                          color: isSel ? kGold : _g(0.25),
                           width: isSel ? 6 : 1.5))),
                 const SizedBox(width: 12),
                 Expanded(child: Text(item, style: TextStyle(
@@ -3234,7 +3363,8 @@ class _SimpleListPickerState extends State<_SimpleListPicker> {
 
 class _RequestImageGallery extends StatelessWidget {
   final Map<String, dynamic> requestData;
-  const _RequestImageGallery({required this.requestData});
+  final String? requestId;
+  const _RequestImageGallery({required this.requestData, this.requestId});
 
   // Καθαρίζει data URI prefix και επιστρέφει καθαρό base64
   static Uint8List? _decodeImage(String imgData) {
@@ -3258,20 +3388,50 @@ class _RequestImageGallery extends StatelessWidget {
   Widget build(BuildContext context) {
     final images = requestData['images'] as List?;
     if (images == null || images.isEmpty) {
-      return Container(
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-        decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(10),
-            color: kGold.withValues(alpha: 0.1)),
-        child: Row(mainAxisSize: MainAxisSize.min, children: [
-          const Text('📷', style: TextStyle(fontSize: 12)),
-          const SizedBox(width: 6),
-          Text(
-            '${requestData['imageCount'] ?? 1} φωτογραφί${((requestData['imageCount'] ?? 1) as int) == 1 ? 'α' : 'ες'} επισυνάπτονται',
-            style: const TextStyle(
-                color: kGold, fontSize: 11, fontWeight: FontWeight.w600),
-          ),
-        ]),
+      return GestureDetector(
+        onTap: () async {
+          if (requestId == null) return;
+          try {
+            final doc = await FirebaseFirestore.instance
+                .collection('requests')
+                .doc(requestId)
+                .get();
+            if (!context.mounted) return;
+            final data = doc.data();
+            final imgs = data?['images'] as List?;
+            if (imgs == null || imgs.isEmpty) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text('Ο χρήστης δεν έχει προσθέσει φωτογραφίες')),
+              );
+              return;
+            }
+            final all = imgs.map((e) => e.toString()).toList();
+            _showFullImage(context, all[0], 0, all);
+          } catch (e) {
+            if (context.mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(content: Text('Σφάλμα φόρτωσης: $e')),
+              );
+            }
+          }
+        },
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+          decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(10),
+              color: kGold.withValues(alpha: 0.1)),
+          child: Row(mainAxisSize: MainAxisSize.min, children: [
+            const Text('📷', style: TextStyle(fontSize: 12)),
+            const SizedBox(width: 6),
+            Text(
+              '${requestData['imageCount'] ?? 1} φωτογραφί${((requestData['imageCount'] ?? 1) as int) == 1 ? 'α' : 'ες'} — πάτα για προβολή',
+              style: const TextStyle(
+                  color: kGold, fontSize: 11, fontWeight: FontWeight.w600),
+            ),
+            const SizedBox(width: 4),
+            const Icon(Icons.open_in_new, color: kGold, size: 11),
+          ]),
+        ),
       );
     }
 
@@ -3332,7 +3492,7 @@ class _RequestImageGallery extends StatelessWidget {
           Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
             Text('${idx + 1}/${all.length}',
                 style: TextStyle(
-                    color: Colors.white.withValues(alpha: 0.5),
+                    color: _g(0.5),
                     fontSize: 12)),
             GestureDetector(
               onTap: () => Navigator.pop(ctx),
@@ -3341,7 +3501,7 @@ class _RequestImageGallery extends StatelessWidget {
                   height: 32,
                   decoration: BoxDecoration(
                       shape: BoxShape.circle,
-                      color: Colors.white.withValues(alpha: 0.1)),
+                      color: _g(0.1)),
                   child: const Icon(Icons.close,
                       color: Colors.white, size: 18)),
             ),
@@ -3448,7 +3608,7 @@ class _InsightRow extends StatelessWidget {
       Text(icon, style: const TextStyle(fontSize: 12)),
       const SizedBox(width: 6),
       Text('$label: ', style: TextStyle(
-          fontSize: 11, color: Colors.white.withValues(alpha: 0.45))),
+          fontSize: 11, color: _g(0.45))),
       Expanded(child: Text(value, style: const TextStyle(
           fontSize: 11, color: Colors.white, fontWeight: FontWeight.w600),
           overflow: TextOverflow.ellipsis)),
@@ -3461,8 +3621,11 @@ class _InsightRow extends StatelessWidget {
 // ═══════════════════════════════════════
 class RequestScreen extends StatefulWidget {
   final String userId, userName;
+  final String? initialProfession, initialLocation;
   const RequestScreen(
-      {required this.userId, required this.userName, super.key});
+      {required this.userId, required this.userName,
+      this.initialProfession, this.initialLocation,
+      super.key});
   @override
   State<RequestScreen> createState() => _RequestScreenState();
 }
@@ -3488,6 +3651,12 @@ class _RequestScreenState extends State<RequestScreen>
         vsync: this, duration: const Duration(milliseconds: 1000))
       ..repeat(reverse: true);
     _textCtrl.addListener(() => setState(() {}));
+    if (widget.initialProfession != null) {
+      _selectedProfession = widget.initialProfession;
+    }
+    if (widget.initialLocation != null) {
+      _selectedLocation = widget.initialLocation;
+    }
   }
 
   @override
@@ -3515,9 +3684,31 @@ class _RequestScreenState extends State<RequestScreen>
     setState(() => _listening = false);
   }
 
+  // Resize to max 500px to keep Firestore document under 1MB (base64 limit ~750KB for 3 images)
+  static Future<Uint8List?> _compressImage(Uint8List bytes) async {
+    try {
+      final codec = await instantiateImageCodec(bytes, targetWidth: 500, targetHeight: 500, allowUpscaling: false);
+      final frame = await codec.getNextFrame();
+      final byteData = await frame.image.toByteData(format: ImageByteFormat.png);
+      frame.image.dispose();
+      return byteData?.buffer.asUint8List();
+    } catch (_) { return null; }
+  }
+
   Future<void> _pickImage() async {
     final picked = await _picker.pickMultiImage();
-    if (picked.isNotEmpty) setState(() => _images.addAll(picked));
+    if (picked.isEmpty) return;
+    final compressed = <XFile>[];
+    for (final f in picked.take(3)) {
+      try {
+        final bytes = await f.readAsBytes();
+        final small = await _compressImage(bytes);
+        compressed.add(small != null
+            ? XFile.fromData(small, name: f.name, mimeType: 'image/png')
+            : f);
+      } catch (_) { compressed.add(f); }
+    }
+    setState(() => _images.addAll(compressed));
   }
 
   bool _submitLock = false;  // Guard κατά double submit
@@ -3614,6 +3805,7 @@ class _RequestScreenState extends State<RequestScreen>
               userId: widget.userId,
               description: _textCtrl.text.trim(),
               criteria: _selectedCriteria,
+              profession: _selectedProfession ?? '',
             ),
             transitionsBuilder: (_, a, __, c) =>
                 FadeTransition(opacity: a, child: c),
@@ -3696,8 +3888,119 @@ Future<void> _notifyProsDirectly(
                   const SizedBox(height: 4),
                   Text('Οι επαγγελματίες ανταγωνίζονται — το AI επιλέγει τους 3 καλύτερους.',
                       style: TextStyle(fontSize: 12,
-                          color: Colors.white.withValues(alpha: 0.4))),
-                  const SizedBox(height: 18),
+                          color: _g(0.4))),
+                  const SizedBox(height: 12),
+
+                  // ══ PILL PICKERS: Profession + Location ══
+                  Row(children: [
+                    Expanded(child: GestureDetector(
+                      onTap: () async {
+                        final v = await showModalBottomSheet<String>(
+                          context: context,
+                          backgroundColor: Colors.transparent,
+                          isScrollControlled: true,
+                          builder: (_) => _SimpleListPicker(
+                            title: '🔨 Είδος επαγγελματία',
+                            items: const [
+                              'Συνεργείο Ανακαίνισης', 'Συνεργείο Κατασκευών', 'Συνεργείο Βαφής & Διακόσμησης',
+                              'Συνεργείο Ηλεκτρολόγων', 'Συνεργείο Υδραυλικών', 'Συνεργείο Κλιματισμού',
+                              'Ηλεκτρολόγος', 'Υδραυλικός', 'Ψυκτικός', 'Ελαιοχρωματιστής',
+                              'Μηχανικός', 'Κτίστης', 'Ξυλουργός', 'Υαλουργός',
+                              'Τεχνικός Ανελκυστήρων', 'Αποφράξεις', 'Αλουμινάς', 'Πλακάς',
+                              'Συντήρηση Κλιματιστικών', 'Εγκατάσταση Ηλιακών',
+                              'Παθολόγος', 'Παιδίατρος', 'Οδοντίατρος', 'Φυσιοθεραπευτής',
+                              'Ψυχολόγος', 'Διατροφολόγος', 'Καθαρίστρια', 'Κηπουρός',
+                              'Baby Sitter', 'Μετακομίσεις', 'Καθηγητής Μαθηματικών',
+                              'Καθηγητής Αγγλικών', 'Personal Trainer', 'Web Developer',
+                              'Γραφίστας', 'Φωτογράφος', 'Τεχνικός Υπολογιστών',
+                              'Μηχανικός Αυτοκινήτων', 'Λογιστής', 'Δικηγόρος', 'Αρχιτέκτονας',
+                            ],
+                            selected: _selectedProfession,
+                          ),
+                        );
+                        if (v != null && mounted) setState(() => _selectedProfession = v);
+                      },
+                      child: Container(
+                        height: 44,
+                        padding: const EdgeInsets.symmetric(horizontal: 12),
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(14),
+                          color: _g(0.05),
+                          border: Border.all(color: _selectedProfession != null
+                              ? kGold.withValues(alpha: 0.6)
+                              : kGold.withValues(alpha: 0.2)),
+                        ),
+                        child: Row(children: [
+                          const Text('🔨', style: TextStyle(fontSize: 14)),
+                          const SizedBox(width: 6),
+                          Expanded(child: Text(
+                            _selectedProfession ?? 'Επάγγελμα',
+                            style: TextStyle(
+                              fontSize: 12, fontWeight: FontWeight.w600,
+                              color: _selectedProfession != null
+                                  ? Colors.white
+                                  : _g(0.4),
+                            ),
+                            overflow: TextOverflow.ellipsis,
+                          )),
+                          Icon(Icons.expand_more, color: kGold.withValues(alpha: 0.6), size: 16),
+                        ]),
+                      ),
+                    )),
+                    const SizedBox(width: 8),
+                    Expanded(child: GestureDetector(
+                      onTap: () async {
+                        final v = await showModalBottomSheet<String>(
+                          context: context,
+                          backgroundColor: Colors.transparent,
+                          isScrollControlled: true,
+                          builder: (_) => _SimpleListPicker(
+                            title: '📍 Περιοχή εργασίας',
+                            items: const [
+                              '📍 Κοντά μου (GPS)',
+                              'Αθήνα Κέντρο', 'Κολωνάκι', 'Γλυφάδα', 'Βούλα', 'Βουλιαγμένη',
+                              'Καλλιθέα', 'Νέα Σμύρνη', 'Παλαιό Φάληρο', 'Άλιμος', 'Χαλάνδρι',
+                              'Μαρούσι', 'Κηφισιά', 'Νέα Ιωνία', 'Αγία Παρασκευή', 'Ζωγράφου',
+                              'Βύρωνας', 'Ηλιούπολη', 'Περιστέρι', 'Αιγάλεω', 'Πειραιάς',
+                              'Θεσσαλονίκη Κέντρο', 'Καλαμαριά', 'Πυλαία', 'Θέρμη',
+                              'Πάτρα', 'Ηράκλειο Κρήτης', 'Χανιά', 'Ρέθυμνο', 'Λάρισα', 'Βόλος',
+                              'Ιωάννινα', 'Κέρκυρα', 'Ρόδος', 'Μυτιλήνη',
+                            ],
+                            selected: _selectedLocation,
+                          ),
+                        );
+                        if (v == null) return;
+                        if (mounted) setState(() => _selectedLocation = v == '📍 Κοντά μου (GPS)' ? 'Κοντά μου' : v);
+                      },
+                      child: Container(
+                        height: 44,
+                        padding: const EdgeInsets.symmetric(horizontal: 12),
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(14),
+                          color: _g(0.05),
+                          border: Border.all(color: _selectedLocation != null
+                              ? kGreen.withValues(alpha: 0.6)
+                              : kGold.withValues(alpha: 0.2)),
+                        ),
+                        child: Row(children: [
+                          const Text('📍', style: TextStyle(fontSize: 14)),
+                          const SizedBox(width: 6),
+                          Expanded(child: Text(
+                            _selectedLocation ?? 'Περιοχή',
+                            style: TextStyle(
+                              fontSize: 12, fontWeight: FontWeight.w600,
+                              color: _selectedLocation != null
+                                  ? Colors.white
+                                  : _g(0.4),
+                            ),
+                            overflow: TextOverflow.ellipsis,
+                          )),
+                          Icon(Icons.expand_more, color: kGold.withValues(alpha: 0.6), size: 16),
+                        ]),
+                      ),
+                    )),
+                  ]),
+                  const SizedBox(height: 12),
 
                   // ══ SEARCH BAR + MIC + SEND — ΕΝΑ ΠΛΑΙΣΙΟ ══
                   AnimatedContainer(
@@ -3747,12 +4050,12 @@ Future<void> _notifyProsDirectly(
                           controller: _textCtrl,
                           maxLines: 5,
                           minLines: 3,
-                          style: const TextStyle(color: Colors.white,
+                          style: TextStyle(color: _gw,
                               fontSize: 15, height: 1.6),
                           decoration: InputDecoration(
                             hintText: 'πχ. "Θέλω να βάψω το σαλόνι μου ~30τμ..."',
                             hintStyle: TextStyle(
-                                color: Colors.white.withValues(alpha: 0.25),
+                                color: _g(0.25),
                                 fontSize: 13, height: 1.5),
                             border: InputBorder.none,
                             contentPadding: const EdgeInsets.fromLTRB(16, 14, 16, 4),
@@ -3776,7 +4079,7 @@ Future<void> _notifyProsDirectly(
                             const SizedBox(width: 8),
                             Expanded(child: Text(
                               'Όσο πιο αναλυτικός είσαι, τόσο πιο στοχευμένες προσφορές θα λάβεις! πχ. μέγεθος χώρου, υλικά, χρόνος.',
-                              style: TextStyle(fontSize: 11, color: Colors.white.withValues(alpha: 0.75), height: 1.4),
+                              style: TextStyle(fontSize: 11, color: _g(0.75), height: 1.4),
                             )),
                           ]),
                         ),
@@ -3802,7 +4105,7 @@ Future<void> _notifyProsDirectly(
                                 borderRadius: BorderRadius.circular(14),
                                 color: _listening
                                     ? Colors.red
-                                    : Colors.white.withValues(alpha: 0.08),
+                                    : _g(0.08),
                                 border: Border.all(
                                     color: _listening
                                         ? Colors.red
@@ -3814,6 +4117,35 @@ Future<void> _notifyProsDirectly(
                                 size: 22,
                               )),
                             ),
+                          ),
+                          const SizedBox(width: 6),
+                          // PHOTO BUTTON
+                          GestureDetector(
+                            onTap: _pickImage,
+                            child: Stack(children: [
+                              Container(
+                                width: 46, height: 46,
+                                decoration: BoxDecoration(
+                                  borderRadius: BorderRadius.circular(14),
+                                  color: _g(0.08),
+                                  border: Border.all(color: kGold.withValues(alpha: 0.3)),
+                                ),
+                                child: Center(child: Icon(
+                                  Icons.add_photo_alternate_outlined,
+                                  color: _images.isEmpty ? kGold : kGreen,
+                                  size: 22,
+                                )),
+                              ),
+                              if (_images.isNotEmpty) Positioned(
+                                top: 2, right: 2,
+                                child: Container(
+                                  width: 16, height: 16,
+                                  decoration: const BoxDecoration(color: kGreen, shape: BoxShape.circle),
+                                  child: Center(child: Text('${_images.length}',
+                                      style: TextStyle(color: _gw, fontSize: 9, fontWeight: FontWeight.w700))),
+                                ),
+                              ),
+                            ]),
                           ),
                           const SizedBox(width: 8),
                           // SEND BUTTON
@@ -3836,114 +4168,69 @@ Future<void> _notifyProsDirectly(
                     ]),
                   ),
 
-                  const SizedBox(height: 18),
+                  const SizedBox(height: 14),
 
-                  // Φωτογραφίες
-                  _SectionLabel(icon: '📎', label: 'Φωτογραφίες'),
-                  const SizedBox(height: 10),
-                  SizedBox(
-                    height: 80,
-                    child: ListView(
-                      scrollDirection: Axis.horizontal,
-                      children: [
-                        ..._images.asMap().entries.map((entry) {
+                  // AI Insights (conditional, outside card)
+                  if (_textCtrl.text.length > 10) ...[
+                    _AIInsightsWidget(text: _textCtrl.text),
+                    const SizedBox(height: 12),
+                  ],
+
+                  // ══ PHOTOS THUMBNAIL ROW (shows selected images) ══
+                  if (_images.isNotEmpty) ...[
+                    const SizedBox(height: 10),
+                    SizedBox(
+                      height: 64,
+                      child: ListView(
+                        scrollDirection: Axis.horizontal,
+                        children: _images.asMap().entries.map((entry) {
                           final idx = entry.key;
                           final img = entry.value;
-                          return Stack(
-                            children: [
-                              Container(
-                                width: 72, height: 72,
-                                margin: const EdgeInsets.only(right: 8),
-                                decoration: BoxDecoration(
-                                    borderRadius: BorderRadius.circular(14),
-                                    color: Colors.black),
-                                clipBehavior: Clip.antiAlias,
-                                child: FutureBuilder<Uint8List?>(
-                                  future: img.readAsBytes(),
-                                  builder: (_, snap) {
-                                    if (snap.hasData && snap.data != null) {
-                                      return Image.memory(snap.data!,
-                                          fit: BoxFit.cover);
-                                    }
-                                    return const Center(child: Icon(
-                                        Icons.image, color: Colors.white24));
-                                  },
-                                ),
+                          return Stack(children: [
+                            Container(
+                              width: 60, height: 60,
+                              margin: const EdgeInsets.only(right: 8),
+                              decoration: BoxDecoration(
+                                  borderRadius: BorderRadius.circular(10),
+                                  color: Colors.black),
+                              clipBehavior: Clip.antiAlias,
+                              child: FutureBuilder<Uint8List?>(
+                                future: img.readAsBytes(),
+                                builder: (_, snap) {
+                                  if (snap.hasData && snap.data != null)
+                                    return Image.memory(snap.data!, fit: BoxFit.cover);
+                                  return const Center(child: Icon(Icons.image, color: Colors.white24));
+                                },
                               ),
-                              // Κουμπί διαγραφής
-                              Positioned(
-                                top: 0, right: 4,
-                                child: GestureDetector(
-                                  onTap: () => setState(() => _images.removeAt(idx)),
-                                  child: Container(
-                                    width: 20, height: 20,
-                                    decoration: const BoxDecoration(
-                                        color: Colors.red,
-                                        shape: BoxShape.circle),
-                                    child: const Icon(Icons.close,
-                                        color: Colors.white, size: 13),
-                                  ),
-                                ),
-                              ),
-                            ],
-                          );
-                        }),
-                        GestureDetector(
-                          onTap: _pickImage,
-                          child: Container(
-                            width: 72, height: 72,
-                            margin: const EdgeInsets.only(right: 8),
-                            decoration: BoxDecoration(
-                              borderRadius: BorderRadius.circular(14),
-                              border: Border.all(
-                                  color: kGold.withValues(alpha: 0.3), width: 1.5),
-                              color: kGold.withValues(alpha: 0.04),
                             ),
-                            child: Column(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                children: [
-                              const Icon(Icons.add_photo_alternate_outlined,
-                                  color: kGold, size: 24),
-                              const SizedBox(height: 4),
-                              Text('Φωτογραφία', style: TextStyle(
-                                  color: kGold.withValues(alpha: 0.7),
-                                  fontSize: 8, fontWeight: FontWeight.w600)),
-                            ]),
-                          ),
-                        ),
-                      ],
+                            Positioned(
+                              top: 0, right: 4,
+                              child: GestureDetector(
+                                onTap: () => setState(() => _images.removeAt(idx)),
+                                child: Container(
+                                  width: 16, height: 16,
+                                  decoration: const BoxDecoration(color: Colors.red, shape: BoxShape.circle),
+                                  child: const Icon(Icons.close, color: Colors.white, size: 10),
+                                ),
+                              ),
+                            ),
+                          ]);
+                        }).toList(),
+                      ),
                     ),
-                  ),
+                  ],
 
-                  const SizedBox(height: 20),
-
-                  // AI Insights (εμφανίζεται μόνο αν υπάρχει κείμενο)
-                  if (_textCtrl.text.length > 10)
-                    _AIInsightsWidget(text: _textCtrl.text),
-                  if (_textCtrl.text.length > 10)
-                    const SizedBox(height: 16),
-
-                  // Επάγγελμα picker
-                  _SectionLabel(icon: '🔨', label: 'Είδος επαγγελματία;'),
+                  // ══ CRITERIA ══
+                  const SizedBox(height: 14),
+                  Row(children: [
+                    const Text('🎯', style: TextStyle(fontSize: 12)),
+                    const SizedBox(width: 6),
+                    Text('Τι σε ενδιαφέρει;',
+                        style: TextStyle(fontSize: 11,
+                            color: _g(0.5),
+                            fontWeight: FontWeight.w600)),
+                  ]),
                   const SizedBox(height: 10),
-                  _RequestProfessionPicker(
-                    value: _selectedProfession,
-                    onChanged: (v) => setState(() => _selectedProfession = v),
-                  ),
-                  const SizedBox(height: 16),
-
-                  // Περιοχή picker
-                  _SectionLabel(icon: '📍', label: 'Περιοχή εργασίας;'),
-                  const SizedBox(height: 10),
-                  _RequestLocationPicker(
-                    value: _selectedLocation,
-                    onChanged: (v) => setState(() => _selectedLocation = v),
-                  ),
-                  const SizedBox(height: 16),
-
-                  // Κριτήρια
-                  _SectionLabel(icon: '🎯', label: 'Τι σε ενδιαφέρει;'),
-                  const SizedBox(height: 12),
                   Row(children: [
                     _CriteriaChip(emoji: '💰', label: 'Φθηνότερο',
                         selected: _selectedCriteria == 'cheap',
@@ -3957,14 +4244,14 @@ Future<void> _notifyProsDirectly(
                         selected: _selectedCriteria == 'fast',
                         onTap: () => setState(() => _selectedCriteria = 'fast')),
                   ]),
-                  const SizedBox(height: 12),
-                  Center(child: Row(mainAxisSize: MainAxisSize.min, children: [
-                    const Text('🔔', style: TextStyle(fontSize: 11)),
+                  const SizedBox(height: 10),
+                  Row(mainAxisAlignment: MainAxisAlignment.center, children: [
+                    const Text('🔔', style: TextStyle(fontSize: 10)),
                     const SizedBox(width: 4),
                     Text('Push notification όταν έρθουν προσφορές',
                         style: TextStyle(fontSize: 10,
-                            color: Colors.white.withValues(alpha: 0.3))),
-                  ])),
+                            color: _g(0.3))),
+                  ]),
                 ],
               ),
             ),
@@ -3980,11 +4267,13 @@ Future<void> _notifyProsDirectly(
 // ═══════════════════════════════════════
 class WaitingScreen extends StatefulWidget {
   final String requestId, userId, description, criteria;
+  final String profession;
   const WaitingScreen(
       {required this.requestId,
       required this.userId,
       required this.description,
       required this.criteria,
+      this.profession = '',
       super.key});
   @override
   State<WaitingScreen> createState() => _WaitingScreenState();
@@ -4071,12 +4360,12 @@ class _WaitingScreenState extends State<WaitingScreen>
             const SizedBox(height: 8),
             Text('Το αίτημα θα διαγραφεί και οι επαγγελματίες δεν θα μπορούν να στείλουν προσφορά.',
                 textAlign: TextAlign.center,
-                style: TextStyle(fontSize: 12, color: Colors.white.withValues(alpha: 0.5), height: 1.5)),
+                style: TextStyle(fontSize: 12, color: _g(0.5), height: 1.5)),
             const SizedBox(height: 20),
             Row(children: [
               Expanded(child: _PremiumButton(
                 label: 'Όχι',
-                bgColor: Colors.white.withValues(alpha: 0.06),
+                bgColor: _g(0.06),
                 textColor: Colors.white70,
                 onTap: () => Navigator.pop(ctx, false),
               )),
@@ -4183,7 +4472,7 @@ class _WaitingScreenState extends State<WaitingScreen>
                     height: 38,
                     decoration: BoxDecoration(
                         shape: BoxShape.circle,
-                        color: Colors.white.withValues(alpha: 0.05)),
+                        color: _g(0.05)),
                     child: const Icon(Icons.arrow_back_ios_new,
                         color: Colors.white, size: 16)),
               ),
@@ -4270,7 +4559,7 @@ class _WaitingScreenState extends State<WaitingScreen>
                       Text('απομένουν',
                           style: TextStyle(
                               fontSize: 10,
-                              color: Colors.white.withValues(alpha: 0.35))),
+                              color: _g(0.35))),
                     ]),
                   ]),
                 ),
@@ -4286,7 +4575,7 @@ class _WaitingScreenState extends State<WaitingScreen>
                 Text('Οι επαγγελματίες ετοιμάζουν προσφορά...',
                     style: TextStyle(
                         fontSize: 12,
-                        color: Colors.white.withValues(alpha: 0.4))),
+                        color: _g(0.4))),
 
                 const SizedBox(height: 16),
                 Container(
@@ -4324,7 +4613,7 @@ class _WaitingScreenState extends State<WaitingScreen>
                     Text('Το αίτημά σου',
                         style: TextStyle(
                             fontSize: 10,
-                            color: Colors.white.withValues(alpha: 0.35),
+                            color: _g(0.35),
                             fontWeight: FontWeight.w600)),
                     const SizedBox(height: 6),
                     Text('"${widget.description}"',
@@ -4355,16 +4644,16 @@ class _WaitingScreenState extends State<WaitingScreen>
                 ]),
                 const SizedBox(height: 10),
                 _ProWaitingCard(
-                    emoji: '🎨',
-                    name: 'Νίκος Χρωματιστής',
+                    emoji: '🔍',
+                    name: widget.profession.isNotEmpty ? widget.profession : 'Επαγγελματίας',
                     typing: true),
                 _ProWaitingCard(
-                    emoji: '🖌️',
-                    name: 'Σταύρος Βαφέας',
+                    emoji: '🔍',
+                    name: widget.profession.isNotEmpty ? widget.profession : 'Επαγγελματίας',
                     typing: true),
                 _ProWaitingCard(
-                    emoji: '👷',
-                    name: 'Αντώνης Μαλαματής',
+                    emoji: '🔍',
+                    name: widget.profession.isNotEmpty ? widget.profession : 'Επαγγελματίας',
                     typing: false),
 
                 const SizedBox(height: 20),
@@ -4372,7 +4661,7 @@ class _WaitingScreenState extends State<WaitingScreen>
                   padding: const EdgeInsets.all(14),
                   decoration: BoxDecoration(
                       borderRadius: BorderRadius.circular(16),
-                      color: Colors.white.withValues(alpha: 0.03)),
+                      color: _g(0.03)),
                   child: Row(children: [
                     const Text('🔔', style: TextStyle(fontSize: 22)),
                     const SizedBox(width: 12),
@@ -4381,7 +4670,7 @@ class _WaitingScreenState extends State<WaitingScreen>
                             text: TextSpan(
                       style: TextStyle(
                           fontSize: 12,
-                          color: Colors.white.withValues(alpha: 0.45),
+                          color: _g(0.45),
                           height: 1.5),
                       children: const [
                         TextSpan(text: 'Θα λάβεις '),
@@ -4396,34 +4685,7 @@ class _WaitingScreenState extends State<WaitingScreen>
                   ]),
                 ),
 
-                const SizedBox(height: 16),
-
-                if (_offersCount > 0)
-                  GestureDetector(
-                    onTap: _goToOffers,
-                    child: Container(
-                      width: double.infinity,
-                      padding:
-                          const EdgeInsets.symmetric(vertical: 14),
-                      decoration: BoxDecoration(
-                        borderRadius: BorderRadius.circular(18),
-                        gradient: const LinearGradient(
-                            colors: [kGoldLight, kGold]),
-                        boxShadow: [
-                          BoxShadow(
-                              color: kGold.withValues(alpha: 0.3),
-                              blurRadius: 20)
-                        ],
-                      ),
-                      child: Center(
-                          child: Text(
-                              'Δες $_offersCount προσφορές τώρα →',
-                              style: const TextStyle(
-                                  color: Colors.black,
-                                  fontSize: 14,
-                                  fontWeight: FontWeight.w800))),
-                    ),
-                  ),
+                const SizedBox.shrink(),
               ]),
             ),
           ),
@@ -4467,7 +4729,7 @@ class _ProWaitingCardState extends State<_ProWaitingCard>
             const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
         decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(14),
-            color: Colors.white.withValues(alpha: 0.03)),
+            color: _g(0.03)),
         child: Row(children: [
           Container(
               width: 42,
@@ -4499,7 +4761,7 @@ class _ProWaitingCardState extends State<_ProWaitingCard>
               Text('⏳ Δεν έχει απαντήσει',
                   style: TextStyle(
                       fontSize: 10,
-                      color: Colors.white.withValues(alpha: 0.25))),
+                      color: _g(0.25))),
           ])),
         ]),
       );
@@ -4526,6 +4788,91 @@ class _TypingDots extends StatelessWidget {
           );
         })),
       );
+}
+
+// ═══════════════════════════════════════
+// TAP SCALE WIDGET — tap-in/tap-out animation
+// ═══════════════════════════════════════
+class _TapScaleWidget extends StatefulWidget {
+  final Widget child;
+  final VoidCallback onTap;
+  const _TapScaleWidget({required this.child, required this.onTap});
+  @override
+  State<_TapScaleWidget> createState() => _TapScaleWidgetState();
+}
+
+class _TapScaleWidgetState extends State<_TapScaleWidget> {
+  bool _pressed = false;
+  @override
+  Widget build(BuildContext context) => GestureDetector(
+    onTapDown: (_) => setState(() => _pressed = true),
+    onTapUp: (_) {
+      setState(() => _pressed = false);
+      widget.onTap();
+    },
+    onTapCancel: () => setState(() => _pressed = false),
+    child: AnimatedScale(
+      scale: _pressed ? 0.93 : 1.0,
+      duration: const Duration(milliseconds: 80),
+      curve: Curves.easeOut,
+      child: widget.child,
+    ),
+  );
+}
+
+// ═══════════════════════════════════════
+// MARQUEE BANNER
+// ═══════════════════════════════════════
+class _MarqueeBanner extends StatefulWidget {
+  final String text;
+  const _MarqueeBanner({required this.text});
+  @override
+  State<_MarqueeBanner> createState() => _MarqueeBannerState();
+}
+
+class _MarqueeBannerState extends State<_MarqueeBanner>
+    with SingleTickerProviderStateMixin {
+  late AnimationController _ctrl;
+  late Animation<double> _anim;
+
+  @override
+  void initState() {
+    super.initState();
+    _ctrl = AnimationController(
+        vsync: this, duration: const Duration(seconds: 12))
+      ..repeat();
+    _anim = Tween<double>(begin: 0, end: 1).animate(_ctrl);
+  }
+
+  @override
+  void dispose() {
+    _ctrl.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      height: 32,
+      color: kGold.withValues(alpha: 0.08),
+      child: ClipRect(
+        child: AnimatedBuilder(
+          animation: _anim,
+          builder: (_, __) => FractionalTranslation(
+            translation: Offset(-_anim.value, 0),
+            child: Row(children: [
+              Text(widget.text + widget.text,
+                  style: TextStyle(
+                      color: kGold.withValues(alpha: 0.85),
+                      fontSize: 11,
+                      fontWeight: FontWeight.w500,
+                      letterSpacing: 0.3)),
+            ]),
+          ),
+        ),
+      ),
+    );
+  }
 }
 
 class _RingPainter extends CustomPainter {
@@ -4741,6 +5088,25 @@ class _OffersScreenState extends State<OffersScreen>
         }, SetOptions(merge: true));
       }
 
+      // Αποθήκευση επιλεγμένου επαγγελματία στο ιστορικό χρήστη
+      if (user != null) {
+        await FirebaseFirestore.instance
+            .collection('users')
+            .doc(user.uid)
+            .collection('selectedProfessionals')
+            .add({
+          'professionalName': offer['name'] ?? offer['professionalName'] ?? '',
+          'professionalId': offer['professionalId'] ?? '',
+          'emoji': offer['emoji'] ?? '🔧',
+          'price': offer['price'] ?? 0,
+          'message': offer['message'] ?? '',
+          'availableFrom': offer['availableFrom'] ?? '',
+          'requestDescription': widget.description,
+          'requestId': widget.requestId,
+          'selectedAt': FieldValue.serverTimestamp(),
+        });
+      }
+
       // Ενημέρωση request ως completed
       await FirebaseFirestore.instance
           .collection('requests')
@@ -4819,7 +5185,7 @@ class _OffersScreenState extends State<OffersScreen>
                       textAlign: TextAlign.center,
                       style: TextStyle(
                           fontSize: 13,
-                          color: Colors.white.withValues(alpha: 0.5))),
+                          color: _g(0.5))),
                   const SizedBox(height: 24),
                   _PremiumButton(
                     label: 'Τέλεια! 🎉',
@@ -4851,7 +5217,7 @@ class _OffersScreenState extends State<OffersScreen>
                     height: 38,
                     decoration: BoxDecoration(
                         shape: BoxShape.circle,
-                        color: Colors.white.withValues(alpha: 0.05)),
+                        color: _g(0.05)),
                     child: const Icon(Icons.arrow_back_ios_new,
                         color: Colors.white, size: 16)),
               ),
@@ -4907,7 +5273,7 @@ class _OffersScreenState extends State<OffersScreen>
                           'Ανάλυση τιμών, αξιολογήσεων, διαθεσιμότητας',
                           style: TextStyle(
                               fontSize: 11,
-                              color: Colors.white.withValues(alpha: 0.3))),
+                              color: _g(0.3))),
                     ]))
                 : _offers.isEmpty
                     ? _NoOffersWidget(onRetry: () {
@@ -4936,7 +5302,7 @@ class _OffersScreenState extends State<OffersScreen>
                             style: TextStyle(
                                 fontSize: 11,
                                 color:
-                                    Colors.white.withValues(alpha: 0.35))),
+                                    _g(0.35))),
                         const SizedBox(height: 16),
                         Container(
                           padding: const EdgeInsets.all(12),
@@ -4954,7 +5320,7 @@ class _OffersScreenState extends State<OffersScreen>
                               style: TextStyle(
                                   fontSize: 11,
                                   color:
-                                      Colors.white.withValues(alpha: 0.5),
+                                      _g(0.5),
                                   height: 1.4),
                               children: [
                                 const TextSpan(text: 'AI επέλεξε βάσει '),
@@ -5018,10 +5384,10 @@ class _OfferCard extends StatelessWidget {
                   end: Alignment.bottomRight,
                   colors: [kGold.withValues(alpha: 0.1), kGold.withValues(alpha: 0.02)])
               : null,
-          color: isBest ? null : Colors.white.withValues(alpha: 0.04),
+          color: isBest ? null : _g(0.04),
           border: Border.all(color: isBest
               ? kGold.withValues(alpha: 0.3)
-              : Colors.white.withValues(alpha: 0.06)),
+              : _g(0.06)),
         ),
         child: Stack(children: [
           if (isBest)
@@ -5049,9 +5415,9 @@ class _OfferCard extends StatelessWidget {
                     : Container(
                         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                         decoration: BoxDecoration(borderRadius: BorderRadius.circular(8),
-                            color: Colors.white.withValues(alpha: 0.06)),
+                            color: _g(0.06)),
                         child: Text('#$_rank', style: TextStyle(
-                            color: Colors.white.withValues(alpha: 0.35),
+                            color: _g(0.35),
                             fontSize: 10, fontWeight: FontWeight.w600))),
               ),
 
@@ -5074,7 +5440,7 @@ class _OfferCard extends StatelessWidget {
                   const SizedBox(height: 2),
                   Text(_specialty,
                       style: TextStyle(
-                          color: Colors.white.withValues(alpha: 0.4),
+                          color: _g(0.4),
                           fontSize: 10)),
                   const SizedBox(height: 3),
                   Row(children: [
@@ -5084,7 +5450,7 @@ class _OfferCard extends StatelessWidget {
                     Text(
                         '${_rating} · ${(offer['reviews'] ?? 0)} κριτικές',
                         style: TextStyle(
-                            color: Colors.white.withValues(alpha: 0.5),
+                            color: _g(0.5),
                             fontSize: 10)),
                   ]),
                 ])),
@@ -5105,7 +5471,7 @@ class _OfferCard extends StatelessWidget {
                     child: Text((_specialty.isNotEmpty ? _specialty : 'Διαθέσιμος $_available'),
                         style: TextStyle(
                             fontSize: 10,
-                            color: Colors.white.withValues(alpha: 0.35)))),
+                            color: _g(0.35)))),
               ]),
 
               const SizedBox(height: 10),
@@ -5127,8 +5493,8 @@ class _OfferCard extends StatelessWidget {
                     ? '✅ Επέλεξε τον ${_name.split(' ').first}'
                     : 'Επέλεξε τον ${_name.split(' ').first} →',
                 gradient: isBest ? const LinearGradient(colors: [kGoldLight, kGold]) : null,
-                bgColor: isBest ? null : Colors.white.withValues(alpha: 0.05),
-                textColor: isBest ? Colors.black : Colors.white.withValues(alpha: 0.6),
+                bgColor: isBest ? null : _g(0.05),
+                textColor: isBest ? Colors.black : _g(0.6),
                 fontSize: isBest ? 13 : 12,
                 onTap: onSelect,
               ),
@@ -5150,12 +5516,392 @@ class _OfferTag extends StatelessWidget {
             borderRadius: BorderRadius.circular(8),
             color: green
                 ? kGreen.withValues(alpha: 0.1)
-                : Colors.white.withValues(alpha: 0.05)),
+                : _g(0.05)),
         child: Text(text,
             style: TextStyle(
                 fontSize: 10,
-                color: green ? kGreen : Colors.white.withValues(alpha: 0.4))),
+                color: green ? kGreen : _g(0.4))),
       );
+}
+
+// ═══════════════════════════════════════
+// PROJECT REQUEST SCREEN — G Button / Projects Mode
+// ═══════════════════════════════════════
+const List<String> _teamTypes = [
+  'Συνεργείο Ανακαίνισης',
+  'Συνεργείο Κατασκευών',
+  'Συνεργείο Βαφής & Διακόσμησης',
+  'Συνεργείο Ηλεκτρολόγων',
+  'Συνεργείο Υδραυλικών',
+  'Συνεργείο Κλιματισμού',
+  'Συνεργείο Αλουμινίου & Κουφωμάτων',
+  'Συνεργείο Πλακιδίων & Δαπέδων',
+  'Συνεργείο Κήπου & Εξωτερικών Χώρων',
+  'Συνεργείο Γυψοσανίδας & Οροφής',
+  'Συνεργείο Ξυλουργικών Εργασιών',
+  'Συνεργείο Smart Home & Αυτοματισμού',
+];
+
+const List<String> _projectLocations = [
+  'Κοντά μου',
+  'Αθήνα (κέντρο)',
+  'Βόρεια Προάστια',
+  'Νότια Προάστια',
+  'Δυτικά Προάστια',
+  'Ανατολική Αττική',
+  'Πειραιάς',
+  'Θεσσαλονίκη',
+  'Πάτρα',
+  'Ηράκλειο',
+  'Λάρισα',
+  'Βόλος',
+  'Ιωάννινα',
+  'Χανιά',
+  'Ρόδος',
+  'Κέρκυρα',
+  'Μύκονος',
+  'Σαντορίνη',
+];
+
+class ProjectRequestScreen extends StatefulWidget {
+  final String userId, userName;
+  const ProjectRequestScreen({required this.userId, required this.userName, super.key});
+  @override
+  State<ProjectRequestScreen> createState() => _ProjectRequestScreenState();
+}
+
+class _ProjectRequestScreenState extends State<ProjectRequestScreen>
+    with TickerProviderStateMixin {
+  final _textCtrl = TextEditingController();
+  String? _selectedTeamType;
+  String? _selectedLocation;
+  String _selectedCriteria = 'cheap';
+  bool _sending = false;
+  late AnimationController _pulseCtrl;
+
+  @override
+  void initState() {
+    super.initState();
+    _pulseCtrl = AnimationController(
+        vsync: this, duration: const Duration(milliseconds: 1000))
+      ..repeat(reverse: true);
+    _textCtrl.addListener(() => setState(() {}));
+  }
+
+  @override
+  void dispose() {
+    _pulseCtrl.dispose();
+    _textCtrl.dispose();
+    super.dispose();
+  }
+
+  bool get _canSend =>
+      _textCtrl.text.trim().isNotEmpty &&
+      _selectedTeamType != null &&
+      _selectedLocation != null;
+
+  Future<void> _submit() async {
+    if (!_canSend || _sending) return;
+    setState(() => _sending = true);
+    try {
+      await FirebaseFirestore.instance
+          .collection('project_requests')
+          .add({
+        'userId': widget.userId,
+        'userName': widget.userName,
+        'description': _textCtrl.text.trim(),
+        'teamType': _selectedTeamType ?? '',
+        'location': _selectedLocation ?? '',
+        'criteria': _selectedCriteria,
+        'status': 'active',
+        'createdAt': FieldValue.serverTimestamp(),
+      });
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('✅ Το project αίτημα στάλθηκε!'),
+          backgroundColor: Color(0xFF00D4AA),
+        ),
+      );
+      Navigator.pop(context);
+    } catch (e) {
+      setState(() => _sending = false);
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text('Σφάλμα: $e')));
+    }
+  }
+
+  Widget _buildPicker(String hint, String? value, List<String> items,
+      void Function(String) onSelect) {
+    return _TapScaleWidget(
+      onTap: () async {
+        final result = await showModalBottomSheet<String>(
+          context: context,
+          backgroundColor: Colors.transparent,
+          isScrollControlled: true,
+          builder: (ctx) => _SimpleListPicker(
+              title: hint, items: items, selected: value),
+        );
+        if (result != null) onSelect(result);
+      },
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(14),
+          color: _g(0.04),
+          border: Border.all(
+              color: value != null
+                  ? kGold.withValues(alpha: 0.5)
+                  : _g(0.1)),
+        ),
+        child: Row(children: [
+          Expanded(
+            child: Text(
+              value ?? hint,
+              style: TextStyle(
+                  color: value != null
+                      ? Colors.white
+                      : _g(0.35),
+                  fontSize: 14),
+            ),
+          ),
+          Icon(Icons.keyboard_arrow_down_rounded,
+              color: _g(0.4), size: 20),
+        ]),
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: kBg,
+      body: SafeArea(
+        child: Column(children: [
+          // Top bar
+          Padding(
+            padding: const EdgeInsets.fromLTRB(20, 14, 20, 0),
+            child: Row(children: [
+              _TapScaleWidget(
+                onTap: () => Navigator.pop(context),
+                child: Container(
+                    width: 38, height: 38,
+                    decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        color: _g(0.05)),
+                    child: const Icon(Icons.arrow_back_ios_new,
+                        color: Colors.white, size: 16)),
+              ),
+              const SizedBox(width: 12),
+              Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                const Text('G — Projects Mode',
+                    style: TextStyle(
+                        fontFamily: 'Raleway',
+                        fontSize: 18,
+                        fontWeight: FontWeight.w800,
+                        color: Colors.white)),
+                Text('Ανακαινίσεις · Μεγάλα έργα · Πολλοί επαγγελματίες',
+                    style: TextStyle(
+                        fontSize: 10,
+                        color: _g(0.4))),
+              ]),
+            ]),
+          ),
+
+          const SizedBox(height: 4),
+
+          Expanded(
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.all(20),
+              child: Column(children: [
+                // Info banner
+                Container(
+                  padding: const EdgeInsets.all(14),
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(14),
+                    gradient: LinearGradient(
+                      colors: [
+                        kGold.withValues(alpha: 0.12),
+                        kGold.withValues(alpha: 0.04),
+                      ],
+                    ),
+                    border: Border.all(color: kGold.withValues(alpha: 0.2)),
+                  ),
+                  child: Row(children: [
+                    const Text('🏗️', style: TextStyle(fontSize: 22)),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Text(
+                        'Απευθυνόμαστε σε ολόκληρα συνεργεία με εμπειρία σε μεγάλα έργα.',
+                        style: TextStyle(
+                            fontSize: 12,
+                            color: _g(0.7),
+                            height: 1.5),
+                      ),
+                    ),
+                  ]),
+                ),
+
+                const SizedBox(height: 16),
+
+                // Main card with all fields
+                Container(
+                  padding: const EdgeInsets.all(18),
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(20),
+                    color: _g(0.03),
+                    border: Border.all(color: kGold.withValues(alpha: 0.15)),
+                  ),
+                  child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                    // Description
+                    Text('Περίγραψε το project σου',
+                        style: TextStyle(
+                            fontSize: 11,
+                            color: _g(0.5),
+                            letterSpacing: 0.5)),
+                    const SizedBox(height: 8),
+                    TextField(
+                      controller: _textCtrl,
+                      maxLines: 4,
+                      style: TextStyle(color: _gw, fontSize: 14, height: 1.5),
+                      decoration: InputDecoration(
+                        hintText:
+                            'πχ. "Θέλω πλήρη ανακαίνιση μπάνιου, αλλαγή πλακιδίων, νέα υδραυλικά..."',
+                        hintStyle: TextStyle(
+                            color: _g(0.25), fontSize: 13),
+                        border: InputBorder.none,
+                        fillColor: Colors.transparent,
+                        filled: true,
+                      ),
+                    ),
+
+                    Divider(color: _g(0.07), height: 24),
+
+                    // Team type
+                    Text('Είδος συνεργείου',
+                        style: TextStyle(
+                            fontSize: 11,
+                            color: _g(0.5),
+                            letterSpacing: 0.5)),
+                    const SizedBox(height: 8),
+                    _buildPicker('Επίλεξε συνεργείο...', _selectedTeamType,
+                        _teamTypes, (v) => setState(() => _selectedTeamType = v)),
+
+                    const SizedBox(height: 12),
+
+                    // Location
+                    Text('Τοποθεσία',
+                        style: TextStyle(
+                            fontSize: 11,
+                            color: _g(0.5),
+                            letterSpacing: 0.5)),
+                    const SizedBox(height: 8),
+                    _buildPicker('Επίλεξε περιοχή...', _selectedLocation,
+                        _projectLocations,
+                        (v) => setState(() => _selectedLocation = v)),
+
+                    Divider(color: _g(0.07), height: 24),
+
+                    // Criteria
+                    Text('Προτεραιότητα',
+                        style: TextStyle(
+                            fontSize: 11,
+                            color: _g(0.5),
+                            letterSpacing: 0.5)),
+                    const SizedBox(height: 10),
+                    Row(children: [
+                      for (final c in [
+                        {'v': 'cheap', 'e': '💰', 'l': 'Χαμηλή τιμή'},
+                        {'v': 'value', 'e': '⭐', 'l': 'Καλύτερο αποτέλεσμα'},
+                        {'v': 'fast', 'e': '⚡', 'l': 'Άμεση έναρξη'},
+                      ]) ...[
+                        Expanded(
+                          child: _TapScaleWidget(
+                            onTap: () =>
+                                setState(() => _selectedCriteria = c['v']!),
+                            child: AnimatedContainer(
+                              duration: const Duration(milliseconds: 150),
+                              padding: const EdgeInsets.symmetric(vertical: 10),
+                              decoration: BoxDecoration(
+                                borderRadius: BorderRadius.circular(12),
+                                color: _selectedCriteria == c['v']
+                                    ? kGold.withValues(alpha: 0.15)
+                                    : Colors.transparent,
+                                border: Border.all(
+                                    color: _selectedCriteria == c['v']
+                                        ? kGold.withValues(alpha: 0.5)
+                                        : _g(0.08)),
+                              ),
+                              child: Column(children: [
+                                Text(c['e']!, style: const TextStyle(fontSize: 18)),
+                                const SizedBox(height: 4),
+                                Text(c['l']!,
+                                    textAlign: TextAlign.center,
+                                    style: TextStyle(
+                                        fontSize: 9,
+                                        color: _selectedCriteria == c['v']
+                                            ? kGold
+                                            : _g(0.4))),
+                              ]),
+                            ),
+                          ),
+                        ),
+                        if (c['v'] != 'fast') const SizedBox(width: 8),
+                      ],
+                    ]),
+                  ]),
+                ),
+
+                const SizedBox(height: 24),
+
+                // Submit button
+                _TapScaleWidget(
+                  onTap: _canSend ? _submit : () {},
+                  child: AnimatedContainer(
+                    duration: const Duration(milliseconds: 200),
+                    padding: const EdgeInsets.symmetric(vertical: 16),
+                    width: double.infinity,
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(18),
+                      gradient: _canSend
+                          ? const LinearGradient(
+                              colors: [Color(0xFFFFD47A), Color(0xFFFFB340)])
+                          : null,
+                      color: _canSend
+                          ? null
+                          : _g(0.06),
+                      boxShadow: _canSend
+                          ? [
+                              BoxShadow(
+                                  color: kGold.withValues(alpha: 0.35),
+                                  blurRadius: 20,
+                                  offset: const Offset(0, 6))
+                            ]
+                          : null,
+                    ),
+                    child: Center(
+                      child: _sending
+                          ? const SizedBox(
+                              width: 20,
+                              height: 20,
+                              child: CircularProgressIndicator(
+                                  color: Colors.black, strokeWidth: 2))
+                          : Text(
+                              _canSend ? '🚀 Στείλε Project Αίτημα' : 'Συμπλήρωσε τα πεδία',
+                              style: TextStyle(
+                                  color: _canSend ? Colors.black : Colors.white38,
+                                  fontSize: 15,
+                                  fontWeight: FontWeight.w800)),
+                    ),
+                  ),
+                ),
+              ]),
+            ),
+          ),
+        ]),
+      ),
+    );
+  }
 }
 
 // ═══════════════════════════════════════
@@ -5181,14 +5927,14 @@ class RequestHistoryScreen extends StatelessWidget {
                     height: 36,
                     decoration: BoxDecoration(
                         shape: BoxShape.circle,
-                        color: Colors.white.withValues(alpha: 0.05),
+                        color: _g(0.05),
                         border: Border.all(
                             color: kGold.withValues(alpha: 0.2))),
                     child: const Icon(Icons.arrow_back_ios_new,
                         color: kGold, size: 16)),
               ),
               const SizedBox(width: 14),
-              const Text('Ιστορικό αιτημάτων',
+              const Text('Επαγγελματίες που επέλεξες',
                   style: TextStyle(
                       fontFamily: 'Raleway',
                       fontSize: 20,
@@ -5200,21 +5946,21 @@ class RequestHistoryScreen extends StatelessWidget {
           Expanded(
             child: StreamBuilder<QuerySnapshot>(
               stream: FirebaseFirestore.instance
-                  .collection('requests')
-                  .where('userId', isEqualTo: userId)
+                  .collection('users')
+                  .doc(userId)
+                  .collection('selectedProfessionals')
                   .limit(30)
                   .snapshots(),
               builder: (context, snap) {
                 if (!snap.hasData)
                   return const Center(
                       child: CircularProgressIndicator(color: kGold));
-                // Ταξινόμηση manually (αποφυγή composite index)
                 final rawDocs = snap.data!.docs.toList()
                   ..sort((a, b) {
                     int getMs(dynamic doc) {
                       try {
                         final data = doc.data() as Map<String, dynamic>;
-                        final ts = data['createdAt'];
+                        final ts = data['selectedAt'];
                         if (ts == null) return 0;
                         return (ts as Timestamp).toDate().millisecondsSinceEpoch;
                       } catch (_) { return 0; }
@@ -5226,13 +5972,13 @@ class RequestHistoryScreen extends StatelessWidget {
                   return Center(
                       child:
                           Column(mainAxisSize: MainAxisSize.min, children: [
-                    Icon(Icons.history,
-                        color: Colors.white.withValues(alpha: 0.15),
+                    Icon(Icons.person_outline,
+                        color: _g(0.15),
                         size: 52),
                     const SizedBox(height: 12),
-                    Text('Δεν υπάρχουν αιτήματα',
+                    Text('Δεν έχεις επιλέξει επαγγελματία ακόμα',
                         style: TextStyle(
-                            color: Colors.white.withValues(alpha: 0.3),
+                            color: _g(0.3),
                             fontSize: 14)),
                   ]));
                 }
@@ -5243,90 +5989,52 @@ class RequestHistoryScreen extends StatelessWidget {
                   itemBuilder: (_, i) {
                     final d =
                         docs[i].data() as Map<String, dynamic>;
-                    final status = d['status'] ?? 'active';
-                    final offers = d['offersCount'] ?? 0;
-                    final ts = d['createdAt'] as Timestamp?;
-                    final date =
-                        ts != null ? ts.toDate() : DateTime.now();
-                    final dateStr =
-                        '${date.day}/${date.month}/${date.year}';
-                    final selectedPro = d['selectedPro'] as String?;
-                    final statusIcon = status == 'active' ? '⏳'
-                        : status == 'completed' ? '🏆'
-                        : status == 'no_offers' ? '😔' : '✅';
-                    final statusColor = status == 'active' ? kGreen
-                        : status == 'completed' ? kGold
-                        : status == 'no_offers' ? Colors.white38 : kGreen;
+                    final proName = d['professionalName'] as String? ?? '';
+                    final emoji = d['emoji'] as String? ?? '🔧';
+                    final price = d['price'];
+                    final priceStr = price != null ? '${price}€' : '';
+                    final requestDesc = d['requestDescription'] as String? ?? '';
+                    final ts = d['selectedAt'] as Timestamp?;
+                    final date = ts != null ? ts.toDate() : DateTime.now();
+                    final dateStr = '${date.day}/${date.month}/${date.year}';
 
-                    return GestureDetector(
-                      onTap: () {
-                        if (status == 'active') {
-                          Navigator.push(context, PageRouteBuilder(
-                            transitionDuration: const Duration(milliseconds: 400),
-                            pageBuilder: (_, __, ___) => WaitingScreen(
-                                requestId: docs[i].id, userId: userId,
-                                description: d['description'] ?? '',
-                                criteria: d['criteria'] ?? 'cheap'),
-                            transitionsBuilder: (_, a, __, c) =>
-                                FadeTransition(opacity: a, child: c),
-                          ));
-                        } else {
-                          Navigator.push(context, PageRouteBuilder(
-                            transitionDuration: const Duration(milliseconds: 400),
-                            pageBuilder: (_, __, ___) => OffersScreen(
-                                requestId: docs[i].id, userId: userId,
-                                description: d['description'] ?? '',
-                                criteria: d['criteria'] ?? 'cheap'),
-                            transitionsBuilder: (_, a, __, c) =>
-                                FadeTransition(opacity: a, child: c),
-                          ));
-                        }
-                      },
-                      child: Container(
-                        margin: const EdgeInsets.only(bottom: 10),
-                        padding: const EdgeInsets.all(14),
-                        decoration: BoxDecoration(
-                          borderRadius: BorderRadius.circular(16),
-                          color: status == 'completed'
-                              ? kGold.withValues(alpha: 0.06)
-                              : Colors.white.withValues(alpha: 0.04),
-                          border: status == 'completed'
-                              ? Border.all(color: kGold.withValues(alpha: 0.2))
-                              : null,
-                        ),
-                        child: Row(children: [
-                          Container(
-                              width: 44, height: 44,
-                              decoration: BoxDecoration(
-                                  borderRadius: BorderRadius.circular(12),
-                                  color: statusColor.withValues(alpha: 0.1)),
-                              child: Center(child: Text(statusIcon,
-                                  style: const TextStyle(fontSize: 22)))),
-                          const SizedBox(width: 12),
-                          Expanded(child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                            Text(d['description'] ?? '',
-                                maxLines: 1, overflow: TextOverflow.ellipsis,
-                                style: const TextStyle(color: Colors.white,
-                                    fontSize: 13, fontWeight: FontWeight.w500)),
-                            const SizedBox(height: 3),
-                            if (selectedPro != null)
-                              Row(children: [
-                                const Text('✅ ', style: TextStyle(fontSize: 10)),
-                                Text('Επέλεξες: $selectedPro',
-                                    style: TextStyle(fontSize: 11,
-                                        color: kGold, fontWeight: FontWeight.w600)),
-                              ])
-                            else
-                              Text('$dateStr · $offers προσφορές',
-                                  style: TextStyle(fontSize: 10,
-                                      color: Colors.white.withValues(alpha: 0.35))),
-                          ])),
-                          Icon(Icons.arrow_forward_ios,
-                              color: Colors.white.withValues(alpha: 0.2), size: 14),
-                        ]),
+                    return Container(
+                      margin: const EdgeInsets.only(bottom: 10),
+                      padding: const EdgeInsets.all(14),
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(16),
+                        color: kGold.withValues(alpha: 0.06),
+                        border: Border.all(color: kGold.withValues(alpha: 0.2)),
                       ),
+                      child: Row(children: [
+                        Container(
+                            width: 44, height: 44,
+                            decoration: BoxDecoration(
+                                borderRadius: BorderRadius.circular(12),
+                                color: kGold.withValues(alpha: 0.1)),
+                            child: Center(child: Text(emoji,
+                                style: const TextStyle(fontSize: 22)))),
+                        const SizedBox(width: 12),
+                        Expanded(child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                          Text(proName,
+                              maxLines: 1, overflow: TextOverflow.ellipsis,
+                              style: TextStyle(color: _gw,
+                                  fontSize: 14, fontWeight: FontWeight.w700)),
+                          const SizedBox(height: 3),
+                          Text(requestDesc,
+                              maxLines: 1, overflow: TextOverflow.ellipsis,
+                              style: TextStyle(fontSize: 11,
+                                  color: _g(0.45))),
+                          const SizedBox(height: 3),
+                          Text('$dateStr${priceStr.isNotEmpty ? ' · $priceStr' : ''}',
+                              style: TextStyle(fontSize: 10,
+                                  color: kGold.withValues(alpha: 0.7))),
+                        ])),
+                        const Icon(Icons.check_circle,
+                            color: kGold, size: 18),
+                      ]),
                     );
                   },
                 );
@@ -5507,14 +6215,14 @@ class _AiMemoryScreenState extends State<AiMemoryScreen>
                 color: Colors.red.withValues(alpha: 0.08)),
             child: Text(_buffer.isEmpty ? 'Ακούω...' : _buffer,
                 style: TextStyle(
-                    color: Colors.white.withValues(alpha: 0.7), fontSize: 13)),
+                    color: _g(0.7), fontSize: 13)),
           ),
         ),
       const SizedBox(height: 12),
       Container(
         margin: const EdgeInsets.symmetric(horizontal: 16),
         decoration: BoxDecoration(
-            color: Colors.white.withValues(alpha: 0.04),
+            color: _g(0.04),
             borderRadius: BorderRadius.circular(12)),
         child: TabBar(
           controller: _tabCtrl,
@@ -5572,12 +6280,12 @@ class _AiMemoryScreenState extends State<AiMemoryScreen>
                     const SizedBox(height: 12),
                     Text('Δεν υπάρχουν εγγραφές ακόμα',
                         style: TextStyle(
-                            color: Colors.white.withValues(alpha: 0.3),
+                            color: _g(0.3),
                             fontSize: 14)),
                     const SizedBox(height: 6),
                     Text('Πάτα το mic και μίλα!',
                         style: TextStyle(
-                            color: Colors.white.withValues(alpha: 0.2),
+                            color: _g(0.2),
                             fontSize: 12)),
                   ]));
                 }
@@ -5600,11 +6308,11 @@ class _AiMemoryScreenState extends State<AiMemoryScreen>
                       decoration: BoxDecoration(
                         borderRadius: BorderRadius.circular(16),
                         color: isDone
-                            ? Colors.white.withValues(alpha: 0.03)
-                            : Colors.white.withValues(alpha: 0.06),
+                            ? _g(0.03)
+                            : _g(0.06),
                         border: Border.all(
                             color: isDone
-                                ? Colors.white.withValues(alpha: 0.05)
+                                ? _g(0.05)
                                 : _catColor(cat).withValues(alpha: 0.25)),
                       ),
                       child: Padding(
@@ -5788,7 +6496,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
         decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(16),
-            color: Colors.white.withValues(alpha: 0.05)),
+            color: _g(0.05)),
         child: Row(children: [
           Container(
               width: 40,
@@ -5811,7 +6519,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     fontWeight: FontWeight.w500)),
             Text(subtitle,
                 style: TextStyle(
-                    fontSize: 11, color: Colors.white.withValues(alpha: 0.35))),
+                    fontSize: 11, color: _g(0.35))),
           ])),
           Switch(
               value: value,
@@ -5951,7 +6659,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     height: 36,
                     decoration: BoxDecoration(
                         shape: BoxShape.circle,
-                        color: Colors.white.withValues(alpha: 0.05),
+                        color: _g(0.05),
                         border: Border.all(
                             color: kGold.withValues(alpha: 0.2))),
                     child: const Icon(Icons.arrow_back_ios_new,
@@ -6024,19 +6732,19 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       Text(_email ?? '',
                           style: TextStyle(
                               fontSize: 12,
-                              color: Colors.white.withValues(alpha: 0.4))),
+                              color: _g(0.4))),
                       if (_city?.isNotEmpty == true) ...[
                         const SizedBox(height: 2),
                         Row(mainAxisSize: MainAxisSize.min, children: [
                           Icon(Icons.location_on_outlined,
                               size: 12,
-                              color: Colors.white.withValues(alpha: 0.3)),
+                              color: _g(0.3)),
                           const SizedBox(width: 3),
                           Text(_city!,
                               style: TextStyle(
                                   fontSize: 12,
                                   color:
-                                      Colors.white.withValues(alpha: 0.35))),
+                                      _g(0.35))),
                         ]),
                       ],
                     ]),
@@ -6172,7 +6880,7 @@ class NotificationsScreen extends StatelessWidget {
                 GestureDetector(
                   onTap: () => Navigator.pop(ctx),
                   child: Icon(Icons.close,
-                      color: Colors.white.withValues(alpha: 0.4), size: 20),
+                      color: _g(0.4), size: 20),
                 ),
               ]),
               const SizedBox(height: 6),
@@ -6184,14 +6892,14 @@ class NotificationsScreen extends StatelessWidget {
                 child: Text(requestData['description'] ?? '',
                     maxLines: 2, overflow: TextOverflow.ellipsis,
                     style: TextStyle(fontSize: 12,
-                        color: Colors.white.withValues(alpha: 0.6))),
+                        color: _g(0.6))),
               ),
               const SizedBox(height: 14),
               // Τιμή
               TextField(
                 controller: priceCtrl,
                 keyboardType: TextInputType.number,
-                style: const TextStyle(color: Colors.white,
+                style: TextStyle(color: _gw,
                     fontSize: 24, fontWeight: FontWeight.w800),
                 textAlign: TextAlign.center,
                 decoration: InputDecoration(
@@ -6200,7 +6908,7 @@ class NotificationsScreen extends StatelessWidget {
                   suffixText: '€',
                   suffixStyle: const TextStyle(color: kGold, fontSize: 18),
                   filled: true,
-                  fillColor: Colors.white.withValues(alpha: 0.05),
+                  fillColor: _g(0.05),
                   border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(14),
                       borderSide: BorderSide(color: kGold.withValues(alpha: 0.3))),
@@ -6216,7 +6924,7 @@ class NotificationsScreen extends StatelessWidget {
               // Διαθεσιμότητα
               Row(children: [
                 Text('Διαθέσιμος: ', style: TextStyle(
-                    fontSize: 12, color: Colors.white.withValues(alpha: 0.5))),
+                    fontSize: 12, color: _g(0.5))),
                 const SizedBox(width: 6),
                 ...['Σήμερα', 'Αύριο', 'Μεθαύριο'].map((a) =>
                   GestureDetector(
@@ -6230,7 +6938,7 @@ class NotificationsScreen extends StatelessWidget {
                         borderRadius: BorderRadius.circular(10),
                         color: available == a
                             ? kGold.withValues(alpha: 0.2)
-                            : Colors.white.withValues(alpha: 0.05),
+                            : _g(0.05),
                         border: Border.all(
                             color: available == a
                                 ? kGold : Colors.transparent),
@@ -6238,7 +6946,7 @@ class NotificationsScreen extends StatelessWidget {
                       child: Text(a, style: TextStyle(
                           fontSize: 11,
                           color: available == a
-                              ? kGold : Colors.white.withValues(alpha: 0.4))),
+                              ? kGold : _g(0.4))),
                     ),
                   )
                 ),
@@ -6247,13 +6955,13 @@ class NotificationsScreen extends StatelessWidget {
               // Μήνυμα
               TextField(
                 controller: msgCtrl, maxLines: 2,
-                style: const TextStyle(color: Colors.white, fontSize: 13),
+                style: TextStyle(color: _gw, fontSize: 13),
                 decoration: InputDecoration(
                   hintText: 'Προσθήκη μηνύματος (προαιρετικό)...',
                   hintStyle: TextStyle(
-                      color: Colors.white.withValues(alpha: 0.25), fontSize: 12),
+                      color: _g(0.25), fontSize: 12),
                   filled: true,
-                  fillColor: Colors.white.withValues(alpha: 0.05),
+                  fillColor: _g(0.05),
                   border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(14),
                       borderSide: BorderSide(color: kGold.withValues(alpha: 0.3))),
@@ -6274,7 +6982,7 @@ class NotificationsScreen extends StatelessWidget {
                     padding: const EdgeInsets.symmetric(vertical: 12),
                     decoration: BoxDecoration(
                         borderRadius: BorderRadius.circular(14),
-                        color: Colors.white.withValues(alpha: 0.06)),
+                        color: _g(0.06)),
                     child: const Center(child: Text('Άκυρο',
                         style: TextStyle(color: Colors.white54, fontSize: 13))),
                   ),
@@ -6466,7 +7174,7 @@ class NotificationsScreen extends StatelessWidget {
                     height: 36,
                     decoration: BoxDecoration(
                         shape: BoxShape.circle,
-                        color: Colors.white.withValues(alpha: 0.05),
+                        color: _g(0.05),
                         border: Border.all(
                             color: kGold.withValues(alpha: 0.2))),
                     child: const Icon(Icons.arrow_back_ios_new,
@@ -6507,12 +7215,12 @@ class NotificationsScreen extends StatelessWidget {
                       child:
                           Column(mainAxisSize: MainAxisSize.min, children: [
                     Icon(Icons.notifications_none,
-                        color: Colors.white.withValues(alpha: 0.15),
+                        color: _g(0.15),
                         size: 52),
                     const SizedBox(height: 12),
                     Text('Δεν υπάρχουν ειδοποιήσεις',
                         style: TextStyle(
-                            color: Colors.white.withValues(alpha: 0.3),
+                            color: _g(0.3),
                             fontSize: 14)),
                   ]));
                 }
@@ -6561,13 +7269,13 @@ class NotificationsScreen extends StatelessWidget {
                         decoration: BoxDecoration(
                           borderRadius: BorderRadius.circular(16),
                           color: isRead
-                              ? Colors.white.withValues(alpha: 0.04)
+                              ? _g(0.04)
                               : (isNewRequest
                                   ? kGold.withValues(alpha: 0.08)
                                   : kGreen.withValues(alpha: 0.07)),
                           border: Border.all(
                               color: isRead
-                                  ? Colors.white.withValues(alpha: 0.07)
+                                  ? _g(0.07)
                                   : (isNewRequest
                                       ? kGold.withValues(alpha: 0.3)
                                       : kGreen.withValues(alpha: 0.3))),
@@ -6580,7 +7288,7 @@ class NotificationsScreen extends StatelessWidget {
                               decoration: BoxDecoration(
                                   shape: BoxShape.circle,
                                   color: isRead
-                                      ? Colors.white.withValues(alpha: 0.05)
+                                      ? _g(0.05)
                                       : (isNewRequest
                                           ? kGold.withValues(alpha: 0.12)
                                           : kGreen.withValues(alpha: 0.12))),
@@ -6600,7 +7308,7 @@ class NotificationsScreen extends StatelessWidget {
                               const SizedBox(height: 4),
                               Text(d['body'] ?? '',
                                   style: TextStyle(fontSize: 12, height: 1.5,
-                                      color: Colors.white.withValues(alpha: 0.45))),
+                                      color: _g(0.45))),
                               if ((d['hasImages'] == true || (d['imageCount'] ?? 0) > 0)) ...[
                                 const SizedBox(height: 4),
                                 Row(children: [
@@ -6710,6 +7418,22 @@ const List<Map<String, dynamic>> _specialtyCategories = [
     'category': 'Άλλα',
     'items': ['Μηχανικός Αυτοκινήτων', 'Λογιστής', 'Δικηγόρος', 'Αρχιτέκτονας']
   },
+  {
+    'category': 'Συνεργεία',
+    'items': [
+      'Συνεργείο Ανακαίνισης',
+      'Συνεργείο Κατασκευών',
+      'Συνεργείο Βαφής & Διακόσμησης',
+      'Συνεργείο Ηλεκτρολόγων',
+      'Συνεργείο Υδραυλικών',
+      'Συνεργείο Κλιματισμού',
+      'Συνεργείο Αλουμινίου & Κουφωμάτων',
+      'Συνεργείο Πλακιδίων & Δαπέδων',
+      'Συνεργείο Κήπου & Εξωτερικών Χώρων',
+      'Συνεργείο Γυψοσανίδας & Οροφής',
+      'Συνεργείο Ξυλουργικών Εργασιών',
+    ]
+  },
 ];
 
 class _SpecialtyPicker extends StatefulWidget {
@@ -6756,11 +7480,11 @@ class _SpecialtyPickerState extends State<_SpecialtyPicker> {
                       borderRadius: BorderRadius.circular(12),
                       color: isSel
                           ? kGold.withValues(alpha: 0.12)
-                          : Colors.white.withValues(alpha: 0.04),
+                          : _g(0.04),
                       border: Border.all(
                           color: isSel
                               ? kGold.withValues(alpha: 0.5)
-                              : Colors.white.withValues(alpha: 0.07)),
+                              : _g(0.07)),
                     ),
                     child: Row(children: [
                       AnimatedContainer(
@@ -6772,7 +7496,7 @@ class _SpecialtyPickerState extends State<_SpecialtyPicker> {
                               border: Border.all(
                                   color: isSel
                                       ? kGold
-                                      : Colors.white.withValues(alpha: 0.25),
+                                      : _g(0.25),
                                   width: isSel ? 6 : 1.5))),
                       const SizedBox(width: 12),
                       Text(item,
@@ -6833,11 +7557,11 @@ class _AreaPickerState extends State<_AreaPicker> {
                   borderRadius: BorderRadius.circular(12),
                   color: isSel
                       ? kGold.withValues(alpha: 0.12)
-                      : Colors.white.withValues(alpha: 0.04),
+                      : _g(0.04),
                   border: Border.all(
                       color: isSel
                           ? kGold.withValues(alpha: 0.5)
-                          : Colors.white.withValues(alpha: 0.07)),
+                          : _g(0.07)),
                 ),
                 child: Row(children: [
                   AnimatedContainer(
@@ -6849,7 +7573,7 @@ class _AreaPickerState extends State<_AreaPicker> {
                           border: Border.all(
                               color: isSel
                                   ? kGold
-                                  : Colors.white.withValues(alpha: 0.25),
+                                  : _g(0.25),
                               width: isSel ? 6 : 1.5))),
                   const SizedBox(width: 12),
                   Text(area,
@@ -6887,7 +7611,7 @@ class _PickerContainer extends StatelessWidget {
               height: 4,
               margin: const EdgeInsets.only(top: 12, bottom: 16),
               decoration: BoxDecoration(
-                  color: Colors.white.withValues(alpha: 0.15),
+                  color: _g(0.15),
                   borderRadius: BorderRadius.circular(2))),
           Text(title,
               style: const TextStyle(
@@ -6913,7 +7637,7 @@ class _PickerContainer extends StatelessWidget {
                     borderRadius: BorderRadius.circular(16),
                     color: onOk != null
                         ? kGold
-                        : Colors.white.withValues(alpha: 0.1)),
+                        : _g(0.1)),
                 child: Center(
                     child: Text('OK',
                         style: TextStyle(
@@ -6939,11 +7663,13 @@ class _ThemeSelector extends StatefulWidget {
 
 class _ThemeSelectorState extends State<_ThemeSelector> {
   static const _themes = [
-    {'id': 'obsidian', 'name': 'Obsidian Gold', 'emoji': '🌑', 'bg': 0xFF0A0800, 'accent': 0xFFD4A843},
-    {'id': 'navy', 'name': 'Midnight Navy', 'emoji': '🌊', 'bg': 0xFF060D1A, 'accent': 0xFFF0C040},
-    {'id': 'rose', 'name': 'Charcoal Rose', 'emoji': '🌹', 'bg': 0xFF140C0C, 'accent': 0xFFC4917A},
-    {'id': 'forest', 'name': 'Forest Carbon', 'emoji': '🌲', 'bg': 0xFF060E08, 'accent': 0xFF3DBA7E},
-    {'id': 'arctic', 'name': 'Arctic Slate', 'emoji': '🧊', 'bg': 0xFF080C14, 'accent': 0xFF64B5F6},
+    {'id': 'obsidian', 'name': 'Obsidian Gold', 'emoji': '🌑', 'bg': 0xFF0A0800, 'accent': 0xFFD4A843, 'light': false},
+    {'id': 'navy', 'name': 'Midnight Navy', 'emoji': '🌊', 'bg': 0xFF060D1A, 'accent': 0xFFF0C040, 'light': false},
+    {'id': 'rose', 'name': 'Charcoal Rose', 'emoji': '🌹', 'bg': 0xFF140C0C, 'accent': 0xFFC4917A, 'light': false},
+    {'id': 'forest', 'name': 'Forest Carbon', 'emoji': '🌲', 'bg': 0xFF060E08, 'accent': 0xFF3DBA7E, 'light': false},
+    {'id': 'arctic', 'name': 'Arctic Slate', 'emoji': '🧊', 'bg': 0xFF080C14, 'accent': 0xFF64B5F6, 'light': false},
+    {'id': 'white', 'name': 'Pearl White', 'emoji': '🤍', 'bg': 0xFFF5F5F7, 'accent': 0xFFFFB340, 'light': true},
+    {'id': 'grey', 'name': 'Silver Grey', 'emoji': '🩶', 'bg': 0xFFE5E5EA, 'accent': 0xFFFFB340, 'light': true},
   ];
   String _selected = 'obsidian';
 
@@ -6973,6 +7699,8 @@ class _ThemeSelectorState extends State<_ThemeSelector> {
             final t = _themes[i];
             final isSelected = _selected == t['id'];
             final accent = Color(t['accent'] as int);
+            final isChipLight = t['light'] as bool? ?? false;
+            final chipTextColor = isChipLight ? const Color(0xFF0D0D1E) : Colors.white;
             return GestureDetector(
               onTap: () => _saveTheme(t['id'] as String),
               child: AnimatedContainer(
@@ -6982,16 +7710,10 @@ class _ThemeSelectorState extends State<_ThemeSelector> {
                   borderRadius: BorderRadius.circular(16),
                   color: Color(t['bg'] as int),
                   border: Border.all(
-                      color: isSelected
-                          ? accent
-                          : Colors.white.withValues(alpha: 0.1),
+                      color: isSelected ? accent : chipTextColor.withValues(alpha: 0.15),
                       width: isSelected ? 2 : 1),
                   boxShadow: isSelected
-                      ? [
-                          BoxShadow(
-                              color: accent.withValues(alpha: 0.3),
-                              blurRadius: 12)
-                        ]
+                      ? [BoxShadow(color: accent.withValues(alpha: 0.3), blurRadius: 12)]
                       : [],
                 ),
                 child: Column(
@@ -7005,9 +7727,7 @@ class _ThemeSelectorState extends State<_ThemeSelector> {
                       maxLines: 2,
                       style: TextStyle(
                           fontSize: 8,
-                          color: isSelected
-                              ? accent
-                              : Colors.white.withValues(alpha: 0.5),
+                          color: isSelected ? accent : chipTextColor.withValues(alpha: 0.5),
                           fontWeight: isSelected
                               ? FontWeight.w700
                               : FontWeight.w400,
@@ -7109,7 +7829,7 @@ class _NoOffersWidget extends StatelessWidget {
         const SizedBox(height: 10),
         Text('Μπορεί να μην υπάρχουν διαθέσιμοι επαγγελματίες αυτή τη στιγμή. Προσπάθησε ξανά!',
             textAlign: TextAlign.center,
-            style: TextStyle(fontSize: 13, color: Colors.white.withValues(alpha: 0.45), height: 1.5)),
+            style: TextStyle(fontSize: 13, color: _g(0.45), height: 1.5)),
         const SizedBox(height: 28),
         _PremiumButton(
           label: '🔄 Δοκίμασε ξανά',
@@ -7141,7 +7861,7 @@ class _TopBar extends StatelessWidget {
                 height: 38,
                 decoration: BoxDecoration(
                     shape: BoxShape.circle,
-                    color: Colors.white.withValues(alpha: 0.05)),
+                    color: _g(0.05)),
                 child: const Icon(Icons.arrow_back_ios_new,
                     color: Colors.white, size: 16)),
           ),
@@ -7186,7 +7906,7 @@ class _SectionLabel extends StatelessWidget {
             style: TextStyle(
                 fontSize: 11,
                 fontWeight: FontWeight.w700,
-                color: Colors.white.withValues(alpha: 0.45),
+                color: _g(0.45),
                 letterSpacing: 0.5)),
       ]);
 }
@@ -7211,7 +7931,7 @@ class _CriteriaChip extends StatelessWidget {
               borderRadius: BorderRadius.circular(16),
               color: selected
                   ? kGold.withValues(alpha: 0.12)
-                  : Colors.white.withValues(alpha: 0.04),
+                  : _g(0.04),
               border:
                   selected ? Border.all(color: kGold, width: 1.5) : null,
               boxShadow: selected
@@ -7231,7 +7951,7 @@ class _CriteriaChip extends StatelessWidget {
                       fontWeight: FontWeight.w600,
                       color: selected
                           ? kGold
-                          : Colors.white.withValues(alpha: 0.4))),
+                          : _g(0.4))),
             ]),
           ),
         ),
@@ -7261,14 +7981,14 @@ class _HNavItem extends StatelessWidget {
           child: Column(mainAxisSize: MainAxisSize.min, children: [
             Icon(icon,
                 color:
-                    active ? kGold : Colors.white.withValues(alpha: 0.3),
+                    active ? kGold : _g(0.3),
                 size: 22),
             const SizedBox(height: 3),
             Text(label,
                 style: TextStyle(
                     fontFamily: 'Raleway',
                     fontSize: 9,
-                    color: active ? kGold : Colors.white.withValues(alpha: 0.3),
+                    color: active ? kGold : _g(0.3),
                     fontWeight: active
                         ? FontWeight.w600
                         : FontWeight.w400)),
@@ -7321,7 +8041,7 @@ class _NotificationBell extends StatelessWidget {
                 height: 34,
                 decoration: BoxDecoration(
                     shape: BoxShape.circle,
-                    color: Colors.white.withValues(alpha: 0.05),
+                    color: _g(0.05),
                     border:
                         Border.all(color: kGold.withValues(alpha: 0.2))),
                 child: Icon(
@@ -7402,13 +8122,13 @@ class _ProfileRowState extends State<_ProfileRow> {
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(16),
           color: _pressed
-              ? (widget.bgColor ?? Colors.white.withValues(alpha: 0.09))
-              : (widget.bgColor ?? Colors.white.withValues(alpha: 0.05)),
+              ? (widget.bgColor ?? _g(0.09))
+              : (widget.bgColor ?? _g(0.05)),
           border: Border.all(
               color: _pressed
                   ? (widget.borderColor ?? kGold.withValues(alpha: 0.25))
                   : (widget.borderColor ??
-                      Colors.white.withValues(alpha: 0.08))),
+                      _g(0.08))),
         ),
         child: Row(children: [
           Container(
@@ -7437,11 +8157,11 @@ class _ProfileRowState extends State<_ProfileRow> {
               Text(widget.value,
                   style: TextStyle(
                       fontSize: 11,
-                      color: Colors.white.withValues(alpha: 0.35))),
+                      color: _g(0.35))),
           ])),
           if (widget.onTap != null)
             Icon(Icons.chevron_right,
-                color: Colors.white.withValues(alpha: 0.25), size: 20),
+                color: _g(0.25), size: 20),
         ]),
       ),
     );
@@ -7460,13 +8180,13 @@ class _GoldTextField extends StatelessWidget {
   Widget build(BuildContext context) => TextField(
         controller: controller,
         obscureText: obscure,
-        style: const TextStyle(color: Colors.white, fontSize: 14),
+        style: TextStyle(color: _gw, fontSize: 14),
         decoration: InputDecoration(
           labelText: label,
           labelStyle: TextStyle(
-              color: Colors.white.withValues(alpha: 0.4), fontSize: 12),
+              color: _g(0.4), fontSize: 12),
           filled: true,
-          fillColor: Colors.white.withValues(alpha: 0.05),
+          fillColor: _g(0.05),
           contentPadding: const EdgeInsets.symmetric(
               horizontal: 14, vertical: 12),
           border: OutlineInputBorder(

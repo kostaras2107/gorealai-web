@@ -1,0 +1,636 @@
+<!DOCTYPE html>
+<html lang="el">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>GorealAI — Carbon Theme</title>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700;800&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+* { margin:0; padding:0; box-sizing:border-box; }
+
+:root {
+  /* ── CARBON PALETTE ── */
+  --bg:        #0C0C0F;
+  --surface-1: #141418;
+  --surface-2: #1C1C22;
+  --surface-3: #242430;
+  --border:    rgba(255,255,255,0.07);
+  --border-hi: rgba(255,255,255,0.13);
+
+  /* Accents */
+  --silver:    #E2E2E8;
+  --silver-dim:#9090A0;
+  --blue:      #4F8EF7;
+  --blue-glow: rgba(79,142,247,0.35);
+  --violet:    #8B5CF6;
+  --teal:      #2DD4BF;
+  --red:       #F43F5E;
+
+  /* Button shadows */
+  --btn-shadow-blue:   0 4px 16px rgba(79,142,247,0.45), 0 1px 3px rgba(0,0,0,0.6), inset 0 1px 0 rgba(255,255,255,0.12);
+  --btn-shadow-dark:   0 4px 14px rgba(0,0,0,0.7), 0 1px 3px rgba(0,0,0,0.8), inset 0 1px 0 rgba(255,255,255,0.08);
+  --btn-shadow-silver: 0 4px 16px rgba(226,226,232,0.2), 0 2px 6px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.15);
+  --card-shadow:       0 8px 32px rgba(0,0,0,0.6), 0 2px 8px rgba(0,0,0,0.4);
+}
+
+body {
+  background: var(--bg);
+  font-family: 'Inter', sans-serif;
+  color: var(--silver);
+  min-height: 100vh;
+}
+
+/* ── SUBTLE GRAIN TEXTURE ── */
+body::before {
+  content:'';
+  position:fixed; inset:0; z-index:0; pointer-events:none;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.04'/%3E%3C/svg%3E");
+  opacity:0.4;
+}
+
+/* ── GRADIENT BLOBS (subtle) ── */
+.bg-blobs { position:fixed; inset:0; z-index:0; overflow:hidden; pointer-events:none; }
+.blobg {
+  position:absolute; border-radius:50%;
+  filter:blur(100px); opacity:0.06;
+  animation:driftg 25s ease-in-out infinite alternate;
+}
+.blobg-1 { width:600px;height:600px; background:#4F8EF7; top:-200px;left:-150px; animation-duration:20s; }
+.blobg-2 { width:500px;height:500px; background:#8B5CF6; bottom:-100px;right:-100px; animation-duration:28s;animation-delay:-8s; }
+.blobg-3 { width:300px;height:300px; background:#2DD4BF; top:40%;left:30%; animation-duration:18s;animation-delay:-12s; }
+@keyframes driftg {
+  0%{transform:translate(0,0) scale(1)} 50%{transform:translate(30px,-40px) scale(1.06)} 100%{transform:translate(-20px,30px) scale(0.94)}
+}
+
+/* ── WRAPPER ── */
+.page { position:relative; z-index:1; max-width:420px; margin:0 auto; padding-bottom:100px; }
+
+/* ── TOP BAR ── */
+.topbar {
+  display:flex; align-items:center; justify-content:space-between;
+  padding:18px 20px 14px;
+}
+.logo {
+  font-family:'Space Grotesk',sans-serif; font-size:15px; font-weight:800;
+  color: var(--silver); letter-spacing:1.5px;
+  display:flex; align-items:center; gap:6px;
+}
+.logo-dot {
+  width:7px;height:7px;border-radius:50%;
+  background:var(--blue);
+  box-shadow:0 0 8px var(--blue-glow);
+}
+.topbar-actions { display:flex; gap:8px; }
+.icon-btn {
+  width:36px;height:36px;border-radius:12px;
+  background:var(--surface-2);
+  border:1px solid var(--border);
+  box-shadow: var(--btn-shadow-dark);
+  display:flex;align-items:center;justify-content:center;
+  font-size:16px; cursor:pointer;
+  transition:all 0.15s;
+  position:relative;
+}
+.icon-btn:hover { border-color:var(--border-hi); transform:translateY(-1px); box-shadow:0 6px 20px rgba(0,0,0,0.7), inset 0 1px 0 rgba(255,255,255,0.1); }
+.notif-badge {
+  position:absolute;top:6px;right:7px;
+  width:6px;height:6px;border-radius:50%;
+  background:var(--red); border:1.5px solid var(--bg);
+}
+.avatar {
+  width:36px;height:36px;border-radius:12px;
+  background:linear-gradient(135deg,#4F8EF7,#8B5CF6);
+  box-shadow:0 4px 12px rgba(79,142,247,0.35), inset 0 1px 0 rgba(255,255,255,0.2);
+  display:flex;align-items:center;justify-content:center;
+  font-size:11px;font-weight:700;color:#fff;
+  font-family:'Space Grotesk',sans-serif;
+}
+
+/* ── HERO ── */
+.hero { padding:8px 20px 20px; }
+.hero-greeting { font-size:12px; color:var(--silver-dim); margin-bottom:3px; }
+.hero-title {
+  font-family:'Space Grotesk',sans-serif;
+  font-size:30px; font-weight:800; line-height:1.1;
+  color: var(--silver);
+}
+.hero-title em { font-style:normal; color:var(--blue); }
+
+/* ── SEARCH ── */
+.search-wrap { padding:0 20px 20px; }
+.search-box {
+  display:flex;align-items:center;gap:10px;
+  padding:12px 14px;
+  background:var(--surface-2);
+  border:1px solid var(--border);
+  border-radius:16px;
+  box-shadow:var(--btn-shadow-dark);
+  transition:all 0.2s;
+}
+.search-box:hover { border-color:var(--border-hi); }
+.s-icon { font-size:15px; opacity:0.4; }
+.s-text { flex:1; font-size:13px; color:rgba(226,226,232,0.25); }
+.s-btn {
+  background:linear-gradient(135deg,#5B9BFF,#4F8EF7);
+  border:none;border-radius:10px;
+  padding:7px 14px; font-size:11px; font-weight:700;
+  color:#fff; cursor:pointer;
+  font-family:'Space Grotesk',sans-serif;
+  box-shadow:var(--btn-shadow-blue);
+  transition:all 0.15s;
+}
+.s-btn:hover { transform:translateY(-1px); box-shadow:0 6px 20px rgba(79,142,247,0.55), inset 0 1px 0 rgba(255,255,255,0.15); }
+
+/* ── SECTION LABEL ── */
+.slabel {
+  padding:0 20px 10px;
+  font-size:10px;font-weight:700;
+  letter-spacing:2.5px;text-transform:uppercase;
+  color:rgba(226,226,232,0.25);
+  display:flex;align-items:center;gap:8px;
+}
+.slabel::after { content:''; flex:1; height:1px; background:var(--border); }
+
+/* ── ACTIVE REQUEST CARD ── */
+.req-card {
+  margin:0 20px 20px;
+  padding:18px;
+  background:var(--surface-1);
+  border:1px solid rgba(79,142,247,0.2);
+  border-radius:20px;
+  box-shadow:var(--card-shadow), 0 0 0 1px rgba(79,142,247,0.05);
+  position:relative; overflow:hidden;
+  cursor:pointer;transition:all 0.2s;
+}
+.req-card:hover { transform:translateY(-2px); box-shadow:0 12px 40px rgba(0,0,0,0.7), 0 0 0 1px rgba(79,142,247,0.15); }
+.req-card::before {
+  content:'';position:absolute;top:0;left:0;right:0;height:1.5px;
+  background:linear-gradient(90deg,var(--blue),var(--violet),transparent);
+}
+.req-top { display:flex;align-items:center;justify-content:space-between;margin-bottom:10px; }
+.req-status {
+  display:flex;align-items:center;gap:6px;
+  font-size:10px;font-weight:700;letter-spacing:0.8px;color:var(--blue);
+}
+.req-dot { width:6px;height:6px;border-radius:50%;background:var(--blue);box-shadow:0 0 6px var(--blue-glow);animation:blink 2s ease infinite; }
+@keyframes blink { 0%,100%{opacity:1}50%{opacity:0.4} }
+.offers-pill {
+  background:linear-gradient(90deg,rgba(79,142,247,0.15),rgba(139,92,246,0.15));
+  border:1px solid rgba(79,142,247,0.25);
+  border-radius:20px; padding:4px 10px;
+  font-size:11px;font-weight:700;
+  font-family:'Space Grotesk',sans-serif;
+  box-shadow:0 2px 8px rgba(0,0,0,0.4);
+}
+.req-title { font-family:'Space Grotesk',sans-serif;font-size:16px;font-weight:700;margin-bottom:12px;color:#fff; }
+.req-meta { display:flex;gap:14px; }
+.meta-chip {
+  display:flex;align-items:center;gap:5px;
+  background:var(--surface-3); border:1px solid var(--border);
+  border-radius:8px; padding:5px 9px;
+  font-size:11px;color:var(--silver-dim);
+  box-shadow:0 2px 6px rgba(0,0,0,0.4);
+}
+.bar { margin-top:12px;height:3px;background:rgba(255,255,255,0.06);border-radius:2px;overflow:hidden; }
+.bar-fill { height:100%;width:60%;background:linear-gradient(90deg,var(--blue),var(--violet));border-radius:2px; }
+
+/* ── SERVICES ── */
+.services { display:flex;gap:9px;padding:0 20px 20px;overflow-x:auto;scrollbar-width:none; }
+.services::-webkit-scrollbar{display:none}
+.svc {
+  flex-shrink:0;min-width:64px;
+  display:flex;flex-direction:column;align-items:center;gap:5px;
+  padding:12px 10px;
+  background:var(--surface-2);
+  border:1px solid var(--border);
+  border-radius:16px;cursor:pointer;
+  box-shadow:var(--btn-shadow-dark);
+  transition:all 0.15s;
+}
+.svc:hover { border-color:var(--border-hi); transform:translateY(-2px); box-shadow:0 8px 24px rgba(0,0,0,0.7), inset 0 1px 0 rgba(255,255,255,0.06); }
+.svc.sel {
+  background:linear-gradient(135deg,rgba(79,142,247,0.12),rgba(139,92,246,0.08));
+  border-color:rgba(79,142,247,0.35);
+  box-shadow:0 6px 20px rgba(79,142,247,0.2), inset 0 1px 0 rgba(255,255,255,0.06);
+}
+.svc-emoji { font-size:22px; }
+.svc-lbl { font-size:9px;font-weight:600;color:var(--silver-dim);text-align:center;line-height:1.2; }
+.svc.sel .svc-lbl { color:var(--blue); }
+
+/* ── PRO CARDS ── */
+.pros { padding:0 20px;display:flex;flex-direction:column;gap:10px; }
+.pro {
+  display:flex;align-items:center;gap:12px;
+  padding:14px 16px;
+  background:var(--surface-1);
+  border:1px solid var(--border);
+  border-radius:18px;
+  box-shadow:var(--card-shadow);
+  cursor:pointer;transition:all 0.2s;
+  position:relative;overflow:hidden;
+}
+.pro::after {
+  content:'';position:absolute;top:0;left:0;bottom:0;width:2px;
+  background:linear-gradient(180deg,var(--blue),transparent);
+  opacity:0;transition:opacity 0.2s;
+}
+.pro:hover { border-color:var(--border-hi);transform:translateY(-1px);box-shadow:0 12px 36px rgba(0,0,0,0.65); }
+.pro:hover::after { opacity:1; }
+.pro-av {
+  width:50px;height:50px;flex-shrink:0;border-radius:14px;
+  background:var(--surface-3);
+  border:1px solid var(--border-hi);
+  display:flex;align-items:center;justify-content:center;
+  font-size:22px;position:relative;
+  box-shadow:0 4px 12px rgba(0,0,0,0.5),inset 0 1px 0 rgba(255,255,255,0.06);
+}
+.pro-onl {
+  position:absolute;bottom:2px;right:2px;
+  width:9px;height:9px;border-radius:50%;
+  background:var(--teal);border:2px solid var(--bg);
+  box-shadow:0 0 6px rgba(45,212,191,0.6);
+}
+.pro-body { flex:1;min-width:0; }
+.pro-name { font-family:'Space Grotesk',sans-serif;font-size:14px;font-weight:700;color:#fff;margin-bottom:1px; }
+.pro-spec { font-size:11px;color:var(--silver-dim);margin-bottom:7px; }
+.pro-tags { display:flex;gap:5px;flex-wrap:wrap; }
+.ptag {
+  font-size:9px;font-weight:600;padding:3px 8px;border-radius:8px;
+  box-shadow:0 2px 6px rgba(0,0,0,0.4);
+}
+.ptag-blue { background:rgba(79,142,247,0.1);color:var(--blue);border:1px solid rgba(79,142,247,0.2); }
+.ptag-teal { background:rgba(45,212,191,0.1);color:var(--teal);border:1px solid rgba(45,212,191,0.15); }
+.ptag-gray { background:var(--surface-3);color:var(--silver-dim);border:1px solid var(--border); }
+.pro-score { flex-shrink:0;text-align:right; }
+.score-n {
+  font-family:'Space Grotesk',sans-serif;font-size:22px;font-weight:800;
+  background:linear-gradient(135deg,#fff,rgba(255,255,255,0.5));
+  -webkit-background-clip:text;-webkit-text-fill-color:transparent;
+}
+.score-s { font-size:9px;letter-spacing:1px;color:var(--blue); }
+.score-r { font-size:10px;color:rgba(226,226,232,0.3); }
+
+/* ── REQUEST SCREEN ── */
+.req-screen { padding:20px;margin-top:32px; }
+.scr-title { font-family:'Space Grotesk',sans-serif;font-size:26px;font-weight:800;color:#fff;margin-bottom:3px; }
+.scr-sub { font-size:12px;color:var(--silver-dim);margin-bottom:18px;line-height:1.5; }
+
+.pill-row { display:flex;gap:8px;margin-bottom:14px; }
+.pill {
+  flex:1;display:flex;align-items:center;justify-content:space-between;
+  padding:11px 12px;
+  background:var(--surface-2);border:1px solid var(--border);
+  border-radius:13px;cursor:pointer;
+  box-shadow:var(--btn-shadow-dark);
+  transition:all 0.15s; font-size:12px;font-weight:600;color:var(--silver-dim);
+}
+.pill:hover { border-color:var(--border-hi);transform:translateY(-1px); }
+.pill.set { border-color:rgba(79,142,247,0.4);color:var(--blue);background:rgba(79,142,247,0.06);box-shadow:0 4px 14px rgba(79,142,247,0.15),inset 0 1px 0 rgba(255,255,255,0.04); }
+.pill-ic { font-size:14px;margin-right:5px; }
+.pill-arr { opacity:0.4;font-size:11px; }
+
+.textarea {
+  padding:14px 16px;border-radius:16px;
+  background:var(--surface-2);border:1.5px solid var(--border);
+  min-height:90px;color:rgba(226,226,232,0.7);font-size:13px;line-height:1.6;
+  margin-bottom:12px;
+  box-shadow:inset 0 2px 8px rgba(0,0,0,0.4),0 1px 0 rgba(255,255,255,0.04);
+}
+
+.actions { display:flex;gap:8px;margin-bottom:16px; }
+.act-btn {
+  width:46px;height:46px;flex-shrink:0;border-radius:13px;
+  background:var(--surface-2);border:1px solid var(--border);
+  box-shadow:var(--btn-shadow-dark);
+  display:flex;align-items:center;justify-content:center;
+  font-size:18px;cursor:pointer;transition:all 0.15s;position:relative;
+}
+.act-btn:hover { border-color:var(--border-hi);transform:translateY(-1px);box-shadow:0 6px 20px rgba(0,0,0,0.7),inset 0 1px 0 rgba(255,255,255,0.08); }
+.act-badge {
+  position:absolute;top:-4px;right:-4px;
+  width:16px;height:16px;background:var(--teal);border-radius:50%;
+  border:2px solid var(--bg);font-size:8px;font-weight:700;
+  display:flex;align-items:center;justify-content:center;color:#000;
+  box-shadow:0 0 8px rgba(45,212,191,0.5);
+}
+.send-btn {
+  flex:1;height:46px;border-radius:13px;border:none;
+  background:linear-gradient(135deg,#5B9BFF,#4F8EF7,#3B82F6);
+  font-family:'Space Grotesk',sans-serif;font-size:13px;font-weight:800;
+  color:#fff;cursor:pointer;letter-spacing:0.4px;
+  box-shadow:var(--btn-shadow-blue);
+  transition:all 0.15s;
+}
+.send-btn:hover { transform:translateY(-1px);box-shadow:0 8px 24px rgba(79,142,247,0.55),inset 0 1px 0 rgba(255,255,255,0.15); }
+
+.crit-lbl { font-size:10px;font-weight:600;color:var(--silver-dim);margin-bottom:8px;display:flex;align-items:center;gap:5px; }
+.crits { display:flex;gap:8px; }
+.crit {
+  flex:1;padding:10px 6px;border-radius:12px;text-align:center;
+  background:var(--surface-2);border:1.5px solid var(--border);
+  cursor:pointer;transition:all 0.15s;
+  box-shadow:var(--btn-shadow-dark);
+}
+.crit:hover { border-color:var(--border-hi);transform:translateY(-1px); }
+.crit.on { border-color:rgba(79,142,247,0.4);background:rgba(79,142,247,0.08);box-shadow:0 4px 14px rgba(79,142,247,0.2),inset 0 1px 0 rgba(255,255,255,0.04); }
+.crit-e { font-size:16px; }
+.crit-l { font-size:10px;font-weight:600;color:var(--silver-dim);margin-top:3px; }
+.crit.on .crit-l { color:var(--blue); }
+
+/* ── OFFERS SCREEN ── */
+.off-screen { padding:20px;margin-top:32px; }
+.off-card {
+  padding:24px 20px;border-radius:24px;
+  background:var(--surface-1);
+  border:1px solid var(--border);
+  box-shadow:var(--card-shadow);
+  text-align:center;position:relative;overflow:hidden;
+}
+.off-card::before {
+  content:'';position:absolute;top:0;left:0;right:0;height:1.5px;
+  background:linear-gradient(90deg,transparent,var(--blue),var(--violet),var(--teal),transparent);
+}
+.timer-ring { width:96px;height:96px;margin:0 auto 18px;position:relative; }
+.ring-svg { width:100%;height:100%;transform:rotate(-90deg); }
+.ring-track { fill:none;stroke:rgba(255,255,255,0.05);stroke-width:6; }
+.ring-fill {
+  fill:none;stroke:url(#cg);stroke-width:6;stroke-linecap:round;
+  stroke-dasharray:251;stroke-dashoffset:80;
+  animation:rA 3s ease-in-out infinite alternate;
+}
+@keyframes rA { from{stroke-dashoffset:80}to{stroke-dashoffset:30} }
+.ring-inner { position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center; }
+.ring-t { font-family:'Space Grotesk',sans-serif;font-size:22px;font-weight:800;color:#fff; }
+.ring-s { font-size:8px;letter-spacing:1.5px;color:var(--silver-dim); }
+.off-title { font-family:'Space Grotesk',sans-serif;font-size:19px;font-weight:800;color:#fff;margin-bottom:5px; }
+.off-sub { font-size:12px;color:var(--silver-dim);margin-bottom:20px;line-height:1.5; }
+
+.offers-3 { display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:18px; }
+.omini {
+  padding:14px 8px;border-radius:14px;text-align:center;
+  background:var(--surface-2);border:1px solid var(--border);
+  box-shadow:var(--btn-shadow-dark);transition:all 0.15s;
+}
+.omini.top {
+  background:linear-gradient(135deg,rgba(79,142,247,0.1),rgba(139,92,246,0.08));
+  border-color:rgba(79,142,247,0.3);
+  box-shadow:0 6px 20px rgba(79,142,247,0.2),inset 0 1px 0 rgba(255,255,255,0.05);
+}
+.omini-em { font-size:20px;margin-bottom:4px; }
+.omini-nm { font-size:9px;font-weight:600;color:var(--silver-dim);margin-bottom:3px; }
+.omini-pr { font-family:'Space Grotesk',sans-serif;font-size:14px;font-weight:800;color:var(--blue); }
+.omini-bd {
+  display:inline-block;font-size:8px;padding:2px 7px;
+  border-radius:10px;margin-top:3px;font-weight:700;
+  background:rgba(79,142,247,0.15);color:var(--blue);border:1px solid rgba(79,142,247,0.2);
+}
+
+.pick-btn {
+  width:100%;padding:15px;border:none;border-radius:14px;
+  background:linear-gradient(135deg,#5B9BFF,#4F8EF7,#3B82F6);
+  font-family:'Space Grotesk',sans-serif;font-size:14px;font-weight:800;
+  color:#fff;cursor:pointer;letter-spacing:0.3px;
+  box-shadow:var(--btn-shadow-blue);
+  transition:all 0.15s;
+}
+.pick-btn:hover { transform:translateY(-1px);box-shadow:0 8px 28px rgba(79,142,247,0.5),inset 0 1px 0 rgba(255,255,255,0.15); }
+
+/* ── BOTTOM NAV ── */
+.bnav {
+  position:fixed;bottom:0;left:50%;transform:translateX(-50%);
+  width:100%;max-width:420px;
+  background:rgba(12,12,15,0.95);backdrop-filter:blur(24px);
+  border-top:1px solid var(--border);
+  box-shadow:0 -4px 20px rgba(0,0,0,0.5);
+  display:flex;padding:10px 0 18px;
+}
+.nitem {
+  flex:1;display:flex;flex-direction:column;align-items:center;gap:3px;
+  cursor:pointer;transition:all 0.15s;
+}
+.n-ic { font-size:20px;opacity:0.3;transition:all 0.15s; }
+.n-lb { font-size:9px;font-weight:600;color:rgba(226,226,232,0.25);letter-spacing:0.5px; }
+.nitem.on .n-ic { opacity:1; }
+.nitem.on .n-lb { color:var(--blue); }
+.nfab {
+  flex:none;width:50px;height:50px;border-radius:16px;margin-top:-20px;
+  background:linear-gradient(135deg,#5B9BFF,#4F8EF7,#3B82F6);
+  display:flex;align-items:center;justify-content:center;font-size:22px;
+  box-shadow:0 4px 20px rgba(79,142,247,0.5),inset 0 1px 0 rgba(255,255,255,0.2);
+  cursor:pointer;transition:all 0.15s;margin-left:6px;margin-right:6px;
+  border:1px solid rgba(79,142,247,0.3);
+}
+.nfab:hover { transform:scale(1.06) translateY(-2px);box-shadow:0 8px 28px rgba(79,142,247,0.6),inset 0 1px 0 rgba(255,255,255,0.2); }
+
+/* ── COMPARISON ── */
+.compare {
+  display:flex;padding:20px;gap:12px;
+  position:sticky;top:0;z-index:10;
+  background:rgba(12,12,15,0.95);backdrop-filter:blur(12px);
+  border-bottom:1px solid var(--border);
+  margin-bottom:-1px;
+}
+.theme-btn {
+  flex:1;padding:9px;border-radius:12px;text-align:center;
+  font-size:11px;font-weight:700;cursor:pointer;border:1.5px solid;
+  transition:all 0.15s;font-family:'Space Grotesk',sans-serif;
+  box-shadow:var(--btn-shadow-dark);
+}
+.theme-btn.navy { border-color:rgba(255,179,64,0.3);color:rgba(255,179,64,0.8);background:rgba(255,179,64,0.06); }
+.theme-btn.grey { border-color:rgba(79,142,247,0.4);color:var(--blue);background:rgba(79,142,247,0.08);box-shadow:var(--btn-shadow-blue); }
+
+.divider-lbl {
+  text-align:center;padding:32px 20px 8px;
+  font-size:9px;letter-spacing:3px;font-weight:700;
+  color:rgba(226,226,232,0.2);text-transform:uppercase;
+}
+</style>
+</head>
+<body>
+<div class="bg-blobs">
+  <div class="blobg blobg-1"></div>
+  <div class="blobg blobg-2"></div>
+  <div class="blobg blobg-3"></div>
+</div>
+
+<div class="page">
+
+  <!-- TOP BAR -->
+  <div class="topbar">
+    <div class="logo"><div class="logo-dot"></div>GOREALAI</div>
+    <div class="topbar-actions">
+      <div class="icon-btn">🔔<div class="notif-badge"></div></div>
+      <div class="avatar">ΓΠ</div>
+    </div>
+  </div>
+
+  <!-- HERO -->
+  <div class="hero">
+    <div class="hero-greeting">Καλημέρα, Γιώργη 👋</div>
+    <div class="hero-title">Τι χρειάζεσαι<br><em>σήμερα;</em></div>
+  </div>
+
+  <!-- SEARCH -->
+  <div class="search-wrap">
+    <div class="search-box">
+      <div class="s-icon">🔍</div>
+      <div class="s-text">πχ. "Θέλω ηλεκτρολόγο για..."</div>
+      <button class="s-btn">AI →</button>
+    </div>
+  </div>
+
+  <!-- ACTIVE REQUEST -->
+  <div class="slabel">Ενεργό αίτημα</div>
+  <div class="req-card">
+    <div class="req-top">
+      <div class="req-status"><div class="req-dot"></div>LIVE</div>
+      <div class="offers-pill">4 προσφορές ✨</div>
+    </div>
+    <div class="req-title">Ηλεκτρολόγος — Αλλαγή πίνακα</div>
+    <div class="req-meta">
+      <div class="meta-chip">📍 Γλυφάδα</div>
+      <div class="meta-chip" style="color:var(--teal);border-color:rgba(45,212,191,0.2)">⏱ 11:32 λεπτά</div>
+    </div>
+    <div class="bar"><div class="bar-fill"></div></div>
+  </div>
+
+  <!-- SERVICES -->
+  <div class="slabel">Δημοφιλείς υπηρεσίες</div>
+  <div class="services">
+    <div class="svc sel"><div class="svc-emoji">⚡</div><div class="svc-lbl">Ηλεκτρο-λόγος</div></div>
+    <div class="svc"><div class="svc-emoji">🔧</div><div class="svc-lbl">Υδραυ-λικός</div></div>
+    <div class="svc"><div class="svc-emoji">❄️</div><div class="svc-lbl">Κλιμα-τισμός</div></div>
+    <div class="svc"><div class="svc-emoji">🎨</div><div class="svc-lbl">Βαφές</div></div>
+    <div class="svc"><div class="svc-emoji">🌿</div><div class="svc-lbl">Κηπου-ρός</div></div>
+    <div class="svc"><div class="svc-emoji">🏗️</div><div class="svc-lbl">Ανακαί-νιση</div></div>
+  </div>
+
+  <!-- PROFESSIONALS -->
+  <div class="slabel" style="padding-top:4px">Κορυφαίοι επαγγελματίες</div>
+  <div class="pros">
+    <div class="pro">
+      <div class="pro-av">⚡<div class="pro-onl"></div></div>
+      <div class="pro-body">
+        <div class="pro-name">Κώστας Αθανασίου</div>
+        <div class="pro-spec">Ηλεκτρολόγος · Αθήνα</div>
+        <div class="pro-tags">
+          <span class="ptag ptag-blue">💰 120€</span>
+          <span class="ptag ptag-teal">⚡ Άμεσα</span>
+          <span class="ptag ptag-gray">47 έργα</span>
+        </div>
+      </div>
+      <div class="pro-score">
+        <div class="score-n">9.8</div>
+        <div class="score-s">★★★★★</div>
+        <div class="score-r">128 κριτ.</div>
+      </div>
+    </div>
+    <div class="pro">
+      <div class="pro-av">🔧<div class="pro-onl"></div></div>
+      <div class="pro-body">
+        <div class="pro-name">Νίκος Παπαδόπουλος</div>
+        <div class="pro-spec">Υδραυλικός · Γλυφάδα</div>
+        <div class="pro-tags">
+          <span class="ptag ptag-blue">💰 85€</span>
+          <span class="ptag ptag-gray">⭐ Value</span>
+          <span class="ptag ptag-gray">33 έργα</span>
+        </div>
+      </div>
+      <div class="pro-score">
+        <div class="score-n">9.4</div>
+        <div class="score-s">★★★★★</div>
+        <div class="score-r">89 κριτ.</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- REQUEST SCREEN -->
+  <div class="divider-lbl">◆ Screen 2 — Νέο αίτημα</div>
+  <div class="req-screen">
+    <div class="scr-title">Τι χρειάζεσαι;</div>
+    <div class="scr-sub">Οι επαγγελματίες ανταγωνίζονται —<br>το AI επιλέγει τους 3 καλύτερους.</div>
+
+    <div class="pill-row">
+      <div class="pill set"><span><span class="pill-ic">🔨</span>Ηλεκτρολόγος</span><span class="pill-arr">▾</span></div>
+      <div class="pill"><span><span class="pill-ic">📍</span>Περιοχή</span><span class="pill-arr">▾</span></div>
+    </div>
+
+    <div class="textarea">Θέλω να αλλάξω τον κεντρικό πίνακα. Διαμέρισμα ~120 τ.μ., παλιά εγκατάσταση, θέλω και μπαλαντέζα...</div>
+
+    <div class="actions">
+      <div class="act-btn">🎤</div>
+      <div class="act-btn">📎<div class="act-badge">2</div></div>
+      <button class="send-btn">🚀  Στείλε αίτημα</button>
+    </div>
+
+    <div class="crit-lbl">🎯 Τι σε ενδιαφέρει;</div>
+    <div class="crits">
+      <div class="crit on"><div class="crit-e">💰</div><div class="crit-l">Φθηνότερο</div></div>
+      <div class="crit"><div class="crit-e">⭐</div><div class="crit-l">Value</div></div>
+      <div class="crit"><div class="crit-e">⚡</div><div class="crit-l">Άμεσα</div></div>
+    </div>
+  </div>
+
+  <!-- OFFERS SCREEN -->
+  <div class="divider-lbl">◆ Screen 3 — Αποτελέσματα AI</div>
+  <div class="off-screen">
+    <div class="off-card">
+      <div class="timer-ring">
+        <svg class="ring-svg" viewBox="0 0 100 100">
+          <defs>
+            <linearGradient id="cg" x1="0%" y1="0%" x2="100%" y2="0%">
+              <stop offset="0%" stop-color="#5B9BFF"/>
+              <stop offset="100%" stop-color="#8B5CF6"/>
+            </linearGradient>
+          </defs>
+          <circle class="ring-track" cx="50" cy="50" r="40"/>
+          <circle class="ring-fill" cx="50" cy="50" r="40"/>
+        </svg>
+        <div class="ring-inner">
+          <div class="ring-t">11:32</div>
+          <div class="ring-s">ΛΕΠΤΑ</div>
+        </div>
+      </div>
+
+      <div class="off-title">AI επέλεξε τους 3 καλύτερους</div>
+      <div class="off-sub">Βασισμένο σε τιμή, βαθμολογία<br>και διαθεσιμότητα για σένα</div>
+
+      <div class="offers-3">
+        <div class="omini top">
+          <div class="omini-em">⚡</div>
+          <div class="omini-nm">Αθανασίου</div>
+          <div class="omini-pr">120€</div>
+          <div class="omini-bd">AI #1</div>
+        </div>
+        <div class="omini">
+          <div class="omini-em">🔧</div>
+          <div class="omini-nm">Παπαδόπ.</div>
+          <div class="omini-pr">95€</div>
+          <div class="omini-bd" style="background:rgba(255,255,255,0.05);color:var(--silver-dim);border-color:var(--border)">AI #2</div>
+        </div>
+        <div class="omini">
+          <div class="omini-em">⚙️</div>
+          <div class="omini-nm">Σωτηρίου</div>
+          <div class="omini-pr">140€</div>
+          <div class="omini-bd" style="background:rgba(255,255,255,0.05);color:var(--silver-dim);border-color:var(--border)">AI #3</div>
+        </div>
+      </div>
+
+      <button class="pick-btn">✨  Επίλεξε τον καλύτερο</button>
+    </div>
+  </div>
+
+  <div style="height:80px"></div>
+</div>
+
+<!-- NAV -->
+<div class="bnav">
+  <div class="nitem on"><div class="n-ic">🏠</div><div class="n-lb">ΑΡΧΙΚΗ</div></div>
+  <div class="nitem"><div class="n-ic">📋</div><div class="n-lb">ΑΙΤΗΜΑΤΑ</div></div>
+  <div class="nfab">+</div>
+  <div class="nitem"><div class="n-ic">💬</div><div class="n-lb">ΜΗΝΥΜΑΤΑ</div></div>
+  <div class="nitem"><div class="n-ic">👤</div><div class="n-lb">ΠΡΟΦΙΛ</div></div>
+</div>
+
+</body>
+</html>

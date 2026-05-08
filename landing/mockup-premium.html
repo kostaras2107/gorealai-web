@@ -1,0 +1,353 @@
+<!DOCTYPE html>
+<html lang="el">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>GorealAI – Ultra Premium</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
+
+*, *::before, *::after { margin:0; padding:0; box-sizing:border-box; }
+
+body {
+  background: #080808;
+  display: flex; justify-content: center; align-items: flex-start;
+  min-height: 100vh; padding: 40px 20px;
+  font-family: 'Inter', -apple-system, sans-serif;
+}
+
+/* ── PHONE SHELL ── */
+.phone {
+  width: 390px;
+  border-radius: 52px;
+  overflow: hidden;
+  border: 1px solid rgba(255,255,255,0.08);
+  box-shadow:
+    0 0 0 8px #111,
+    0 0 0 9px rgba(255,255,255,0.05),
+    0 60px 120px rgba(0,0,0,0.9),
+    0 20px 40px rgba(0,0,0,0.6);
+  position: relative;
+}
+
+/* ── SCREEN ── */
+.screen {
+  width: 100%;
+  background: #080C10;
+  display: flex; flex-direction: column;
+  position: relative; overflow: hidden;
+  min-height: 844px;
+}
+
+/* Deep ambient gradient */
+.screen::before {
+  content: '';
+  position: absolute; inset: 0;
+  background:
+    radial-gradient(ellipse 60% 40% at 80% -10%, rgba(255,179,64,0.07) 0%, transparent 60%),
+    radial-gradient(ellipse 50% 50% at -10% 60%, rgba(60,80,180,0.06) 0%, transparent 60%),
+    radial-gradient(ellipse 40% 30% at 50% 100%, rgba(255,179,64,0.04) 0%, transparent 50%);
+  pointer-events: none; z-index: 0;
+}
+.screen > * { position: relative; z-index: 1; }
+
+/* ── SVG NOISE FILTER ── */
+svg.noise { position:absolute; width:0; height:0; }
+
+/* ── TOP BAR ── */
+.topbar {
+  padding: 56px 24px 0;
+  display: flex; justify-content: space-between; align-items: center;
+}
+.logo {
+  font-size: 12px; letter-spacing: 6px; font-weight: 800;
+  background: linear-gradient(90deg, #FFE5A0 0%, #FFB340 50%, #FF8C00 100%);
+  -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+  filter: drop-shadow(0 0 12px rgba(255,179,64,0.35));
+}
+.topright { display: flex; align-items: center; gap: 14px; }
+.online-pill {
+  display: flex; align-items: center; gap: 5px;
+  background: rgba(74,222,128,0.08);
+  border: 1px solid rgba(74,222,128,0.2);
+  border-radius: 20px; padding: 4px 10px;
+}
+.online-dot {
+  width: 5px; height: 5px; border-radius: 50%;
+  background: #4ADE80;
+  box-shadow: 0 0 6px #4ADE80;
+}
+.online-text { font-size: 10px; color: #4ADE80; font-weight: 600; letter-spacing: 0.3px; }
+.bell-wrap {
+  width: 34px; height: 34px; border-radius: 12px;
+  background: rgba(255,255,255,0.04);
+  border: 1px solid rgba(255,255,255,0.08);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 15px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.3), inset 0 1px 0 rgba(255,255,255,0.06);
+}
+
+/* ── MARQUEE ── */
+.marquee-wrap {
+  margin-top: 18px;
+  border-top: 1px solid rgba(255,255,255,0.04);
+  border-bottom: 1px solid rgba(255,255,255,0.04);
+  padding: 7px 0; overflow: hidden;
+  background: rgba(255,255,255,0.015);
+}
+.marquee-text {
+  white-space: nowrap; display: inline-block;
+  font-size: 9px; font-weight: 500;
+  color: rgba(255,179,64,0.45); letter-spacing: 2px; text-transform: uppercase;
+  animation: scroll 22s linear infinite;
+}
+@keyframes scroll { 0%{transform:translateX(0)} 100%{transform:translateX(-50%)} }
+
+/* ── GREETING ── */
+.greeting { padding: 28px 24px 0; }
+.greeting-sub { font-size: 11px; font-weight: 600; color: rgba(255,179,64,0.6); letter-spacing: 2px; text-transform: uppercase; margin-bottom: 8px; }
+.greeting h1 { font-size: 28px; font-weight: 300; color: rgba(255,255,255,0.9); line-height: 1.25; letter-spacing: -0.5px; }
+.greeting h1 strong { font-weight: 700; background: linear-gradient(90deg,#FFE5A0,#FFB340); -webkit-background-clip:text; -webkit-text-fill-color:transparent; }
+.greeting p { font-size: 13px; color: rgba(255,255,255,0.3); margin-top: 6px; font-weight: 400; }
+
+/* ── GLASS CARD MIXIN ── */
+.glass {
+  background: linear-gradient(145deg, rgba(255,255,255,0.065) 0%, rgba(255,255,255,0.025) 100%);
+  border: 1px solid rgba(255,255,255,0.09);
+  border-top-color: rgba(255,255,255,0.14);
+  box-shadow:
+    0 1px 0 rgba(255,255,255,0.06) inset,
+    0 -1px 0 rgba(0,0,0,0.3) inset,
+    0 20px 60px rgba(0,0,0,0.5),
+    0 4px 16px rgba(0,0,0,0.4);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  cursor: pointer;
+  transition: transform 0.15s cubic-bezier(0.34,1.56,0.64,1), box-shadow 0.15s ease;
+}
+.glass:active {
+  transform: scale(0.96);
+  box-shadow:
+    0 1px 0 rgba(255,255,255,0.04) inset,
+    0 8px 24px rgba(0,0,0,0.4),
+    0 2px 8px rgba(0,0,0,0.3);
+}
+
+/* ── HERO CARD ── */
+.hero { margin: 24px 24px 0; }
+.hero-card {
+  border-radius: 24px;
+  padding: 22px;
+  position: relative; overflow: hidden;
+}
+.hero-card::before {
+  content: '';
+  position: absolute; top: -40%; left: -20%;
+  width: 80%; height: 120%;
+  background: radial-gradient(ellipse, rgba(255,179,64,0.08) 0%, transparent 65%);
+  pointer-events: none;
+}
+.hero-badge {
+  display: inline-flex; align-items: center; gap: 6px;
+  background: rgba(255,179,64,0.1);
+  border: 1px solid rgba(255,179,64,0.25);
+  border-radius: 20px; padding: 4px 10px;
+  font-size: 10px; font-weight: 700; color: #FFB340;
+  letter-spacing: 1px; text-transform: uppercase;
+  margin-bottom: 14px;
+}
+.hero-badge-dot { width:5px; height:5px; border-radius:50%; background:#FFB340; box-shadow:0 0 6px #FFB340; }
+.hero-title { font-size: 17px; font-weight: 700; color: rgba(255,255,255,0.92); margin-bottom: 6px; letter-spacing: -0.3px; }
+.hero-sub { font-size: 12px; color: rgba(255,255,255,0.35); line-height: 1.6; margin-bottom: 18px; }
+.hero-btn {
+  display: inline-flex; align-items: center; gap: 7px;
+  background: linear-gradient(135deg, #FFE5A0 0%, #FFB340 60%, #E8890A 100%);
+  color: #1a0e00; font-weight: 800; font-size: 12px;
+  padding: 11px 20px; border-radius: 30px; letter-spacing: 0.3px;
+  box-shadow: 0 4px 20px rgba(255,179,64,0.4), 0 1px 4px rgba(255,179,64,0.3);
+  cursor: pointer;
+  transition: transform 0.15s cubic-bezier(0.34,1.56,0.64,1), box-shadow 0.15s ease;
+}
+.hero-btn:active { transform: scale(0.94); box-shadow: 0 2px 10px rgba(255,179,64,0.3); }
+.hero-arrow { font-size: 14px; }
+
+/* ── SECTION HEADER ── */
+.section-header {
+  padding: 26px 24px 12px;
+  display: flex; justify-content: space-between; align-items: baseline;
+}
+.section-title { font-size: 13px; font-weight: 700; color: rgba(255,255,255,0.7); letter-spacing: -0.2px; }
+.section-more { font-size: 11px; color: #FFB340; font-weight: 600; opacity: 0.8; }
+
+/* ── HOW IT WORKS ── */
+.steps { padding: 0 24px; display: flex; flex-direction: column; gap: 8px; }
+.step { border-radius: 16px; padding: 13px 14px; display: flex; align-items: center; gap: 13px; }
+.step-num {
+  width: 34px; height: 34px; border-radius: 11px; flex-shrink: 0;
+  background: rgba(255,179,64,0.08);
+  border: 1px solid rgba(255,179,64,0.2);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 13px; font-weight: 800; color: #FFB340;
+  box-shadow: 0 0 12px rgba(255,179,64,0.1);
+}
+.step-emoji { font-size: 18px; }
+.step-text { font-size: 12px; color: rgba(255,255,255,0.65); font-weight: 500; line-height: 1.4; }
+.step-text strong { color: rgba(255,255,255,0.9); font-weight: 700; display: block; font-size: 13px; margin-bottom: 1px; }
+
+/* ── POPULAR ── */
+.popular { padding: 0 24px; display: grid; grid-template-columns: repeat(4,1fr); gap: 9px; }
+.pop-item { border-radius: 16px; padding: 12px 6px 10px; text-align: center; }
+.pop-emoji { font-size: 22px; line-height: 1; }
+.pop-label { font-size: 9.5px; color: rgba(255,255,255,0.5); margin-top: 6px; font-weight: 500; line-height: 1.3; }
+
+/* ── DIVIDER ── */
+.divider { margin: 20px 24px 0; height: 1px; background: linear-gradient(90deg, transparent, rgba(255,255,255,0.06), transparent); }
+
+/* ── BOTTOM NAV ── */
+.bottomnav {
+  margin-top: auto;
+  background: rgba(8,12,16,0.92);
+  backdrop-filter: blur(30px);
+  -webkit-backdrop-filter: blur(30px);
+  border-top: 1px solid rgba(255,255,255,0.06);
+  box-shadow: 0 -1px 0 rgba(255,255,255,0.04), 0 -20px 40px rgba(0,0,0,0.4);
+  display: flex; align-items: center; justify-content: space-around;
+  padding: 12px 0 32px;
+}
+.nav-item { display: flex; flex-direction: column; align-items: center; gap: 4px; cursor: pointer; padding: 4px 16px; border-radius: 14px; transition: transform 0.15s cubic-bezier(0.34,1.56,0.64,1); }
+.nav-item:active { transform: scale(0.88); }
+.nav-icon { font-size: 19px; }
+.nav-label { font-size: 9px; color: rgba(255,255,255,0.25); font-weight: 600; letter-spacing: 0.3px; }
+.nav-item.active .nav-label { color: #FFB340; }
+.nav-item.active .nav-icon { filter: drop-shadow(0 0 8px rgba(255,179,64,0.5)); }
+
+.fab-wrap { display: flex; flex-direction: column; align-items: center; gap: 4px; margin-bottom: 6px; }
+.fab {
+  width: 54px; height: 54px; border-radius: 18px;
+  background: linear-gradient(145deg, #FFE5A0, #FFB340, #E8890A);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 26px; color: #1a0e00; font-weight: 300;
+  box-shadow: 0 6px 24px rgba(255,179,64,0.45), 0 2px 8px rgba(255,179,64,0.3), inset 0 1px 0 rgba(255,255,255,0.4);
+  cursor: pointer;
+  transition: transform 0.15s cubic-bezier(0.34,1.56,0.64,1), box-shadow 0.15s ease;
+}
+.fab:active { transform: scale(0.92); box-shadow: 0 2px 12px rgba(255,179,64,0.35); }
+.fab-label { font-size: 9px; color: rgba(255,179,64,0.6); font-weight: 600; letter-spacing: 0.3px; }
+
+/* padding bottom */
+.spacer { height: 20px; }
+</style>
+</head>
+<body>
+
+<div class="phone">
+  <div class="screen">
+
+    <!-- AMBIENT SVG NOISE (subtle grain on cards) -->
+    <svg class="noise"><filter id="grain"><feTurbulence type="fractalNoise" baseFrequency="0.65" numOctaves="3" stitchTiles="stitch"/><feColorMatrix type="saturate" values="0"/></filter></svg>
+
+    <!-- TOP BAR -->
+    <div class="topbar">
+      <div class="logo">GOREALAI</div>
+      <div class="topright">
+        <div class="online-pill">
+          <div class="online-dot"></div>
+          <span class="online-text">14 online</span>
+        </div>
+        <div class="bell-wrap">🔔</div>
+      </div>
+    </div>
+
+    <!-- MARQUEE -->
+    <div class="marquee-wrap">
+      <span class="marquee-text">Reverse Auction &nbsp;·&nbsp; Άμεσες Προσφορές &nbsp;·&nbsp; Επαγγελματίες &nbsp;·&nbsp; Δωρεάν για χρήστες &nbsp;·&nbsp; Reverse Auction &nbsp;·&nbsp; Άμεσες Προσφορές &nbsp;·&nbsp; Επαγγελματίες &nbsp;·&nbsp; Δωρεάν για χρήστες &nbsp;·&nbsp;</span>
+    </div>
+
+    <!-- GREETING -->
+    <div class="greeting">
+      <div class="greeting-sub">Καλωσόρισες</div>
+      <h1>Γεια σου, <strong>Κώστα</strong> 👋</h1>
+      <p>Χρειάζεσαι κάποιον επαγγελματία;</p>
+    </div>
+
+    <!-- HERO CARD -->
+    <div class="hero">
+      <div class="hero-card glass">
+        <div class="hero-badge"><div class="hero-badge-dot"></div>Νέο αίτημα</div>
+        <div class="hero-title">Βρες τον καλύτερο επαγγελματία</div>
+        <div class="hero-sub">Περίγραψε τη δουλειά σου και λάβε ανταγωνιστικές προσφορές σε λίγα λεπτά.</div>
+        <div class="hero-btn">Ξεκίνα τώρα <span class="hero-arrow">→</span></div>
+      </div>
+    </div>
+
+    <!-- HOW IT WORKS -->
+    <div class="section-header">
+      <span class="section-title">Πώς λειτουργεί</span>
+    </div>
+    <div class="steps">
+      <div class="step glass">
+        <div class="step-num">1</div>
+        <span class="step-emoji">📝</span>
+        <div class="step-text"><strong>Περίγραψε το αίτημα</strong>Γράψε τι χρειάζεσαι σε λίγες λέξεις</div>
+      </div>
+      <div class="step glass">
+        <div class="step-num">2</div>
+        <span class="step-emoji">⚡</span>
+        <div class="step-text"><strong>Λάβε προσφορές</strong>Επαγγελματίες σου στέλνουν τιμή άμεσα</div>
+      </div>
+      <div class="step glass">
+        <div class="step-num">3</div>
+        <span class="step-emoji">🏆</span>
+        <div class="step-text"><strong>Διάλεξε &amp; ξεκίνα</strong>Επέλεξε την καλύτερη προσφορά</div>
+      </div>
+    </div>
+
+    <div class="divider"></div>
+
+    <!-- POPULAR -->
+    <div class="section-header">
+      <span class="section-title">Δημοφιλείς υπηρεσίες</span>
+      <span class="section-more">Όλες →</span>
+    </div>
+    <div class="popular">
+      <div class="pop-item glass"><div class="pop-emoji">❄️</div><div class="pop-label">Κλιματισμός</div></div>
+      <div class="pop-item glass"><div class="pop-emoji">🔧</div><div class="pop-label">Υδραυλικός</div></div>
+      <div class="pop-item glass"><div class="pop-emoji">⚡</div><div class="pop-label">Ηλεκτρολόγος</div></div>
+      <div class="pop-item glass"><div class="pop-emoji">🎨</div><div class="pop-label">Βαφές</div></div>
+      <div class="pop-item glass"><div class="pop-emoji">🪟</div><div class="pop-label">Κουφώματα</div></div>
+      <div class="pop-item glass"><div class="pop-emoji">🏠</div><div class="pop-label">Ανακαίνιση</div></div>
+      <div class="pop-item glass"><div class="pop-emoji">🌿</div><div class="pop-label">Κηπουρός</div></div>
+      <div class="pop-item glass"><div class="pop-emoji">🚚</div><div class="pop-label">Μετακόμιση</div></div>
+    </div>
+
+    <div class="spacer"></div>
+
+    <!-- BOTTOM NAV -->
+    <div class="bottomnav">
+      <div class="nav-item active">
+        <span class="nav-icon">🏠</span>
+        <span class="nav-label">Αρχική</span>
+      </div>
+      <div class="nav-item">
+        <span class="nav-icon">🕐</span>
+        <span class="nav-label">Ιστορικό</span>
+      </div>
+      <div class="fab-wrap">
+        <div class="fab">＋</div>
+        <span class="fab-label">Αίτημα</span>
+      </div>
+      <div class="nav-item">
+        <span class="nav-icon">💬</span>
+        <span class="nav-label">Μηνύματα</span>
+      </div>
+      <div class="nav-item">
+        <span class="nav-icon">👤</span>
+        <span class="nav-label">Προφίλ</span>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+</body>
+</html>

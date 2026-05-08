@@ -1,0 +1,289 @@
+<!DOCTYPE html>
+<html lang="el">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+<title>Mockup – Texture Background</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { background: #1a1a1a; display: flex; justify-content: center; align-items: flex-start; min-height: 100vh; padding: 20px; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; }
+
+  .phone {
+    width: 375px;
+    min-height: 812px;
+    border-radius: 44px;
+    overflow: hidden;
+    border: 8px solid #2a2a2a;
+    box-shadow: 0 40px 80px rgba(0,0,0,0.7), inset 0 0 0 1px #444;
+    position: relative;
+  }
+
+  .screen {
+    width: 100%;
+    min-height: 812px;
+    position: relative;
+    background: linear-gradient(160deg, #0D0D0D 0%, #0A0A0A 100%);
+    display: flex;
+    flex-direction: column;
+  }
+
+  /* Overlay options — toggle to preview */
+  .overlay-none  { background: transparent; }
+  .overlay-dark  { background: rgba(0,0,0,0.45); }
+  .overlay-light { background: rgba(255,255,255,0.1); }
+
+  .screen > * { position: relative; z-index: 1; }
+
+  /* ── TOP BAR ── */
+  .topbar {
+    padding: 52px 20px 0;
+    display: flex; justify-content: space-between; align-items: center;
+  }
+  .logo {
+    font-size: 13px; letter-spacing: 5px; font-weight: 700;
+    background: linear-gradient(90deg, #FFD580, #FFB340);
+    -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+  }
+  .topright { display: flex; align-items: center; gap: 10px; }
+  .online-dot { width: 6px; height: 6px; border-radius: 50%; background: #4CAF50; display: inline-block; margin-right: 4px; }
+  .online-text { font-size: 10px; color: rgba(255,255,255,0.4); }
+  .bell { font-size: 18px; }
+
+  /* ── MARQUEE ── */
+  .marquee-wrap {
+    margin-top: 14px;
+    overflow: hidden;
+    border-top: 1px solid rgba(255,255,255,0.07);
+    border-bottom: 1px solid rgba(255,255,255,0.07);
+    padding: 6px 0;
+  }
+  .marquee-text {
+    white-space: nowrap;
+    font-size: 10px;
+    color: rgba(255,255,255,0.35);
+    letter-spacing: 1px;
+    animation: scroll 18s linear infinite;
+    display: inline-block;
+  }
+  @keyframes scroll { 0%{transform:translateX(0)} 100%{transform:translateX(-50%)} }
+
+  /* ── GREETING ── */
+  .greeting { padding: 24px 20px 0; }
+  .greeting h1 { font-size: 26px; color: #fff; font-weight: 400; line-height: 1.2; }
+  .greeting h1 span { color: #FFB340; font-style: italic; }
+  .greeting p { font-size: 14px; color: rgba(255,255,255,0.4); margin-top: 5px; }
+
+  /* ── HERO CARD ── */
+  .hero { margin: 24px 20px 0; }
+  .hero-card {
+    border-radius: 20px;
+    background: linear-gradient(160deg, #3a3a3a 0%, #2a2a2a 100%);
+    border: 1px solid rgba(255,255,255,0.10);
+    box-shadow: 0 12px 40px rgba(0,0,0,0.6), 0 4px 12px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.09);
+    padding: 20px;
+    text-align: center;
+    cursor: pointer;
+    transition: transform 0.12s ease, box-shadow 0.12s ease;
+  }
+  .hero-card:active {
+    transform: scale(0.97);
+    box-shadow: 0 4px 16px rgba(0,0,0,0.5), 0 1px 4px rgba(0,0,0,0.3), inset 0 1px 0 rgba(255,255,255,0.06);
+  }
+  .hero-icon { font-size: 36px; margin-bottom: 10px; }
+  .hero-title { font-size: 15px; font-weight: 600; color: #fff; margin-bottom: 6px; }
+  .hero-sub { font-size: 12px; color: rgba(255,255,255,0.4); margin-bottom: 16px; }
+  .hero-btn {
+    display: inline-block;
+    background: linear-gradient(135deg, #FFD580, #FFB340);
+    color: #000;
+    font-weight: 700;
+    font-size: 13px;
+    padding: 10px 24px;
+    border-radius: 30px;
+  }
+
+  /* ── SECTION TITLE ── */
+  .section-title {
+    padding: 24px 20px 12px;
+    font-size: 16px; font-weight: 700;
+    color: rgba(255,255,255,0.8);
+  }
+
+  /* ── HOW IT WORKS ── */
+  .steps { padding: 0 20px; display: flex; flex-direction: column; gap: 10px; }
+  .step {
+    display: flex; align-items: center; gap: 12px;
+    background: linear-gradient(160deg, #383838 0%, #282828 100%);
+    border: 1px solid rgba(255,255,255,0.09);
+    box-shadow: 0 6px 20px rgba(0,0,0,0.55), inset 0 1px 0 rgba(255,255,255,0.08);
+    border-radius: 14px; padding: 12px;
+    cursor: pointer;
+    transition: transform 0.12s ease, box-shadow 0.12s ease;
+  }
+  .step:active {
+    transform: scale(0.97);
+    box-shadow: 0 2px 8px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.05);
+  }
+  .step-num {
+    width: 32px; height: 32px; border-radius: 10px;
+    background: rgba(255,179,64,0.15);
+    border: 1px solid rgba(255,179,64,0.3);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 13px; font-weight: 700; color: #FFB340;
+    flex-shrink: 0;
+  }
+  .step-text { font-size: 12px; color: rgba(255,255,255,0.7); line-height: 1.4; }
+
+  /* ── POPULAR ── */
+  .popular { padding: 0 20px; display: grid; grid-template-columns: repeat(4,1fr); gap: 8px; margin-top: 4px; }
+  .pop-item {
+    background: linear-gradient(160deg, #383838 0%, #282828 100%);
+    border: 1px solid rgba(255,255,255,0.09);
+    box-shadow: 0 6px 18px rgba(0,0,0,0.55), inset 0 1px 0 rgba(255,255,255,0.08);
+    border-radius: 14px; padding: 10px 6px;
+    text-align: center;
+    cursor: pointer;
+    transition: transform 0.12s ease, box-shadow 0.12s ease;
+  }
+  .pop-item:active {
+    transform: scale(0.94);
+    box-shadow: 0 2px 8px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.05);
+  }
+  .pop-item .emoji { font-size: 22px; }
+  .pop-item .label { font-size: 10px; color: rgba(255,255,255,0.6); margin-top: 5px; line-height: 1.2; }
+
+  /* ── BOTTOM NAV ── */
+  .bottomnav {
+    margin-top: auto;
+    background: linear-gradient(180deg, #2e2e2e 0%, #222222 100%);
+    border-top: 1px solid rgba(255,255,255,0.09);
+    box-shadow: 0 -6px 28px rgba(0,0,0,0.6), inset 0 1px 0 rgba(255,255,255,0.08);
+    display: flex; align-items: center; justify-content: space-around;
+    padding: 10px 0 28px;
+  }
+  .nav-item { display: flex; flex-direction: column; align-items: center; gap: 3px; cursor: pointer; }
+  .nav-item .nav-icon { font-size: 20px; }
+  .nav-item .nav-label { font-size: 9px; color: rgba(255,255,255,0.35); }
+  .nav-item.active .nav-label { color: #FFB340; }
+  .fab {
+    width: 52px; height: 52px; border-radius: 18px;
+    background: linear-gradient(135deg, #FFD580, #FFB340);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 24px;
+    box-shadow: 0 4px 20px rgba(255,179,64,0.4);
+    margin-bottom: 8px;
+  }
+
+  /* ── SIDE LABEL ── */
+  .side-note {
+    position: absolute; right: -130px; top: 50%;
+    transform: translateY(-50%);
+    width: 120px;
+    color: #aaa; font-size: 12px; line-height: 1.6;
+  }
+  .side-note h3 { color: #fff; font-size: 13px; margin-bottom: 8px; }
+  .side-note .dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 6px; }
+</style>
+</head>
+<body>
+
+<div style="position:relative;">
+  <div class="phone">
+    <div class="screen">
+
+      <!-- TOP BAR -->
+      <div class="topbar">
+        <div class="logo">GOREALAI</div>
+        <div class="topright">
+          <span><span class="online-dot"></span><span class="online-text">12 online</span></span>
+          <span class="bell">🔔</span>
+        </div>
+      </div>
+
+      <!-- MARQUEE -->
+      <div class="marquee-wrap">
+        <span class="marquee-text">Η πρώτη εφαρμογή στην Ελλάδα με reverse auction &nbsp;&nbsp;•&nbsp;&nbsp; Η πρώτη εφαρμογή στην Ελλάδα με reverse auction &nbsp;&nbsp;•&nbsp;&nbsp;</span>
+      </div>
+
+      <!-- GREETING -->
+      <div class="greeting">
+        <h1>Γεια σου, <span>Κώστα</span> 👋</h1>
+        <p>Χρειάζεσαι κάποιον επαγγελματία;</p>
+      </div>
+
+      <!-- HERO -->
+      <div class="hero">
+        <div class="hero-card">
+          <div class="hero-icon">🏗️</div>
+          <div class="hero-title">Νέο Αίτημα</div>
+          <div class="hero-sub">Περίγραψε τη δουλειά σου και λάβε προσφορές από επαγγελματίες</div>
+          <div class="hero-btn">+ Νέο Αίτημα</div>
+        </div>
+      </div>
+
+      <!-- HOW IT WORKS -->
+      <div class="section-title">Πώς λειτουργεί;</div>
+      <div class="steps">
+        <div class="step">
+          <div class="step-num">1</div>
+          <div class="step-text">📝 Περιέγραψε τι χρειάζεσαι</div>
+        </div>
+        <div class="step">
+          <div class="step-num">2</div>
+          <div class="step-text">⚡ Λάβε προσφορές σε λεπτά</div>
+        </div>
+        <div class="step">
+          <div class="step-num">3</div>
+          <div class="step-text">🏆 Διάλεξε τον καλύτερο</div>
+        </div>
+      </div>
+
+      <!-- POPULAR -->
+      <div class="section-title">Δημοφιλείς υπηρεσίες</div>
+      <div class="popular">
+        <div class="pop-item"><div class="emoji">❄️</div><div class="label">Κλιματισμός</div></div>
+        <div class="pop-item"><div class="emoji">🔧</div><div class="label">Υδραυλικός</div></div>
+        <div class="pop-item"><div class="emoji">⚡</div><div class="label">Ηλεκτρολόγος</div></div>
+        <div class="pop-item"><div class="emoji">🎨</div><div class="label">Βαφές</div></div>
+        <div class="pop-item"><div class="emoji">🪟</div><div class="label">Κουφώματα</div></div>
+        <div class="pop-item"><div class="emoji">🏠</div><div class="label">Ανακαίνιση</div></div>
+        <div class="pop-item"><div class="emoji">🌿</div><div class="label">Κηπουρός</div></div>
+        <div class="pop-item"><div class="emoji">🚚</div><div class="label">Μετακόμιση</div></div>
+      </div>
+
+      <div style="height: 16px;"></div>
+
+      <!-- BOTTOM NAV -->
+      <div class="bottomnav">
+        <div class="nav-item active">
+          <span class="nav-icon">🏠</span>
+          <span class="nav-label" style="color:#FFB340;">Αρχική</span>
+        </div>
+        <div class="nav-item" style="margin-bottom:6px;">
+          <div class="fab">＋</div>
+        </div>
+        <div class="nav-item">
+          <span class="nav-icon">👤</span>
+          <span class="nav-label">Προφίλ</span>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- SIDE NOTES -->
+  <div class="side-note">
+    <h3>Επιλογές overlay</h3>
+    Η υφή χρειάζεται ένα σκούρο overlay για να φαίνεται το κείμενο.
+    <br><br>
+    <strong style="color:#FFB340;">Τώρα:</strong> 38% σκούρο overlay
+    <br><br>
+    Μπορώ να δοκιμάσω και:
+    <br>• 0% (pure texture)
+    <br>• 20% (lighter)
+    <br>• 60% (darker)
+  </div>
+</div>
+
+</body>
+</html>
