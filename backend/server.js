@@ -107,12 +107,32 @@ app.post('/send-push', rateLimit(30, 60_000), async (req, res) => {
       token,
       notification: { title, body: body || '' },
       data: data || {},
+      // Android native config
+      android: {
+        priority: 'high',
+        notification: {
+          channelId: 'gorealai_channel',
+          priority: 'high',
+          sound: 'default',
+          icon: 'ic_launcher',
+          title,
+          body: body || '',
+        },
+      },
+      // Web push config (for browser)
       webpush: {
         notification: {
           title,
           body: body || '',
           icon: 'https://gorealai.web.app/icons/Icon-192.png',
           badge: 'https://gorealai.web.app/icons/Icon-192.png',
+        },
+        headers: { Urgency: 'high' },
+      },
+      // iOS config
+      apns: {
+        payload: {
+          aps: { alert: { title, body: body || '' }, sound: 'default', badge: 1 },
         },
       },
     };
@@ -316,11 +336,17 @@ app.post('/stripe-webhook', express.raw({ type: 'application/json' }), async (re
     const userId = subscription.metadata?.userId;
     if (userId && firebaseReady) {
       try {
-        await admin.firestore().collection('users').doc(userId).update({
-          isPremium: false,
-          premiumCancelledAt: admin.firestore.FieldValue.serverTimestamp(),
-        });
-        console.log(`❌ User ${userId} subscription cancelled`);
+        // Don't revoke premium from owner accounts
+        const userDoc = await admin.firestore().collection('users').doc(userId).get();
+        if (userDoc.data()?.isOwner === true) {
+          console.log(`👑 Owner ${userId} — skipping premium revocation`);
+        } else {
+          await admin.firestore().collection('users').doc(userId).update({
+            isPremium: false,
+            premiumCancelledAt: admin.firestore.FieldValue.serverTimestamp(),
+          });
+          console.log(`❌ User ${userId} subscription cancelled`);
+        }
       } catch (e) {
         console.error('Firestore update error:', e.message);
       }
