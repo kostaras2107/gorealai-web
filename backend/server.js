@@ -199,14 +199,27 @@ app.post('/booking-response', rateLimit(20, 60_000), async (req, res) => {
 
   // ── Send FCM push ──
   if (userFcmToken && firebaseReady) {
+    const pushTitle = isAccepted ? '✅ Αποδέχτηκαν το αίτημά σου!' : '❌ Δεν ήταν διαθέσιμος';
+    const pushBody = isAccepted
+      ? `Ο ${proName} αποδέχτηκε την κράτησή σου!`
+      : `Ο ${proName} δεν είναι διαθέσιμος αυτή τη στιγμή.`;
     try {
       await admin.messaging().send({
         token: userFcmToken,
-        notification: {
-          title: isAccepted ? '✅ Αποδέχτηκαν το αίτημά σου!' : '❌ Δεν ήταν διαθέσιμος',
-          body: isAccepted
-            ? `Ο ${proName} αποδέχτηκε την κράτησή σου!`
-            : `Ο ${proName} δεν είναι διαθέσιμος αυτή τη στιγμή.`,
+        notification: { title: pushTitle, body: pushBody },
+        android: {
+          priority: 'high',
+          notification: {
+            channelId: 'gorealai_channel',
+            priority: 'high',
+            sound: 'default',
+            icon: 'ic_launcher',
+            title: pushTitle,
+            body: pushBody,
+          },
+        },
+        apns: {
+          payload: { aps: { alert: { title: pushTitle, body: pushBody }, sound: 'default', badge: 1 } },
         },
       });
       results.push = 'sent';
@@ -246,16 +259,87 @@ app.post('/new-offer', rateLimit(20, 60_000), async (req, res) => {
   }
 
   if (userFcmToken && firebaseReady) {
+    const offerTitle = `🎯 Νέα προσφορά — ${price}€`;
+    const offerBody = `Ο ${proName} έστειλε προσφορά!`;
     try {
       await admin.messaging().send({
         token: userFcmToken,
-        notification: { title: `🎯 Νέα προσφορά — ${price}€`, body: `Ο ${proName} έστειλε προσφορά!` },
+        notification: { title: offerTitle, body: offerBody },
+        android: {
+          priority: 'high',
+          notification: {
+            channelId: 'gorealai_channel',
+            priority: 'high',
+            sound: 'default',
+            icon: 'ic_launcher',
+            title: offerTitle,
+            body: offerBody,
+          },
+        },
+        apns: {
+          payload: { aps: { alert: { title: offerTitle, body: offerBody }, sound: 'default', badge: 1 } },
+        },
       });
       results.push = 'sent';
     } catch (e) { results.push = `error: ${e.message}`; }
   }
 
   res.json({ success: true, results });
+});
+
+// ── Notify pros of new request ───────────────────────────────────────
+// POST /notify-new-request
+// Body: { fcmToken, proName, userName, description, profession }
+app.post('/notify-new-request', rateLimit(60, 60_000), async (req, res) => {
+  const { fcmToken, proName, userName, description, profession } = req.body;
+  if (!fcmToken || !firebaseReady) {
+    return res.json({ success: false, reason: !fcmToken ? 'no token' : 'firebase not ready' });
+  }
+  const title = `🔔 Νέο αίτημα${profession ? ` για ${profession}` : ''}!`;
+  const body = `${userName}: ${description ? description.substring(0, 80) : ''}`;
+  try {
+    await admin.messaging().send({
+      token: fcmToken,
+      notification: { title, body },
+      android: {
+        priority: 'high',
+        notification: { channelId: 'gorealai_channel', priority: 'high', sound: 'default', icon: 'ic_launcher', title, body },
+      },
+      apns: { payload: { aps: { alert: { title, body }, sound: 'default', badge: 1 } } },
+    });
+    console.log(`📬 New-request push → ${proName}`);
+    res.json({ success: true });
+  } catch (e) {
+    console.error('notify-new-request error:', e.message);
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// ── Notify user/pro of new chat message ──────────────────────────────
+// POST /notify-chat-message
+// Body: { fcmToken, senderName, messagePreview }
+app.post('/notify-chat-message', rateLimit(120, 60_000), async (req, res) => {
+  const { fcmToken, senderName, messagePreview } = req.body;
+  if (!fcmToken || !firebaseReady) {
+    return res.json({ success: false, reason: !fcmToken ? 'no token' : 'firebase not ready' });
+  }
+  const title = `💬 ${senderName}`;
+  const body = messagePreview || 'Νέο μήνυμα';
+  try {
+    await admin.messaging().send({
+      token: fcmToken,
+      notification: { title, body },
+      android: {
+        priority: 'high',
+        notification: { channelId: 'gorealai_channel', priority: 'high', sound: 'default', icon: 'ic_launcher', title, body },
+      },
+      apns: { payload: { aps: { alert: { title, body }, sound: 'default', badge: 1 } } },
+    });
+    res.json({ success: true });
+  } catch (e) {
+    console.error('notify-chat-message error:', e.message);
+    res.status(500).json({ error: e.message });
+  }
 });
 
 // ── Stripe Checkout Session ──────────────────────────────────────
