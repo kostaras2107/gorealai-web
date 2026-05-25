@@ -342,6 +342,56 @@ app.post('/notify-chat-message', rateLimit(120, 60_000), async (req, res) => {
   }
 });
 
+// ── Google Places: search business ──────────────────────────────
+// GET /places-search?query=...&location=...
+app.get('/places-search', rateLimit(30, 60_000), async (req, res) => {
+  const { query, location } = req.query;
+  const apiKey = process.env.GOOGLE_PLACES_KEY;
+  if (!apiKey) return res.status(503).json({ error: 'Google Places not configured' });
+  if (!query) return res.status(400).json({ error: 'query required' });
+  try {
+    const q = encodeURIComponent(location ? `${query} ${location}` : query);
+    const url = `https://maps.googleapis.com/maps/api/place/textsearch/json?query=${q}&language=el&key=${apiKey}`;
+    const resp = await fetch(url);
+    const data = await resp.json();
+    const results = (data.results || []).slice(0, 5).map(p => ({
+      placeId: p.place_id,
+      name: p.name,
+      address: p.formatted_address,
+      rating: p.rating || null,
+      userRatingsTotal: p.user_ratings_total || 0,
+    }));
+    res.json({ results });
+  } catch (e) {
+    console.error('places-search error:', e.message);
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// ── Google Places: get rating for saved placeId ──────────────────
+// GET /places-rating?placeId=...
+app.get('/places-rating', rateLimit(60, 60_000), async (req, res) => {
+  const { placeId } = req.query;
+  const apiKey = process.env.GOOGLE_PLACES_KEY;
+  if (!apiKey) return res.status(503).json({ error: 'Google Places not configured' });
+  if (!placeId) return res.status(400).json({ error: 'placeId required' });
+  try {
+    const url = `https://maps.googleapis.com/maps/api/place/details/json?place_id=${placeId}&fields=name,rating,user_ratings_total,url&language=el&key=${apiKey}`;
+    const resp = await fetch(url);
+    const data = await resp.json();
+    const r = data.result || {};
+    res.json({
+      name: r.name || '',
+      rating: r.rating || null,
+      userRatingsTotal: r.user_ratings_total || 0,
+      mapsUrl: r.url || '',
+    });
+  } catch (e) {
+    console.error('places-rating error:', e.message);
+    res.status(500).json({ error: e.message });
+  }
+});
+
 // ── Stripe Checkout Session ──────────────────────────────────────
 // POST /create-checkout-session
 // Body: { userId, email }
