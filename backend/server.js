@@ -354,6 +354,10 @@ app.get('/places-search', rateLimit(30, 60_000), async (req, res) => {
     const url = `https://maps.googleapis.com/maps/api/place/textsearch/json?query=${q}&language=el&key=${apiKey}`;
     const resp = await fetch(url);
     const data = await resp.json();
+    console.log('places-search status:', data.status, data.error_message || '');
+    if (data.status && data.status !== 'OK' && data.status !== 'ZERO_RESULTS') {
+      return res.status(503).json({ error: `Google Places: ${data.status} — ${data.error_message || ''}` });
+    }
     const results = (data.results || []).slice(0, 5).map(p => ({
       placeId: p.place_id,
       name: p.name,
