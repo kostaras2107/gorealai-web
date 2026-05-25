@@ -50,9 +50,9 @@ app.use(express.json());
 // ── Firebase Admin Init ──────────────────────────────────────────
 let firebaseReady = false;
 try {
-  const serviceAccount = process.env.FIREBASE_SERVICE_ACCOUNT
-    ? JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT)
-    : null;
+  // Support both env var names
+  const rawKey = process.env.FIREBASE_SERVICE_ACCOUNT || process.env.FIREBASE_KEY;
+  const serviceAccount = rawKey ? JSON.parse(rawKey) : null;
 
   if (serviceAccount) {
     admin.initializeApp({
