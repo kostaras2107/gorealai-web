@@ -47,7 +47,7 @@
   .form-msg.error{background:#2b0d0d;color:var(--red);display:block;}
   .filter-row{display:flex;gap:12px;flex-wrap:wrap;margin-bottom:16px;}
   .filter-row select,.filter-row input{background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:8px 14px;color:var(--text);font-family:'DM Sans',sans-serif;font-size:13px;outline:none;}
-  .table-wrap{background:var(--surface);border:1px solid var(--border);border-radius:16px;overflow:hidden;}
+  .table-wrap{background:var(--surface);border:1px solid var(--border);border-radius:16px;overflow-x:auto;overflow-y:visible;}
   table{width:100%;border-collapse:collapse;}
   thead th{background:var(--surface2);padding:14px 16px;text-align:left;font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;font-weight:500;border-bottom:1px solid var(--border);}
   tbody tr{border-bottom:1px solid #1a1a1a;transition:background .15s;}
@@ -81,7 +81,8 @@
   .modal-actions{display:flex;gap:12px;justify-content:flex-end;}
   .btn-cancel{background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:10px 20px;color:var(--muted);font-size:14px;cursor:pointer;}
   .btn-save{background:linear-gradient(135deg,var(--gold),var(--gold2));border:none;border-radius:8px;padding:10px 24px;color:#0a0a0a;font-family:'Syne',sans-serif;font-weight:700;font-size:14px;cursor:pointer;}
-  @media(max-width:768px){.header{padding:14px 16px;}.container{padding:20px 16px;}.form-grid,.modal-grid{grid-template-columns:1fr;}table{font-size:13px;}thead th,tbody td{padding:10px 12px;}}
+  .container{max-width:1200px;margin:0 auto;padding:32px 24px;overflow-x:hidden;}
+  @media(max-width:768px){.header{padding:14px 16px;}.container{padding:20px 12px;}.form-grid,.modal-grid{grid-template-columns:1fr;}table{font-size:12px;}thead th,tbody td{padding:8px 10px;}.action-btns{flex-direction:column;}.stats-grid{grid-template-columns:repeat(2,1fr);}}
 </style>
 </head>
 <body>
@@ -109,15 +110,15 @@
         <label>Ειδικότητα *</label>
         <select id="edit-specialty">
           <option value="">-- Επίλεξε --</option>
-          <optgroup label="Συνεργεία"><option value="Συνεργείο Ανακαίνισης">Συνεργείο Ανακαίνισης</option><option value="Συνεργείο Κατασκευών">Συνεργείο Κατασκευών</option><option value="Συνεργείο Βαφής & Διακόσμησης">Συνεργείο Βαφής & Διακόσμησης</option><option value="Συνεργείο Ηλεκτρολόγων">Συνεργείο Ηλεκτρολόγων</option><option value="Συνεργείο Υδραυλικών">Συνεργείο Υδραυλικών</option><option value="Συνεργείο Κλιματισμού">Συνεργείο Κλιματισμού</option><option value="Συνεργείο Αλουμινίου & Κουφωμάτων">Συνεργείο Αλουμινίου & Κουφωμάτων</option><option value="Συνεργείο Πλακιδίων & Δαπέδων">Συνεργείο Πλακιδίων & Δαπέδων</option><option value="Συνεργείο Κήπου & Εξωτερικών Χώρων">Συνεργείο Κήπου & Εξωτερικών Χώρων</option><option value="Συνεργείο Γυψοσανίδας & Οροφής">Συνεργείο Γυψοσανίδας & Οροφής</option><option value="Συνεργείο Ξυλουργικών Εργασιών">Συνεργείο Ξυλουργικών Εργασιών</option><option value="Συνεργείο Smart Home & Αυτοματισμού">Συνεργείο Smart Home & Αυτοματισμού</option></optgroup>
-          <optgroup label="Τεχνικοί"><option>Ηλεκτρολόγος</option><option>Υδραυλικός</option><option>Ψυκτικός</option><option>Ελαιοχρωματιστής</option><option>Μηχανικός</option><option>Κτίστης</option><option>Ξυλουργός</option><option>Υαλουργός</option><option>Τεχνικός Ανελκυστήρων</option><option>Αποφράξεις</option><option>Αλουμινάς</option><option>Πλακάς</option><option>Ηλεκτρολόγος Αυτοκινήτων</option><option>Συντήρηση Κλιματιστικών</option><option>Εγκατάσταση Ηλιακών</option></optgroup>
-          <optgroup label="Υγεία"><option>Παθολόγος</option><option>Παιδίατρος</option><option>Οδοντίατρος</option><option>Δερματολόγος</option><option>Ορθοπεδικός</option><option>Οφθαλμίατρος</option><option>Φυσιοθεραπευτής</option><option>Ψυχολόγος</option><option>Διατροφολόγος</option><option>Νοσηλευτής κατ' οίκον</option></optgroup>
-          <optgroup label="Οικονομικά & Νομικά"><option>Λογιστής</option><option>Φοροτεχνικός</option><option>Δικηγόρος</option><option>Συμβολαιογράφος</option><option>Σύμβουλος Επιχειρήσεων</option><option>Μεσίτης</option><option>Εκτιμητής Ακινήτων</option><option>Ορκωτός Ελεγκτής</option></optgroup>
-          <optgroup label="Σπίτι & Καθαριότητα"><option>Καθαρίστρια</option><option>Οικιακή Βοηθός</option><option>Κηπουρός</option><option>Φύλακας</option><option>Baby Sitter</option><option>Φροντιστής Ηλικιωμένων</option><option>Μετακομίσεις</option></optgroup>
-          <optgroup label="Εκπαίδευση"><option>Καθηγητής Μαθηματικών</option><option>Καθηγητής Αγγλικών</option><option>Καθηγητής Φυσικής</option><option>Personal Trainer</option><option>Εκπαιδευτής Οδήγησης</option></optgroup>
-          <optgroup label="Ομορφιά & Ευεξία"><option>Κομμωτής</option><option>Αισθητικός</option><option>Μανικιουρίστ</option><option>Μασέρ</option><option>Τατουάζ</option></optgroup>
-          <optgroup label="Ψηφιακές Υπηρεσίες"><option>Web Developer</option><option>Γραφίστας</option><option>Φωτογράφος</option><option>Βιντεογράφος</option><option>Τεχνικός Υπολογιστών</option></optgroup>
-          <optgroup label="Άλλα"><option>Μηχανικός Αυτοκινήτων</option><option>Τεχνικός Επίπλων</option><option>Μεταφραστής</option><option>Λογοθεραπευτής</option><option>Αρχιτέκτονας</option></optgroup>
+          <optgroup label="Τεχνικοί"><option>Ηλεκτρολόγος</option><option>Υδραυλικός</option><option>Ψυκτικός</option><option>Ελαιοχρωματιστής</option><option>Μηχανικός</option><option>Κτίστης</option><option>Ξυλουργός</option><option>Υαλουργός</option><option>Τεχνικός Ανελκυστήρων</option><option>Αποφράξεις</option><option>Αλουμινάς</option><option>Πλακάς</option><option>Συντήρηση Κλιματιστικών</option><option>Εγκατάσταση Ηλιακών</option><option>Υπηρεσία Αποξήλωσης</option></optgroup>
+          <optgroup label="Υγεία"><option>Παθολόγος</option><option>Παιδίατρος</option><option>Οδοντίατρος</option><option>Φυσιοθεραπευτής</option><option>Ψυχολόγος</option><option>Διατροφολόγος</option><option>Νοσηλευτής κατ' οίκον</option></optgroup>
+          <optgroup label="Σπίτι"><option>Καθαρίστρια</option><option>Κηπουρός</option><option>Baby Sitter</option><option>Μετακομίσεις</option></optgroup>
+          <optgroup label="Εκπαίδευση"><option>Καθηγητής Μαθηματικών</option><option>Καθηγητής Αγγλικών</option><option>Καθηγητής Γαλλικών</option><option>Καθηγητής Ιταλικών</option><option>Καθηγητής Γερμανικών</option><option>Καθηγητής Ισπανικών</option><option>Φιλόλογος</option><option>Καθηγητής Φυσικής</option><option>Καθηγητής Χημείας</option><option>Καθηγητής Πληροφορικής</option><option>Καθηγητής Βιολογίας</option><option>Personal Trainer</option></optgroup>
+          <optgroup label="Ψηφιακές"><option>Web Developer</option><option>Γραφίστας</option><option>Φωτογράφος</option><option>Τεχνικός Υπολογιστών</option></optgroup>
+          <optgroup label="Εκδηλώσεις"><option>Εκδηλώσεις Γάμου</option><option>Εκδηλώσεις Βάφτισης</option><option>Διοργάνωση Πάρτυ</option><option>Φωτογράφος Γάμου</option><option>DJ / Μουσική Εκδηλώσεων</option><option>Catering</option><option>Ανθοδέτης / Στολισμός</option><option>Αίθουσα Εκδηλώσεων</option></optgroup>
+          <optgroup label="Ομορφιά & Αισθητική"><option>Tattoo Artist</option><option>Τεχνίτρια Νυχιών</option></optgroup>
+          <optgroup label="Άλλα"><option>Μηχανικός Αυτοκινήτων</option><option>Λογιστής</option><option>Δικηγόρος</option><option>Αρχιτέκτονας</option></optgroup>
+          <optgroup label="Συνεργεία"><option>Συνεργείο Ανακαίνισης</option><option>Συνεργείο Κατασκευών</option><option>Συνεργείο Βαφής & Διακόσμησης</option><option>Συνεργείο Ηλεκτρολόγων</option><option>Συνεργείο Υδραυλικών</option><option>Συνεργείο Κλιματισμού</option><option>Συνεργείο Αλουμινίου & Κουφωμάτων</option><option>Συνεργείο Πλακιδίων & Δαπέδων</option><option>Συνεργείο Κήπου & Εξωτερικών Χώρων</option><option>Συνεργείο Γυψοσανίδας & Οροφής</option><option>Συνεργείο Ξυλουργικών Εργασιών</option></optgroup>
         </select>
       </div>
       <div class="form-group">
@@ -127,7 +128,7 @@
           <option>Αθήνα Κέντρο</option><option>Κολωνάκι</option><option>Εξάρχεια</option><option>Παγκράτι</option><option>Πετράλωνα</option><option>Κουκάκι</option><option>Νέος Κόσμος</option><option>Γλυφάδα</option><option>Βούλα</option><option>Βουλιαγμένη</option><option>Καλλιθέα</option><option>Μοσχάτο</option><option>Ταύρος</option><option>Νέα Σμύρνη</option><option>Παλαιό Φάληρο</option><option>Άλιμος</option><option>Αργυρούπολη</option><option>Ελληνικό</option><option>Χαλάνδρι</option><option>Μαρούσι</option><option>Κηφισιά</option><option>Βριλήσσια</option><option>Νέα Ιωνία</option><option>Ηράκλειο Αττικής</option><option>Μεταμόρφωση</option><option>Αγία Παρασκευή</option><option>Παπάγου</option><option>Χολαργός</option><option>Ζωγράφου</option><option>Βύρωνας</option><option>Καισαριανή</option><option>Ηλιούπολη</option><option>Άγιος Δημήτριος</option><option>Δάφνη</option><option>Υμηττός</option><option>Περιστέρι</option><option>Αιγάλεω</option><option>Χαϊδάρι</option><option>Πετρούπολη</option><option>Ίλιον</option><option>Αγία Βαρβάρα</option><option>Κορυδαλλός</option><option>Νίκαια</option><option>Κερατσίνι</option><option>Δραπετσώνα</option><option>Πειραιάς</option><option>Πέραμα</option><option>Σαλαμίνα</option><option>Αχαρνές</option><option>Κρυονέρι</option><option>Διόνυσος</option><option>Ωρωπός</option><option>Μαραθώνας</option><option>Ραφήνα</option><option>Αρτέμιδα</option><option>Μαρκόπουλο</option><option>Κορωπί</option><option>Παιανία</option><option>Κρόπια</option><option>Παλλήνη</option><option>Γέρακας</option><option>Ανθούσα</option><option>Θεσσαλονίκη Κέντρο</option><option>Καλαμαριά</option><option>Πυλαία</option><option>Σταυρούπολη</option><option>Αμπελόκηποι Θεσσαλονίκης</option><option>Ευόσμος</option><option>Κορδελιό</option><option>Νεάπολη Θεσσαλονίκης</option><option>Συκιές</option><option>Πολίχνη</option><option>Τριανδρία</option><option>Νέα Μηχανιώνα</option><option>Θέρμη</option><option>Πάτρα</option><option>Αίγιο</option><option>Ηράκλειο Κρήτης</option><option>Χανιά</option><option>Ρέθυμνο</option><option>Άγιος Νικόλαος</option><option>Λάρισα</option><option>Βόλος</option><option>Τρίκαλα</option><option>Καρδίτσα</option><option>Ιωάννινα</option><option>Άρτα</option><option>Πρέβεζα</option><option>Λευκάδα</option><option>Κέρκυρα</option><option>Καβάλα</option><option>Δράμα</option><option>Σέρρες</option><option>Κιλκίς</option><option>Αλεξανδρούπολη</option><option>Κομοτηνή</option><option>Ξάνθη</option><option>Ρόδος</option><option>Κως</option><option>Μυτιλήνη</option><option>Χίος</option><option>Σάμος</option>
         </select>
       </div>
-      <div class="form-group"><label>URL Φωτογραφίας</label><input type="url" id="edit-photo"></div>
+      <div class="form-group"><label>URL Φωτογραφίας (profilePhotoUrl)</label><input type="url" id="edit-photo"></div>
     </div>
     <div class="modal-actions">
       <button class="btn-cancel" onclick="closeEdit()">Άκυρο</button>
@@ -145,7 +146,8 @@
   </div>
   <div class="container">
     <div class="stats-grid">
-      <div class="stat-card"><div class="stat-label">Σύνολο</div><div class="stat-value" id="stat-total">0</div></div>
+      <div class="stat-card"><div class="stat-label">Εγγεγραμμένοι Χρήστες</div><div class="stat-value" id="stat-users">—</div></div>
+      <div class="stat-card"><div class="stat-label">Επαγγελματίες</div><div class="stat-value" id="stat-total">0</div></div>
       <div class="stat-card"><div class="stat-label">Ενεργοί</div><div class="stat-value" id="stat-active">0</div></div>
       <div class="stat-card"><div class="stat-label">Κλικ σήμερα</div><div class="stat-value" id="stat-clicks">0</div></div>
       <div class="stat-card"><div class="stat-label">Ειδικότητες</div><div class="stat-value" id="stat-specs">0</div></div>
@@ -159,15 +161,15 @@
           <label>Ειδικότητα *</label>
           <select id="f-specialty">
             <option value="">-- Επίλεξε --</option>
-            <optgroup label="Συνεργεία"><option value="Συνεργείο Ανακαίνισης">Συνεργείο Ανακαίνισης</option><option value="Συνεργείο Κατασκευών">Συνεργείο Κατασκευών</option><option value="Συνεργείο Βαφής & Διακόσμησης">Συνεργείο Βαφής & Διακόσμησης</option><option value="Συνεργείο Ηλεκτρολόγων">Συνεργείο Ηλεκτρολόγων</option><option value="Συνεργείο Υδραυλικών">Συνεργείο Υδραυλικών</option><option value="Συνεργείο Κλιματισμού">Συνεργείο Κλιματισμού</option><option value="Συνεργείο Αλουμινίου & Κουφωμάτων">Συνεργείο Αλουμινίου & Κουφωμάτων</option><option value="Συνεργείο Πλακιδίων & Δαπέδων">Συνεργείο Πλακιδίων & Δαπέδων</option><option value="Συνεργείο Κήπου & Εξωτερικών Χώρων">Συνεργείο Κήπου & Εξωτερικών Χώρων</option><option value="Συνεργείο Γυψοσανίδας & Οροφής">Συνεργείο Γυψοσανίδας & Οροφής</option><option value="Συνεργείο Ξυλουργικών Εργασιών">Συνεργείο Ξυλουργικών Εργασιών</option><option value="Συνεργείο Smart Home & Αυτοματισμού">Συνεργείο Smart Home & Αυτοματισμού</option></optgroup>
-            <optgroup label="Τεχνικοί"><option>Ηλεκτρολόγος</option><option>Υδραυλικός</option><option>Ψυκτικός</option><option>Ελαιοχρωματιστής</option><option>Μηχανικός</option><option>Κτίστης</option><option>Ξυλουργός</option><option>Υαλουργός</option><option>Τεχνικός Ανελκυστήρων</option><option>Αποφράξεις</option><option>Αλουμινάς</option><option>Πλακάς</option><option>Ηλεκτρολόγος Αυτοκινήτων</option><option>Συντήρηση Κλιματιστικών</option><option>Εγκατάσταση Ηλιακών</option></optgroup>
-            <optgroup label="Υγεία"><option>Παθολόγος</option><option>Παιδίατρος</option><option>Οδοντίατρος</option><option>Δερματολόγος</option><option>Ορθοπεδικός</option><option>Οφθαλμίατρος</option><option>Φυσιοθεραπευτής</option><option>Ψυχολόγος</option><option>Διατροφολόγος</option><option>Νοσηλευτής κατ' οίκον</option></optgroup>
-            <optgroup label="Οικονομικά & Νομικά"><option>Λογιστής</option><option>Φοροτεχνικός</option><option>Δικηγόρος</option><option>Συμβολαιογράφος</option><option>Σύμβουλος Επιχειρήσεων</option><option>Μεσίτης</option><option>Εκτιμητής Ακινήτων</option><option>Ορκωτός Ελεγκτής</option></optgroup>
-            <optgroup label="Σπίτι & Καθαριότητα"><option>Καθαρίστρια</option><option>Οικιακή Βοηθός</option><option>Κηπουρός</option><option>Φύλακας</option><option>Baby Sitter</option><option>Φροντιστής Ηλικιωμένων</option><option>Μετακομίσεις</option></optgroup>
-            <optgroup label="Εκπαίδευση"><option>Καθηγητής Μαθηματικών</option><option>Καθηγητής Αγγλικών</option><option>Καθηγητής Φυσικής</option><option>Personal Trainer</option><option>Εκπαιδευτής Οδήγησης</option></optgroup>
-            <optgroup label="Ομορφιά & Ευεξία"><option>Κομμωτής</option><option>Αισθητικός</option><option>Μανικιουρίστ</option><option>Μασέρ</option><option>Τατουάζ</option></optgroup>
-            <optgroup label="Ψηφιακές Υπηρεσίες"><option>Web Developer</option><option>Γραφίστας</option><option>Φωτογράφος</option><option>Βιντεογράφος</option><option>Τεχνικός Υπολογιστών</option></optgroup>
-            <optgroup label="Άλλα"><option>Μηχανικός Αυτοκινήτων</option><option>Τεχνικός Επίπλων</option><option>Μεταφραστής</option><option>Λογοθεραπευτής</option><option>Αρχιτέκτονας</option></optgroup>
+            <optgroup label="Τεχνικοί"><option>Ηλεκτρολόγος</option><option>Υδραυλικός</option><option>Ψυκτικός</option><option>Ελαιοχρωματιστής</option><option>Μηχανικός</option><option>Κτίστης</option><option>Ξυλουργός</option><option>Υαλουργός</option><option>Τεχνικός Ανελκυστήρων</option><option>Αποφράξεις</option><option>Αλουμινάς</option><option>Πλακάς</option><option>Συντήρηση Κλιματιστικών</option><option>Εγκατάσταση Ηλιακών</option><option>Υπηρεσία Αποξήλωσης</option></optgroup>
+            <optgroup label="Υγεία"><option>Παθολόγος</option><option>Παιδίατρος</option><option>Οδοντίατρος</option><option>Φυσιοθεραπευτής</option><option>Ψυχολόγος</option><option>Διατροφολόγος</option><option>Νοσηλευτής κατ' οίκον</option></optgroup>
+            <optgroup label="Σπίτι"><option>Καθαρίστρια</option><option>Κηπουρός</option><option>Baby Sitter</option><option>Μετακομίσεις</option></optgroup>
+            <optgroup label="Εκπαίδευση"><option>Καθηγητής Μαθηματικών</option><option>Καθηγητής Αγγλικών</option><option>Καθηγητής Γαλλικών</option><option>Καθηγητής Ιταλικών</option><option>Καθηγητής Γερμανικών</option><option>Καθηγητής Ισπανικών</option><option>Φιλόλογος</option><option>Καθηγητής Φυσικής</option><option>Καθηγητής Χημείας</option><option>Καθηγητής Πληροφορικής</option><option>Καθηγητής Βιολογίας</option><option>Personal Trainer</option></optgroup>
+            <optgroup label="Ψηφιακές"><option>Web Developer</option><option>Γραφίστας</option><option>Φωτογράφος</option><option>Τεχνικός Υπολογιστών</option></optgroup>
+            <optgroup label="Εκδηλώσεις"><option>Εκδηλώσεις Γάμου</option><option>Εκδηλώσεις Βάφτισης</option><option>Διοργάνωση Πάρτυ</option><option>Φωτογράφος Γάμου</option><option>DJ / Μουσική Εκδηλώσεων</option><option>Catering</option><option>Ανθοδέτης / Στολισμός</option><option>Αίθουσα Εκδηλώσεων</option></optgroup>
+            <optgroup label="Ομορφιά & Αισθητική"><option>Tattoo Artist</option><option>Τεχνίτρια Νυχιών</option></optgroup>
+            <optgroup label="Άλλα"><option>Μηχανικός Αυτοκινήτων</option><option>Λογιστής</option><option>Δικηγόρος</option><option>Αρχιτέκτονας</option></optgroup>
+            <optgroup label="Συνεργεία"><option>Συνεργείο Ανακαίνισης</option><option>Συνεργείο Κατασκευών</option><option>Συνεργείο Βαφής & Διακόσμησης</option><option>Συνεργείο Ηλεκτρολόγων</option><option>Συνεργείο Υδραυλικών</option><option>Συνεργείο Κλιματισμού</option><option>Συνεργείο Αλουμινίου & Κουφωμάτων</option><option>Συνεργείο Πλακιδίων & Δαπέδων</option><option>Συνεργείο Κήπου & Εξωτερικών Χώρων</option><option>Συνεργείο Γυψοσανίδας & Οροφής</option><option>Συνεργείο Ξυλουργικών Εργασιών</option></optgroup>
           </select>
         </div>
         <div class="form-group">
@@ -178,7 +180,7 @@
           </select>
         </div>
         <div class="form-group"><label>Τηλέφωνο *</label><input type="tel" id="f-phone" placeholder="69XXXXXXXX"></div>
-        <div class="form-group"><label>URL Φωτογραφίας</label><input type="url" id="f-photo" placeholder="https://..."></div>
+        <div class="form-group"><label>URL Φωτογραφίας</label><input type="url" id="f-photo" placeholder="Αφήστε κενό αν έχει selfie"></div>
         <div class="form-group"><label>Email</label><input type="email" id="f-email" placeholder="email@..."></div>
       </div>
       <div class="form-actions">
@@ -206,7 +208,7 @@
     <div class="table-wrap">
       <div class="loading" id="loading">Φόρτωση...</div>
       <table id="pros-table" style="display:none">
-        <thead><tr><th>Όνομα</th><th>Ειδικότητα</th><th>Περιοχή</th><th>Τηλέφωνο</th><th>Κλικ</th><th>Κατάσταση</th><th>Ενέργειες</th></tr></thead>
+        <thead><tr><th>Όνομα</th><th>Ειδικότητα</th><th>Περιοχή</th><th>Τηλέφωνο</th><th>Κλικ</th><th>Bookings</th><th>Κατάσταση</th><th>Ενέργειες</th></tr></thead>
         <tbody id="pros-tbody"></tbody>
       </table>
       <div class="empty-state" id="empty-state" style="display:none"><div class="empty-icon">👤</div><div>Δεν βρέθηκαν επαγγελματίες</div></div>
@@ -216,7 +218,8 @@
 
 <script type="module">
   import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-  import { getFirestore, collection, addDoc, getDocs, getDoc, doc, updateDoc, deleteDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+  import { getAuth, signInAnonymously, signOut } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
+  import { getFirestore, collection, addDoc, getDoc, getDocs, doc, updateDoc, deleteDoc, serverTimestamp, onSnapshot, getCountFromServer } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
   const firebaseConfig = {
     apiKey:"AIzaSyDjRV1CA5FD144UTyIAc_U5oYbSpzw2aFM",
@@ -228,23 +231,79 @@
   };
   const ADMIN_PASSWORD = "Kosbos2107";
   const app = initializeApp(firebaseConfig);
+  const auth = getAuth(app);
   const db = getFirestore(app);
   let allPros = [];
+  let unsubPros = null;
 
-  window.doLogin = function() {
+  // ── helpers ──
+  function photoUrl(p) { return p.profilePhotoUrl || p.photo_url || ''; }
+
+  function avatarHtml(p) {
+    const url = photoUrl(p);
+    const initial = (p.name||'?')[0].toUpperCase();
+    if (url) return `<img src="${url}" style="width:36px;height:36px;border-radius:50%;object-fit:cover;border:1px solid #2a2000;margin-right:8px;vertical-align:middle" onerror="this.style.display='none'">`;
+    return `<span style="display:inline-flex;align-items:center;justify-content:center;width:36px;height:36px;border-radius:50%;background:#1a1200;border:1px solid #2a2000;color:var(--gold);font-weight:700;font-size:15px;margin-right:8px;vertical-align:middle">${initial}</span>`;
+  }
+
+  window.doLogin = async function() {
     if (document.getElementById('pwd-input').value === ADMIN_PASSWORD) {
+      try { await signInAnonymously(auth); } catch(_) {}
       document.getElementById('login-screen').style.display = 'none';
       document.getElementById('app').style.display = 'block';
-      loadProfessionals();
-      loadSelections();
+      startProsListener(); // loadSelections() called inside after allPros is ready
     } else { document.getElementById('login-error').style.display = 'block'; }
   };
 
   window.doLogout = function() {
+    if (unsubPros) { unsubPros(); unsubPros = null; }
+    signOut(auth).catch(()=>{});
     document.getElementById('login-screen').style.display = 'flex';
     document.getElementById('app').style.display = 'none';
     document.getElementById('pwd-input').value = '';
   };
+
+  // ── BOOKINGS per professional ──
+  let bookingsPerPro = {}; // proId → count
+
+  async function loadBookings() {
+    try {
+      const snap = await getDocs(collection(db, 'bookings'));
+      bookingsPerPro = {};
+      snap.forEach(d => {
+        const proId = d.data().professionalId;
+        if (proId) bookingsPerPro[proId] = (bookingsPerPro[proId] || 0) + 1;
+      });
+    } catch(e) { console.warn('bookings load error:', e); }
+  }
+
+  // ── REAL-TIME listener ──
+  async function startProsListener() {
+    document.getElementById('loading').style.display = 'block';
+    document.getElementById('pros-table').style.display = 'none';
+    document.getElementById('empty-state').style.display = 'none';
+
+    // Load bookings + user count in parallel
+    await Promise.all([loadBookings(), loadUserCount()]);
+
+    if (unsubPros) unsubPros();
+    unsubPros = onSnapshot(collection(db, 'professionals'), async snap => {
+      allPros = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+      allPros.sort((a, b) => {
+        const ta = a.created_at?.seconds || a.createdAt?.seconds || 0;
+        const tb = b.created_at?.seconds || b.createdAt?.seconds || 0;
+        return tb - ta;
+      });
+      // Re-fetch bookings on every pros update to stay in sync
+      await loadBookings();
+      document.getElementById('loading').style.display = 'none';
+      updateStats(); updateFilters(); renderTable(allPros);
+      loadSelections(); // Refresh clicks section to remove deleted pros
+    }, err => {
+      console.error('Pros listener error:', err);
+      document.getElementById('loading').style.display = 'none';
+    });
+  }
 
   window.addProfessional = async function() {
     const name = document.getElementById('f-name').value.trim();
@@ -256,74 +315,82 @@
     const msg = document.getElementById('form-msg');
     if (!name||!specialty||!area||!phone) { msg.className='form-msg error'; msg.textContent='Συμπλήρωσε τα υποχρεωτικά πεδία'; return; }
     try {
-      await addDoc(collection(db,'professionals'),{
-        name,specialty,area,phone,photo_url:photo||'',email:email||'',
-        is_active:true,total_clicks:0,clicks_this_month:0,total_views:0,
-        created_at:serverTimestamp(),createdAt:serverTimestamp()
+      await addDoc(collection(db,'professionals'), {
+        name, specialty, area, phone, email: email||'',
+        photo_url: photo||'', profilePhotoUrl: photo||'',
+        is_active: true, total_clicks: 0, clicks_this_month: 0, total_views: 0,
+        created_at: serverTimestamp(), createdAt: serverTimestamp()
       });
-      msg.className='form-msg success'; msg.textContent='✅ Προστέθηκε!';
+      msg.className='form-msg success'; msg.textContent='✅ Προστέθηκε! (η λίστα ανανεώθηκε αυτόματα)';
       ['f-name','f-phone','f-photo','f-email'].forEach(id=>document.getElementById(id).value='');
       document.getElementById('f-specialty').value=''; document.getElementById('f-area').value='';
-      setTimeout(()=>msg.style.display='none',3000); loadProfessionals();
+      setTimeout(()=>{ msg.className='form-msg'; msg.style.display='none'; },3000);
     } catch(e) { msg.className='form-msg error'; msg.textContent='Σφάλμα: '+e.message; }
   };
 
-  async function loadProfessionals() {
-    document.getElementById('loading').style.display='block';
-    document.getElementById('pros-table').style.display='none';
-    document.getElementById('empty-state').style.display='none';
+  async function loadUserCount() {
     try {
-      // 🔥 Χωρίς orderBy — φαίνονται ΟΛΑ τα records (παλιά + νέα)
-      const snap = await getDocs(collection(db,'professionals'));
-      allPros = snap.docs.map(d=>({id:d.id,...d.data()}));
-      // 🔥 Sort client-side — δουλεύει και με created_at και με createdAt
-      allPros.sort((a,b)=>{
-        const ta = (a.created_at?.seconds||a.createdAt?.seconds||0);
-        const tb = (b.created_at?.seconds||b.createdAt?.seconds||0);
-        return tb-ta;
-      });
-      updateStats(); updateFilters(); renderTable(allPros);
-    } catch(e) { console.error(e); }
-    document.getElementById('loading').style.display='none';
+      const resp = await fetch('https://ai-backend-kkt7.onrender.com/auth-user-count');
+      const data = await resp.json();
+      if (data.count !== undefined) {
+        document.getElementById('stat-users').textContent = data.count;
+      } else {
+        document.getElementById('stat-users').textContent = '—';
+      }
+    } catch(e) {
+      console.error('loadUserCount error:', e);
+      document.getElementById('stat-users').textContent = '—';
+    }
   }
 
   function updateStats() {
-    const active=allPros.filter(p=>p.is_active).length;
-    const clicks=allPros.reduce((s,p)=>s+(p.clicks_this_month||0),0);
-    const specs=[...new Set(allPros.map(p=>p.specialty).filter(Boolean))].length;
-    document.getElementById('stat-total').textContent=allPros.length;
-    document.getElementById('stat-active').textContent=active;
-    document.getElementById('stat-clicks').textContent=clicks;
-    document.getElementById('stat-specs').textContent=specs;
-    document.getElementById('total-count').textContent=allPros.length+' επαγγελματίες';
+    const active = allPros.filter(p=>p.is_active).length;
+    const clicks = allPros.reduce((s,p)=>s+(p.clicks_this_month||0),0);
+    const specs = [...new Set(allPros.map(p=>p.specialty).filter(Boolean))].length;
+    document.getElementById('stat-total').textContent = allPros.length;
+    document.getElementById('stat-active').textContent = active;
+    document.getElementById('stat-clicks').textContent = clicks;
+    document.getElementById('stat-specs').textContent = specs;
+    document.getElementById('total-count').textContent = allPros.length+' επαγγελματίες';
   }
 
   function updateFilters() {
-    const specs=[...new Set(allPros.map(p=>p.specialty).filter(Boolean))].sort();
-    const areas=[...new Set(allPros.map(p=>p.area).filter(Boolean))].sort();
-    document.getElementById('filter-specialty').innerHTML='<option value="">Όλες οι ειδικότητες</option>'+specs.map(s=>`<option>${s}</option>`).join('');
-    document.getElementById('filter-area').innerHTML='<option value="">Όλες οι περιοχές</option>'+areas.map(a=>`<option>${a}</option>`).join('');
+    const currentSpec = document.getElementById('filter-specialty').value;
+    const currentArea = document.getElementById('filter-area').value;
+    const specs = [...new Set(allPros.map(p=>p.specialty).filter(Boolean))].sort();
+    const areas = [...new Set(allPros.map(p=>p.area).filter(Boolean))].sort();
+    document.getElementById('filter-specialty').innerHTML = '<option value="">Όλες οι ειδικότητες</option>'+specs.map(s=>`<option${s===currentSpec?' selected':''}>${s}</option>`).join('');
+    document.getElementById('filter-area').innerHTML = '<option value="">Όλες οι περιοχές</option>'+areas.map(a=>`<option${a===currentArea?' selected':''}>${a}</option>`).join('');
   }
 
   window.filterTable = function() {
-    const spec=document.getElementById('filter-specialty').value;
-    const area=document.getElementById('filter-area').value;
-    const search=document.getElementById('filter-search').value.toLowerCase();
+    const spec = document.getElementById('filter-specialty').value;
+    const area = document.getElementById('filter-area').value;
+    const search = document.getElementById('filter-search').value.toLowerCase();
     renderTable(allPros.filter(p=>(!spec||p.specialty===spec)&&(!area||p.area===area)&&(!search||(p.name||'').toLowerCase().includes(search))));
   };
 
   function renderTable(pros) {
-    if (pros.length===0) { document.getElementById('pros-table').style.display='none'; document.getElementById('empty-state').style.display='block'; return; }
+    if (pros.length===0) {
+      document.getElementById('pros-table').style.display='none';
+      document.getElementById('empty-state').style.display='block';
+      return;
+    }
     document.getElementById('pros-table').style.display='table';
     document.getElementById('empty-state').style.display='none';
-    document.getElementById('pros-tbody').innerHTML=pros.map(p=>`
+    document.getElementById('pros-tbody').innerHTML = pros.map(p => {
+      const selfie = p.userId ? '<span style="font-size:10px;background:#0d2b1a;color:#2ecc71;border-radius:4px;padding:2px 6px;margin-left:4px">app</span>' : '';
+      return `
       <tr>
-        <td class="pro-name">${p.name||'-'}</td>
+        <td style="vertical-align:middle">${avatarHtml(p)}<span class="pro-name">${p.name||'-'}</span>${selfie}</td>
         <td><span class="pro-specialty">${p.specialty||'-'}</span></td>
         <td class="pro-area">${p.area||'-'}</td>
         <td style="font-size:13px;color:#999">${p.phone||'-'}</td>
         <td><span class="clicks-badge">${p.total_clicks||0}</span></td>
-        <td>${p.is_active?'<span class="status-active"><span class="status-dot"></span>Ενεργός</span>':'<span class="status-inactive"><span class="status-dot"></span>Ανενεργός</span>'}</td>
+        <td><span style="font-family:'Syne',sans-serif;font-weight:700;color:#7ecfff">${bookingsPerPro[p.userId] || bookingsPerPro[p.id] || 0}</span></td>
+        <td>${p.is_active
+          ?'<span class="status-active"><span class="status-dot"></span>Ενεργός</span>'
+          :'<span class="status-inactive"><span class="status-dot"></span>Ανενεργός</span>'}</td>
         <td>
           <div class="action-btns">
             <button class="btn-sm btn-edit" onclick="openEdit('${p.id}')">✏️ Επεξ.</button>
@@ -331,51 +398,55 @@
             <button class="btn-sm btn-delete" onclick="deletePro('${p.id}','${(p.name||'').replace(/'/g,"\\'")}')">Διαγραφή</button>
           </div>
         </td>
-      </tr>
-    `).join('');
+      </tr>`;
+    }).join('');
   }
 
   window.openEdit = function(id) {
-    const p=allPros.find(x=>x.id===id); if(!p) return;
-    document.getElementById('edit-id').value=id;
-    document.getElementById('edit-name').value=p.name||'';
-    document.getElementById('edit-phone').value=p.phone||'';
-    document.getElementById('edit-email').value=p.email||'';
-    document.getElementById('edit-specialty').value=p.specialty||'';
-    document.getElementById('edit-area').value=p.area||'';
-    document.getElementById('edit-photo').value=p.photo_url||'';
+    const p = allPros.find(x=>x.id===id); if (!p) return;
+    document.getElementById('edit-id').value = id;
+    document.getElementById('edit-name').value = p.name||'';
+    document.getElementById('edit-phone').value = p.phone||'';
+    document.getElementById('edit-email').value = p.email||'';
+    document.getElementById('edit-specialty').value = p.specialty||'';
+    document.getElementById('edit-area').value = p.area||'';
+    document.getElementById('edit-photo').value = photoUrl(p);
     document.getElementById('edit-msg').style.display='none';
     document.getElementById('edit-modal').classList.add('open');
   };
 
   window.closeEdit = function() { document.getElementById('edit-modal').classList.remove('open'); };
 
-  document.getElementById('edit-modal').addEventListener('click',function(e){ if(e.target===this) closeEdit(); });
+  document.getElementById('edit-modal').addEventListener('click', function(e) { if(e.target===this) closeEdit(); });
 
   window.saveEdit = async function() {
-    const id=document.getElementById('edit-id').value;
-    const name=document.getElementById('edit-name').value.trim();
-    const phone=document.getElementById('edit-phone').value.trim();
-    const email=document.getElementById('edit-email').value.trim();
-    const specialty=document.getElementById('edit-specialty').value;
-    const area=document.getElementById('edit-area').value;
-    const photo=document.getElementById('edit-photo').value.trim();
-    const msg=document.getElementById('edit-msg');
-    if(!name||!phone||!specialty||!area){msg.className='form-msg error';msg.textContent='Συμπλήρωσε τα υποχρεωτικά πεδία';return;}
+    const id = document.getElementById('edit-id').value;
+    const name = document.getElementById('edit-name').value.trim();
+    const phone = document.getElementById('edit-phone').value.trim();
+    const email = document.getElementById('edit-email').value.trim();
+    const specialty = document.getElementById('edit-specialty').value;
+    const area = document.getElementById('edit-area').value;
+    const photo = document.getElementById('edit-photo').value.trim();
+    const msg = document.getElementById('edit-msg');
+    if (!name||!phone||!specialty||!area) { msg.className='form-msg error'; msg.textContent='Συμπλήρωσε τα υποχρεωτικά πεδία'; return; }
     try {
-      await updateDoc(doc(db,'professionals',id),{name,phone,email,specialty,area,photo_url:photo});
+      // Save to BOTH field names so Flutter app and admin stay in sync
+      await updateDoc(doc(db,'professionals',id), {
+        name, phone, email, specialty, area,
+        photo_url: photo, profilePhotoUrl: photo
+      });
       msg.className='form-msg success'; msg.textContent='✅ Αποθηκεύτηκε!';
-      setTimeout(()=>{closeEdit();loadProfessionals();},1000);
-    } catch(e){msg.className='form-msg error';msg.textContent='Σφάλμα: '+e.message;}
+      setTimeout(()=>{ closeEdit(); },1000);
+    } catch(e) { msg.className='form-msg error'; msg.textContent='Σφάλμα: '+e.message; }
   };
 
-  window.toggleActive = async function(id,current) {
-    await updateDoc(doc(db,'professionals',id),{is_active:!current}); loadProfessionals();
+  window.toggleActive = async function(id, current) {
+    await updateDoc(doc(db,'professionals',id), {is_active: !current});
   };
 
-  window.deletePro = async function(id,name) {
-    if(!confirm(`Διαγραφή του "${name}";`)) return;
-    await deleteDoc(doc(db,'professionals',id)); loadProfessionals();
+  window.deletePro = async function(id, name) {
+    if (!confirm(`Διαγραφή του "${name}";`)) return;
+    await deleteDoc(doc(db,'professionals',id));
   };
 
   async function loadSelections() {
@@ -387,17 +458,23 @@
       document.getElementById('selections-loading').style.display='none';
       if (!snap.exists()) { document.getElementById('selections-empty').style.display='block'; return; }
       const data = snap.data();
+
+      // Build set of active pro IDs for filtering
+      const activeProIds = new Set(allPros.map(p => p.id));
+
       const entries = [];
       Object.keys(data).forEach(k => {
         if (k.startsWith('clicks_')) {
           const proKey = k.slice(7);
-          entries.push({ name: data['name_'+proKey] || proKey, clicks: data[k] || 0 });
+          // Only show if professional still exists
+          if (!activeProIds.has(proKey)) return;
+          entries.push({ name: data['name_'+proKey]||proKey, clicks: data[k]||0, proKey });
         }
       });
-      entries.sort((a,b) => b.clicks - a.clicks);
-      if (entries.length === 0) { document.getElementById('selections-empty').style.display='block'; return; }
+      entries.sort((a,b)=>b.clicks-a.clicks);
+      if (entries.length===0) { document.getElementById('selections-empty').style.display='block'; return; }
       document.getElementById('selections-table').style.display='table';
-      document.getElementById('selections-tbody').innerHTML = entries.map((e,i) => `
+      document.getElementById('selections-tbody').innerHTML = entries.map((e,i)=>`
         <tr>
           <td style="color:#888;font-size:13px">${i+1}</td>
           <td class="pro-name">${e.name}</td>

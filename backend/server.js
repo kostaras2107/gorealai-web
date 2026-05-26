@@ -396,6 +396,25 @@ app.get('/places-rating', rateLimit(60, 60_000), async (req, res) => {
   }
 });
 
+// ── Auth user count (admin only) ─────────────────────────────────
+// GET /auth-user-count
+app.get('/auth-user-count', async (req, res) => {
+  if (!firebaseReady) return res.status(503).json({ error: 'Firebase not ready' });
+  try {
+    let count = 0;
+    let pageToken;
+    do {
+      const result = await admin.auth().listUsers(1000, pageToken);
+      count += result.users.length;
+      pageToken = result.pageToken;
+    } while (pageToken);
+    res.json({ count });
+  } catch (e) {
+    console.error('auth-user-count error:', e.message);
+    res.status(500).json({ error: e.message });
+  }
+});
+
 // ── Stripe Checkout Session ──────────────────────────────────────
 // POST /create-checkout-session
 // Body: { userId, email }
