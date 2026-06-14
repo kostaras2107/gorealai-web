@@ -16,10 +16,14 @@ import 'splash_screen.dart';
 import 'package:local_auth/local_auth.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:speech_to_text/speech_to_text.dart' as stt;
+import 'package:record/record.dart';
+import 'package:audioplayers/audioplayers.dart';
+import 'package:firebase_storage/firebase_storage.dart';
 
 // ═══════════════════════════════════════
 // CONSTANTS
 // ═══════════════════════════════════════
+const bool kFreeForAll = true; // Δωρεάν premium για χρήστες (όχι επαγγελματίες)
 const String kBackendUrl = 'https://ai-backend-kkt7.onrender.com';
 const Color kGold = Color(0xFFFFB340);
 const Color kGoldLight = Color(0xFFFFD47A);
@@ -2815,6 +2819,12 @@ class _ProfessionalHomeScreenState extends State<ProfessionalHomeScreen> {
                       _RequestImageGallery(requestData: d, requestId: requestId),
                     ],
 
+                    // User's audio message
+                    if ((d['audioUrl'] as String?)?.isNotEmpty == true) ...[
+                      const SizedBox(height: 8),
+                      _AudioPlayWidget(url: d['audioUrl'] as String),
+                    ],
+
                     const SizedBox(height: 10),
                     Row(children: [
                       Container(
@@ -2875,8 +2885,15 @@ class _ProfessionalHomeScreenState extends State<ProfessionalHomeScreen> {
     final priceCtrl = TextEditingController();
     final msgCtrl = TextEditingController();
     String available = 'Αύριο';
+    String? offerAudioUrl;
+    bool offerRecording = false;
+    bool offerUploading = false;
+    Duration offerDur = Duration.zero;
+    Timer? offerTimer;
+    final offerRec = AudioRecorder();
     showDialog(
       context: context,
+      barrierDismissible: false,
       builder: (ctx) => StatefulBuilder(
         builder: (ctx, setS) => Dialog(
           backgroundColor: Colors.transparent,
@@ -2965,10 +2982,108 @@ class _ProfessionalHomeScreenState extends State<ProfessionalHomeScreen> {
                   labelStyle: TextStyle(color: _g(0.4), fontSize: 12),
                 ),
               ),
+              const SizedBox(height: 12),
+              // Audio message row
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(14),
+                  color: _g(0.05),
+                  border: Border.all(color: kGold.withValues(alpha: 0.2)),
+                ),
+                child: Row(children: [
+                  GestureDetector(
+                    onTap: () async {
+                      if (offerRecording) {
+                        offerTimer?.cancel();
+                        final path = await offerRec.stop();
+                        setS(() { offerRecording = false; offerUploading = true; });
+                        if (path != null) {
+                          try {
+                            final uid = FirebaseAuth.instance.currentUser?.uid ?? 'anon';
+                            final ts = DateTime.now().millisecondsSinceEpoch;
+                            Uint8List bytes;
+                            if (path.startsWith('blob:')) {
+                              final resp = await http.get(Uri.parse(path));
+                              bytes = resp.bodyBytes;
+                            } else {
+                              bytes = await XFile(path).readAsBytes();
+                            }
+                            final ext = path.contains('.') ? path.split('.').last.split('?').first : 'm4a';
+                            final ct = ext == 'webm' ? 'audio/webm' : 'audio/m4a';
+                            final ref = FirebaseStorage.instance.ref('offers/audio/${uid}_$ts.$ext');
+                            await ref.putData(bytes, SettableMetadata(contentType: ct));
+                            final url = await ref.getDownloadURL();
+                            setS(() { offerAudioUrl = url; offerUploading = false; });
+                          } catch (_) {
+                            setS(() => offerUploading = false);
+                          }
+                        } else {
+                          setS(() => offerUploading = false);
+                        }
+                      } else {
+                        final ok = await offerRec.hasPermission();
+                        if (!ok) return;
+                        await offerRec.start(const RecordConfig(), path: '');
+                        setS(() { offerRecording = true; offerDur = Duration.zero; });
+                        offerTimer = Timer.periodic(const Duration(seconds: 1), (_) {
+                          setS(() => offerDur += const Duration(seconds: 1));
+                        });
+                      }
+                    },
+                    child: AnimatedContainer(
+                      duration: const Duration(milliseconds: 150),
+                      width: 38, height: 38,
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(10),
+                        color: offerRecording ? Colors.red : kGold.withValues(alpha: 0.15),
+                        border: Border.all(color: offerRecording ? Colors.red : kGold.withValues(alpha: 0.4)),
+                      ),
+                      child: Center(child: Icon(
+                        offerRecording ? Icons.stop_rounded : Icons.mic_rounded,
+                        color: offerRecording ? Colors.white : kGold, size: 18,
+                      )),
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(child: offerUploading
+                    ? Row(children: [
+                        const SizedBox(width: 12, height: 12, child: CircularProgressIndicator(color: kGold, strokeWidth: 2)),
+                        const SizedBox(width: 8),
+                        Text('Αποστολή...', style: TextStyle(color: _g(0.5), fontSize: 11)),
+                      ])
+                    : offerRecording
+                    ? Row(children: [
+                        Container(width: 6, height: 6, decoration: const BoxDecoration(shape: BoxShape.circle, color: Colors.red)),
+                        const SizedBox(width: 6),
+                        Text('${offerDur.inSeconds}″', style: const TextStyle(color: Colors.red, fontSize: 11, fontWeight: FontWeight.w700)),
+                        const SizedBox(width: 6),
+                        Text('Ηχογράφηση...', style: TextStyle(color: _g(0.5), fontSize: 11)),
+                      ])
+                    : offerAudioUrl != null
+                    ? Row(children: [
+                        const Icon(Icons.mic, color: kGreen, size: 13),
+                        const SizedBox(width: 6),
+                        Text('Ηχητικό ✓', style: const TextStyle(color: kGreen, fontSize: 11, fontWeight: FontWeight.w600)),
+                        const Spacer(),
+                        GestureDetector(
+                          onTap: () => setS(() => offerAudioUrl = null),
+                          child: Icon(Icons.close, color: _g(0.4), size: 14),
+                        ),
+                      ])
+                    : Text('Ηχητικό μήνυμα (προαιρετικό)', style: TextStyle(color: _g(0.4), fontSize: 11)),
+                  ),
+                ]),
+              ),
               const SizedBox(height: 20),
               Row(children: [
                 Expanded(child: GestureDetector(
-                  onTap: () => Navigator.pop(ctx),
+                  onTap: () {
+                    offerTimer?.cancel();
+                    offerRec.stop();
+                    offerRec.dispose();
+                    Navigator.pop(ctx);
+                  },
                   child: Container(
                     padding: const EdgeInsets.symmetric(vertical: 12),
                     decoration: BoxDecoration(borderRadius: BorderRadius.circular(14),
@@ -2986,8 +3101,10 @@ class _ProfessionalHomeScreenState extends State<ProfessionalHomeScreen> {
                           const SnackBar(content: Text('Βάλε τιμή!')));
                       return;
                     }
+                    offerTimer?.cancel();
+                    offerRec.dispose();
                     Navigator.pop(ctx);
-                    await _submitOffer(requestId, requestData, price, msgCtrl.text.trim(), available);
+                    await _submitOffer(requestId, requestData, price, msgCtrl.text.trim(), available, audioUrl: offerAudioUrl);
                   },
                   child: Container(
                     padding: const EdgeInsets.symmetric(vertical: 12),
@@ -3011,7 +3128,7 @@ class _ProfessionalHomeScreenState extends State<ProfessionalHomeScreen> {
 // στο _ProfessionalHomeScreenState
 
 Future<void> _submitOffer(String requestId, Map<String, dynamic> requestData,
-    double price, String message, String available) async {
+    double price, String message, String available, {String? audioUrl}) async {
   try {
     // ΜΗΝ γράφεις στη Firestore εδώ — το server το κάνει
     // Μόνο το server endpoint είναι υπεύθυνο για αποθήκευση
@@ -3028,6 +3145,7 @@ Future<void> _submitOffer(String requestId, Map<String, dynamic> requestData,
         'availableFrom': available,
         'rating': 4.8,
         'emoji': '🔧',
+        if (audioUrl != null) 'audioUrl': audioUrl,
       }),
     ).timeout(const Duration(seconds: 8));
 
@@ -3044,17 +3162,17 @@ Future<void> _submitOffer(String requestId, Map<String, dynamic> requestData,
       }
     } else {
       // Server απέτυχε — fallback μόνο τότε
-      await _submitOfferFallback(requestId, price, message, available);
+      await _submitOfferFallback(requestId, price, message, available, audioUrl: audioUrl);
     }
   } catch (e) {
     // Network error — fallback στη Firestore
-    await _submitOfferFallback(requestId, price, message, available);
+    await _submitOfferFallback(requestId, price, message, available, audioUrl: audioUrl);
   }
 }
 
 // Fallback μόνο αν το server δεν απαντά
 Future<void> _submitOfferFallback(String requestId, double price,
-    String message, String available) async {
+    String message, String available, {String? audioUrl}) async {
   try {
     // Έλεγξε αν υπάρχει ήδη προσφορά από τον ίδιο επαγγελματία
     final existing = await FirebaseFirestore.instance
@@ -3063,7 +3181,7 @@ Future<void> _submitOfferFallback(String requestId, double price,
         .where('professionalId', isEqualTo: _proId ?? '')
         .limit(1)
         .get();
-    
+
     if (existing.docs.isNotEmpty) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -3083,6 +3201,7 @@ Future<void> _submitOfferFallback(String requestId, double price,
       'rating': 4.8,
       'emoji': '🔧',
       'createdAt': FieldValue.serverTimestamp(),
+      if (audioUrl != null) 'audioUrl': audioUrl,
     });
 
     await FirebaseFirestore.instance
@@ -3637,12 +3756,20 @@ class _RequestScreenState extends State<RequestScreen>
   bool _listening = false;
   String _selectedCriteria = 'cheap';
   final List<XFile> _images = [];
+  XFile? _video;
   final _picker = ImagePicker();
   bool _sending = false;
   bool _showTip = false;
   String? _selectedProfession;
   String? _selectedLocation;
   late AnimationController _pulseCtrl;
+  // Audio recording
+  final _audioRec = AudioRecorder();
+  bool _audioRecording = false;
+  bool _audioUploading = false;
+  String? _requestAudioUrl;
+  Timer? _audioTimer;
+  Duration _audioDur = Duration.zero;
 
   @override
   void initState() {
@@ -3663,6 +3790,8 @@ class _RequestScreenState extends State<RequestScreen>
   void dispose() {
     _pulseCtrl.dispose();
     _textCtrl.dispose();
+    _audioTimer?.cancel();
+    _audioRec.dispose();
     super.dispose();
   }
 
@@ -3682,6 +3811,53 @@ class _RequestScreenState extends State<RequestScreen>
   void _stopVoice() {
     _stt.stop();
     setState(() => _listening = false);
+  }
+
+  Future<void> _captureVideo() async {
+    final video = await _picker.pickVideo(
+      source: ImageSource.camera,
+      maxDuration: const Duration(seconds: 20),
+    );
+    if (video != null && mounted) setState(() => _video = video);
+  }
+
+  Future<void> _startAudio() async {
+    final hasPermission = await _audioRec.hasPermission();
+    if (!hasPermission) return;
+    await _audioRec.start(const RecordConfig(), path: '');
+    setState(() {
+      _audioRecording = true;
+      _audioDur = Duration.zero;
+    });
+    _audioTimer = Timer.periodic(const Duration(seconds: 1), (_) {
+      if (mounted) setState(() => _audioDur += const Duration(seconds: 1));
+    });
+  }
+
+  Future<void> _stopAudio() async {
+    _audioTimer?.cancel();
+    final path = await _audioRec.stop();
+    setState(() { _audioRecording = false; _audioUploading = true; });
+    if (path == null) { setState(() => _audioUploading = false); return; }
+    try {
+      final uid = FirebaseAuth.instance.currentUser?.uid ?? 'anon';
+      final ts = DateTime.now().millisecondsSinceEpoch;
+      Uint8List bytes;
+      if (path.startsWith('blob:')) {
+        final resp = await http.get(Uri.parse(path));
+        bytes = resp.bodyBytes;
+      } else {
+        bytes = await XFile(path).readAsBytes();
+      }
+      final ext = path.contains('.') ? path.split('.').last.split('?').first : 'm4a';
+      final ct = ext == 'webm' ? 'audio/webm' : 'audio/m4a';
+      final ref = FirebaseStorage.instance.ref('requests/audio/${uid}_$ts.$ext');
+      await ref.putData(bytes, SettableMetadata(contentType: ct));
+      final url = await ref.getDownloadURL();
+      if (mounted) setState(() { _requestAudioUrl = url; _audioUploading = false; });
+    } catch (_) {
+      if (mounted) setState(() => _audioUploading = false);
+    }
   }
 
   // Resize to max 500px to keep Firestore document under 1MB (base64 limit ~750KB for 3 images)
@@ -3716,11 +3892,6 @@ class _RequestScreenState extends State<RequestScreen>
   Future<void> _submit() async {
     if (_submitLock) return;  // Αποφυγή double tap
     _submitLock = true;
-    if (_textCtrl.text.trim().isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Περίγραψε τι χρειάζεσαι!')));
-      return;
-    }
     // Έλεγξε αν υπάρχουν ήδη 2 ενεργά αιτήματα
     final user = FirebaseAuth.instance.currentUser;
     if (user != null) {
@@ -3752,6 +3923,7 @@ class _RequestScreenState extends State<RequestScreen>
         'expiresAt': Timestamp.fromDate(
             DateTime.now().add(const Duration(minutes: 15))),
         'imageCount': _images.length,
+        if (_requestAudioUrl != null) 'audioUrl': _requestAudioUrl,
       });
 
       // Server για AI categorization + pro notifications
@@ -3901,20 +4073,24 @@ Future<void> _notifyProsDirectly(
                           isScrollControlled: true,
                           builder: (_) => _SimpleListPicker(
                             title: '🔨 Είδος επαγγελματία',
-                            items: const [
-                              'Συνεργείο Ανακαίνισης', 'Συνεργείο Κατασκευών', 'Συνεργείο Βαφής & Διακόσμησης',
-                              'Συνεργείο Ηλεκτρολόγων', 'Συνεργείο Υδραυλικών', 'Συνεργείο Κλιματισμού',
-                              'Ηλεκτρολόγος', 'Υδραυλικός', 'Ψυκτικός', 'Ελαιοχρωματιστής',
-                              'Μηχανικός', 'Κτίστης', 'Ξυλουργός', 'Υαλουργός',
-                              'Τεχνικός Ανελκυστήρων', 'Αποφράξεις', 'Αλουμινάς', 'Πλακάς',
-                              'Συντήρηση Κλιματιστικών', 'Εγκατάσταση Ηλιακών',
-                              'Παθολόγος', 'Παιδίατρος', 'Οδοντίατρος', 'Φυσιοθεραπευτής',
-                              'Ψυχολόγος', 'Διατροφολόγος', 'Καθαρίστρια', 'Κηπουρός',
-                              'Baby Sitter', 'Μετακομίσεις', 'Καθηγητής Μαθηματικών',
-                              'Καθηγητής Αγγλικών', 'Personal Trainer', 'Web Developer',
-                              'Γραφίστας', 'Φωτογράφος', 'Τεχνικός Υπολογιστών',
-                              'Μηχανικός Αυτοκινήτων', 'Λογιστής', 'Δικηγόρος', 'Αρχιτέκτονας',
-                            ],
+                            items: ([
+                              'Αλουμινάς', 'Αποφράξεις', 'Αρχιτέκτονας',
+                              'Baby Sitter', 'Γραφίστας', 'Δικηγόρος',
+                              'Διατροφολόγος', 'Εγκατάσταση Ηλιακών',
+                              'Ηλεκτρολόγος', 'Θεραπευτής', 'Καθαρίστρια',
+                              'Καθηγητής Αγγλικών', 'Καθηγητής Μαθηματικών',
+                              'Κηπουρός', 'Κτίστης', 'Λογιστής',
+                              'Μετακομίσεις', 'Μηχανικός', 'Μηχανικός Αυτοκινήτων',
+                              'Ξυλουργός', 'Οδοντίατρος', 'Παθολόγος', 'Παιδίατρος',
+                              'Personal Trainer', 'Πλακάς', 'Συνεργείο Ανακαίνισης',
+                              'Συνεργείο Βαφής & Διακόσμησης', 'Συνεργείο Ηλεκτρολόγων',
+                              'Συνεργείο Κατασκευών', 'Συνεργείο Κλιματισμού',
+                              'Συνεργείο Υδραυλικών', 'Συντήρηση Κλιματιστικών',
+                              'Τεχνικός Ανελκυστήρων', 'Τεχνικός Υπολογιστών',
+                              'Υαλουργός', 'Υδραυλικός', 'Φυσιοθεραπευτής',
+                              'Φωτογράφος', 'Web Developer', 'Ελαιοχρωματιστής',
+                              'Ψυκτικός', 'Ψυχολόγος',
+                            ]..sort((a, b) => a.toLowerCase().compareTo(b.toLowerCase()))),
                             selected: _selectedProfession,
                           ),
                         );
@@ -4086,6 +4262,35 @@ Future<void> _notifyProsDirectly(
                         secondChild: const SizedBox.shrink(),
                       ),
 
+                      // Audio status strip
+                      if (_audioRecording || _audioUploading || _requestAudioUrl != null)
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                          child: Row(children: [
+                            if (_audioRecording) ...[
+                              Container(width: 7, height: 7,
+                                  decoration: const BoxDecoration(shape: BoxShape.circle, color: Colors.red)),
+                              const SizedBox(width: 6),
+                              Text('${_audioDur.inSeconds}″', style: const TextStyle(color: Colors.red, fontSize: 11, fontWeight: FontWeight.w700)),
+                              const SizedBox(width: 6),
+                              Text('Ηχογράφηση...', style: TextStyle(color: _g(0.5), fontSize: 11)),
+                            ] else if (_audioUploading) ...[
+                              const SizedBox(width: 12, height: 12, child: CircularProgressIndicator(color: kGold, strokeWidth: 2)),
+                              const SizedBox(width: 8),
+                              Text('Αποστολή...', style: TextStyle(color: _g(0.5), fontSize: 11)),
+                            ] else if (_requestAudioUrl != null) ...[
+                              const Icon(Icons.mic, color: kGreen, size: 14),
+                              const SizedBox(width: 6),
+                              Text('Ηχητικό μήνυμα ✓', style: const TextStyle(color: kGreen, fontSize: 11, fontWeight: FontWeight.w600)),
+                              const Spacer(),
+                              GestureDetector(
+                                onTap: () => setState(() => _requestAudioUrl = null),
+                                child: Icon(Icons.close, color: _g(0.4), size: 14),
+                              ),
+                            ],
+                          ]),
+                        ),
+
                       // Bottom bar: mic + send INSIDE the box
                       Container(
                         decoration: BoxDecoration(
@@ -4095,25 +4300,21 @@ Future<void> _notifyProsDirectly(
                         ),
                         padding: const EdgeInsets.all(6),
                         child: Row(children: [
-                          // MIC BUTTON
+                          // AUDIO REC BUTTON
                           GestureDetector(
-                            onTap: _listening ? _stopVoice : _startVoice,
+                            onTap: _audioRecording ? _stopAudio : _startAudio,
                             child: AnimatedContainer(
                               duration: const Duration(milliseconds: 200),
                               width: 46, height: 46,
                               decoration: BoxDecoration(
                                 borderRadius: BorderRadius.circular(14),
-                                color: _listening
-                                    ? Colors.red
-                                    : _g(0.08),
+                                color: _audioRecording ? Colors.red : _g(0.08),
                                 border: Border.all(
-                                    color: _listening
-                                        ? Colors.red
-                                        : kGold.withValues(alpha: 0.3)),
+                                    color: _audioRecording ? Colors.red : kGold.withValues(alpha: 0.3)),
                               ),
                               child: Center(child: Icon(
-                                _listening ? Icons.stop_rounded : Icons.mic_rounded,
-                                color: _listening ? Colors.white : kGold,
+                                _audioRecording ? Icons.stop_rounded : Icons.mic_rounded,
+                                color: _audioRecording ? Colors.white : kGold,
                                 size: 22,
                               )),
                             ),
@@ -4121,7 +4322,7 @@ Future<void> _notifyProsDirectly(
                           const SizedBox(width: 6),
                           // PHOTO BUTTON
                           GestureDetector(
-                            onTap: _pickImage,
+                            onTap: _images.length < 3 ? _pickImage : null,
                             child: Stack(children: [
                               Container(
                                 width: 46, height: 46,
@@ -4146,6 +4347,26 @@ Future<void> _notifyProsDirectly(
                                 ),
                               ),
                             ]),
+                          ),
+                          const SizedBox(width: 6),
+                          // VIDEO BUTTON
+                          GestureDetector(
+                            onTap: _captureVideo,
+                            child: Container(
+                              width: 46, height: 46,
+                              decoration: BoxDecoration(
+                                borderRadius: BorderRadius.circular(14),
+                                color: _g(0.08),
+                                border: Border.all(color: _video != null
+                                    ? kGreen.withValues(alpha: 0.6)
+                                    : kGold.withValues(alpha: 0.3)),
+                              ),
+                              child: Center(child: Icon(
+                                Icons.videocam_outlined,
+                                color: _video != null ? kGreen : kGold,
+                                size: 22,
+                              )),
+                            ),
                           ),
                           const SizedBox(width: 8),
                           // SEND BUTTON
@@ -5488,6 +5709,11 @@ class _OfferCard extends StatelessWidget {
 
               const SizedBox(height: 14),
 
+              if ((offer['audioUrl'] as String?)?.isNotEmpty == true) ...[
+                _AudioPlayWidget(url: offer['audioUrl'] as String),
+                const SizedBox(height: 10),
+              ],
+
               _PremiumButton(
                 label: isBest
                     ? '✅ Επέλεξε τον ${_name.split(' ').first}'
@@ -5502,6 +5728,75 @@ class _OfferCard extends StatelessWidget {
           ),
         ]),
       );
+}
+
+// ═══════════════════════════════════════
+// AUDIO PLAYBACK WIDGET
+// ═══════════════════════════════════════
+class _AudioPlayWidget extends StatefulWidget {
+  final String url;
+  const _AudioPlayWidget({required this.url});
+  @override
+  State<_AudioPlayWidget> createState() => _AudioPlayWidgetState();
+}
+
+class _AudioPlayWidgetState extends State<_AudioPlayWidget> {
+  final _player = AudioPlayer();
+  bool _playing = false;
+
+  @override
+  void dispose() {
+    _player.dispose();
+    super.dispose();
+  }
+
+  Future<void> _toggle() async {
+    if (_playing) {
+      await _player.pause();
+      setState(() => _playing = false);
+    } else {
+      await _player.play(UrlSource(widget.url));
+      setState(() => _playing = true);
+      _player.onPlayerComplete.listen((_) {
+        if (mounted) setState(() => _playing = false);
+      });
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) => GestureDetector(
+    onTap: _toggle,
+    child: Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(12),
+        color: kGold.withValues(alpha: 0.08),
+        border: Border.all(color: kGold.withValues(alpha: 0.25)),
+      ),
+      child: Row(children: [
+        Container(
+          width: 32, height: 32,
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            color: _playing ? kGold : kGold.withValues(alpha: 0.2),
+          ),
+          child: Icon(
+            _playing ? Icons.pause_rounded : Icons.play_arrow_rounded,
+            color: _playing ? Colors.black : kGold, size: 18,
+          ),
+        ),
+        const SizedBox(width: 10),
+        Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Text('🎤 Ηχητικό μήνυμα',
+              style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.w600)),
+          Text(_playing ? 'Αναπαραγωγή...' : 'Πάτα για ακρόαση',
+              style: TextStyle(color: _g(0.4), fontSize: 10)),
+        ])),
+        Icon(_playing ? Icons.volume_up_rounded : Icons.mic_rounded,
+            color: kGold.withValues(alpha: 0.6), size: 16),
+      ]),
+    ),
+  );
 }
 
 class _OfferTag extends StatelessWidget {
