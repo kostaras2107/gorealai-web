@@ -976,6 +976,15 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
         ));
   }
 
+  void _openEventOrganizer() {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      isScrollControlled: true,
+      builder: (_) => _EventOrganizerSheet(userId: _userId ?? '', userName: _userName ?? 'Χρήστης'),
+    );
+  }
+
   void _openProjectRequest() {
     Navigator.push(
         context,
@@ -1168,7 +1177,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
             hasActiveRequest: _activeRequests.isNotEmpty,
             activeRequestId: _activeRequests.isNotEmpty ? _activeRequests.first['id'] as String? : null,
             onHome: () => setState(() => _navIndex = 0),
-            onFab: _activeRequests.isEmpty ? _openProjectRequest : _openMyOffers,
+            onFab: _activeRequests.isEmpty ? _openEventOrganizer : _openMyOffers,
             onHistory: () {
               setState(() => _navIndex = 2);
               Navigator.push(
@@ -1202,6 +1211,8 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     return ListView(
       padding: const EdgeInsets.only(bottom: 24),
       children: [
+        const SizedBox(height: 24),
+
         // Greeting
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 20),
@@ -1339,6 +1350,33 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
 
         const SizedBox(height: 28),
 
+        // ΕΠΑΓΓΕΛΜΑΤΙΕΣ ΚΟΝΤΑ ΣΟΥ
+        Padding(
+          padding: const EdgeInsets.fromLTRB(20, 0, 20, 12),
+          child: Row(children: [
+            Text('Επαγγελματίες κοντά σου',
+                style: TextStyle(color: _g(0.8), fontSize: 16, fontWeight: FontWeight.w700)),
+            const SizedBox(width: 8),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(8),
+                color: kGreen.withValues(alpha: 0.12),
+                border: Border.all(color: kGreen.withValues(alpha: 0.3)),
+              ),
+              child: Row(mainAxisSize: MainAxisSize.min, children: [
+                Container(width: 5, height: 5,
+                    decoration: const BoxDecoration(shape: BoxShape.circle, color: kGreen)),
+                const SizedBox(width: 4),
+                const Text('LIVE', style: TextStyle(color: kGreen, fontSize: 9, fontWeight: FontWeight.w700)),
+              ]),
+            ),
+          ]),
+        ),
+        const _NearbyProsSection(),
+
+        const SizedBox(height: 28),
+
         // ACTIVE REQUESTS
         if (_userId != null) ...[
           Padding(
@@ -1370,19 +1408,6 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
           ),
           _ActiveRequestsPreview(userId: _userId!),
         ],
-
-        const SizedBox(height: 28),
-
-        // ΕΠΑΓΓΕΛΜΑΤΙΕΣ ΚΟΝΤΑ ΣΟΥ
-        Padding(
-          padding: const EdgeInsets.fromLTRB(20, 0, 20, 12),
-          child: Text('Επαγγελματίες κοντά σου',
-              style: TextStyle(
-                  color: _g(0.8),
-                  fontSize: 16,
-                  fontWeight: FontWeight.w700)),
-        ),
-        const _NearbyProsSection(),
 
         const SizedBox(height: 28),
 
@@ -1490,213 +1515,6 @@ class _LiveActivityFeedState extends State<_LiveActivityFeed>
       );
     }).toList(),
   );
-}
-
-// ── Nearby Professionals Section ──
-class _NearbyProsSection extends StatefulWidget {
-  const _NearbyProsSection();
-  @override
-  State<_NearbyProsSection> createState() => _NearbyProsSectionState();
-}
-
-class _NearbyProsSectionState extends State<_NearbyProsSection> {
-  final PageController _pageCtrl = PageController(viewportFraction: 0.75);
-  int _current = 0;
-  Timer? _autoTimer;
-
-  @override
-  void initState() {
-    super.initState();
-    _autoTimer = Timer.periodic(const Duration(seconds: 3), (_) {
-      if (!mounted) return;
-      _pageCtrl.nextPage(
-          duration: const Duration(milliseconds: 600), curve: Curves.easeInOut);
-    });
-  }
-
-  @override
-  void dispose() {
-    _autoTimer?.cancel();
-    _pageCtrl.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return SizedBox(
-      height: 210,
-      child: StreamBuilder<QuerySnapshot>(
-        stream: FirebaseFirestore.instance
-            .collection('users')
-            .where('role', isEqualTo: 'professional')
-            .limit(20)
-            .snapshots(),
-        builder: (_, snap) {
-          final docs = snap.hasData ? snap.data!.docs : <QueryDocumentSnapshot>[];
-          if (docs.isEmpty) {
-            return Center(
-              child: Text('Δεν βρέθηκαν επαγγελματίες',
-                  style: TextStyle(color: _g(0.3), fontSize: 13)),
-            );
-          }
-          return PageView.builder(
-            controller: _pageCtrl,
-            itemCount: 99999,
-            onPageChanged: (i) => setState(() => _current = i),
-            itemBuilder: (_, i) {
-              final doc = docs[i % docs.length];
-              final d = doc.data() as Map<String, dynamic>;
-              final name = d['name'] as String? ?? 'Επαγγελματίας';
-              final specialty = d['specialty'] as String? ??
-                  d['profession'] as String? ?? '';
-              final rating = (d['rating'] as num?)?.toDouble() ?? 0.0;
-              final photoUrl = d['photoUrl'] as String?;
-              final isNew = (d['rating'] as num?)?.toDouble() == null ||
-                  rating < 1.0;
-
-              return Container(
-                margin: const EdgeInsets.symmetric(horizontal: 8),
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(22),
-                  gradient: LinearGradient(
-                    begin: Alignment.topCenter,
-                    end: Alignment.bottomCenter,
-                    colors: [
-                      kGold.withValues(alpha: 0.12),
-                      kBg.withValues(alpha: 0.95),
-                    ],
-                  ),
-                  border: Border.all(color: kGold.withValues(alpha: 0.25)),
-                  boxShadow: [
-                    BoxShadow(
-                        color: Colors.black.withValues(alpha: 0.4),
-                        blurRadius: 20,
-                        offset: const Offset(0, 8)),
-                  ],
-                ),
-                child: ClipRRect(
-                  borderRadius: BorderRadius.circular(22),
-                  child: Stack(children: [
-                    // Background photo
-                    if (photoUrl != null && photoUrl.isNotEmpty)
-                      Positioned.fill(
-                        child: Image.network(photoUrl, fit: BoxFit.cover,
-                            errorBuilder: (_, __, ___) => const SizedBox()),
-                      ),
-                    // Gradient overlay
-                    Positioned.fill(
-                      child: DecoratedBox(
-                        decoration: BoxDecoration(
-                          gradient: LinearGradient(
-                            begin: Alignment.topCenter,
-                            end: Alignment.bottomCenter,
-                            colors: [
-                              Colors.transparent,
-                              Colors.black.withValues(alpha: 0.75),
-                            ],
-                          ),
-                        ),
-                      ),
-                    ),
-                    // Content
-                    Positioned(
-                      left: 14, right: 14, bottom: 14,
-                      child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                        if (specialty.isNotEmpty)
-                          Container(
-                            margin: const EdgeInsets.only(bottom: 6),
-                            padding: const EdgeInsets.symmetric(
-                                horizontal: 8, vertical: 3),
-                            decoration: BoxDecoration(
-                              borderRadius: BorderRadius.circular(6),
-                              color: kGold.withValues(alpha: 0.85),
-                            ),
-                            child: Text(specialty,
-                                style: const TextStyle(
-                                    color: Colors.black,
-                                    fontSize: 9,
-                                    fontWeight: FontWeight.w700)),
-                          ),
-                        Text(name,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: const TextStyle(
-                                color: Colors.white,
-                                fontSize: 15,
-                                fontWeight: FontWeight.w700)),
-                        const SizedBox(height: 4),
-                        Row(children: [
-                          if (isNew)
-                            Container(
-                              padding: const EdgeInsets.symmetric(
-                                  horizontal: 6, vertical: 2),
-                              decoration: BoxDecoration(
-                                borderRadius: BorderRadius.circular(5),
-                                color: kGreen.withValues(alpha: 0.2),
-                                border: Border.all(
-                                    color: kGreen.withValues(alpha: 0.5)),
-                              ),
-                              child: const Text('Νέος',
-                                  style: TextStyle(
-                                      color: kGreen,
-                                      fontSize: 9,
-                                      fontWeight: FontWeight.w700)),
-                            )
-                          else
-                            Row(children: [
-                              const Icon(Icons.star_rounded,
-                                  color: kGold, size: 13),
-                              const SizedBox(width: 2),
-                              Text(rating.toStringAsFixed(1),
-                                  style: const TextStyle(
-                                      color: Colors.white,
-                                      fontSize: 11,
-                                      fontWeight: FontWeight.w600)),
-                            ]),
-                          const SizedBox(width: 8),
-                          Text('+${(docs.length * 10).clamp(10, 99)}λ',
-                              style: TextStyle(
-                                  color: _g(0.55), fontSize: 10)),
-                        ]),
-                      ]),
-                    ),
-                    // Avatar fallback (top center when no photo)
-                    if (photoUrl == null || photoUrl.isEmpty)
-                      Positioned(
-                        top: 20,
-                        left: 0, right: 0,
-                        child: Center(
-                          child: Container(
-                            width: 80, height: 80,
-                            decoration: BoxDecoration(
-                              shape: BoxShape.circle,
-                              color: kGold.withValues(alpha: 0.15),
-                              border: Border.all(color: kGold, width: 2),
-                            ),
-                            child: Center(
-                              child: Text(
-                                name.isNotEmpty ? name[0].toUpperCase() : 'P',
-                                style: const TextStyle(
-                                    color: kGold,
-                                    fontSize: 32,
-                                    fontWeight: FontWeight.bold),
-                              ),
-                            ),
-                          ),
-                        ),
-                      ),
-                  ]),
-                ),
-              );
-            },
-          );
-        },
-      ),
-    );
-  }
 }
 
 // ── Empty Hero Card (no active requests) ──
@@ -2351,6 +2169,34 @@ class _ProStatChip extends StatelessWidget {
   );
 }
 
+class _ProMenuCard extends StatelessWidget {
+  final String emoji, title, sub;
+  final VoidCallback onTap;
+  const _ProMenuCard({required this.emoji, required this.title, required this.sub, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) => GestureDetector(
+    onTap: onTap,
+    child: Container(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(14),
+        color: _g(0.04),
+        border: Border.all(color: _g(0.08)),
+      ),
+      child: Row(children: [
+        Text(emoji, style: const TextStyle(fontSize: 22)),
+        const SizedBox(width: 10),
+        Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, mainAxisAlignment: MainAxisAlignment.center, children: [
+          Text(title, style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.w700)),
+          Text(sub, style: TextStyle(color: _g(0.35), fontSize: 10), maxLines: 1, overflow: TextOverflow.ellipsis),
+        ])),
+        Icon(Icons.arrow_forward_ios, color: _g(0.2), size: 11),
+      ]),
+    ),
+  );
+}
+
 // ═══════════════════════════════════════
 // PROFESSIONAL HOME SCREEN
 // ═══════════════════════════════════════
@@ -2366,6 +2212,7 @@ class _ProfessionalHomeScreenState extends State<ProfessionalHomeScreen> {
   String? _proId;
   String _activeTab = 'requests';
   final Set<String> _submittedIds = {};
+  bool _isAvailable = true;
 
   @override
   void initState() {
@@ -2384,7 +2231,19 @@ class _ProfessionalHomeScreenState extends State<ProfessionalHomeScreen> {
     setState(() {
       _proName = doc.data()?['name'] ?? '';
       _proId = user.uid;
+      _isAvailable = doc.data()?['isAvailable'] ?? true;
     });
+  }
+
+  Future<void> _toggleAvailability(bool val) async {
+    setState(() => _isAvailable = val);
+    final uid = FirebaseAuth.instance.currentUser?.uid;
+    if (uid != null) {
+      await FirebaseFirestore.instance.collection('professionals').doc(uid).set(
+          {'isAvailable': val}, SetOptions(merge: true));
+      await FirebaseFirestore.instance.collection('users').doc(uid).set(
+          {'isAvailable': val}, SetOptions(merge: true));
+    }
   }
 
   Future<void> _respondBooking(String bookingId, String action) async {
@@ -2609,6 +2468,80 @@ class _ProfessionalHomeScreenState extends State<ProfessionalHomeScreen> {
                 },
               ),
             ]),
+          ),
+
+          const SizedBox(height: 12),
+
+          // ══ Διαθεσιμότητα toggle ══
+          Container(
+            margin: const EdgeInsets.symmetric(horizontal: 16),
+            padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(16),
+              color: _g(0.04),
+              border: Border.all(color: _isAvailable ? kGreen.withValues(alpha: 0.3) : _g(0.08)),
+            ),
+            child: Row(children: [
+              Container(width: 10, height: 10,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: _isAvailable ? kGreen : _g(0.2),
+                    boxShadow: _isAvailable ? [BoxShadow(color: kGreen.withValues(alpha: 0.6), blurRadius: 6)] : [],
+                  )),
+              const SizedBox(width: 12),
+              Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                const Text('Διαθέσιμος για αιτήματα',
+                    style: TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.w700)),
+                const SizedBox(height: 2),
+                Text(_isAvailable ? 'Λαμβάνεις νέα αιτήματα' : 'Δεν λαμβάνεις αιτήματα',
+                    style: TextStyle(color: _g(0.4), fontSize: 11)),
+              ])),
+              Switch(
+                value: _isAvailable,
+                onChanged: _toggleAvailability,
+                activeColor: kGreen,
+                activeTrackColor: kGreen.withValues(alpha: 0.2),
+                inactiveThumbColor: _g(0.3),
+                inactiveTrackColor: _g(0.08),
+              ),
+            ]),
+          ),
+
+          const SizedBox(height: 12),
+
+          // ══ Grid menu ══
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            child: GridView.count(
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              crossAxisCount: 2,
+              childAspectRatio: 2.4,
+              crossAxisSpacing: 10,
+              mainAxisSpacing: 10,
+              children: [
+                _ProMenuCard(emoji: '📋', title: 'Αιτήματα', sub: 'Ολοκλ αιτήματα',
+                    onTap: () => setState(() => _activeTab = 'requests')),
+                _ProMenuCard(emoji: '💬', title: 'Μηνύματα', sub: 'Εξυπηρέτηση',
+                    onTap: () {}),
+                _ProMenuCard(emoji: '👤', title: 'Mini CV', sub: 'Βιογραφικό',
+                    onTap: () => Navigator.push(context, PageRouteBuilder(
+                      pageBuilder: (_, __, ___) => const ProfileScreen(),
+                      transitionsBuilder: (_, a, __, c) => FadeTransition(opacity: a, child: c),
+                    ))),
+                _ProMenuCard(emoji: '📸', title: 'Portfolio', sub: 'Φωτογραφίες',
+                    onTap: () => Navigator.push(context, PageRouteBuilder(
+                      pageBuilder: (_, __, ___) => const ProfileScreen(),
+                      transitionsBuilder: (_, a, __, c) => FadeTransition(opacity: a, child: c),
+                    ))),
+                _ProMenuCard(emoji: '📅', title: 'Bookings', sub: 'Προπληρωμένα',
+                    onTap: () => setState(() => _activeTab = 'pending')),
+                _ProMenuCard(emoji: '❌', title: 'Απορριφθέντα', sub: 'Ιστορικό',
+                    onTap: () => setState(() => _activeTab = 'rejected')),
+                _ProMenuCard(emoji: '📱', title: 'Social Media', sub: 'Instagram & TikTok',
+                    onTap: () {}),
+              ],
+            ),
           ),
 
           const SizedBox(height: 14),
@@ -3947,6 +3880,8 @@ class _RequestScreenState extends State<RequestScreen>
   final _stt = stt.SpeechToText();
   bool _listening = false;
   String _selectedCriteria = 'cheap';
+  bool _filterWithPhoto = false;
+  double _filterMinRating = 0.0;
   final List<XFile> _images = [];
   XFile? _video;
   final _picker = ImagePicker();
@@ -4115,6 +4050,8 @@ class _RequestScreenState extends State<RequestScreen>
         'expiresAt': Timestamp.fromDate(
             DateTime.now().add(const Duration(minutes: 15))),
         'imageCount': _images.length,
+        'filterWithPhoto': _filterWithPhoto,
+        'filterMinRating': _filterMinRating,
         if (_requestAudioUrl != null) 'audioUrl': _requestAudioUrl,
       });
 
@@ -4656,6 +4593,20 @@ Future<void> _notifyProsDirectly(
                     _CriteriaChip(emoji: '⚡', label: 'Άμεσα',
                         selected: _selectedCriteria == 'fast',
                         onTap: () => setState(() => _selectedCriteria = 'fast')),
+                  ]),
+                  const SizedBox(height: 8),
+                  Row(children: [
+                    _CriteriaChip(emoji: '📷', label: 'Με φωτο',
+                        selected: _filterWithPhoto,
+                        onTap: () => setState(() => _filterWithPhoto = !_filterWithPhoto)),
+                    const SizedBox(width: 8),
+                    _CriteriaChip(emoji: '4★+', label: '4+',
+                        selected: _filterMinRating == 4.0,
+                        onTap: () => setState(() => _filterMinRating = _filterMinRating == 4.0 ? 0.0 : 4.0)),
+                    const SizedBox(width: 8),
+                    _CriteriaChip(emoji: '4.5★', label: '4.5+',
+                        selected: _filterMinRating == 4.5,
+                        onTap: () => setState(() => _filterMinRating = _filterMinRating == 4.5 ? 0.0 : 4.5)),
                   ]),
                   const SizedBox(height: 10),
                   Row(mainAxisAlignment: MainAxisAlignment.center, children: [
@@ -7285,19 +7236,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       emoji: '🛡️',
                       label: 'Πολιτική απορρήτου',
                       value: '',
-                      onTap: () => Navigator.push(context, PageRouteBuilder(
-                        pageBuilder: (_, __, ___) => const PrivacyPolicyScreen(),
-                        transitionsBuilder: (_, a, __, c) => FadeTransition(opacity: a, child: c),
-                      ))),
-                  _ProfileRow(
-                      icon: Icons.gavel_outlined,
-                      emoji: '📋',
-                      label: 'Όροι Χρήσης',
-                      value: '',
-                      onTap: () => Navigator.push(context, PageRouteBuilder(
-                        pageBuilder: (_, __, ___) => const TermsOfServiceScreen(),
-                        transitionsBuilder: (_, a, __, c) => FadeTransition(opacity: a, child: c),
-                      ))),
+                      onTap: () async => launchUrl(
+                          Uri.parse('https://gorealai.web.app/privacy'),
+                          mode: LaunchMode.platformDefault)),
 
                   const SizedBox(height: 20),
                   _ProfileRow(
@@ -8699,62 +8640,288 @@ class _GoldTextField extends StatelessWidget {
       );
 }
 
-// ═══════════════════════════════════════
-// PRIVACY POLICY SCREEN
-// ═══════════════════════════════════════
-class PrivacyPolicyScreen extends StatelessWidget {
-  const PrivacyPolicyScreen({super.key});
+// ══════════════════════════════════════════════════════
+// NEARBY PROS SECTION
+// ══════════════════════════════════════════════════════
+class _NearbyProsSection extends StatefulWidget {
+  const _NearbyProsSection();
+  @override
+  State<_NearbyProsSection> createState() => _NearbyProsSectionState();
+}
+
+class _NearbyProsSectionState extends State<_NearbyProsSection> {
+  final PageController _pageCtrl = PageController(viewportFraction: 0.52);
+  int _page = 0;
+  Timer? _autoScrollTimer;
+
+  @override
+  void initState() {
+    super.initState();
+    _startAutoScroll();
+  }
+
+  void _startAutoScroll() {
+    _autoScrollTimer = Timer.periodic(const Duration(seconds: 3), (_) {
+      if (!mounted || !_pageCtrl.hasClients) return;
+      final next = (_page + 1);
+      _pageCtrl.animateToPage(
+        next,
+        duration: const Duration(milliseconds: 600),
+        curve: Curves.easeInOut,
+      );
+    });
+  }
+
+  @override
+  void dispose() {
+    _autoScrollTimer?.cancel();
+    _pageCtrl.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
+    return StreamBuilder<QuerySnapshot>(
+      stream: FirebaseFirestore.instance
+          .collection('professionals')
+          .limit(10)
+          .snapshots(),
+      builder: (context, snap) {
+        final docs = snap.hasData ? snap.data!.docs : <QueryDocumentSnapshot>[];
+        if (!snap.hasData) return const SizedBox(height: 220);
+        if (docs.isEmpty) return const SizedBox(height: 220);
+        return _buildPageView(docs);
+      },
+    );
+  }
+
+  Widget _buildPageView(List<QueryDocumentSnapshot> docs) {
+    return SizedBox(
+      height: 185,
+      child: PageView.builder(
+        controller: _pageCtrl,
+        itemCount: 9999,
+        onPageChanged: (i) => setState(() => _page = i),
+        itemBuilder: (_, i) {
+          final doc = docs[i % docs.length];
+          final d = doc.data() as Map<String, dynamic>;
+          final proId = doc.data() is Map ? (d['userId'] as String? ?? doc.id) : doc.id;
+          final name = d['name'] as String? ?? 'Επαγγελματίας';
+          final specialty = d['specialty'] as String? ?? '';
+          final rating = (d['rating'] as num?)?.toDouble() ?? 0.0;
+          final jobs = (d['completedJobs'] as num?)?.toInt() ?? 0;
+          // Try multiple photo field names
+          final photoUrl = d['photoUrl'] as String?
+              ?? d['profilePhoto'] as String?
+              ?? d['avatarUrl'] as String?
+              ?? d['imageUrl'] as String?;
+          final userId = d['userId'] as String?;
+          final isNew = jobs < 5;
+          final initials = name.isNotEmpty ? name[0].toUpperCase() : 'P';
+          final isActive = i == _page;
+
+          return GestureDetector(
+            onTap: () => Navigator.push(context, PageRouteBuilder(
+              pageBuilder: (_, __, ___) => _ProPublicProfileScreen(proId: proId, proData: d),
+              transitionsBuilder: (_, a, __, c) => FadeTransition(opacity: a, child: c),
+            )),
+            child: AnimatedScale(
+              scale: isActive ? 1.0 : 0.93,
+              duration: const Duration(milliseconds: 300),
+              child: Container(
+                margin: const EdgeInsets.fromLTRB(6, 4, 6, 8),
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(18),
+                  color: const Color(0xFF0D0A04),
+                  border: Border.all(color: isActive ? kGold.withValues(alpha: 0.4) : kGold.withValues(alpha: 0.12)),
+                  boxShadow: [BoxShadow(color: kGold.withValues(alpha: isActive ? 0.1 : 0.03), blurRadius: 16)],
+                ),
+                child: Column(children: [
+                  // Φωτογραφία
+                  Expanded(
+                    child: ClipRRect(
+                      borderRadius: const BorderRadius.vertical(top: Radius.circular(18)),
+                      child: Stack(fit: StackFit.expand, children: [
+                        // Αν υπάρχει photoUrl στο professionals, δείξτο
+                        // Αλλιώς κοίτα από users collection
+                        if (photoUrl != null)
+                          Image.network(photoUrl, fit: BoxFit.cover,
+                              errorBuilder: (_, __, ___) => _proInitialsBox(initials))
+                        else if (userId != null)
+                          FutureBuilder<DocumentSnapshot>(
+                            future: FirebaseFirestore.instance.collection('users').doc(userId).get(),
+                            builder: (_, snap) {
+                              if (snap.hasData && snap.data!.exists) {
+                                final uData = snap.data!.data() as Map<String, dynamic>;
+                                final uPhoto = uData['photoUrl'] as String?
+                                    ?? uData['profilePhoto'] as String?
+                                    ?? uData['avatarUrl'] as String?;
+                                if (uPhoto != null) {
+                                  return Image.network(uPhoto, fit: BoxFit.cover,
+                                      errorBuilder: (_, __, ___) => _proInitialsBox(initials));
+                                }
+                              }
+                              return _proInitialsBox(initials);
+                            },
+                          )
+                        else
+                          _proInitialsBox(initials),
+                        // Νέος badge
+                        if (isNew)
+                          Positioned(top: 8, right: 8,
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
+                              decoration: BoxDecoration(
+                                borderRadius: BorderRadius.circular(6),
+                                color: Colors.black.withValues(alpha: 0.65),
+                                border: Border.all(color: kGold.withValues(alpha: 0.4)),
+                              ),
+                              child: const Text('Νέος', style: TextStyle(color: kGold, fontSize: 8, fontWeight: FontWeight.w700)),
+                            ),
+                          ),
+                        // Gradient overlay
+                        Positioned.fill(child: DecoratedBox(
+                          decoration: BoxDecoration(
+                            gradient: LinearGradient(
+                              begin: Alignment.topCenter, end: Alignment.bottomCenter,
+                              colors: [Colors.transparent, Colors.black.withValues(alpha: 0.4)],
+                              stops: const [0.55, 1.0],
+                            ),
+                          ),
+                        )),
+                      ]),
+                    ),
+                  ),
+                  // Info
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(10, 7, 10, 8),
+                    child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                      Text(name, maxLines: 1, overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.w700)),
+                      const SizedBox(height: 1),
+                      Text(specialty, maxLines: 1, overflow: TextOverflow.ellipsis,
+                          style: TextStyle(color: _g(0.4), fontSize: 10)),
+                      const SizedBox(height: 5),
+                      Row(children: [
+                        Text('⭐ ${rating > 0 ? rating.toStringAsFixed(1) : "Νέος"}',
+                            style: const TextStyle(color: kGold, fontSize: 10, fontWeight: FontWeight.w600)),
+                        const Spacer(),
+                        Text('~30λ', style: TextStyle(color: _g(0.3), fontSize: 9)),
+                      ]),
+                    ]),
+                  ),
+                ]),
+              ),
+            ),
+          );
+        },
+      ),
+    );
+  }
+
+  Widget _proInitialsBox(String initials) => Container(
+    color: kGold.withValues(alpha: 0.08),
+    child: Center(child: Text(initials,
+        style: const TextStyle(color: kGold, fontSize: 36, fontWeight: FontWeight.bold))),
+  );
+}
+
+// ══════════════════════════════════════════════════════
+// PRO PUBLIC PROFILE SCREEN
+// ══════════════════════════════════════════════════════
+class _ProPublicProfileScreen extends StatelessWidget {
+  final String proId;
+  final Map<String, dynamic> proData;
+  const _ProPublicProfileScreen({required this.proId, required this.proData});
+
+  @override
+  Widget build(BuildContext context) {
+    final name = proData['name'] as String? ?? 'Επαγγελματίας';
+    final specialty = proData['specialty'] as String? ?? '';
+    final rating = (proData['rating'] as num?)?.toDouble() ?? 0.0;
+    final jobs = (proData['completedJobs'] as num?)?.toInt() ?? 0;
+    final photoUrl = proData['photoUrl'] as String?;
+    final bio = proData['bio'] as String? ?? '';
+    final initials = name.isNotEmpty ? name[0].toUpperCase() : 'P';
+
     return Scaffold(
-      backgroundColor: kBg,
+      backgroundColor: const Color(0xFF080500),
       body: SafeArea(
         child: Column(children: [
+          // Top bar
           Padding(
-            padding: const EdgeInsets.fromLTRB(20, 16, 20, 0),
+            padding: const EdgeInsets.fromLTRB(16, 14, 16, 0),
             child: Row(children: [
               GestureDetector(
                 onTap: () => Navigator.pop(context),
-                child: Container(
-                    width: 36, height: 36,
-                    decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        color: _g(0.05),
-                        border: Border.all(color: kGold.withValues(alpha: 0.2))),
-                    child: const Icon(Icons.arrow_back_ios_new, color: kGold, size: 16)),
+                child: Container(width: 38, height: 38,
+                    decoration: BoxDecoration(shape: BoxShape.circle, color: _g(0.06),
+                        border: Border.all(color: _g(0.1))),
+                    child: Icon(Icons.arrow_back_ios_new, color: _gw, size: 16)),
               ),
-              const SizedBox(width: 14),
-              const Text('Πολιτική Απορρήτου',
-                  style: TextStyle(fontFamily: 'Raleway', fontSize: 20,
-                      fontWeight: FontWeight.bold, color: Colors.white)),
+              const Spacer(),
+              ShaderMask(
+                shaderCallback: (b) => const LinearGradient(colors: [kGoldLight, kGold]).createShader(b),
+                child: const Text('GOREALAI', style: TextStyle(fontFamily: 'Raleway', fontSize: 12, letterSpacing: 4, color: Colors.white)),
+              ),
+              const Spacer(),
+              const SizedBox(width: 38),
             ]),
           ),
-          const SizedBox(height: 16),
           Expanded(
             child: SingleChildScrollView(
-              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
-              child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                _legalSection('Τελευταία ενημέρωση: Ιούνιος 2026', isDate: true),
-                _legalSection('1. Εισαγωγή',
-                    body: 'Η εφαρμογή GorealAI (gorealai.web.app) σέβεται την ιδιωτικότητά σας. Η παρούσα Πολιτική Απορρήτου εξηγεί πώς συλλέγουμε, χρησιμοποιούμε και προστατεύουμε τα προσωπικά σας δεδομένα.'),
-                _legalSection('2. Δεδομένα που συλλέγουμε',
-                    body: '• Ονοματεπώνυμο και email κατά την εγγραφή\n• Τοποθεσία (πόλη) για σύνδεση με κοντινούς επαγγελματίες\n• Ιστορικό αιτημάτων και προσφορών\n• Φωτογραφίες και βίντεο που ανεβάζετε οικειοθελώς\n• FCM token για ειδοποιήσεις push'),
-                _legalSection('3. Χρήση δεδομένων',
-                    body: 'Τα δεδομένα σας χρησιμοποιούνται αποκλειστικά για:\n• Σύνδεση χρηστών με επαγγελματίες\n• Αποστολή push ειδοποιήσεων για νέες προσφορές\n• Βελτίωση της εμπειρίας χρήσης μέσω AI ανάλυσης\n• Εξυπηρέτηση πελατών'),
-                _legalSection('4. Αποθήκευση & Ασφάλεια',
-                    body: 'Τα δεδομένα αποθηκεύονται με κρυπτογράφηση στους διακομιστές Firebase (Google). Δεν πωλούμε ποτέ τα δεδομένα σας σε τρίτους.'),
-                _legalSection('5. Cookies & Analytics',
-                    body: 'Χρησιμοποιούμε Firebase Analytics για ανώνυμη στατιστική ανάλυση χρήσης. Δεν χρησιμοποιούμε cookies τρίτων για διαφήμιση.'),
-                _legalSection('6. Διαγραφή λογαριασμού',
-                    body: 'Μπορείτε να ζητήσετε τη διαγραφή των δεδομένων σας στέλνοντας email στο: support@gorealai.web.app\nΗ διαγραφή ολοκληρώνεται εντός 30 ημερών.'),
-                _legalSection('7. Ανήλικοι',
-                    body: 'Η εφαρμογή δεν απευθύνεται σε άτομα κάτω των 18 ετών. Δεν συλλέγουμε εκούσια δεδομένα ανηλίκων.'),
-                _legalSection('8. Αλλαγές',
-                    body: 'Διατηρούμε το δικαίωμα να ενημερώνουμε την παρούσα πολιτική. Σας ειδοποιούμε για σημαντικές αλλαγές μέσω push notification ή email.'),
-                _legalSection('9. Επικοινωνία',
-                    body: 'Για οποιαδήποτε ερώτηση σχετικά με την ιδιωτικότητά σας:\nEmail: support@gorealai.web.app'),
-                const SizedBox(height: 40),
+              padding: const EdgeInsets.all(20),
+              child: Column(children: [
+                // Photo
+                Container(
+                  width: 110, height: 110,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    border: Border.all(color: kGold, width: 2),
+                    boxShadow: [BoxShadow(color: kGold.withValues(alpha: 0.3), blurRadius: 20)],
+                  ),
+                  child: ClipOval(
+                    child: photoUrl != null
+                        ? Image.network(photoUrl, fit: BoxFit.cover,
+                            errorBuilder: (_, __, ___) => Container(color: kGold.withValues(alpha: 0.1),
+                                child: Center(child: Text(initials, style: const TextStyle(color: kGold, fontSize: 40, fontWeight: FontWeight.bold)))))
+                        : Container(color: kGold.withValues(alpha: 0.1),
+                            child: Center(child: Text(initials, style: const TextStyle(color: kGold, fontSize: 40, fontWeight: FontWeight.bold)))),
+                  ),
+                ),
+                const SizedBox(height: 16),
+                Text(name, style: const TextStyle(color: Colors.white, fontSize: 22, fontWeight: FontWeight.w800, fontFamily: 'Raleway')),
+                const SizedBox(height: 4),
+                Text(specialty, style: TextStyle(color: _g(0.5), fontSize: 14)),
+                const SizedBox(height: 16),
+                Row(mainAxisAlignment: MainAxisAlignment.center, children: [
+                  _proStatBox('⭐', rating > 0 ? rating.toStringAsFixed(1) : '-', 'Βαθμ.'),
+                  const SizedBox(width: 16),
+                  _proStatBox('🏆', '$jobs', 'Δουλειές'),
+                  const SizedBox(width: 16),
+                  _proStatBox('⚡', '~30λ', 'Απάντηση'),
+                ]),
+                if (bio.isNotEmpty) ...[
+                  const SizedBox(height: 20),
+                  Container(
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(borderRadius: BorderRadius.circular(16), color: _g(0.04), border: Border.all(color: _g(0.08))),
+                    child: Text(bio, style: TextStyle(color: _g(0.65), fontSize: 13, height: 1.5)),
+                  ),
+                ],
+                const SizedBox(height: 24),
+                GestureDetector(
+                  onTap: () => Navigator.pop(context),
+                  child: Container(
+                    width: double.infinity, padding: const EdgeInsets.symmetric(vertical: 16),
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(16),
+                      gradient: const LinearGradient(colors: [kGoldLight, kGold]),
+                    ),
+                    child: const Center(child: Text('Στείλε αίτημα',
+                        style: TextStyle(color: Colors.black, fontSize: 15, fontWeight: FontWeight.w800))),
+                  ),
+                ),
               ]),
             ),
           ),
@@ -8762,92 +8929,355 @@ class PrivacyPolicyScreen extends StatelessWidget {
       ),
     );
   }
-}
 
-// ═══════════════════════════════════════
-// TERMS OF SERVICE SCREEN
-// ═══════════════════════════════════════
-class TermsOfServiceScreen extends StatelessWidget {
-  const TermsOfServiceScreen({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: kBg,
-      body: SafeArea(
-        child: Column(children: [
-          Padding(
-            padding: const EdgeInsets.fromLTRB(20, 16, 20, 0),
-            child: Row(children: [
-              GestureDetector(
-                onTap: () => Navigator.pop(context),
-                child: Container(
-                    width: 36, height: 36,
-                    decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        color: _g(0.05),
-                        border: Border.all(color: kGold.withValues(alpha: 0.2))),
-                    child: const Icon(Icons.arrow_back_ios_new, color: kGold, size: 16)),
-              ),
-              const SizedBox(width: 14),
-              const Text('Όροι Χρήσης',
-                  style: TextStyle(fontFamily: 'Raleway', fontSize: 20,
-                      fontWeight: FontWeight.bold, color: Colors.white)),
-            ]),
-          ),
-          const SizedBox(height: 16),
-          Expanded(
-            child: SingleChildScrollView(
-              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
-              child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                _legalSection('Τελευταία ενημέρωση: Ιούνιος 2026', isDate: true),
-                _legalSection('1. Αποδοχή Όρων',
-                    body: 'Χρησιμοποιώντας την εφαρμογή GorealAI αποδέχεστε πλήρως τους παρόντες Όρους Χρήσης. Αν διαφωνείτε, παρακαλούμε να μην χρησιμοποιείτε την εφαρμογή.'),
-                _legalSection('2. Περιγραφή Υπηρεσίας',
-                    body: 'Το GorealAI είναι πλατφόρμα reverse auction που συνδέει χρήστες με επαγγελματίες. Δεν είμαστε εργοδότης ή εκπρόσωπος κανενός επαγγελματία. Λειτουργούμε ως διαμεσολαβητής.'),
-                _legalSection('3. Εγγραφή & Λογαριασμός',
-                    body: '• Πρέπει να είστε τουλάχιστον 18 ετών\n• Παρέχετε ακριβή στοιχεία κατά την εγγραφή\n• Είστε υπεύθυνοι για την ασφάλεια του κωδικού σας\n• Δεν επιτρέπεται η δημιουργία πολλαπλών λογαριασμών'),
-                _legalSection('4. Κανόνες Χρήσης',
-                    body: 'Απαγορεύεται:\n• Η ανάρτηση ψευδών πληροφοριών\n• Η παρενόχληση άλλων χρηστών\n• Η χρήση για παράνομες δραστηριότητες\n• Η αποστολή spam ή διαφημιστικού περιεχομένου\n• Η παράκαμψη του συστήματος αξιολόγησης'),
-                _legalSection('5. Επαγγελματίες',
-                    body: 'Οι επαγγελματίες που εγγράφονται στην πλατφόρμα:\n• Βεβαιώνουν ότι κατέχουν τις νόμιμες άδειες\n• Αναλαμβάνουν πλήρη ευθύνη για τις παρεχόμενες υπηρεσίες\n• Υποχρεούνται να τηρούν τις δεσμεύσεις τους'),
-                _legalSection('6. Πληρωμές & Συνδρομές',
-                    body: 'Η βασική χρήση της εφαρμογής είναι δωρεάν. Premium συνδρομές χρεώνονται μηνιαία ή ετήσια. Δεν υπάρχει επιστροφή χρημάτων για μερικώς χρησιμοποιημένες περιόδους.'),
-                _legalSection('7. Ευθύνη',
-                    body: 'Η GorealAI δεν φέρει ευθύνη για:\n• Τη ποιότητα των παρεχόμενων υπηρεσιών\n• Διαφορές μεταξύ χρηστών και επαγγελματιών\n• Ζημίες που προκύπτουν από τη χρήση της πλατφόρμας'),
-                _legalSection('8. Πνευματικά Δικαιώματα',
-                    body: 'Όλο το περιεχόμενο της εφαρμογής (λογότυπο, κείμενα, γραφικά) ανήκει στη GorealAI και προστατεύεται από την ελληνική και ευρωπαϊκή νομοθεσία.'),
-                _legalSection('9. Διακοπή Υπηρεσίας',
-                    body: 'Διατηρούμε το δικαίωμα να αναστείλουμε ή τερματίσουμε λογαριασμούς που παραβιάζουν τους παρόντες όρους, χωρίς προειδοποίηση.'),
-                _legalSection('10. Εφαρμοστέο Δίκαιο',
-                    body: 'Οι παρόντες όροι διέπονται από το ελληνικό δίκαιο. Αρμόδια δικαστήρια είναι τα Δικαστήρια Αθηνών.'),
-                _legalSection('11. Επικοινωνία',
-                    body: 'Email: support@gorealai.web.app'),
-                const SizedBox(height: 40),
-              ]),
-            ),
-          ),
-        ]),
-      ),
-    );
-  }
-}
-
-Widget _legalSection(String title, {String? body, bool isDate = false}) {
-  return Padding(
-    padding: const EdgeInsets.only(bottom: 18),
-    child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-      Text(title,
-          style: TextStyle(
-              color: isDate ? _g(0.4) : kGold,
-              fontSize: isDate ? 11 : 14,
-              fontWeight: isDate ? FontWeight.w400 : FontWeight.w700)),
-      if (body != null) ...[
-        const SizedBox(height: 6),
-        Text(body,
-            style: TextStyle(
-                color: _g(0.65), fontSize: 13, height: 1.6)),
-      ],
+  Widget _proStatBox(String emoji, String value, String label) => Container(
+    padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
+    decoration: BoxDecoration(borderRadius: BorderRadius.circular(14), color: _g(0.04), border: Border.all(color: _g(0.08))),
+    child: Column(children: [
+      Text(emoji, style: const TextStyle(fontSize: 20)),
+      const SizedBox(height: 4),
+      Text(value, style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.w800)),
+      Text(label, style: TextStyle(color: _g(0.4), fontSize: 10)),
     ]),
   );
+}
+
+// ══════════════════════════════════════════════════════
+// EVENT ORGANIZER BOTTOM SHEET
+// ══════════════════════════════════════════════════════
+class _EventOrganizerSheet extends StatelessWidget {
+  final String userId, userName;
+  const _EventOrganizerSheet({required this.userId, required this.userName});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.fromLTRB(20, 16, 20, 32),
+      decoration: BoxDecoration(
+        color: const Color(0xFF0A0804),
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
+        border: Border.all(color: kGold.withValues(alpha: 0.2)),
+      ),
+      child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Center(child: Container(width: 36, height: 4,
+            decoration: BoxDecoration(borderRadius: BorderRadius.circular(2), color: _g(0.2)))),
+        const SizedBox(height: 20),
+        Row(children: [
+          GestureDetector(onTap: () => Navigator.pop(context),
+              child: Icon(Icons.close, color: _g(0.4), size: 22)),
+          const Spacer(),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+            decoration: BoxDecoration(borderRadius: BorderRadius.circular(8), color: kGold.withValues(alpha: 0.12)),
+            child: const Text('ΝΕΟ ΑΙΤΗΜΑ', style: TextStyle(color: kGold, fontSize: 9, fontWeight: FontWeight.w800, letterSpacing: 1)),
+          ),
+        ]),
+        const SizedBox(height: 20),
+        const Text('Τι οργανώνεις;',
+            style: TextStyle(fontFamily: 'Raleway', fontSize: 26, color: Colors.white, fontWeight: FontWeight.w800)),
+        const SizedBox(height: 6),
+        Text('Επέλεξε κατηγορία και το AI σου βρίσκει\nτους καλύτερους επαγγελματίες.',
+            style: TextStyle(color: _g(0.45), fontSize: 13, height: 1.4)),
+        const SizedBox(height: 24),
+        ...[
+          {'emoji': '💍', 'title': 'Γάμος', 'subs': 'Φωτογράφος · DJ · Catering · Αίθουσα · Ανθοστολιστής'},
+          {'emoji': '🎂', 'title': 'Βάφτιση', 'subs': 'Φωτογράφος · Catering · Στολισμός · Μπομπονιέρες'},
+          {'emoji': '🎉', 'title': 'Πάρτυ', 'subs': 'DJ · Catering · Στολισμός · Φωτογράφος'},
+        ].map((item) => GestureDetector(
+          onTap: () {
+            Navigator.pop(context);
+            showModalBottomSheet(
+              context: context,
+              backgroundColor: Colors.transparent,
+              isScrollControlled: true,
+              builder: (_) => _EventFormSheet(
+                eventType: item['title']!,
+                emoji: item['emoji']!,
+                userId: userId,
+                userName: userName,
+              ),
+            );
+          },
+          child: Container(
+            margin: const EdgeInsets.only(bottom: 12),
+            padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 16),
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(18),
+              color: _g(0.04),
+              border: Border.all(color: _g(0.08)),
+            ),
+            child: Row(children: [
+              Text(item['emoji']!, style: const TextStyle(fontSize: 26)),
+              const SizedBox(width: 14),
+              Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                Text(item['title']!,
+                    style: const TextStyle(color: Colors.white, fontSize: 15, fontWeight: FontWeight.w700)),
+                const SizedBox(height: 3),
+                Text(item['subs']!, style: TextStyle(color: _g(0.35), fontSize: 11)),
+              ])),
+              Icon(Icons.arrow_forward_ios, color: _g(0.25), size: 14),
+            ]),
+          ),
+        )),
+      ]),
+    );
+  }
+}
+
+// ══════════════════════════════════════════════════════
+// EVENT FORM SHEET (Γάμος / Βάφτιση / Πάρτυ)
+// ══════════════════════════════════════════════════════
+class _EventFormSheet extends StatefulWidget {
+  final String eventType, emoji, userId, userName;
+  const _EventFormSheet({required this.eventType, required this.emoji, required this.userId, required this.userName});
+  @override
+  State<_EventFormSheet> createState() => _EventFormSheetState();
+}
+
+class _EventFormSheetState extends State<_EventFormSheet> {
+  DateTime? _date;
+  String? _location;
+  double _people = 50;
+  double _budget = 3000;
+  final _detailsCtrl = TextEditingController();
+  bool _sending = false;
+
+  @override
+  void dispose() {
+    _detailsCtrl.dispose();
+    super.dispose();
+  }
+
+  Future<void> _submit() async {
+    setState(() => _sending = true);
+    try {
+      await FirebaseFirestore.instance.collection('event_requests').add({
+        'userId': widget.userId,
+        'userName': widget.userName,
+        'eventType': widget.eventType,
+        'date': _date != null ? _date!.toIso8601String() : null,
+        'location': _location ?? '',
+        'people': _people.round(),
+        'budget': _budget.round(),
+        'details': _detailsCtrl.text.trim(),
+        'status': 'active',
+        'createdAt': FieldValue.serverTimestamp(),
+      });
+      if (!mounted) return;
+      Navigator.pop(context);
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+          content: Text('✅ Το αίτημά σου στάλθηκε!'),
+          backgroundColor: Color(0xFF00D4AA)));
+    } catch (e) {
+      setState(() => _sending = false);
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Σφάλμα: $e')));
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
+      child: Container(
+        padding: const EdgeInsets.fromLTRB(20, 16, 20, 32),
+        decoration: BoxDecoration(
+          color: const Color(0xFF0A0804),
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
+          border: Border.all(color: kGold.withValues(alpha: 0.2)),
+        ),
+        child: SingleChildScrollView(
+          child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Center(child: Container(width: 36, height: 4,
+                decoration: BoxDecoration(borderRadius: BorderRadius.circular(2), color: _g(0.2)))),
+            const SizedBox(height: 16),
+            Row(children: [
+              GestureDetector(onTap: () => Navigator.pop(context),
+                  child: Icon(Icons.arrow_back_ios, color: _g(0.5), size: 18)),
+              const SizedBox(width: 8),
+              Text('${widget.emoji} ${widget.eventType}',
+                  style: const TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.w700)),
+            ]),
+            const SizedBox(height: 20),
+
+            // Ημερομηνία
+            Row(children: [
+              Text('📅 ', style: const TextStyle(fontSize: 14)),
+              Text('Ημερομηνία', style: TextStyle(color: _g(0.6), fontSize: 13, fontWeight: FontWeight.w600)),
+            ]),
+            const SizedBox(height: 8),
+            GestureDetector(
+              onTap: () async {
+                final picked = await showDatePicker(
+                  context: context,
+                  initialDate: DateTime.now().add(const Duration(days: 30)),
+                  firstDate: DateTime.now(),
+                  lastDate: DateTime.now().add(const Duration(days: 730)),
+                  builder: (ctx, child) => Theme(
+                    data: ThemeData.dark().copyWith(
+                      colorScheme: const ColorScheme.dark(primary: kGold, surface: Color(0xFF1A1400)),
+                    ),
+                    child: child!,
+                  ),
+                );
+                if (picked != null) setState(() => _date = picked);
+              },
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(14),
+                  color: _g(0.04),
+                  border: Border.all(color: _date != null ? kGold.withValues(alpha: 0.4) : _g(0.1)),
+                ),
+                child: Row(children: [
+                  Icon(Icons.calendar_today_outlined, color: _g(0.4), size: 16),
+                  const SizedBox(width: 10),
+                  Text(
+                    _date != null
+                        ? '${_date!.day}/${_date!.month}/${_date!.year}'
+                        : 'Επίλεξε ημερομηνία',
+                    style: TextStyle(color: _date != null ? _gw : _g(0.3), fontSize: 14),
+                  ),
+                ]),
+              ),
+            ),
+            const SizedBox(height: 16),
+
+            // Περιοχή
+            Row(children: [
+              Text('📍 ', style: const TextStyle(fontSize: 14)),
+              Text('Περιοχή', style: TextStyle(color: _g(0.6), fontSize: 13, fontWeight: FontWeight.w600)),
+            ]),
+            const SizedBox(height: 8),
+            GestureDetector(
+              onTap: () async {
+                final areas = ['Αθήνα', 'Θεσσαλονίκη', 'Πάτρα', 'Ηράκλειο', 'Λάρισα',
+                    'Βόλος', 'Ιωάννινα', 'Χανιά', 'Ρόδος', 'Κέρκυρα', 'Καβάλα', 'Σέρρες'];
+                final result = await showModalBottomSheet<String>(
+                  context: context,
+                  backgroundColor: Colors.transparent,
+                  builder: (_) => _SimpleListPicker(title: 'Επίλεξε περιοχή', items: areas, selected: _location),
+                );
+                if (result != null) setState(() => _location = result);
+              },
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(14),
+                  color: _g(0.04),
+                  border: Border.all(color: _location != null ? kGold.withValues(alpha: 0.4) : _g(0.1)),
+                ),
+                child: Row(children: [
+                  Icon(Icons.location_on_outlined, color: _g(0.4), size: 16),
+                  const SizedBox(width: 10),
+                  Expanded(child: Text(_location ?? 'Επίλεξε περιοχή...',
+                      style: TextStyle(color: _location != null ? _gw : _g(0.3), fontSize: 14))),
+                  Icon(Icons.keyboard_arrow_down, color: _g(0.3), size: 18),
+                ]),
+              ),
+            ),
+            const SizedBox(height: 16),
+
+            // Αριθμός ατόμων
+            Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
+              Row(children: [
+                Text('👥 ', style: const TextStyle(fontSize: 14)),
+                Text('Αριθμός ατόμων:', style: TextStyle(color: _g(0.6), fontSize: 13, fontWeight: FontWeight.w600)),
+              ]),
+              Text('${_people.round()}', style: const TextStyle(color: kGold, fontSize: 14, fontWeight: FontWeight.w700)),
+            ]),
+            SliderTheme(
+              data: SliderThemeData(
+                activeTrackColor: kGold,
+                inactiveTrackColor: _g(0.1),
+                thumbColor: kGold,
+                overlayColor: kGold.withValues(alpha: 0.1),
+              ),
+              child: Slider(
+                value: _people,
+                min: 10, max: 500,
+                onChanged: (v) => setState(() => _people = v),
+              ),
+            ),
+            Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
+              Text('10', style: TextStyle(color: _g(0.3), fontSize: 10)),
+              Text('500+', style: TextStyle(color: _g(0.3), fontSize: 10)),
+            ]),
+            const SizedBox(height: 16),
+
+            // Budget
+            Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
+              Row(children: [
+                Text('💰 ', style: const TextStyle(fontSize: 14)),
+                Text('Budget:', style: TextStyle(color: _g(0.6), fontSize: 13, fontWeight: FontWeight.w600)),
+              ]),
+              Text('${_budget.round()}€', style: const TextStyle(color: kGold, fontSize: 14, fontWeight: FontWeight.w700)),
+            ]),
+            SliderTheme(
+              data: SliderThemeData(
+                activeTrackColor: kGold,
+                inactiveTrackColor: _g(0.1),
+                thumbColor: kGold,
+                overlayColor: kGold.withValues(alpha: 0.1),
+              ),
+              child: Slider(
+                value: _budget,
+                min: 500, max: 30000,
+                onChanged: (v) => setState(() => _budget = v),
+              ),
+            ),
+            Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
+              Text('500€', style: TextStyle(color: _g(0.3), fontSize: 10)),
+              Text('30.000€+', style: TextStyle(color: _g(0.3), fontSize: 10)),
+            ]),
+            const SizedBox(height: 16),
+
+            // Επιπλέον λεπτομέρειες
+            Row(children: [
+              Text('✏️ ', style: const TextStyle(fontSize: 14)),
+              Text('Επιπλέον λεπτομέρειες (προαιρετικό)',
+                  style: TextStyle(color: _g(0.6), fontSize: 13, fontWeight: FontWeight.w600)),
+            ]),
+            const SizedBox(height: 8),
+            TextField(
+              controller: _detailsCtrl,
+              maxLines: 3,
+              style: TextStyle(color: _gw, fontSize: 13),
+              decoration: InputDecoration(
+                hintText: 'πχ. "Θέλω υπαίθριο γάμο, στολ boho, με live band..."',
+                hintStyle: TextStyle(color: _g(0.25), fontSize: 12),
+                filled: true, fillColor: _g(0.04),
+                border: OutlineInputBorder(borderRadius: BorderRadius.circular(14),
+                    borderSide: BorderSide(color: _g(0.1))),
+                enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(14),
+                    borderSide: BorderSide(color: _g(0.1))),
+                focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(14),
+                    borderSide: const BorderSide(color: kGold)),
+              ),
+            ),
+            const SizedBox(height: 24),
+
+            // Submit
+            GestureDetector(
+              onTap: _sending ? null : _submit,
+              child: Container(
+                width: double.infinity,
+                padding: const EdgeInsets.symmetric(vertical: 16),
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(16),
+                  gradient: _sending
+                      ? LinearGradient(colors: [_g(0.1), _g(0.1)])
+                      : const LinearGradient(colors: [kGoldLight, kGold]),
+                ),
+                child: Center(child: _sending
+                    ? const SizedBox(width: 22, height: 22,
+                        child: CircularProgressIndicator(color: Colors.black, strokeWidth: 2))
+                    : const Text('🚀 Αποστολή αιτήματος',
+                        style: TextStyle(color: Colors.black, fontSize: 15, fontWeight: FontWeight.w800))),
+              ),
+            ),
+          ]),
+        ),
+      ),
+    );
+  }
 }
