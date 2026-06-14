@@ -1151,31 +1151,6 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                             color: Colors.white)),
                   ),
                   Row(children: [
-                    StreamBuilder<QuerySnapshot>(
-                      stream: FirebaseFirestore.instance
-                          .collection('presence')
-                          .where('online', isEqualTo: true)
-                          .snapshots(),
-                      builder: (_, snap) {
-                        final count =
-                            snap.hasData ? snap.data!.docs.length : 0;
-                        return Row(children: [
-                          Container(
-                              width: 6,
-                              height: 6,
-                              decoration: const BoxDecoration(
-                                  shape: BoxShape.circle,
-                                  color: kGreen)),
-                          const SizedBox(width: 4),
-                          Text('$count online',
-                              style: TextStyle(
-                                  fontSize: 10,
-                                  color:
-                                      _g(0.3))),
-                        ]);
-                      },
-                    ),
-                    const SizedBox(width: 12),
                     _NotificationBell(userId: _userId ?? ''),
                   ]),
                 ]),
@@ -1227,9 +1202,6 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     return ListView(
       padding: const EdgeInsets.only(bottom: 24),
       children: [
-        const _MarqueeBanner(text: 'Η πρώτη εφαρμογή στην Ελλάδα με reverse auction   •   '),
-        const SizedBox(height: 24),
-
         // Greeting
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 20),
@@ -1401,6 +1373,19 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
 
         const SizedBox(height: 28),
 
+        // ΕΠΑΓΓΕΛΜΑΤΙΕΣ ΚΟΝΤΑ ΣΟΥ
+        Padding(
+          padding: const EdgeInsets.fromLTRB(20, 0, 20, 12),
+          child: Text('Επαγγελματίες κοντά σου',
+              style: TextStyle(
+                  color: _g(0.8),
+                  fontSize: 16,
+                  fontWeight: FontWeight.w700)),
+        ),
+        const _NearbyProsSection(),
+
+        const SizedBox(height: 28),
+
         // LIVE ACTIVITY FEED
         Padding(
           padding: const EdgeInsets.fromLTRB(20, 0, 20, 12),
@@ -1505,6 +1490,213 @@ class _LiveActivityFeedState extends State<_LiveActivityFeed>
       );
     }).toList(),
   );
+}
+
+// ── Nearby Professionals Section ──
+class _NearbyProsSection extends StatefulWidget {
+  const _NearbyProsSection();
+  @override
+  State<_NearbyProsSection> createState() => _NearbyProsSectionState();
+}
+
+class _NearbyProsSectionState extends State<_NearbyProsSection> {
+  final PageController _pageCtrl = PageController(viewportFraction: 0.75);
+  int _current = 0;
+  Timer? _autoTimer;
+
+  @override
+  void initState() {
+    super.initState();
+    _autoTimer = Timer.periodic(const Duration(seconds: 3), (_) {
+      if (!mounted) return;
+      _pageCtrl.nextPage(
+          duration: const Duration(milliseconds: 600), curve: Curves.easeInOut);
+    });
+  }
+
+  @override
+  void dispose() {
+    _autoTimer?.cancel();
+    _pageCtrl.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      height: 210,
+      child: StreamBuilder<QuerySnapshot>(
+        stream: FirebaseFirestore.instance
+            .collection('users')
+            .where('role', isEqualTo: 'professional')
+            .limit(20)
+            .snapshots(),
+        builder: (_, snap) {
+          final docs = snap.hasData ? snap.data!.docs : <QueryDocumentSnapshot>[];
+          if (docs.isEmpty) {
+            return Center(
+              child: Text('Δεν βρέθηκαν επαγγελματίες',
+                  style: TextStyle(color: _g(0.3), fontSize: 13)),
+            );
+          }
+          return PageView.builder(
+            controller: _pageCtrl,
+            itemCount: 99999,
+            onPageChanged: (i) => setState(() => _current = i),
+            itemBuilder: (_, i) {
+              final doc = docs[i % docs.length];
+              final d = doc.data() as Map<String, dynamic>;
+              final name = d['name'] as String? ?? 'Επαγγελματίας';
+              final specialty = d['specialty'] as String? ??
+                  d['profession'] as String? ?? '';
+              final rating = (d['rating'] as num?)?.toDouble() ?? 0.0;
+              final photoUrl = d['photoUrl'] as String?;
+              final isNew = (d['rating'] as num?)?.toDouble() == null ||
+                  rating < 1.0;
+
+              return Container(
+                margin: const EdgeInsets.symmetric(horizontal: 8),
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(22),
+                  gradient: LinearGradient(
+                    begin: Alignment.topCenter,
+                    end: Alignment.bottomCenter,
+                    colors: [
+                      kGold.withValues(alpha: 0.12),
+                      kBg.withValues(alpha: 0.95),
+                    ],
+                  ),
+                  border: Border.all(color: kGold.withValues(alpha: 0.25)),
+                  boxShadow: [
+                    BoxShadow(
+                        color: Colors.black.withValues(alpha: 0.4),
+                        blurRadius: 20,
+                        offset: const Offset(0, 8)),
+                  ],
+                ),
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(22),
+                  child: Stack(children: [
+                    // Background photo
+                    if (photoUrl != null && photoUrl.isNotEmpty)
+                      Positioned.fill(
+                        child: Image.network(photoUrl, fit: BoxFit.cover,
+                            errorBuilder: (_, __, ___) => const SizedBox()),
+                      ),
+                    // Gradient overlay
+                    Positioned.fill(
+                      child: DecoratedBox(
+                        decoration: BoxDecoration(
+                          gradient: LinearGradient(
+                            begin: Alignment.topCenter,
+                            end: Alignment.bottomCenter,
+                            colors: [
+                              Colors.transparent,
+                              Colors.black.withValues(alpha: 0.75),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+                    // Content
+                    Positioned(
+                      left: 14, right: 14, bottom: 14,
+                      child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                        if (specialty.isNotEmpty)
+                          Container(
+                            margin: const EdgeInsets.only(bottom: 6),
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 8, vertical: 3),
+                            decoration: BoxDecoration(
+                              borderRadius: BorderRadius.circular(6),
+                              color: kGold.withValues(alpha: 0.85),
+                            ),
+                            child: Text(specialty,
+                                style: const TextStyle(
+                                    color: Colors.black,
+                                    fontSize: 9,
+                                    fontWeight: FontWeight.w700)),
+                          ),
+                        Text(name,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 15,
+                                fontWeight: FontWeight.w700)),
+                        const SizedBox(height: 4),
+                        Row(children: [
+                          if (isNew)
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 6, vertical: 2),
+                              decoration: BoxDecoration(
+                                borderRadius: BorderRadius.circular(5),
+                                color: kGreen.withValues(alpha: 0.2),
+                                border: Border.all(
+                                    color: kGreen.withValues(alpha: 0.5)),
+                              ),
+                              child: const Text('Νέος',
+                                  style: TextStyle(
+                                      color: kGreen,
+                                      fontSize: 9,
+                                      fontWeight: FontWeight.w700)),
+                            )
+                          else
+                            Row(children: [
+                              const Icon(Icons.star_rounded,
+                                  color: kGold, size: 13),
+                              const SizedBox(width: 2),
+                              Text(rating.toStringAsFixed(1),
+                                  style: const TextStyle(
+                                      color: Colors.white,
+                                      fontSize: 11,
+                                      fontWeight: FontWeight.w600)),
+                            ]),
+                          const SizedBox(width: 8),
+                          Text('+${(docs.length * 10).clamp(10, 99)}λ',
+                              style: TextStyle(
+                                  color: _g(0.55), fontSize: 10)),
+                        ]),
+                      ]),
+                    ),
+                    // Avatar fallback (top center when no photo)
+                    if (photoUrl == null || photoUrl.isEmpty)
+                      Positioned(
+                        top: 20,
+                        left: 0, right: 0,
+                        child: Center(
+                          child: Container(
+                            width: 80, height: 80,
+                            decoration: BoxDecoration(
+                              shape: BoxShape.circle,
+                              color: kGold.withValues(alpha: 0.15),
+                              border: Border.all(color: kGold, width: 2),
+                            ),
+                            child: Center(
+                              child: Text(
+                                name.isNotEmpty ? name[0].toUpperCase() : 'P',
+                                style: const TextStyle(
+                                    color: kGold,
+                                    fontSize: 32,
+                                    fontWeight: FontWeight.bold),
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                  ]),
+                ),
+              );
+            },
+          );
+        },
+      ),
+    );
+  }
 }
 
 // ── Empty Hero Card (no active requests) ──
@@ -7093,9 +7285,19 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       emoji: '🛡️',
                       label: 'Πολιτική απορρήτου',
                       value: '',
-                      onTap: () async => launchUrl(
-                          Uri.parse('https://gorealai.web.app/privacy'),
-                          mode: LaunchMode.platformDefault)),
+                      onTap: () => Navigator.push(context, PageRouteBuilder(
+                        pageBuilder: (_, __, ___) => const PrivacyPolicyScreen(),
+                        transitionsBuilder: (_, a, __, c) => FadeTransition(opacity: a, child: c),
+                      ))),
+                  _ProfileRow(
+                      icon: Icons.gavel_outlined,
+                      emoji: '📋',
+                      label: 'Όροι Χρήσης',
+                      value: '',
+                      onTap: () => Navigator.push(context, PageRouteBuilder(
+                        pageBuilder: (_, __, ___) => const TermsOfServiceScreen(),
+                        transitionsBuilder: (_, a, __, c) => FadeTransition(opacity: a, child: c),
+                      ))),
 
                   const SizedBox(height: 20),
                   _ProfileRow(
@@ -8495,4 +8697,157 @@ class _GoldTextField extends StatelessWidget {
               borderSide: const BorderSide(color: kGold)),
         ),
       );
+}
+
+// ═══════════════════════════════════════
+// PRIVACY POLICY SCREEN
+// ═══════════════════════════════════════
+class PrivacyPolicyScreen extends StatelessWidget {
+  const PrivacyPolicyScreen({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: kBg,
+      body: SafeArea(
+        child: Column(children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(20, 16, 20, 0),
+            child: Row(children: [
+              GestureDetector(
+                onTap: () => Navigator.pop(context),
+                child: Container(
+                    width: 36, height: 36,
+                    decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        color: _g(0.05),
+                        border: Border.all(color: kGold.withValues(alpha: 0.2))),
+                    child: const Icon(Icons.arrow_back_ios_new, color: kGold, size: 16)),
+              ),
+              const SizedBox(width: 14),
+              const Text('Πολιτική Απορρήτου',
+                  style: TextStyle(fontFamily: 'Raleway', fontSize: 20,
+                      fontWeight: FontWeight.bold, color: Colors.white)),
+            ]),
+          ),
+          const SizedBox(height: 16),
+          Expanded(
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+              child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                _legalSection('Τελευταία ενημέρωση: Ιούνιος 2026', isDate: true),
+                _legalSection('1. Εισαγωγή',
+                    body: 'Η εφαρμογή GorealAI (gorealai.web.app) σέβεται την ιδιωτικότητά σας. Η παρούσα Πολιτική Απορρήτου εξηγεί πώς συλλέγουμε, χρησιμοποιούμε και προστατεύουμε τα προσωπικά σας δεδομένα.'),
+                _legalSection('2. Δεδομένα που συλλέγουμε',
+                    body: '• Ονοματεπώνυμο και email κατά την εγγραφή\n• Τοποθεσία (πόλη) για σύνδεση με κοντινούς επαγγελματίες\n• Ιστορικό αιτημάτων και προσφορών\n• Φωτογραφίες και βίντεο που ανεβάζετε οικειοθελώς\n• FCM token για ειδοποιήσεις push'),
+                _legalSection('3. Χρήση δεδομένων',
+                    body: 'Τα δεδομένα σας χρησιμοποιούνται αποκλειστικά για:\n• Σύνδεση χρηστών με επαγγελματίες\n• Αποστολή push ειδοποιήσεων για νέες προσφορές\n• Βελτίωση της εμπειρίας χρήσης μέσω AI ανάλυσης\n• Εξυπηρέτηση πελατών'),
+                _legalSection('4. Αποθήκευση & Ασφάλεια',
+                    body: 'Τα δεδομένα αποθηκεύονται με κρυπτογράφηση στους διακομιστές Firebase (Google). Δεν πωλούμε ποτέ τα δεδομένα σας σε τρίτους.'),
+                _legalSection('5. Cookies & Analytics',
+                    body: 'Χρησιμοποιούμε Firebase Analytics για ανώνυμη στατιστική ανάλυση χρήσης. Δεν χρησιμοποιούμε cookies τρίτων για διαφήμιση.'),
+                _legalSection('6. Διαγραφή λογαριασμού',
+                    body: 'Μπορείτε να ζητήσετε τη διαγραφή των δεδομένων σας στέλνοντας email στο: support@gorealai.web.app\nΗ διαγραφή ολοκληρώνεται εντός 30 ημερών.'),
+                _legalSection('7. Ανήλικοι',
+                    body: 'Η εφαρμογή δεν απευθύνεται σε άτομα κάτω των 18 ετών. Δεν συλλέγουμε εκούσια δεδομένα ανηλίκων.'),
+                _legalSection('8. Αλλαγές',
+                    body: 'Διατηρούμε το δικαίωμα να ενημερώνουμε την παρούσα πολιτική. Σας ειδοποιούμε για σημαντικές αλλαγές μέσω push notification ή email.'),
+                _legalSection('9. Επικοινωνία',
+                    body: 'Για οποιαδήποτε ερώτηση σχετικά με την ιδιωτικότητά σας:\nEmail: support@gorealai.web.app'),
+                const SizedBox(height: 40),
+              ]),
+            ),
+          ),
+        ]),
+      ),
+    );
+  }
+}
+
+// ═══════════════════════════════════════
+// TERMS OF SERVICE SCREEN
+// ═══════════════════════════════════════
+class TermsOfServiceScreen extends StatelessWidget {
+  const TermsOfServiceScreen({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: kBg,
+      body: SafeArea(
+        child: Column(children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(20, 16, 20, 0),
+            child: Row(children: [
+              GestureDetector(
+                onTap: () => Navigator.pop(context),
+                child: Container(
+                    width: 36, height: 36,
+                    decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        color: _g(0.05),
+                        border: Border.all(color: kGold.withValues(alpha: 0.2))),
+                    child: const Icon(Icons.arrow_back_ios_new, color: kGold, size: 16)),
+              ),
+              const SizedBox(width: 14),
+              const Text('Όροι Χρήσης',
+                  style: TextStyle(fontFamily: 'Raleway', fontSize: 20,
+                      fontWeight: FontWeight.bold, color: Colors.white)),
+            ]),
+          ),
+          const SizedBox(height: 16),
+          Expanded(
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+              child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                _legalSection('Τελευταία ενημέρωση: Ιούνιος 2026', isDate: true),
+                _legalSection('1. Αποδοχή Όρων',
+                    body: 'Χρησιμοποιώντας την εφαρμογή GorealAI αποδέχεστε πλήρως τους παρόντες Όρους Χρήσης. Αν διαφωνείτε, παρακαλούμε να μην χρησιμοποιείτε την εφαρμογή.'),
+                _legalSection('2. Περιγραφή Υπηρεσίας',
+                    body: 'Το GorealAI είναι πλατφόρμα reverse auction που συνδέει χρήστες με επαγγελματίες. Δεν είμαστε εργοδότης ή εκπρόσωπος κανενός επαγγελματία. Λειτουργούμε ως διαμεσολαβητής.'),
+                _legalSection('3. Εγγραφή & Λογαριασμός',
+                    body: '• Πρέπει να είστε τουλάχιστον 18 ετών\n• Παρέχετε ακριβή στοιχεία κατά την εγγραφή\n• Είστε υπεύθυνοι για την ασφάλεια του κωδικού σας\n• Δεν επιτρέπεται η δημιουργία πολλαπλών λογαριασμών'),
+                _legalSection('4. Κανόνες Χρήσης',
+                    body: 'Απαγορεύεται:\n• Η ανάρτηση ψευδών πληροφοριών\n• Η παρενόχληση άλλων χρηστών\n• Η χρήση για παράνομες δραστηριότητες\n• Η αποστολή spam ή διαφημιστικού περιεχομένου\n• Η παράκαμψη του συστήματος αξιολόγησης'),
+                _legalSection('5. Επαγγελματίες',
+                    body: 'Οι επαγγελματίες που εγγράφονται στην πλατφόρμα:\n• Βεβαιώνουν ότι κατέχουν τις νόμιμες άδειες\n• Αναλαμβάνουν πλήρη ευθύνη για τις παρεχόμενες υπηρεσίες\n• Υποχρεούνται να τηρούν τις δεσμεύσεις τους'),
+                _legalSection('6. Πληρωμές & Συνδρομές',
+                    body: 'Η βασική χρήση της εφαρμογής είναι δωρεάν. Premium συνδρομές χρεώνονται μηνιαία ή ετήσια. Δεν υπάρχει επιστροφή χρημάτων για μερικώς χρησιμοποιημένες περιόδους.'),
+                _legalSection('7. Ευθύνη',
+                    body: 'Η GorealAI δεν φέρει ευθύνη για:\n• Τη ποιότητα των παρεχόμενων υπηρεσιών\n• Διαφορές μεταξύ χρηστών και επαγγελματιών\n• Ζημίες που προκύπτουν από τη χρήση της πλατφόρμας'),
+                _legalSection('8. Πνευματικά Δικαιώματα',
+                    body: 'Όλο το περιεχόμενο της εφαρμογής (λογότυπο, κείμενα, γραφικά) ανήκει στη GorealAI και προστατεύεται από την ελληνική και ευρωπαϊκή νομοθεσία.'),
+                _legalSection('9. Διακοπή Υπηρεσίας',
+                    body: 'Διατηρούμε το δικαίωμα να αναστείλουμε ή τερματίσουμε λογαριασμούς που παραβιάζουν τους παρόντες όρους, χωρίς προειδοποίηση.'),
+                _legalSection('10. Εφαρμοστέο Δίκαιο',
+                    body: 'Οι παρόντες όροι διέπονται από το ελληνικό δίκαιο. Αρμόδια δικαστήρια είναι τα Δικαστήρια Αθηνών.'),
+                _legalSection('11. Επικοινωνία',
+                    body: 'Email: support@gorealai.web.app'),
+                const SizedBox(height: 40),
+              ]),
+            ),
+          ),
+        ]),
+      ),
+    );
+  }
+}
+
+Widget _legalSection(String title, {String? body, bool isDate = false}) {
+  return Padding(
+    padding: const EdgeInsets.only(bottom: 18),
+    child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+      Text(title,
+          style: TextStyle(
+              color: isDate ? _g(0.4) : kGold,
+              fontSize: isDate ? 11 : 14,
+              fontWeight: isDate ? FontWeight.w400 : FontWeight.w700)),
+      if (body != null) ...[
+        const SizedBox(height: 6),
+        Text(body,
+            style: TextStyle(
+                color: _g(0.65), fontSize: 13, height: 1.6)),
+      ],
+    ]),
+  );
 }
