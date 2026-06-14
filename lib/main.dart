@@ -1377,40 +1377,6 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
 
         const SizedBox(height: 28),
 
-        // ACTIVE REQUESTS
-        if (_userId != null) ...[
-          Padding(
-            padding: const EdgeInsets.fromLTRB(20, 0, 20, 12),
-            child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Text('Τα αιτήματά σου',
-                      style: TextStyle(
-                          color: _g(0.8),
-                          fontSize: 16,
-                          fontWeight: FontWeight.w700)),
-                  GestureDetector(
-                    onTap: () => Navigator.push(
-                        context,
-                        PageRouteBuilder(
-                          transitionDuration:
-                              const Duration(milliseconds: 350),
-                          pageBuilder: (_, __, ___) =>
-                              RequestHistoryScreen(userId: _userId!),
-                          transitionsBuilder: (_, a, __, c) =>
-                              FadeTransition(opacity: a, child: c),
-                        )),
-                    child: Text('Όλα ›',
-                        style: TextStyle(
-                            color: kGold.withValues(alpha: 0.8), fontSize: 12)),
-                  ),
-                ]),
-          ),
-          _ActiveRequestsPreview(userId: _userId!),
-        ],
-
-        const SizedBox(height: 28),
-
         // LIVE ACTIVITY FEED
         Padding(
           padding: const EdgeInsets.fromLTRB(20, 0, 20, 12),
@@ -8650,180 +8616,209 @@ class _NearbyProsSection extends StatefulWidget {
 }
 
 class _NearbyProsSectionState extends State<_NearbyProsSection> {
-  final PageController _pageCtrl = PageController(viewportFraction: 0.52);
-  int _page = 0;
-  Timer? _autoScrollTimer;
+  final PageController _pageCtrl = PageController(viewportFraction: 0.75);
+  int _current = 0;
+  Timer? _autoTimer;
 
   @override
   void initState() {
     super.initState();
-    _startAutoScroll();
-  }
-
-  void _startAutoScroll() {
-    _autoScrollTimer = Timer.periodic(const Duration(seconds: 3), (_) {
-      if (!mounted || !_pageCtrl.hasClients) return;
-      final next = (_page + 1);
-      _pageCtrl.animateToPage(
-        next,
-        duration: const Duration(milliseconds: 600),
-        curve: Curves.easeInOut,
-      );
+    _autoTimer = Timer.periodic(const Duration(seconds: 3), (_) {
+      if (!mounted) return;
+      _pageCtrl.nextPage(
+          duration: const Duration(milliseconds: 600), curve: Curves.easeInOut);
     });
   }
 
   @override
   void dispose() {
-    _autoScrollTimer?.cancel();
+    _autoTimer?.cancel();
     _pageCtrl.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
-    return StreamBuilder<QuerySnapshot>(
-      stream: FirebaseFirestore.instance
-          .collection('professionals')
-          .limit(10)
-          .snapshots(),
-      builder: (context, snap) {
-        final docs = snap.hasData ? snap.data!.docs : <QueryDocumentSnapshot>[];
-        if (!snap.hasData) return const SizedBox(height: 220);
-        if (docs.isEmpty) return const SizedBox(height: 220);
-        return _buildPageView(docs);
-      },
-    );
-  }
-
-  Widget _buildPageView(List<QueryDocumentSnapshot> docs) {
     return SizedBox(
-      height: 185,
-      child: PageView.builder(
-        controller: _pageCtrl,
-        itemCount: 9999,
-        onPageChanged: (i) => setState(() => _page = i),
-        itemBuilder: (_, i) {
-          final doc = docs[i % docs.length];
-          final d = doc.data() as Map<String, dynamic>;
-          final proId = doc.data() is Map ? (d['userId'] as String? ?? doc.id) : doc.id;
-          final name = d['name'] as String? ?? 'Επαγγελματίας';
-          final specialty = d['specialty'] as String? ?? '';
-          final rating = (d['rating'] as num?)?.toDouble() ?? 0.0;
-          final jobs = (d['completedJobs'] as num?)?.toInt() ?? 0;
-          // Try multiple photo field names
-          final photoUrl = d['photoUrl'] as String?
-              ?? d['profilePhoto'] as String?
-              ?? d['avatarUrl'] as String?
-              ?? d['imageUrl'] as String?;
-          final userId = d['userId'] as String?;
-          final isNew = jobs < 5;
-          final initials = name.isNotEmpty ? name[0].toUpperCase() : 'P';
-          final isActive = i == _page;
+      height: 210,
+      child: StreamBuilder<QuerySnapshot>(
+        stream: FirebaseFirestore.instance
+            .collection('users')
+            .where('role', isEqualTo: 'professional')
+            .limit(20)
+            .snapshots(),
+        builder: (_, snap) {
+          final docs = snap.hasData ? snap.data!.docs : <QueryDocumentSnapshot>[];
+          if (docs.isEmpty) {
+            return Center(
+              child: Text('Δεν βρέθηκαν επαγγελματίες',
+                  style: TextStyle(color: _g(0.3), fontSize: 13)),
+            );
+          }
+          return PageView.builder(
+            controller: _pageCtrl,
+            itemCount: 99999,
+            onPageChanged: (i) => setState(() => _current = i),
+            itemBuilder: (_, i) {
+              final doc = docs[i % docs.length];
+              final d = doc.data() as Map<String, dynamic>;
+              final name = d['name'] as String? ?? 'Επαγγελματίας';
+              final specialty = d['specialty'] as String? ??
+                  d['profession'] as String? ?? '';
+              final rating = (d['rating'] as num?)?.toDouble() ?? 0.0;
+              final photoUrl = d['photoUrl'] as String?;
+              final isNew = (d['rating'] as num?)?.toDouble() == null ||
+                  rating < 1.0;
 
-          return GestureDetector(
-            onTap: () => Navigator.push(context, PageRouteBuilder(
-              pageBuilder: (_, __, ___) => _ProPublicProfileScreen(proId: proId, proData: d),
-              transitionsBuilder: (_, a, __, c) => FadeTransition(opacity: a, child: c),
-            )),
-            child: AnimatedScale(
-              scale: isActive ? 1.0 : 0.93,
-              duration: const Duration(milliseconds: 300),
-              child: Container(
-                margin: const EdgeInsets.fromLTRB(6, 4, 6, 8),
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(18),
-                  color: const Color(0xFF0D0A04),
-                  border: Border.all(color: isActive ? kGold.withValues(alpha: 0.4) : kGold.withValues(alpha: 0.12)),
-                  boxShadow: [BoxShadow(color: kGold.withValues(alpha: isActive ? 0.1 : 0.03), blurRadius: 16)],
-                ),
-                child: Column(children: [
-                  // Φωτογραφία
-                  Expanded(
-                    child: ClipRRect(
-                      borderRadius: const BorderRadius.vertical(top: Radius.circular(18)),
-                      child: Stack(fit: StackFit.expand, children: [
-                        // Αν υπάρχει photoUrl στο professionals, δείξτο
-                        // Αλλιώς κοίτα από users collection
-                        if (photoUrl != null)
-                          Image.network(photoUrl, fit: BoxFit.cover,
-                              errorBuilder: (_, __, ___) => _proInitialsBox(initials))
-                        else if (userId != null)
-                          FutureBuilder<DocumentSnapshot>(
-                            future: FirebaseFirestore.instance.collection('users').doc(userId).get(),
-                            builder: (_, snap) {
-                              if (snap.hasData && snap.data!.exists) {
-                                final uData = snap.data!.data() as Map<String, dynamic>;
-                                final uPhoto = uData['photoUrl'] as String?
-                                    ?? uData['profilePhoto'] as String?
-                                    ?? uData['avatarUrl'] as String?;
-                                if (uPhoto != null) {
-                                  return Image.network(uPhoto, fit: BoxFit.cover,
-                                      errorBuilder: (_, __, ___) => _proInitialsBox(initials));
-                                }
-                              }
-                              return _proInitialsBox(initials);
-                            },
-                          )
-                        else
-                          _proInitialsBox(initials),
-                        // Νέος badge
-                        if (isNew)
-                          Positioned(top: 8, right: 8,
-                            child: Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
-                              decoration: BoxDecoration(
-                                borderRadius: BorderRadius.circular(6),
-                                color: Colors.black.withValues(alpha: 0.65),
-                                border: Border.all(color: kGold.withValues(alpha: 0.4)),
-                              ),
-                              child: const Text('Νέος', style: TextStyle(color: kGold, fontSize: 8, fontWeight: FontWeight.w700)),
-                            ),
-                          ),
-                        // Gradient overlay
-                        Positioned.fill(child: DecoratedBox(
+              return GestureDetector(
+                onTap: () => Navigator.push(context, PageRouteBuilder(
+                  pageBuilder: (_, __, ___) => _ProPublicProfileScreen(proId: doc.id, proData: d),
+                  transitionsBuilder: (_, a, __, c) => FadeTransition(opacity: a, child: c),
+                )),
+                child: Container(
+                  margin: const EdgeInsets.symmetric(horizontal: 8),
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(22),
+                    gradient: LinearGradient(
+                      begin: Alignment.topCenter,
+                      end: Alignment.bottomCenter,
+                      colors: [
+                        kGold.withValues(alpha: 0.12),
+                        kBg.withValues(alpha: 0.95),
+                      ],
+                    ),
+                    border: Border.all(color: kGold.withValues(alpha: 0.25)),
+                    boxShadow: [
+                      BoxShadow(
+                          color: Colors.black.withValues(alpha: 0.4),
+                          blurRadius: 20,
+                          offset: const Offset(0, 8)),
+                    ],
+                  ),
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(22),
+                    child: Stack(children: [
+                      // Background photo
+                      if (photoUrl != null && photoUrl.isNotEmpty)
+                        Positioned.fill(
+                          child: Image.network(photoUrl, fit: BoxFit.cover,
+                              errorBuilder: (_, __, ___) => const SizedBox()),
+                        ),
+                      // Gradient overlay
+                      Positioned.fill(
+                        child: DecoratedBox(
                           decoration: BoxDecoration(
                             gradient: LinearGradient(
-                              begin: Alignment.topCenter, end: Alignment.bottomCenter,
-                              colors: [Colors.transparent, Colors.black.withValues(alpha: 0.4)],
-                              stops: const [0.55, 1.0],
+                              begin: Alignment.topCenter,
+                              end: Alignment.bottomCenter,
+                              colors: [
+                                Colors.transparent,
+                                Colors.black.withValues(alpha: 0.75),
+                              ],
                             ),
                           ),
-                        )),
-                      ]),
-                    ),
-                  ),
-                  // Info
-                  Padding(
-                    padding: const EdgeInsets.fromLTRB(10, 7, 10, 8),
-                    child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                      Text(name, maxLines: 1, overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.w700)),
-                      const SizedBox(height: 1),
-                      Text(specialty, maxLines: 1, overflow: TextOverflow.ellipsis,
-                          style: TextStyle(color: _g(0.4), fontSize: 10)),
-                      const SizedBox(height: 5),
-                      Row(children: [
-                        Text('⭐ ${rating > 0 ? rating.toStringAsFixed(1) : "Νέος"}',
-                            style: const TextStyle(color: kGold, fontSize: 10, fontWeight: FontWeight.w600)),
-                        const Spacer(),
-                        Text('~30λ', style: TextStyle(color: _g(0.3), fontSize: 9)),
-                      ]),
+                        ),
+                      ),
+                      // Content
+                      Positioned(
+                        left: 14, right: 14, bottom: 14,
+                        child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                          if (specialty.isNotEmpty)
+                            Container(
+                              margin: const EdgeInsets.only(bottom: 6),
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 8, vertical: 3),
+                              decoration: BoxDecoration(
+                                borderRadius: BorderRadius.circular(6),
+                                color: kGold.withValues(alpha: 0.85),
+                              ),
+                              child: Text(specialty,
+                                  style: const TextStyle(
+                                      color: Colors.black,
+                                      fontSize: 9,
+                                      fontWeight: FontWeight.w700)),
+                            ),
+                          Text(name,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 15,
+                                  fontWeight: FontWeight.w700)),
+                          const SizedBox(height: 4),
+                          Row(children: [
+                            if (isNew)
+                              Container(
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 6, vertical: 2),
+                                decoration: BoxDecoration(
+                                  borderRadius: BorderRadius.circular(5),
+                                  color: kGreen.withValues(alpha: 0.2),
+                                  border: Border.all(
+                                      color: kGreen.withValues(alpha: 0.5)),
+                                ),
+                                child: const Text('Νέος',
+                                    style: TextStyle(
+                                        color: kGreen,
+                                        fontSize: 9,
+                                        fontWeight: FontWeight.w700)),
+                              )
+                            else
+                              Row(children: [
+                                const Icon(Icons.star_rounded,
+                                    color: kGold, size: 13),
+                                const SizedBox(width: 2),
+                                Text(rating.toStringAsFixed(1),
+                                    style: const TextStyle(
+                                        color: Colors.white,
+                                        fontSize: 11,
+                                        fontWeight: FontWeight.w600)),
+                              ]),
+                            const SizedBox(width: 8),
+                            Text('+${(docs.length * 10).clamp(10, 99)}λ',
+                                style: TextStyle(
+                                    color: _g(0.55), fontSize: 10)),
+                          ]),
+                        ]),
+                      ),
+                      // Avatar fallback (top center when no photo)
+                      if (photoUrl == null || photoUrl.isEmpty)
+                        Positioned(
+                          top: 20,
+                          left: 0, right: 0,
+                          child: Center(
+                            child: Container(
+                              width: 80, height: 80,
+                              decoration: BoxDecoration(
+                                shape: BoxShape.circle,
+                                color: kGold.withValues(alpha: 0.15),
+                                border: Border.all(color: kGold, width: 2),
+                              ),
+                              child: Center(
+                                child: Text(
+                                  name.isNotEmpty ? name[0].toUpperCase() : 'P',
+                                  style: const TextStyle(
+                                      color: kGold,
+                                      fontSize: 32,
+                                      fontWeight: FontWeight.bold),
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
                     ]),
                   ),
-                ]),
-              ),
-            ),
+                ),
+              );
+            },
           );
         },
       ),
     );
   }
-
-  Widget _proInitialsBox(String initials) => Container(
-    color: kGold.withValues(alpha: 0.08),
-    child: Center(child: Text(initials,
-        style: const TextStyle(color: kGold, fontSize: 36, fontWeight: FontWeight.bold))),
-  );
 }
 
 // ══════════════════════════════════════════════════════
