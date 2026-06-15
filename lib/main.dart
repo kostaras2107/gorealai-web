@@ -7024,9 +7024,70 @@ class _ProjectRequestScreenState extends State<ProjectRequestScreen>
 // ═══════════════════════════════════════
 // REQUEST HISTORY SCREEN
 // ═══════════════════════════════════════
-class RequestHistoryScreen extends StatelessWidget {
+class RequestHistoryScreen extends StatefulWidget {
   final String userId;
   const RequestHistoryScreen({super.key, required this.userId});
+  @override
+  State<RequestHistoryScreen> createState() => _RequestHistoryScreenState();
+}
+
+class _RequestHistoryScreenState extends State<RequestHistoryScreen> {
+  Future<void> _deleteEntry(String docId, String name) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => Dialog(
+        backgroundColor: Colors.transparent,
+        child: Container(
+          padding: const EdgeInsets.all(20),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(20),
+            color: const Color(0xFF111111),
+            border: Border.all(color: Colors.red.withValues(alpha: 0.4)),
+          ),
+          child: Column(mainAxisSize: MainAxisSize.min, children: [
+            const Text('🗑️', style: TextStyle(fontSize: 36)),
+            const SizedBox(height: 10),
+            const Text('Διαγραφή από ιστορικό;',
+                style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.w800)),
+            const SizedBox(height: 8),
+            Text('Ο επαγγελματίας $name θα αφαιρεθεί από το ιστορικό σου.',
+                textAlign: TextAlign.center,
+                style: TextStyle(color: Colors.white.withValues(alpha: 0.45), fontSize: 13, height: 1.4)),
+            const SizedBox(height: 20),
+            Row(children: [
+              Expanded(child: GestureDetector(
+                onTap: () => Navigator.pop(ctx, false),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(vertical: 12),
+                  decoration: BoxDecoration(borderRadius: BorderRadius.circular(12),
+                      color: Colors.white.withValues(alpha: 0.06)),
+                  child: const Center(child: Text('Άκυρο',
+                      style: TextStyle(color: Colors.white70, fontWeight: FontWeight.w600))),
+                ),
+              )),
+              const SizedBox(width: 10),
+              Expanded(child: GestureDetector(
+                onTap: () => Navigator.pop(ctx, true),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(vertical: 12),
+                  decoration: BoxDecoration(borderRadius: BorderRadius.circular(12),
+                      color: Colors.red.withValues(alpha: 0.15),
+                      border: Border.all(color: Colors.red.withValues(alpha: 0.4))),
+                  child: const Center(child: Text('Διαγραφή',
+                      style: TextStyle(color: Colors.red, fontWeight: FontWeight.w700))),
+                ),
+              )),
+            ]),
+          ]),
+        ),
+      ),
+    );
+    if (confirmed == true) {
+      await FirebaseFirestore.instance
+          .collection('users').doc(widget.userId)
+          .collection('selectedProfessionals').doc(docId).delete();
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -7064,7 +7125,7 @@ class RequestHistoryScreen extends StatelessWidget {
             child: StreamBuilder<QuerySnapshot>(
               stream: FirebaseFirestore.instance
                   .collection('users')
-                  .doc(userId)
+                  .doc(widget.userId)
                   .collection('selectedProfessionals')
                   .limit(30)
                   .snapshots(),
@@ -7115,7 +7176,29 @@ class RequestHistoryScreen extends StatelessWidget {
                     final date = ts != null ? ts.toDate() : DateTime.now();
                     final dateStr = '${date.day}/${date.month}/${date.year}';
 
-                    return Container(
+                    return Dismissible(
+                      key: ValueKey(docs[i].id),
+                      direction: DismissDirection.endToStart,
+                      confirmDismiss: (_) async {
+                        await _deleteEntry(docs[i].id, proName);
+                        return false;
+                      },
+                      background: Container(
+                        margin: const EdgeInsets.only(bottom: 10),
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(16),
+                          color: Colors.red.withValues(alpha: 0.12),
+                          border: Border.all(color: Colors.red.withValues(alpha: 0.3)),
+                        ),
+                        alignment: Alignment.centerRight,
+                        padding: const EdgeInsets.only(right: 22),
+                        child: const Column(mainAxisSize: MainAxisSize.min, children: [
+                          Icon(Icons.delete_outline_rounded, color: Colors.red, size: 22),
+                          SizedBox(height: 2),
+                          Text('Διαγραφή', style: TextStyle(color: Colors.red, fontSize: 10)),
+                        ]),
+                      ),
+                      child: Container(
                       margin: const EdgeInsets.only(bottom: 10),
                       padding: const EdgeInsets.all(14),
                       decoration: BoxDecoration(
@@ -7152,6 +7235,7 @@ class RequestHistoryScreen extends StatelessWidget {
                         const Icon(Icons.check_circle,
                             color: kGold, size: 18),
                       ]),
+                    ),
                     );
                   },
                 );
@@ -11185,6 +11269,7 @@ class _ChatScreenState extends State<ChatScreen> {
   final _scrollCtrl = ScrollController();
   bool _sending = false;
   final List<Uint8List> _selectedImages = [];
+  XFile? _selectedVideo;
 
   @override
   void initState() { super.initState(); _markAsRead(); }
@@ -11210,6 +11295,18 @@ class _ChatScreenState extends State<ChatScreen> {
     } catch (_) {}
   }
 
+  Future<void> _pickVideo() async {
+    try {
+      final picker = ImagePicker();
+      final xf = await picker.pickVideo(
+        source: ImageSource.gallery,
+        maxDuration: const Duration(seconds: 20),
+      );
+      if (xf == null || !mounted) return;
+      setState(() => _selectedVideo = xf);
+    } catch (_) {}
+  }
+
   void _openImageFullscreen(BuildContext context, String url) {
     Navigator.push(context, PageRouteBuilder(
       opaque: false,
@@ -11219,9 +11316,33 @@ class _ChatScreenState extends State<ChatScreen> {
     ));
   }
 
+  void _openVideoFullscreen(BuildContext context, String url) {
+    showDialog(context: context, builder: (ctx) => Dialog(
+      backgroundColor: Colors.black,
+      insetPadding: EdgeInsets.zero,
+      child: Stack(children: [
+        Center(child: Column(mainAxisSize: MainAxisSize.min, children: [
+          const Icon(Icons.videocam_rounded, color: kGold, size: 60),
+          const SizedBox(height: 16),
+          const Text('Άνοιγμα βίντεο;', style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.w700)),
+          const SizedBox(height: 8),
+          Text('Θα ανοίξει σε εξωτερικό πρόγραμμα.', style: TextStyle(color: _g(0.4), fontSize: 12)),
+          const SizedBox(height: 20),
+          GestureDetector(
+            onTap: () { Navigator.pop(ctx); },
+            child: Container(padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 12),
+              decoration: BoxDecoration(borderRadius: BorderRadius.circular(12),
+                  gradient: const LinearGradient(colors: [kGoldLight, kGold])),
+              child: const Text('Κλείσιμο', style: TextStyle(color: Colors.black, fontWeight: FontWeight.w700))),
+          ),
+        ])),
+      ]),
+    ));
+  }
+
   Future<void> _sendMessage() async {
     final text = _msgCtrl.text.trim();
-    if (text.isEmpty && _selectedImages.isEmpty) return;
+    if (text.isEmpty && _selectedImages.isEmpty && _selectedVideo == null) return;
     if (_sending) return;
     _msgCtrl.clear();
     setState(() => _sending = true);
@@ -11235,12 +11356,23 @@ class _ChatScreenState extends State<ChatScreen> {
           photoUrls.add(await ref.getDownloadURL());
         } catch (_) {}
       }
+      final List<String> videoUrls = [];
+      if (_selectedVideo != null) {
+        try {
+          final bytes = await _selectedVideo!.readAsBytes();
+          final ref = FirebaseStorage.instance.ref(
+              'chat_media/${widget.chatId}/${DateTime.now().millisecondsSinceEpoch}_vid.mp4');
+          await ref.putData(bytes, SettableMetadata(contentType: 'video/mp4'));
+          videoUrls.add(await ref.getDownloadURL());
+        } catch (_) {}
+      }
       String previewText = text;
-      if (photoUrls.isNotEmpty && text.isEmpty) previewText = '📷 ${photoUrls.length} φωτογραφία';
+      if (videoUrls.isNotEmpty && text.isEmpty) previewText = '🎥 Βίντεο';
+      if (photoUrls.isNotEmpty && text.isEmpty && videoUrls.isEmpty) previewText = '📷 ${photoUrls.length} φωτογραφία';
 
       final chatRef = FirebaseFirestore.instance.collection('chats').doc(widget.chatId);
       await chatRef.collection('messages').add({
-        'text': text, 'photoUrls': photoUrls, 'videoUrls': <String>[],
+        'text': text, 'photoUrls': photoUrls, 'videoUrls': videoUrls,
         'senderId': widget.currentUserId, 'senderName': widget.currentUserName,
         'createdAt': FieldValue.serverTimestamp(),
       });
@@ -11254,7 +11386,7 @@ class _ChatScreenState extends State<ChatScreen> {
         if (chatParts.length > 1) 'proId': chatParts[1],
       }, SetOptions(merge: true));
 
-      if (mounted) setState(() { _selectedImages.clear(); _sending = false; });
+      if (mounted) setState(() { _selectedImages.clear(); _selectedVideo = null; _sending = false; });
       await Future.delayed(const Duration(milliseconds: 100));
       if (_scrollCtrl.hasClients) {
         _scrollCtrl.animateTo(_scrollCtrl.position.maxScrollExtent,
@@ -11328,6 +11460,8 @@ class _ChatScreenState extends State<ChatScreen> {
                       ? '${ts.toDate().hour.toString().padLeft(2,'0')}:${ts.toDate().minute.toString().padLeft(2,'0')}'
                       : '';
                   final photoUrls = List<String>.from(d['photoUrls'] ?? []);
+                  final videoUrls = List<String>.from(d['videoUrls'] ?? []);
+                  final hasMedia = photoUrls.isNotEmpty || videoUrls.isNotEmpty;
                   return Padding(
                     padding: const EdgeInsets.only(bottom: 8),
                     child: Row(
@@ -11345,8 +11479,8 @@ class _ChatScreenState extends State<ChatScreen> {
                         Flexible(
                           child: Container(
                             padding: EdgeInsets.symmetric(
-                                horizontal: photoUrls.isNotEmpty ? 8 : 14,
-                                vertical: photoUrls.isNotEmpty ? 8 : 10),
+                                horizontal: hasMedia ? 8 : 14,
+                                vertical: hasMedia ? 8 : 10),
                             decoration: BoxDecoration(
                               borderRadius: BorderRadius.only(
                                 topLeft: const Radius.circular(16), topRight: const Radius.circular(16),
@@ -11371,6 +11505,36 @@ class _ChatScreenState extends State<ChatScreen> {
                                                 color: _g(0.08), child: Icon(Icons.broken_image, color: _g(0.3))))),
                                     ),
                                   ).toList()),
+                                  if (text.isNotEmpty || videoUrls.isNotEmpty) const SizedBox(height: 6),
+                                ],
+                                if (videoUrls.isNotEmpty) ...[
+                                  ...videoUrls.map((url) => GestureDetector(
+                                    onTap: () => _openVideoFullscreen(context, url),
+                                    child: Container(
+                                      width: 200, height: 120,
+                                      decoration: BoxDecoration(
+                                        borderRadius: BorderRadius.circular(10),
+                                        color: Colors.black,
+                                        border: Border.all(color: kGold.withValues(alpha: 0.3)),
+                                      ),
+                                      child: Stack(alignment: Alignment.center, children: [
+                                        ClipRRect(borderRadius: BorderRadius.circular(10),
+                                          child: Container(color: Colors.black12,
+                                            child: const Icon(Icons.videocam_rounded, color: Colors.white38, size: 40))),
+                                        Container(width: 48, height: 48,
+                                          decoration: BoxDecoration(
+                                            shape: BoxShape.circle,
+                                            color: kGold.withValues(alpha: 0.85),
+                                            boxShadow: [BoxShadow(color: kGold.withValues(alpha: 0.4), blurRadius: 12)],
+                                          ),
+                                          child: const Icon(Icons.play_arrow_rounded, color: Colors.black, size: 28)),
+                                        Positioned(bottom: 6, right: 8,
+                                          child: Container(padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                            decoration: BoxDecoration(borderRadius: BorderRadius.circular(4), color: Colors.black54),
+                                            child: const Text('🎥 Βίντεο', style: TextStyle(color: Colors.white, fontSize: 9)))),
+                                      ]),
+                                    ),
+                                  )),
                                   if (text.isNotEmpty) const SizedBox(height: 6),
                                 ],
                                 if (text.isNotEmpty)
@@ -11395,25 +11559,48 @@ class _ChatScreenState extends State<ChatScreen> {
           decoration: BoxDecoration(color: kBg,
               border: Border(top: BorderSide(color: kGold.withValues(alpha: 0.1)))),
           child: Column(mainAxisSize: MainAxisSize.min, children: [
-            if (_selectedImages.isNotEmpty)
+            if (_selectedImages.isNotEmpty || _selectedVideo != null)
               Container(
                 height: 84,
                 padding: const EdgeInsets.fromLTRB(12, 8, 12, 0),
                 child: ListView(scrollDirection: Axis.horizontal,
-                  children: _selectedImages.asMap().entries.map((entry) =>
-                    Padding(padding: const EdgeInsets.only(right: 8),
-                      child: Stack(children: [
-                        ClipRRect(borderRadius: BorderRadius.circular(10),
-                            child: Image.memory(entry.value, width: 68, height: 68, fit: BoxFit.cover)),
-                        Positioned(top: 2, right: 2,
-                          child: GestureDetector(
-                            onTap: () => setState(() => _selectedImages.removeAt(entry.key)),
-                            child: Container(width: 20, height: 20,
-                              decoration: const BoxDecoration(shape: BoxShape.circle, color: Colors.black54),
-                              child: const Icon(Icons.close, size: 13, color: Colors.white)),
-                          )),
-                      ])),
-                  ).toList()),
+                  children: [
+                    ..._selectedImages.asMap().entries.map((entry) =>
+                      Padding(padding: const EdgeInsets.only(right: 8),
+                        child: Stack(children: [
+                          ClipRRect(borderRadius: BorderRadius.circular(10),
+                              child: Image.memory(entry.value, width: 68, height: 68, fit: BoxFit.cover)),
+                          Positioned(top: 2, right: 2,
+                            child: GestureDetector(
+                              onTap: () => setState(() => _selectedImages.removeAt(entry.key)),
+                              child: Container(width: 20, height: 20,
+                                decoration: const BoxDecoration(shape: BoxShape.circle, color: Colors.black54),
+                                child: const Icon(Icons.close, size: 13, color: Colors.white)),
+                            )),
+                        ]))),
+                    if (_selectedVideo != null)
+                      Padding(padding: const EdgeInsets.only(right: 8),
+                        child: Stack(children: [
+                          Container(width: 68, height: 68,
+                            decoration: BoxDecoration(
+                              borderRadius: BorderRadius.circular(10),
+                              color: kGold.withValues(alpha: 0.12),
+                              border: Border.all(color: kGold.withValues(alpha: 0.5)),
+                            ),
+                            child: const Column(mainAxisAlignment: MainAxisAlignment.center, children: [
+                              Icon(Icons.videocam_rounded, color: kGold, size: 28),
+                              SizedBox(height: 4),
+                              Text('Βίντεο', style: TextStyle(color: kGold, fontSize: 9, fontWeight: FontWeight.w600)),
+                            ])),
+                          Positioned(top: 2, right: 2,
+                            child: GestureDetector(
+                              onTap: () => setState(() => _selectedVideo = null),
+                              child: Container(width: 20, height: 20,
+                                decoration: const BoxDecoration(shape: BoxShape.circle, color: Colors.black54),
+                                child: const Icon(Icons.close, size: 13, color: Colors.white)),
+                            )),
+                        ])),
+                  ]),
               ),
             Padding(
               padding: const EdgeInsets.fromLTRB(12, 8, 12, 10),
@@ -11424,6 +11611,16 @@ class _ChatScreenState extends State<ChatScreen> {
                     decoration: BoxDecoration(shape: BoxShape.circle, color: _g(0.08),
                         border: Border.all(color: kGold.withValues(alpha: 0.25))),
                     child: const Icon(Icons.photo_outlined, color: kGold, size: 20)),
+                ),
+                const SizedBox(width: 6),
+                GestureDetector(
+                  onTap: _selectedVideo == null ? _pickVideo : null,
+                  child: Container(width: 38, height: 38,
+                    decoration: BoxDecoration(shape: BoxShape.circle,
+                        color: _selectedVideo != null ? kGold.withValues(alpha: 0.15) : _g(0.08),
+                        border: Border.all(color: _selectedVideo != null ? kGold : kGold.withValues(alpha: 0.25))),
+                    child: Icon(Icons.videocam_outlined,
+                        color: _selectedVideo != null ? kGold : kGold.withValues(alpha: 0.6), size: 20)),
                 ),
                 const SizedBox(width: 8),
                 Expanded(
