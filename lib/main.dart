@@ -4732,12 +4732,42 @@ class _RequestScreenState extends State<RequestScreen>
     setState(() => _listening = false);
   }
 
+  Widget _reqMediaBtn(IconData icon, Color color) => Container(
+    width: 42, height: 42,
+    decoration: BoxDecoration(
+      borderRadius: BorderRadius.circular(12),
+      color: _g(0.07),
+      border: Border.all(color: color.withValues(alpha: 0.4)),
+    ),
+    child: Center(child: Icon(icon, color: color, size: 20)),
+  );
+
   Future<void> _captureVideo() async {
     final video = await _picker.pickVideo(
       source: ImageSource.camera,
       maxDuration: const Duration(seconds: 20),
     );
     if (video != null && mounted) setState(() => _video = video);
+  }
+
+  Future<void> _pickVideoGallery() async {
+    final video = await _picker.pickVideo(
+      source: ImageSource.gallery,
+      maxDuration: const Duration(seconds: 20),
+    );
+    if (video != null && mounted) setState(() => _video = video);
+  }
+
+  Future<void> _takeSinglePhoto() async {
+    final xf = await _picker.pickImage(source: ImageSource.camera, imageQuality: 75);
+    if (xf == null || !mounted) return;
+    try {
+      final bytes = await xf.readAsBytes();
+      final small = await _RequestScreenState._compressImage(bytes);
+      setState(() => _images.add(small != null
+          ? XFile.fromData(small, name: xf.name, mimeType: 'image/png')
+          : xf));
+    } catch (_) {}
   }
 
   Future<void> _startAudio() async {
@@ -4863,6 +4893,29 @@ class _RequestScreenState extends State<RequestScreen>
               .collection('requests')
               .doc(docRef.id)
               .update({'images': imageBase64, 'hasImages': true});
+        }
+
+        // Upload βίντεο στο Storage αν υπάρχει
+        if (_video != null) {
+          try {
+            final path = _video!.path;
+            Uint8List vbytes;
+            if (path.startsWith('blob:') || path.startsWith('http')) {
+              final resp = await http.get(Uri.parse(path));
+              vbytes = resp.bodyBytes;
+            } else {
+              vbytes = await _video!.readAsBytes();
+            }
+            final ext = path.contains('.') ? path.split('.').last.split('?').first : 'mp4';
+            final ct = ext == 'webm' ? 'video/webm' : 'video/mp4';
+            final vref = FirebaseStorage.instance.ref(
+                'requests/videos/${docRef.id}_vid.$ext');
+            await vref.putData(vbytes, SettableMetadata(contentType: ct));
+            final vurl = await vref.getDownloadURL();
+            await FirebaseFirestore.instance
+                .collection('requests').doc(docRef.id)
+                .update({'videoUrl': vurl, 'hasVideo': true});
+          } catch (_) {}
         }
 
         await http
@@ -5215,53 +5268,39 @@ Future<void> _notifyProsDirectly(
                             ),
                           ),
                           const SizedBox(width: 6),
-                          // PHOTO BUTTON
+                          // 1. GALLERY PHOTO
                           GestureDetector(
                             onTap: _images.length < 3 ? _pickImage : null,
                             child: Stack(children: [
-                              Container(
-                                width: 46, height: 46,
-                                decoration: BoxDecoration(
-                                  borderRadius: BorderRadius.circular(14),
-                                  color: _g(0.08),
-                                  border: Border.all(color: kGold.withValues(alpha: 0.3)),
-                                ),
-                                child: Center(child: Icon(
-                                  Icons.add_photo_alternate_outlined,
-                                  color: _images.isEmpty ? kGold : kGreen,
-                                  size: 22,
-                                )),
-                              ),
+                              _reqMediaBtn(Icons.photo_library_outlined, _images.isNotEmpty ? kGreen : kGold),
                               if (_images.isNotEmpty) Positioned(
                                 top: 2, right: 2,
                                 child: Container(
-                                  width: 16, height: 16,
+                                  width: 15, height: 15,
                                   decoration: const BoxDecoration(color: kGreen, shape: BoxShape.circle),
                                   child: Center(child: Text('${_images.length}',
-                                      style: TextStyle(color: _gw, fontSize: 9, fontWeight: FontWeight.w700))),
+                                      style: TextStyle(color: _gw, fontSize: 8, fontWeight: FontWeight.w700))),
                                 ),
                               ),
                             ]),
                           ),
-                          const SizedBox(width: 6),
-                          // VIDEO BUTTON
+                          const SizedBox(width: 5),
+                          // 2. CAMERA PHOTO
                           GestureDetector(
-                            onTap: _captureVideo,
-                            child: Container(
-                              width: 46, height: 46,
-                              decoration: BoxDecoration(
-                                borderRadius: BorderRadius.circular(14),
-                                color: _g(0.08),
-                                border: Border.all(color: _video != null
-                                    ? kGreen.withValues(alpha: 0.6)
-                                    : kGold.withValues(alpha: 0.3)),
-                              ),
-                              child: Center(child: Icon(
-                                Icons.videocam_outlined,
-                                color: _video != null ? kGreen : kGold,
-                                size: 22,
-                              )),
-                            ),
+                            onTap: _images.length < 3 ? _takeSinglePhoto : null,
+                            child: _reqMediaBtn(Icons.camera_alt_outlined, kGold),
+                          ),
+                          const SizedBox(width: 5),
+                          // 3. GALLERY VIDEO
+                          GestureDetector(
+                            onTap: _video == null ? _pickVideoGallery : () => setState(() => _video = null),
+                            child: _reqMediaBtn(Icons.video_library_outlined, _video != null ? kGreen : kGold),
+                          ),
+                          const SizedBox(width: 5),
+                          // 4. CAMERA VIDEO
+                          GestureDetector(
+                            onTap: _video == null ? _captureVideo : null,
+                            child: _reqMediaBtn(Icons.videocam_rounded, _video != null ? kGreen : kGold),
                           ),
                           const SizedBox(width: 8),
                           // SEND BUTTON
