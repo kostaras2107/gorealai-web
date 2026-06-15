@@ -381,7 +381,6 @@ class AuthGate extends StatelessWidget {
                         as Map<String, dynamic>)['role'] ??
                     'user'
                 : 'user';
-            if (role == 'professional') return const ProfessionalHomeScreen();
             return const HomeScreen();
           },
         );
@@ -814,6 +813,7 @@ class HomeScreen extends StatefulWidget {
 class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   String? _userName;
   String? _userId;
+  bool _isPro = false;
   int _navIndex = 0;
   // Ενεργά αιτήματα (για το G button — μέχρι 2)
   List<Map<String, dynamic>> _activeRequests = []; // list of {id, status, desc, criteria, expiresAt}
@@ -938,6 +938,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     setState(() {
       _userName = doc.data()?['name'] ?? u.email ?? 'User';
       _userId = u.uid;
+      _isPro = (doc.data()?['role'] ?? '') == 'professional';
     });
   }
 
@@ -1160,6 +1161,33 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                             color: Colors.white)),
                   ),
                   Row(children: [
+                    if (_isPro) ...[
+                      GestureDetector(
+                        onTap: () => Navigator.push(context, PageRouteBuilder(
+                          transitionDuration: const Duration(milliseconds: 350),
+                          pageBuilder: (_, __, ___) => const ProfessionalHomeScreen(),
+                          transitionsBuilder: (_, a, __, c) => FadeTransition(opacity: a, child: c),
+                        )),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                          decoration: BoxDecoration(
+                            borderRadius: BorderRadius.circular(20),
+                            color: kGold.withValues(alpha: 0.12),
+                            border: Border.all(color: kGold.withValues(alpha: 0.35)),
+                          ),
+                          child: Row(mainAxisSize: MainAxisSize.min, children: [
+                            Container(width: 6, height: 6,
+                                decoration: const BoxDecoration(shape: BoxShape.circle, color: kGold)),
+                            const SizedBox(width: 6),
+                            const Text('Επαγγελματίας',
+                                style: TextStyle(color: kGold, fontSize: 11, fontWeight: FontWeight.w700)),
+                            const SizedBox(width: 4),
+                            Icon(Icons.arrow_forward_ios, size: 9, color: kGold.withValues(alpha: 0.6)),
+                          ]),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                    ],
                     _NotificationBell(userId: _userId ?? ''),
                   ]),
                 ]),
@@ -1176,8 +1204,21 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
             userName: _userName,
             hasActiveRequest: _activeRequests.isNotEmpty,
             activeRequestId: _activeRequests.isNotEmpty ? _activeRequests.first['id'] as String? : null,
+            unreadMessages: 0,
             onHome: () => setState(() => _navIndex = 0),
             onFab: _activeRequests.isEmpty ? _openEventOrganizer : _openMyOffers,
+            onMessages: () {
+              setState(() => _navIndex = 4);
+              Navigator.push(
+                  context,
+                  PageRouteBuilder(
+                    transitionDuration: const Duration(milliseconds: 350),
+                    pageBuilder: (_, __, ___) =>
+                        MessagesScreen(userId: _userId ?? ''),
+                    transitionsBuilder: (_, a, __, c) =>
+                        FadeTransition(opacity: a, child: c),
+                  )).then((_) => setState(() => _navIndex = 0));
+            },
             onHistory: () {
               setState(() => _navIndex = 2);
               Navigator.push(
@@ -1985,17 +2026,20 @@ class _ActiveRequestsPreview extends StatelessWidget {
 class _BottomNav extends StatelessWidget {
   final int navIndex;
   final String? userName;
-  final String? activeRequestId;   // για badge στο G
+  final String? activeRequestId;
   final bool hasActiveRequest;
-  final VoidCallback onHome, onFab, onHistory, onProfile;
+  final int unreadMessages;
+  final VoidCallback onHome, onFab, onHistory, onMessages, onProfile;
   const _BottomNav(
       {required this.navIndex,
       required this.userName,
       this.activeRequestId,
       this.hasActiveRequest = false,
+      this.unreadMessages = 0,
       required this.onHome,
       required this.onFab,
       required this.onHistory,
+      required this.onMessages,
       required this.onProfile});
 
   @override
@@ -2005,9 +2049,12 @@ class _BottomNav extends StatelessWidget {
           padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 10),
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(28),
-            color: const Color(0xFF080808),
-            boxShadow: [BoxShadow(
-                color: Colors.black.withValues(alpha: 0.5), blurRadius: 20)],
+            color: const Color(0xFF141414),
+            border: Border.all(color: Colors.white.withValues(alpha: 0.06)),
+            boxShadow: [
+              BoxShadow(color: Colors.black.withValues(alpha: 0.55), blurRadius: 24),
+              BoxShadow(color: kGold.withValues(alpha: 0.04), blurRadius: 12),
+            ],
           ),
           child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceAround,
@@ -2015,11 +2062,35 @@ class _BottomNav extends StatelessWidget {
                 _HNavItem(icon: Icons.home_rounded, label: 'Αρχική',
                     active: navIndex == 0, onTap: onHome),
 
+                // Μηνύματα με unread badge
+                Stack(clipBehavior: Clip.none, children: [
+                  _HNavItem(icon: Icons.chat_bubble_outline_rounded, label: 'Μηνύματα',
+                      active: navIndex == 4, onTap: onMessages),
+                  if (unreadMessages > 0)
+                    Positioned(
+                      top: 2, right: 6,
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
+                        constraints: const BoxConstraints(minWidth: 16, minHeight: 16),
+                        decoration: BoxDecoration(
+                          color: Colors.red,
+                          borderRadius: BorderRadius.circular(8),
+                          boxShadow: [BoxShadow(color: Colors.red.withValues(alpha: 0.6), blurRadius: 6)],
+                        ),
+                        child: Text(
+                          unreadMessages > 99 ? '99+' : '$unreadMessages',
+                          textAlign: TextAlign.center,
+                          style: const TextStyle(color: Colors.white, fontSize: 9,
+                              fontWeight: FontWeight.bold, height: 1.2),
+                        ),
+                      ),
+                    ),
+                ]),
+
                 // ── G FAB — smart button ──
                 GestureDetector(
                   onTap: onFab,
                   child: Stack(clipBehavior: Clip.none, children: [
-                    // Pulsing ring αν υπάρχει ενεργό αίτημα
                     if (hasActiveRequest)
                       Positioned.fill(child: TweenAnimationBuilder<double>(
                         tween: Tween(begin: 0.9, end: 1.15),
@@ -2060,7 +2131,6 @@ class _BottomNav extends StatelessWidget {
                               fontWeight: FontWeight.bold,
                               color: Colors.black, height: 1))),
                     ),
-                    // Badge
                     if (hasActiveRequest)
                       Positioned(top: -4, right: -4,
                         child: Container(
@@ -2077,7 +2147,8 @@ class _BottomNav extends StatelessWidget {
 
                 _HNavItem(icon: Icons.history_rounded, label: 'Ιστορικό',
                     active: navIndex == 2, onTap: onHistory),
-                // Avatar
+
+                // Avatar profile
                 GestureDetector(
                   onTap: onProfile,
                   child: Container(
@@ -2135,6 +2206,20 @@ class _ProStatChip extends StatelessWidget {
   );
 }
 
+class _ProStatBox extends StatelessWidget {
+  final String value, label;
+  final bool highlight;
+  const _ProStatBox({required this.value, required this.label, this.highlight = false});
+  @override
+  Widget build(BuildContext context) => Expanded(child: Column(children: [
+    Text(value, style: TextStyle(
+        color: highlight ? kGold : Colors.white,
+        fontSize: 20, fontWeight: FontWeight.w800, fontFamily: 'Raleway')),
+    const SizedBox(height: 2),
+    Text(label, style: TextStyle(color: _g(0.35), fontSize: 10)),
+  ]));
+}
+
 class _ProMenuCard extends StatelessWidget {
   final String emoji, title, sub;
   final VoidCallback onTap;
@@ -2163,6 +2248,27 @@ class _ProMenuCard extends StatelessWidget {
   );
 }
 
+class _SectionCard extends StatelessWidget {
+  final String title;
+  final Widget child;
+  const _SectionCard({required this.title, required this.child});
+
+  @override
+  Widget build(BuildContext context) => Container(
+    padding: const EdgeInsets.all(16),
+    decoration: BoxDecoration(
+      borderRadius: BorderRadius.circular(16),
+      color: _g(0.04),
+      border: Border.all(color: _g(0.08)),
+    ),
+    child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+      Text(title, style: const TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.w700)),
+      const SizedBox(height: 12),
+      child,
+    ]),
+  );
+}
+
 // ═══════════════════════════════════════
 // PROFESSIONAL HOME SCREEN
 // ═══════════════════════════════════════
@@ -2176,14 +2282,36 @@ class ProfessionalHomeScreen extends StatefulWidget {
 class _ProfessionalHomeScreenState extends State<ProfessionalHomeScreen> {
   String? _proName;
   String? _proId;
-  String _activeTab = 'requests';
+  String? _proPhotoUrl;
+  String? _activeSection; // null = grid, else section key
   final Set<String> _submittedIds = {};
   bool _isAvailable = true;
+
+  // Mini CV
+  String _bio = '';
+  String _specialty = '';
+  List<String> _specialties = [];
+  List<String> _areas = [];
+  // Social
+  String _instagramUrl = '';
+  String _tiktokUrl = '';
+  // Portfolio
+  List<Map<String, dynamic>> _portfolioProjects = [];
+
+  // Controllers για mini cv editing
+  final _bioCtrl = TextEditingController();
+  bool _editingBio = false;
 
   @override
   void initState() {
     super.initState();
     _loadProfile();
+  }
+
+  @override
+  void dispose() {
+    _bioCtrl.dispose();
+    super.dispose();
   }
 
   Future<void> _loadProfile() async {
@@ -2194,10 +2322,25 @@ class _ProfessionalHomeScreenState extends State<ProfessionalHomeScreen> {
         .doc(user.uid)
         .get();
     if (!mounted) return;
+    final d = doc.data() ?? {};
+    final rawSpecs = d['specialties'];
+    final rawAreas = d['areas'];
+    final rawProjects = d['portfolioProjects'];
     setState(() {
-      _proName = doc.data()?['name'] ?? '';
+      _proName = d['name'] ?? '';
       _proId = user.uid;
-      _isAvailable = doc.data()?['isAvailable'] ?? true;
+      _isAvailable = d['isAvailable'] ?? true;
+      _proPhotoUrl = d['profilePhotoUrl'] as String?;
+      _bio = d['bio'] as String? ?? '';
+      _specialty = d['specialty'] as String? ?? '';
+      _specialties = rawSpecs is List ? List<String>.from(rawSpecs.map((e) => e.toString())) : [];
+      _areas = rawAreas is List ? List<String>.from(rawAreas.map((e) => e.toString())) : [];
+      _instagramUrl = d['instagramUrl'] as String? ?? '';
+      _tiktokUrl = d['tiktokUrl'] as String? ?? '';
+      _portfolioProjects = rawProjects is List
+          ? rawProjects.map((p) => Map<String, dynamic>.from(p as Map)).toList()
+          : [];
+      _bioCtrl.text = _bio;
     });
   }
 
@@ -2265,496 +2408,637 @@ class _ProfessionalHomeScreenState extends State<ProfessionalHomeScreen> {
     }
   }
 
-  Widget _buildTab(String value, String label) {
-    final active = _activeTab == value;
+  @override
+  // ── Nav card (grid item) ──
+  Widget _buildNavCard(String section, String emoji, String title, String subtitle,
+      {int badge = 0, Color iconColor = kGold, VoidCallback? customOnTap}) {
     return GestureDetector(
-      onTap: () => setState(() => _activeTab = value),
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 200),
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 9),
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(12),
-          gradient: active
-              ? const LinearGradient(colors: [kGoldLight, kGold])
-              : null,
-          color: active ? null : Colors.transparent,
-          boxShadow: active
-              ? [BoxShadow(color: kGold.withValues(alpha: 0.3), blurRadius: 8)]
-              : null,
+      onTap: customOnTap ?? () => setState(() => _activeSection = section),
+      child: Stack(children: [
+        Container(
+          height: 72,
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(16),
+            color: const Color(0xFF141414),
+            border: Border.all(color: Colors.white.withValues(alpha: 0.06), width: 1.0),
+            boxShadow: [
+              BoxShadow(color: iconColor.withValues(alpha: 0.10), blurRadius: 14, offset: const Offset(0, 4)),
+              BoxShadow(color: Colors.black.withValues(alpha: 0.45), blurRadius: 8, offset: const Offset(0, 3)),
+            ],
+          ),
+          child: Row(children: [
+            Container(
+              width: 42, height: 42,
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(12),
+                color: iconColor.withValues(alpha: 0.18),
+              ),
+              child: Center(child: Text(emoji, style: const TextStyle(fontSize: 21))),
+            ),
+            const SizedBox(width: 10),
+            Expanded(child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Text(title, style: const TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.w700, height: 1.2)),
+                Text(subtitle, style: TextStyle(color: Colors.white.withValues(alpha: 0.35), fontSize: 10, height: 1.3),
+                    maxLines: 1, overflow: TextOverflow.ellipsis),
+              ],
+            )),
+            Icon(Icons.arrow_forward_ios, size: 11, color: Colors.white.withValues(alpha: 0.15)),
+          ]),
         ),
-        child: Text(label,
-            style: TextStyle(
-                fontSize: 11,
-                fontWeight: active ? FontWeight.w800 : FontWeight.w400,
-                color: active ? Colors.black : _g(0.4))),
-      ),
+        if (badge > 0)
+          Positioned(
+            top: 6, right: 6,
+            child: Container(
+              padding: const EdgeInsets.all(4),
+              decoration: const BoxDecoration(color: Colors.red, shape: BoxShape.circle),
+              child: Text('$badge', style: const TextStyle(color: Colors.white, fontSize: 9, fontWeight: FontWeight.bold)),
+            ),
+          ),
+      ]),
     );
   }
 
-  @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       body: SafeArea(
         child: Column(children: [
 
-          // ══════════════════════════════════════
-          // HERO HEADER — gradient banner
-          // ══════════════════════════════════════
-          Container(
-            margin: const EdgeInsets.fromLTRB(16, 14, 16, 0),
-            padding: const EdgeInsets.fromLTRB(18, 16, 18, 18),
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(24),
-              gradient: LinearGradient(
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-                colors: [
-                  kGold.withValues(alpha: 0.18),
-                  kGold.withValues(alpha: 0.04),
-                ],
-              ),
-              border: Border.all(color: kGold.withValues(alpha: 0.35), width: 1.5),
-              boxShadow: [BoxShadow(color: kGold.withValues(alpha: 0.08), blurRadius: 24)],
-            ),
-            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              // Top row: logo + actions
-              Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
-                Row(children: [
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
-                    decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(8),
-                      color: kGold.withValues(alpha: 0.15),
-                    ),
-                    child: ShaderMask(
-                      shaderCallback: (b) => const LinearGradient(
-                          colors: [kGoldLight, kGold]).createShader(b),
-                      child: const Text('GOREALAI',
-                          style: TextStyle(
-                              fontFamily: 'Raleway', fontSize: 10,
-                              letterSpacing: 4, fontWeight: FontWeight.w800,
-                              color: Colors.white)),
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                    decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(8),
-                      color: kGreen.withValues(alpha: 0.12),
-                      border: Border.all(color: kGreen.withValues(alpha: 0.3)),
-                    ),
-                    child: Row(mainAxisSize: MainAxisSize.min, children: [
-                      Container(width: 5, height: 5,
-                          decoration: const BoxDecoration(
-                              shape: BoxShape.circle, color: kGreen)),
-                      const SizedBox(width: 5),
-                      const Text('Επαγγελματίας',
-                          style: TextStyle(color: kGreen, fontSize: 9,
-                              fontWeight: FontWeight.w700)),
-                    ]),
-                  ),
-                ]),
-                Row(children: [
-                  _NotificationBell(userId: _proId ?? ''),
-                  const SizedBox(width: 8),
-                  GestureDetector(
-                    onTap: () => Navigator.push(context, PageRouteBuilder(
-                      transitionDuration: const Duration(milliseconds: 350),
-                      pageBuilder: (_, __, ___) => const ProfileScreen(),
-                      transitionsBuilder: (_, a, __, c) => FadeTransition(opacity: a, child: c),
-                    )),
-                    child: Container(
-                      width: 36, height: 36,
-                      decoration: BoxDecoration(
-                          shape: BoxShape.circle,
-                          color: kGold.withValues(alpha: 0.12),
-                          border: Border.all(color: kGold, width: 1.5),
-                          boxShadow: [BoxShadow(color: kGold.withValues(alpha: 0.3), blurRadius: 8)]),
-                      child: Center(child: Text(
-                          _proName?.isNotEmpty == true ? _proName![0].toUpperCase() : 'P',
-                          style: const TextStyle(color: kGold, fontSize: 16,
-                              fontWeight: FontWeight.bold))),
-                    ),
-                  ),
-                ]),
-              ]),
-
-              const SizedBox(height: 16),
-
-              // Greeting
-              RichText(text: TextSpan(children: [
-                const TextSpan(text: 'Γεια σου, ',
-                    style: TextStyle(fontFamily: 'Raleway', fontSize: 24, color: Colors.white)),
-                TextSpan(text: _proName ?? '',
-                    style: const TextStyle(fontFamily: 'Raleway', fontSize: 24,
-                        fontStyle: FontStyle.italic, color: kGold)),
-                const TextSpan(text: ' 👋', style: TextStyle(fontSize: 22)),
-              ])),
-
-              const SizedBox(height: 10),
-
-              // Stats row
-              StreamBuilder<QuerySnapshot>(
-                stream: FirebaseFirestore.instance
-                    .collection('requests')
-                    .where('status', isEqualTo: 'active')
-                    .snapshots(),
-                builder: (context, snap) {
-                  final activeCount = snap.hasData ? snap.data!.docs.length : 0;
-                  return Row(children: [
-                    _ProStatChip(icon: '🔔', label: '$activeCount', sub: 'Ενεργά'),
-                    const SizedBox(width: 8),
-                    StreamBuilder<QuerySnapshot>(
-                      stream: FirebaseFirestore.instance
-                          .collection('bookings')
-                          .where('professionalName', isEqualTo: _proName)
-                          .where('status', isEqualTo: 'accepted')
-                          .snapshots(),
-                      builder: (ctx2, snap2) {
-                        final doneCount = snap2.hasData ? snap2.data!.docs.length : 0;
-                        return _ProStatChip(icon: '✅', label: '$doneCount', sub: 'Αποδεκτά');
-                      },
-                    ),
-                    const SizedBox(width: 8),
-                    StreamBuilder<QuerySnapshot>(
-                      stream: FirebaseFirestore.instance
-                          .collection('bookings')
-                          .where('professionalName', isEqualTo: _proName)
-                          .where('status', isEqualTo: 'pending')
-                          .snapshots(),
-                      builder: (ctx3, snap3) {
-                        final pendCount = snap3.hasData ? snap3.data!.docs.length : 0;
-                        return _ProStatChip(icon: '⏳', label: '$pendCount', sub: 'Εκκρεμή',
-                            highlight: pendCount > 0);
-                      },
-                    ),
-                  ]);
-                },
-              ),
-            ]),
-          ),
-
-          const SizedBox(height: 12),
-
-          // ══ Διαθεσιμότητα toggle ══
-          Container(
-            margin: const EdgeInsets.symmetric(horizontal: 16),
-            padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(16),
-              color: _g(0.04),
-              border: Border.all(color: _isAvailable ? kGreen.withValues(alpha: 0.3) : _g(0.08)),
-            ),
+          // ══ TOP ROW: back arrow + name + avatar ══
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 14, 16, 0),
             child: Row(children: [
-              Container(width: 10, height: 10,
+              GestureDetector(
+                onTap: () => Navigator.pop(context),
+                child: Container(
+                  width: 36, height: 36,
                   decoration: BoxDecoration(
                     shape: BoxShape.circle,
-                    color: _isAvailable ? kGreen : _g(0.2),
-                    boxShadow: _isAvailable ? [BoxShadow(color: kGreen.withValues(alpha: 0.6), blurRadius: 6)] : [],
-                  )),
+                    color: _g(0.06),
+                    border: Border.all(color: _g(0.1)),
+                  ),
+                  child: Icon(Icons.arrow_back_ios_new, size: 15, color: _g(0.5)),
+                ),
+              ),
               const SizedBox(width: 12),
               Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                const Text('Διαθέσιμος για αιτήματα',
-                    style: TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.w700)),
-                const SizedBox(height: 2),
-                Text(_isAvailable ? 'Λαμβάνεις νέα αιτήματα' : 'Δεν λαμβάνεις αιτήματα',
-                    style: TextStyle(color: _g(0.4), fontSize: 11)),
+                Row(children: [
+                  const Text('Καλημέρα ', style: TextStyle(color: Colors.white70, fontSize: 13)),
+                  const Text('🌅', style: TextStyle(fontSize: 13)),
+                ]),
+                Text(_proName ?? '', style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.w800, height: 1.2)),
               ])),
-              Switch(
-                value: _isAvailable,
-                onChanged: _toggleAvailability,
-                activeColor: kGreen,
-                activeTrackColor: kGreen.withValues(alpha: 0.2),
-                inactiveThumbColor: _g(0.3),
-                inactiveTrackColor: _g(0.08),
+              GestureDetector(
+                onTap: () => Navigator.push(context, PageRouteBuilder(
+                  transitionDuration: const Duration(milliseconds: 350),
+                  pageBuilder: (_, __, ___) => const ProfileScreen(),
+                  transitionsBuilder: (_, a, __, c) => FadeTransition(opacity: a, child: c),
+                )),
+                child: Container(
+                  width: 44, height: 44,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    border: Border.all(color: kGold, width: 2),
+                    boxShadow: [BoxShadow(color: kGold.withValues(alpha: 0.3), blurRadius: 8)],
+                  ),
+                  child: ClipOval(child: _proPhotoUrl != null
+                    ? Image.network(_proPhotoUrl!, fit: BoxFit.cover)
+                    : Container(color: kGold.withValues(alpha: 0.15),
+                        child: Center(child: Text(
+                          _proName?.isNotEmpty == true ? _proName![0].toUpperCase() : 'P',
+                          style: const TextStyle(color: kGold, fontSize: 18, fontWeight: FontWeight.bold))))),
+                ),
               ),
             ]),
-          ),
-
-          const SizedBox(height: 12),
-
-          // ══ Grid menu ══
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16),
-            child: GridView.count(
-              shrinkWrap: true,
-              physics: const NeverScrollableScrollPhysics(),
-              crossAxisCount: 2,
-              childAspectRatio: 2.4,
-              crossAxisSpacing: 10,
-              mainAxisSpacing: 10,
-              children: [
-                _ProMenuCard(emoji: '📋', title: 'Αιτήματα', sub: 'Ολοκλ αιτήματα',
-                    onTap: () => setState(() => _activeTab = 'requests')),
-                _ProMenuCard(emoji: '💬', title: 'Μηνύματα', sub: 'Εξυπηρέτηση',
-                    onTap: () {}),
-                _ProMenuCard(emoji: '👤', title: 'Mini CV', sub: 'Βιογραφικό',
-                    onTap: () => Navigator.push(context, PageRouteBuilder(
-                      pageBuilder: (_, __, ___) => const ProfileScreen(),
-                      transitionsBuilder: (_, a, __, c) => FadeTransition(opacity: a, child: c),
-                    ))),
-                _ProMenuCard(emoji: '📸', title: 'Portfolio', sub: 'Φωτογραφίες',
-                    onTap: () => Navigator.push(context, PageRouteBuilder(
-                      pageBuilder: (_, __, ___) => const ProfileScreen(),
-                      transitionsBuilder: (_, a, __, c) => FadeTransition(opacity: a, child: c),
-                    ))),
-                _ProMenuCard(emoji: '📅', title: 'Bookings', sub: 'Προπληρωμένα',
-                    onTap: () => setState(() => _activeTab = 'pending')),
-                _ProMenuCard(emoji: '❌', title: 'Απορριφθέντα', sub: 'Ιστορικό',
-                    onTap: () => setState(() => _activeTab = 'rejected')),
-                _ProMenuCard(emoji: '📱', title: 'Social Media', sub: 'Instagram & TikTok',
-                    onTap: () {}),
-              ],
-            ),
           ),
 
           const SizedBox(height: 14),
 
-          // ══════════════════════════════════════
-          // TABS — redesigned pill style
-          // ══════════════════════════════════════
+          // ══ ΣΗΜΕΡΑ stats box ══
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16),
             child: Container(
-              padding: const EdgeInsets.all(4),
+              padding: const EdgeInsets.fromLTRB(16, 12, 16, 14),
               decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(16),
+                borderRadius: BorderRadius.circular(18),
                 color: _g(0.04),
-                border: Border.all(color: _g(0.07)),
+                border: Border.all(color: _g(0.08)),
               ),
-              child: SingleChildScrollView(
-                scrollDirection: Axis.horizontal,
-                child: Row(children: [
-                  _buildTab('requests', '🔔 Αιτήματα'),
-                  const SizedBox(width: 4),
-                  _buildTab('pending', '⏳ Bookings'),
-                  const SizedBox(width: 4),
-                  _buildTab('accepted', '✅ Αποδεκτά'),
-                  const SizedBox(width: 4),
-                  _buildTab('rejected', '❌ Απορριφθέντα'),
+              child: Column(children: [
+                Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
+                  Text('ΣΗΜΕΡΑ', style: TextStyle(color: _g(0.4), fontSize: 10, fontWeight: FontWeight.w700, letterSpacing: 1.5)),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(20),
+                      color: kGreen.withValues(alpha: 0.12),
+                      border: Border.all(color: kGreen.withValues(alpha: 0.3)),
+                    ),
+                    child: Row(mainAxisSize: MainAxisSize.min, children: [
+                      Container(width: 5, height: 5, decoration: const BoxDecoration(shape: BoxShape.circle, color: kGreen)),
+                      const SizedBox(width: 5),
+                      const Text('Επαγγελματίας', style: TextStyle(color: kGreen, fontSize: 9, fontWeight: FontWeight.w700)),
+                    ]),
+                  ),
                 ]),
-              ),
-            ),
-          ),
-          const SizedBox(height: 10),
-
-          // Content list
-          Expanded(
-            child: _activeTab == 'requests'
-                ? _buildRequestsList()
-                : StreamBuilder<QuerySnapshot>(
-              stream: FirebaseFirestore.instance
-                  .collection('bookings')
-                  .where('professionalName', isEqualTo: _proName)
-                  .where('status', isEqualTo: _activeTab)
-                  .orderBy('createdAt', descending: true)
-                  .snapshots(),
-              builder: (context, snap) {
-                if (!snap.hasData)
-                  return const Center(
-                      child: CircularProgressIndicator(color: kGold));
-                final docs = snap.data!.docs;
-                if (docs.isEmpty) {
-                  return Center(
-                      child: Column(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                        Icon(Icons.inbox_outlined,
-                            color: _g(0.15),
-                            size: 48),
-                        const SizedBox(height: 12),
-                        Text('Δεν υπάρχουν αιτήματα',
-                            style: TextStyle(
-                                color: _g(0.3))),
-                      ]));
-                }
-                return ListView.builder(
-                  padding:
-                      const EdgeInsets.fromLTRB(20, 16, 20, 20),
-                  itemCount: docs.length,
-                  itemBuilder: (_, i) {
-                    final d =
-                        docs[i].data() as Map<String, dynamic>;
-                    final bookingId = docs[i].id;
-                    final isImmediate = d['isImmediate'] == true;
-                    return Container(
-                      margin: const EdgeInsets.only(bottom: 12),
-                      decoration: BoxDecoration(
-                          borderRadius: BorderRadius.circular(18),
-                          color: _g(0.05)),
-                      child: Column(children: [
-                        Container(
-                          height: 1,
-                          decoration: BoxDecoration(
-                            borderRadius: const BorderRadius.vertical(
-                                top: Radius.circular(18)),
-                            gradient: LinearGradient(colors: [
-                              kGold.withValues(alpha: 0.5),
-                              Colors.transparent
-                            ]),
-                          ),
-                        ),
-                        Padding(
-                          padding: const EdgeInsets.all(16),
-                          child: Column(
-                              crossAxisAlignment:
-                                  CrossAxisAlignment.start,
-                              children: [
-                            Row(
-                                mainAxisAlignment:
-                                    MainAxisAlignment.spaceBetween,
-                                children: [
-                              Text(d['userName'] ?? '',
-                                  style: const TextStyle(
-                                      fontSize: 15,
-                                      fontWeight: FontWeight.w600,
-                                      color: Colors.white)),
-                              Container(
-                                padding:
-                                    const EdgeInsets.symmetric(
-                                        horizontal: 10, vertical: 4),
-                                decoration: BoxDecoration(
-                                  borderRadius:
-                                      BorderRadius.circular(20),
-                                  color: isImmediate
-                                      ? Colors.green.withValues(alpha: 0.15)
-                                      : kGold.withValues(alpha: 0.15),
-                                ),
-                                child: Text(
-                                    isImmediate
-                                        ? '⚡ Άμεσα'
-                                        : '📅 Προγρ/σμός',
-                                    style: TextStyle(
-                                        fontSize: 10,
-                                        fontWeight: FontWeight.w600,
-                                        color: isImmediate
-                                            ? Colors.green
-                                            : kGold)),
-                              ),
-                            ]),
-                            const SizedBox(height: 10),
-                            GestureDetector(
-                              onTap: () => launchUrl(Uri.parse(
-                                  'tel:${d['userPhone']}')),
-                              child: Row(children: [
-                                const Icon(Icons.phone_outlined,
-                                    color: kGold, size: 15),
-                                const SizedBox(width: 6),
-                                Text(d['userPhone'] ?? '',
-                                    style: const TextStyle(
-                                        color: kGold,
-                                        fontWeight: FontWeight.w600,
-                                        fontSize: 14)),
-                              ]),
-                            ),
-                            const SizedBox(height: 5),
-                            Row(children: [
-                              Icon(Icons.access_time,
-                                  color: _g(0.38),
-                                  size: 14),
-                              const SizedBox(width: 6),
-                              Text(d['scheduledTime'] ?? '',
-                                  style: TextStyle(
-                                      color:
-                                          _g(0.5),
-                                      fontSize: 12)),
-                            ]),
-                            if (_activeTab == 'pending') ...[
-                              const SizedBox(height: 12),
-                              Row(children: [
-                                Expanded(
-                                    child: GestureDetector(
-                                  onTap: () => _respondBooking(
-                                      bookingId, 'accept'),
-                                  child: Container(
-                                    padding: const EdgeInsets.symmetric(
-                                        vertical: 10),
-                                    decoration: BoxDecoration(
-                                        borderRadius:
-                                            BorderRadius.circular(12),
-                                        color: Colors.green
-                                            .withValues(alpha: 0.15)),
-                                    child: const Center(
-                                        child: Text('✅ Αποδοχή',
-                                            style: TextStyle(
-                                                color: Colors.green,
-                                                fontWeight:
-                                                    FontWeight.bold,
-                                                fontSize: 13))),
-                                  ),
-                                )),
-                                const SizedBox(width: 10),
-                                Expanded(
-                                    child: GestureDetector(
-                                  onTap: () => _respondBooking(
-                                      bookingId, 'reject'),
-                                  child: Container(
-                                    padding: const EdgeInsets.symmetric(
-                                        vertical: 10),
-                                    decoration: BoxDecoration(
-                                        borderRadius:
-                                            BorderRadius.circular(12),
-                                        color: Colors.red
-                                            .withValues(alpha: 0.1)),
-                                    child: const Center(
-                                        child: Text('❌ Απόρριψη',
-                                            style: TextStyle(
-                                                color: Colors.red,
-                                                fontWeight:
-                                                    FontWeight.bold,
-                                                fontSize: 13))),
-                                  ),
-                                )),
-                              ]),
-                            ],
-                            if (_activeTab != 'pending') ...[
-                              const SizedBox(height: 10),
-                              GestureDetector(
-                                onTap: () async {
-                                  await FirebaseFirestore.instance
-                                      .collection('bookings')
-                                      .doc(bookingId)
-                                      .delete();
-                                },
-                                child: Container(
-                                  width: double.infinity,
-                                  padding: const EdgeInsets.symmetric(
-                                      vertical: 9),
-                                  decoration: BoxDecoration(
-                                      borderRadius:
-                                          BorderRadius.circular(12),
-                                      color:
-                                          Colors.red.withValues(alpha: 0.06)),
-                                  child: Row(
-                                      mainAxisAlignment:
-                                          MainAxisAlignment.center,
-                                      children: [
-                                    Icon(Icons.delete_outline,
-                                        color: Colors.red.withValues(alpha: 0.5),
-                                        size: 14),
-                                    const SizedBox(width: 6),
-                                    Text('Διαγραφή',
-                                        style: TextStyle(
-                                            color:
-                                                Colors.red.withValues(alpha: 0.5),
-                                            fontSize: 12)),
-                                  ]),
-                                ),
-                              ),
-                            ],
-                          ]),
-                        ),
-                      ]),
+                const SizedBox(height: 12),
+                StreamBuilder<QuerySnapshot>(
+                  stream: FirebaseFirestore.instance.collection('requests')
+                      .where('proId', isEqualTo: _proId).where('status', isEqualTo: 'active').snapshots(),
+                  builder: (_, s1) {
+                    final reqCount = s1.hasData ? s1.data!.docs.length : 0;
+                    return StreamBuilder<QuerySnapshot>(
+                      stream: FirebaseFirestore.instance.collection('bookings')
+                          .where('professionalName', isEqualTo: _proName).where('status', isEqualTo: 'pending').snapshots(),
+                      builder: (_, s2) {
+                        final pendCount = s2.hasData ? s2.data!.docs.length : 0;
+                        return StreamBuilder<QuerySnapshot>(
+                          stream: FirebaseFirestore.instance.collection('bookings')
+                              .where('professionalName', isEqualTo: _proName).where('status', isEqualTo: 'accepted').snapshots(),
+                          builder: (_, s3) {
+                            final bookCount = s3.hasData ? s3.data!.docs.length : 0;
+                            return StreamBuilder<QuerySnapshot>(
+                              stream: FirebaseFirestore.instance.collection('reviews')
+                                  .where('proId', isEqualTo: _proId).snapshots(),
+                              builder: (_, s4) {
+                                double rating = 5.0;
+                                if (s4.hasData && s4.data!.docs.isNotEmpty) {
+                                  final total = s4.data!.docs.fold<double>(0, (sum, d) => sum + ((d.data() as Map)['rating'] as num? ?? 0).toDouble());
+                                  rating = total / s4.data!.docs.length;
+                                }
+                                return Row(children: [
+                                  _ProStatBox(value: '$reqCount', label: 'Αιτήματα'),
+                                  _ProStatBox(value: '$pendCount', label: 'Εκκρεμή'),
+                                  _ProStatBox(value: '$bookCount', label: 'Bookings'),
+                                  _ProStatBox(value: rating.toStringAsFixed(1), label: 'Rating', highlight: true),
+                                ]);
+                              },
+                            );
+                          },
+                        );
+                      },
                     );
                   },
-                );
-              },
+                ),
+              ]),
             ),
           ),
+
+          const SizedBox(height: 10),
+
+          // ══ Διαθεσιμότητα toggle (μόνο μία φορά) ══
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(14),
+                color: _isAvailable ? kGreen.withValues(alpha: 0.06) : _g(0.04),
+                border: Border.all(color: _isAvailable ? kGreen.withValues(alpha: 0.25) : _g(0.08)),
+              ),
+              child: Row(children: [
+                Container(width: 8, height: 8,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: _isAvailable ? kGreen : _g(0.2),
+                      boxShadow: _isAvailable ? [BoxShadow(color: kGreen.withValues(alpha: 0.6), blurRadius: 5)] : [],
+                    )),
+                const SizedBox(width: 10),
+                Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                  const Text('Διαθέσιμος για αιτήματα',
+                      style: TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.w700)),
+                  Text(_isAvailable ? 'Λαμβάνεις νέα αιτήματα' : 'Δεν λαμβάνεις αιτήματα',
+                      style: TextStyle(color: _g(0.35), fontSize: 10)),
+                ])),
+                Switch(
+                  value: _isAvailable,
+                  onChanged: _toggleAvailability,
+                  activeColor: kGreen,
+                  activeTrackColor: kGreen.withValues(alpha: 0.2),
+                  inactiveThumbColor: _g(0.3),
+                  inactiveTrackColor: _g(0.08),
+                ),
+              ]),
+            ),
+          ),
+
+          const SizedBox(height: 10),
+
+          // ══ Section content or Grid ══
+          Expanded(child: _activeSection == null
+            ? _buildGrid()
+            : _buildSectionView(_activeSection!)),
         ]),
       ),
+    );
+  }
+
+  Widget _buildGrid() {
+    return SingleChildScrollView(
+      padding: const EdgeInsets.fromLTRB(16, 0, 16, 20),
+      child: Column(children: [
+
+        // ── 7-card grid ──
+        GridView.count(
+          shrinkWrap: true,
+          physics: const NeverScrollableScrollPhysics(),
+          crossAxisCount: 2,
+          childAspectRatio: 2.1,
+          crossAxisSpacing: 10,
+          mainAxisSpacing: 10,
+          children: [
+            _buildNavCard('requests', '📋', 'Αιτήματα', 'Ολοκλήρωσε αιτήματα'),
+            _buildNavCard('messages', '💬', 'Μηνύματα', 'Εξυπηρέτηση πελατών',
+                customOnTap: () => Navigator.push(context, MaterialPageRoute(
+                    builder: (_) => MessagesScreen(userId: _proId ?? '')))),
+            _buildNavCard('minicv', '👤', 'Mini CV', 'Βιογραφικό & ειδικότητες'),
+            _buildNavCard('portfolio', '📸', 'Portfolio', 'Φωτογραφίες έργων'),
+            _buildNavCard('bookings', '📅', 'Bookings', 'Προπληρωμένα ραντεβού'),
+            _buildNavCard('rejected', '❌', 'Απορριφθέντα', 'Ιστορικό απορρίψεων',
+                iconColor: Colors.red),
+            _buildNavCard('social', '📱', 'Social Media', 'Instagram & TikTok'),
+          ],
+        ),
+      ]),
+    );
+  }
+
+  Widget _buildSectionView(String section) {
+    final titles = {
+      'requests': '📋 Αιτήματα',
+      'bookings': '📅 Bookings',
+      'rejected': '❌ Απορριφθέντα',
+      'minicv': '👤 Mini CV',
+      'portfolio': '📸 Portfolio',
+      'social': '📱 Social Media',
+    };
+    return Column(children: [
+      // Back button row
+      Padding(
+        padding: const EdgeInsets.fromLTRB(16, 0, 16, 10),
+        child: Row(children: [
+          GestureDetector(
+            onTap: () => setState(() => _activeSection = null),
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(12),
+                color: _g(0.06),
+                border: Border.all(color: _g(0.1)),
+              ),
+              child: Row(mainAxisSize: MainAxisSize.min, children: [
+                Icon(Icons.arrow_back_ios, size: 13, color: _g(0.5)),
+                const SizedBox(width: 4),
+                Text('Πίσω', style: TextStyle(color: _g(0.5), fontSize: 13)),
+              ]),
+            ),
+          ),
+          const SizedBox(width: 12),
+          Text(titles[section] ?? '', style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.w700)),
+        ]),
+      ),
+      Expanded(child: _buildSectionContent(section)),
+    ]);
+  }
+
+  Widget _buildSectionContent(String section) {
+    switch (section) {
+      case 'requests':
+        return _buildRequestsList();
+      case 'bookings':
+        return _buildBookingsList('pending');
+      case 'rejected':
+        return _buildBookingsList('rejected');
+      case 'minicv':
+        return _buildMiniCvSection();
+      case 'portfolio':
+        return _buildPortfolioSection();
+      case 'social':
+        return _buildSocialSection();
+      default:
+        return const SizedBox();
+    }
+  }
+
+  Widget _buildBookingsList(String status) {
+    return StreamBuilder<QuerySnapshot>(
+      stream: FirebaseFirestore.instance
+          .collection('bookings')
+          .where('professionalName', isEqualTo: _proName)
+          .where('status', isEqualTo: status)
+          .orderBy('createdAt', descending: true)
+          .snapshots(),
+      builder: (context, snap) {
+        if (!snap.hasData) return const Center(child: CircularProgressIndicator(color: kGold));
+        final docs = snap.data!.docs;
+        if (docs.isEmpty) {
+          return Center(child: Column(mainAxisSize: MainAxisSize.min, children: [
+            Icon(Icons.inbox_outlined, color: _g(0.15), size: 48),
+            const SizedBox(height: 12),
+            Text('Δεν υπάρχουν αιτήματα', style: TextStyle(color: _g(0.3))),
+          ]));
+        }
+        return ListView.builder(
+          padding: const EdgeInsets.fromLTRB(20, 8, 20, 20),
+          itemCount: docs.length,
+          itemBuilder: (_, i) {
+            final d = docs[i].data() as Map<String, dynamic>;
+            final bookingId = docs[i].id;
+            final isImmediate = d['isImmediate'] == true;
+            return Container(
+              margin: const EdgeInsets.only(bottom: 12),
+              decoration: BoxDecoration(borderRadius: BorderRadius.circular(18), color: _g(0.05)),
+              child: Column(children: [
+                Container(height: 1, decoration: BoxDecoration(
+                  borderRadius: const BorderRadius.vertical(top: Radius.circular(18)),
+                  gradient: LinearGradient(colors: [kGold.withValues(alpha: 0.5), Colors.transparent]),
+                )),
+                Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                    Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
+                      Text(d['userName'] ?? '', style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600, color: Colors.white)),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(20),
+                          color: isImmediate ? Colors.green.withValues(alpha: 0.15) : kGold.withValues(alpha: 0.15),
+                        ),
+                        child: Text(isImmediate ? '⚡ Άμεσα' : '📅 Προγρ/σμός',
+                            style: TextStyle(fontSize: 10, fontWeight: FontWeight.w600,
+                                color: isImmediate ? Colors.green : kGold)),
+                      ),
+                    ]),
+                    const SizedBox(height: 10),
+                    GestureDetector(
+                      onTap: () => launchUrl(Uri.parse('tel:${d['userPhone']}')),
+                      child: Row(children: [
+                        const Icon(Icons.phone_outlined, color: kGold, size: 15),
+                        const SizedBox(width: 6),
+                        Text(d['userPhone'] ?? '', style: const TextStyle(color: kGold, fontWeight: FontWeight.w600, fontSize: 14)),
+                      ]),
+                    ),
+                    const SizedBox(height: 5),
+                    Row(children: [
+                      Icon(Icons.access_time, color: _g(0.38), size: 14),
+                      const SizedBox(width: 6),
+                      Text(d['scheduledTime'] ?? '', style: TextStyle(color: _g(0.5), fontSize: 12)),
+                    ]),
+                    if (status == 'pending') ...[
+                      const SizedBox(height: 12),
+                      Row(children: [
+                        Expanded(child: GestureDetector(
+                          onTap: () => _respondBooking(bookingId, 'accept'),
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(vertical: 10),
+                            decoration: BoxDecoration(borderRadius: BorderRadius.circular(12), color: Colors.green.withValues(alpha: 0.15)),
+                            child: const Center(child: Text('✅ Αποδοχή', style: TextStyle(color: Colors.green, fontWeight: FontWeight.bold, fontSize: 13))),
+                          ),
+                        )),
+                        const SizedBox(width: 10),
+                        Expanded(child: GestureDetector(
+                          onTap: () => _respondBooking(bookingId, 'reject'),
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(vertical: 10),
+                            decoration: BoxDecoration(borderRadius: BorderRadius.circular(12), color: Colors.red.withValues(alpha: 0.1)),
+                            child: const Center(child: Text('❌ Απόρριψη', style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold, fontSize: 13))),
+                          ),
+                        )),
+                      ]),
+                    ],
+                    if (status != 'pending') ...[
+                      const SizedBox(height: 10),
+                      GestureDetector(
+                        onTap: () async => FirebaseFirestore.instance.collection('bookings').doc(bookingId).delete(),
+                        child: Container(
+                          width: double.infinity,
+                          padding: const EdgeInsets.symmetric(vertical: 9),
+                          decoration: BoxDecoration(borderRadius: BorderRadius.circular(12), color: Colors.red.withValues(alpha: 0.06)),
+                          child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [
+                            Icon(Icons.delete_outline, color: Colors.red.withValues(alpha: 0.5), size: 14),
+                            const SizedBox(width: 6),
+                            Text('Διαγραφή', style: TextStyle(color: Colors.red.withValues(alpha: 0.5), fontSize: 12)),
+                          ]),
+                        ),
+                      ),
+                    ],
+                  ]),
+                ),
+              ]),
+            );
+          },
+        );
+      },
+    );
+  }
+
+  Widget _buildMiniCvSection() {
+    return ListView(
+      padding: const EdgeInsets.fromLTRB(20, 8, 20, 40),
+      children: [
+        // Profile photo
+        Center(child: Container(
+          width: 90, height: 90,
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            border: Border.all(color: kGold, width: 2),
+            boxShadow: [BoxShadow(color: kGold.withValues(alpha: 0.3), blurRadius: 12)],
+          ),
+          child: ClipOval(child: _proPhotoUrl != null
+            ? Image.network(_proPhotoUrl!, fit: BoxFit.cover)
+            : Container(color: kGold.withValues(alpha: 0.15),
+                child: Center(child: Text(_proName?.isNotEmpty == true ? _proName![0].toUpperCase() : 'P',
+                    style: const TextStyle(color: kGold, fontSize: 32, fontWeight: FontWeight.bold))))),
+        )),
+        const SizedBox(height: 12),
+        Center(child: Text(_proName ?? '', style: const TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.w700))),
+        if (_specialty.isNotEmpty) ...[
+          const SizedBox(height: 4),
+          Center(child: Text(_specialty, style: TextStyle(color: _g(0.5), fontSize: 13))),
+        ],
+        const SizedBox(height: 20),
+
+        // Bio
+        _SectionCard(
+          title: 'Βιογραφικό',
+          child: _editingBio
+            ? Column(children: [
+                TextField(
+                  controller: _bioCtrl,
+                  maxLines: 5,
+                  style: const TextStyle(color: Colors.white, fontSize: 14),
+                  decoration: InputDecoration(
+                    hintText: 'Γράψε το βιογραφικό σου...',
+                    hintStyle: TextStyle(color: _g(0.3)),
+                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: _g(0.1))),
+                    enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: _g(0.1))),
+                    focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: kGold)),
+                    filled: true, fillColor: _g(0.04),
+                  ),
+                ),
+                const SizedBox(height: 10),
+                Row(children: [
+                  Expanded(child: GestureDetector(
+                    onTap: () => setState(() { _editingBio = false; }),
+                    child: Container(padding: const EdgeInsets.symmetric(vertical: 10),
+                      decoration: BoxDecoration(borderRadius: BorderRadius.circular(12), color: _g(0.07)),
+                      child: const Center(child: Text('Ακύρωση', style: TextStyle(color: Colors.white70, fontSize: 13)))),
+                  )),
+                  const SizedBox(width: 10),
+                  Expanded(child: GestureDetector(
+                    onTap: () async {
+                      final uid = FirebaseAuth.instance.currentUser?.uid;
+                      if (uid == null) return;
+                      await FirebaseFirestore.instance.collection('users').doc(uid).update({'bio': _bioCtrl.text.trim()});
+                      if (mounted) setState(() { _bio = _bioCtrl.text.trim(); _editingBio = false; });
+                    },
+                    child: Container(padding: const EdgeInsets.symmetric(vertical: 10),
+                      decoration: BoxDecoration(borderRadius: BorderRadius.circular(12), color: kGold.withValues(alpha: 0.15)),
+                      child: const Center(child: Text('Αποθήκευση', style: TextStyle(color: kGold, fontWeight: FontWeight.bold, fontSize: 13)))),
+                  )),
+                ]),
+              ])
+            : GestureDetector(
+                onTap: () { _bioCtrl.text = _bio; setState(() => _editingBio = true); },
+                child: _bio.isNotEmpty
+                  ? Text(_bio, style: TextStyle(color: _g(0.7), fontSize: 13, height: 1.5))
+                  : Row(children: [
+                      Icon(Icons.edit, color: _g(0.3), size: 14),
+                      const SizedBox(width: 6),
+                      Text('Πάτα για να προσθέσεις βιογραφικό', style: TextStyle(color: _g(0.3), fontSize: 12)),
+                    ]),
+              ),
+        ),
+        const SizedBox(height: 14),
+
+        // Specialties
+        if (_specialties.isNotEmpty)
+          _SectionCard(
+            title: 'Ειδικότητες',
+            child: Wrap(spacing: 8, runSpacing: 8, children: _specialties.map((s) =>
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                decoration: BoxDecoration(borderRadius: BorderRadius.circular(20), color: kGold.withValues(alpha: 0.12), border: Border.all(color: kGold.withValues(alpha: 0.3))),
+                child: Text(s, style: const TextStyle(color: kGold, fontSize: 12, fontWeight: FontWeight.w600)),
+              )).toList()),
+          ),
+        if (_specialties.isNotEmpty) const SizedBox(height: 14),
+
+        // Areas
+        if (_areas.isNotEmpty)
+          _SectionCard(
+            title: 'Περιοχές',
+            child: Wrap(spacing: 8, runSpacing: 8, children: _areas.map((a) =>
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                decoration: BoxDecoration(borderRadius: BorderRadius.circular(20), color: kGreen.withValues(alpha: 0.10), border: Border.all(color: kGreen.withValues(alpha: 0.25))),
+                child: Text(a, style: const TextStyle(color: kGreen, fontSize: 12, fontWeight: FontWeight.w600)),
+              )).toList()),
+          ),
+      ],
+    );
+  }
+
+  Widget _buildPortfolioSection() {
+    return _portfolioProjects.isEmpty
+      ? Center(child: Column(mainAxisSize: MainAxisSize.min, children: [
+          Icon(Icons.photo_library_outlined, color: _g(0.15), size: 56),
+          const SizedBox(height: 14),
+          Text('Δεν υπάρχουν φωτογραφίες', style: TextStyle(color: _g(0.3), fontSize: 15)),
+          const SizedBox(height: 6),
+          Text('Πήγαινε στο Προφίλ για να ανεβάσεις', style: TextStyle(color: _g(0.2), fontSize: 12)),
+        ]))
+      : GridView.builder(
+          padding: const EdgeInsets.fromLTRB(16, 8, 16, 20),
+          gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+            crossAxisCount: 2, crossAxisSpacing: 10, mainAxisSpacing: 10),
+          itemCount: _portfolioProjects.length,
+          itemBuilder: (_, i) {
+            final p = _portfolioProjects[i];
+            final url = p['imageUrl'] as String? ?? '';
+            return GestureDetector(
+              onTap: () => Navigator.push(context, MaterialPageRoute(
+                  builder: (_) => _FullscreenPhotoViewer(
+                      photos: _portfolioProjects.map((p) => p['imageUrl'] as String? ?? '').toList(),
+                      startIndex: i))),
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(14),
+                child: Stack(fit: StackFit.expand, children: [
+                  Image.network(url, fit: BoxFit.cover, errorBuilder: (_, __, ___) => Container(color: _g(0.07), child: Icon(Icons.broken_image, color: _g(0.2)))),
+                  if ((p['title'] as String? ?? '').isNotEmpty)
+                    Positioned(bottom: 0, left: 0, right: 0,
+                      child: Container(padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+                        decoration: BoxDecoration(gradient: LinearGradient(begin: Alignment.bottomCenter, end: Alignment.topCenter,
+                            colors: [Colors.black.withValues(alpha: 0.7), Colors.transparent])),
+                        child: Text(p['title'] as String, style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.w600)))),
+                ]),
+              ),
+            );
+          },
+        );
+  }
+
+  Widget _buildSocialSection() {
+    return ListView(
+      padding: const EdgeInsets.fromLTRB(20, 8, 20, 40),
+      children: [
+        _SectionCard(
+          title: 'Instagram',
+          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            if (_instagramUrl.isNotEmpty)
+              GestureDetector(
+                onTap: () => launchUrl(Uri.parse(_instagramUrl), mode: LaunchMode.externalApplication),
+                child: Container(
+                  padding: const EdgeInsets.all(14),
+                  decoration: BoxDecoration(borderRadius: BorderRadius.circular(12), color: const Color(0xFFE1306C).withValues(alpha: 0.12)),
+                  child: Row(children: [
+                    const Text('📸', style: TextStyle(fontSize: 22)),
+                    const SizedBox(width: 12),
+                    Expanded(child: Text(_instagramUrl, style: const TextStyle(color: Color(0xFFE1306C), fontSize: 13, fontWeight: FontWeight.w600), overflow: TextOverflow.ellipsis)),
+                    const Icon(Icons.open_in_new, color: Color(0xFFE1306C), size: 16),
+                  ]),
+                ),
+              )
+            else
+              Text('Δεν έχεις συνδέσει Instagram', style: TextStyle(color: _g(0.3), fontSize: 13)),
+          ]),
+        ),
+        const SizedBox(height: 14),
+        _SectionCard(
+          title: 'TikTok',
+          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            if (_tiktokUrl.isNotEmpty)
+              GestureDetector(
+                onTap: () => launchUrl(Uri.parse(_tiktokUrl), mode: LaunchMode.externalApplication),
+                child: Container(
+                  padding: const EdgeInsets.all(14),
+                  decoration: BoxDecoration(borderRadius: BorderRadius.circular(12), color: const Color(0xFF69C9D0).withValues(alpha: 0.12)),
+                  child: Row(children: [
+                    const Text('🎵', style: TextStyle(fontSize: 22)),
+                    const SizedBox(width: 12),
+                    Expanded(child: Text(_tiktokUrl, style: const TextStyle(color: Color(0xFF69C9D0), fontSize: 13, fontWeight: FontWeight.w600), overflow: TextOverflow.ellipsis)),
+                    const Icon(Icons.open_in_new, color: Color(0xFF69C9D0), size: 16),
+                  ]),
+                ),
+              )
+            else
+              Text('Δεν έχεις συνδέσει TikTok', style: TextStyle(color: _g(0.3), fontSize: 13)),
+          ]),
+        ),
+        const SizedBox(height: 20),
+        GestureDetector(
+          onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const ProfileScreen())),
+          child: Container(
+            padding: const EdgeInsets.symmetric(vertical: 14),
+            decoration: BoxDecoration(borderRadius: BorderRadius.circular(16), color: kGold.withValues(alpha: 0.12), border: Border.all(color: kGold.withValues(alpha: 0.3))),
+            child: const Center(child: Text('✏️ Επεξεργασία Social Media', style: TextStyle(color: kGold, fontWeight: FontWeight.bold, fontSize: 14))),
+          ),
+        ),
+      ],
     );
   }
 
@@ -8616,209 +8900,146 @@ class _NearbyProsSection extends StatefulWidget {
 }
 
 class _NearbyProsSectionState extends State<_NearbyProsSection> {
-  final PageController _pageCtrl = PageController(viewportFraction: 0.75);
-  int _current = 0;
-  Timer? _autoTimer;
+  final PageController _pageCtrl = PageController(viewportFraction: 0.52);
+  int _page = 0;
+  Timer? _autoScrollTimer;
 
   @override
   void initState() {
     super.initState();
-    _autoTimer = Timer.periodic(const Duration(seconds: 3), (_) {
-      if (!mounted) return;
+    _autoScrollTimer = Timer.periodic(const Duration(seconds: 3), (_) {
+      if (!mounted || !_pageCtrl.hasClients) return;
       _pageCtrl.nextPage(
-          duration: const Duration(milliseconds: 600), curve: Curves.easeInOut);
+        duration: const Duration(milliseconds: 600),
+        curve: Curves.easeInOut,
+      );
     });
   }
 
   @override
   void dispose() {
-    _autoTimer?.cancel();
+    _autoScrollTimer?.cancel();
     _pageCtrl.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
-    return SizedBox(
-      height: 210,
-      child: StreamBuilder<QuerySnapshot>(
-        stream: FirebaseFirestore.instance
-            .collection('users')
-            .where('role', isEqualTo: 'professional')
-            .limit(20)
-            .snapshots(),
-        builder: (_, snap) {
-          final docs = snap.hasData ? snap.data!.docs : <QueryDocumentSnapshot>[];
-          if (docs.isEmpty) {
-            return Center(
-              child: Text('Δεν βρέθηκαν επαγγελματίες',
-                  style: TextStyle(color: _g(0.3), fontSize: 13)),
-            );
-          }
-          return PageView.builder(
+    return StreamBuilder<QuerySnapshot>(
+      stream: FirebaseFirestore.instance
+          .collection('users')
+          .where('role', isEqualTo: 'professional')
+          .limit(20)
+          .snapshots(),
+      builder: (context, snap) {
+        final docs = snap.hasData ? snap.data!.docs : <QueryDocumentSnapshot>[];
+        if (!snap.hasData) return const SizedBox(height: 260);
+        if (docs.isEmpty) return const SizedBox(height: 260);
+        return SizedBox(
+          height: 260,
+          child: PageView.builder(
             controller: _pageCtrl,
-            itemCount: 99999,
-            onPageChanged: (i) => setState(() => _current = i),
+            itemCount: 9999,
+            onPageChanged: (i) => setState(() => _page = i),
             itemBuilder: (_, i) {
               final doc = docs[i % docs.length];
               final d = doc.data() as Map<String, dynamic>;
               final name = d['name'] as String? ?? 'Επαγγελματίας';
-              final specialty = d['specialty'] as String? ??
-                  d['profession'] as String? ?? '';
+              final specialty = d['specialty'] as String?
+                  ?? d['profession'] as String? ?? '';
               final rating = (d['rating'] as num?)?.toDouble() ?? 0.0;
-              final photoUrl = d['photoUrl'] as String?;
-              final isNew = (d['rating'] as num?)?.toDouble() == null ||
-                  rating < 1.0;
+              final photoUrl = d['profilePhotoUrl'] as String? ?? d['photoUrl'] as String?;
+              final isNew = rating < 1.0;
+              final initials = name.isNotEmpty ? name[0].toUpperCase() : 'P';
+              final isActive = i == _page;
 
               return GestureDetector(
                 onTap: () => Navigator.push(context, PageRouteBuilder(
                   pageBuilder: (_, __, ___) => _ProPublicProfileScreen(proId: doc.id, proData: d),
                   transitionsBuilder: (_, a, __, c) => FadeTransition(opacity: a, child: c),
                 )),
-                child: Container(
-                  margin: const EdgeInsets.symmetric(horizontal: 8),
-                  decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(22),
-                    gradient: LinearGradient(
-                      begin: Alignment.topCenter,
-                      end: Alignment.bottomCenter,
-                      colors: [
-                        kGold.withValues(alpha: 0.12),
-                        kBg.withValues(alpha: 0.95),
-                      ],
+                child: AnimatedScale(
+                  scale: isActive ? 1.0 : 0.93,
+                  duration: const Duration(milliseconds: 300),
+                  child: Container(
+                    margin: const EdgeInsets.fromLTRB(6, 4, 6, 8),
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(18),
+                      color: const Color(0xFF0D0A04),
+                      border: Border.all(color: isActive ? kGold.withValues(alpha: 0.4) : kGold.withValues(alpha: 0.12)),
+                      boxShadow: [BoxShadow(color: kGold.withValues(alpha: isActive ? 0.1 : 0.03), blurRadius: 16)],
                     ),
-                    border: Border.all(color: kGold.withValues(alpha: 0.25)),
-                    boxShadow: [
-                      BoxShadow(
-                          color: Colors.black.withValues(alpha: 0.4),
-                          blurRadius: 20,
-                          offset: const Offset(0, 8)),
-                    ],
-                  ),
-                  child: ClipRRect(
-                    borderRadius: BorderRadius.circular(22),
-                    child: Stack(children: [
-                      // Background photo
-                      if (photoUrl != null && photoUrl.isNotEmpty)
-                        Positioned.fill(
-                          child: Image.network(photoUrl, fit: BoxFit.cover,
-                              errorBuilder: (_, __, ___) => const SizedBox()),
-                        ),
-                      // Gradient overlay
-                      Positioned.fill(
-                        child: DecoratedBox(
-                          decoration: BoxDecoration(
-                            gradient: LinearGradient(
-                              begin: Alignment.topCenter,
-                              end: Alignment.bottomCenter,
-                              colors: [
-                                Colors.transparent,
-                                Colors.black.withValues(alpha: 0.75),
-                              ],
-                            ),
-                          ),
+                    child: Column(children: [
+                      // Φωτογραφία (πάνω μέρος κάρτας)
+                      Expanded(
+                        child: ClipRRect(
+                          borderRadius: const BorderRadius.vertical(top: Radius.circular(18)),
+                          child: Stack(fit: StackFit.expand, children: [
+                            if (photoUrl != null && photoUrl.isNotEmpty)
+                              Image.network(photoUrl, fit: BoxFit.cover,
+                                  errorBuilder: (_, __, ___) => _proInitialsBox(initials))
+                            else
+                              _proInitialsBox(initials),
+                            if (isNew)
+                              Positioned(top: 8, right: 8,
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
+                                  decoration: BoxDecoration(
+                                    borderRadius: BorderRadius.circular(6),
+                                    color: Colors.black.withValues(alpha: 0.65),
+                                    border: Border.all(color: kGold.withValues(alpha: 0.4)),
+                                  ),
+                                  child: const Text('Νέος', style: TextStyle(color: kGold, fontSize: 8, fontWeight: FontWeight.w700)),
+                                ),
+                              ),
+                            Positioned.fill(child: DecoratedBox(
+                              decoration: BoxDecoration(
+                                gradient: LinearGradient(
+                                  begin: Alignment.topCenter, end: Alignment.bottomCenter,
+                                  colors: [Colors.transparent, Colors.black.withValues(alpha: 0.35)],
+                                  stops: const [0.6, 1.0],
+                                ),
+                              ),
+                            )),
+                          ]),
                         ),
                       ),
-                      // Content
-                      Positioned(
-                        left: 14, right: 14, bottom: 14,
-                        child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                          if (specialty.isNotEmpty)
-                            Container(
-                              margin: const EdgeInsets.only(bottom: 6),
-                              padding: const EdgeInsets.symmetric(
-                                  horizontal: 8, vertical: 3),
-                              decoration: BoxDecoration(
-                                borderRadius: BorderRadius.circular(6),
-                                color: kGold.withValues(alpha: 0.85),
-                              ),
-                              child: Text(specialty,
-                                  style: const TextStyle(
-                                      color: Colors.black,
-                                      fontSize: 9,
-                                      fontWeight: FontWeight.w700)),
-                            ),
-                          Text(name,
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: const TextStyle(
-                                  color: Colors.white,
-                                  fontSize: 15,
-                                  fontWeight: FontWeight.w700)),
-                          const SizedBox(height: 4),
+                      // Info (κάτω μέρος)
+                      Padding(
+                        padding: const EdgeInsets.fromLTRB(10, 7, 10, 8),
+                        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                          Text(name, maxLines: 1, overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.w700)),
+                          if (specialty.isNotEmpty) ...[
+                            const SizedBox(height: 1),
+                            Text(specialty, maxLines: 1, overflow: TextOverflow.ellipsis,
+                                style: TextStyle(color: _g(0.4), fontSize: 10)),
+                          ],
+                          const SizedBox(height: 5),
                           Row(children: [
-                            if (isNew)
-                              Container(
-                                padding: const EdgeInsets.symmetric(
-                                    horizontal: 6, vertical: 2),
-                                decoration: BoxDecoration(
-                                  borderRadius: BorderRadius.circular(5),
-                                  color: kGreen.withValues(alpha: 0.2),
-                                  border: Border.all(
-                                      color: kGreen.withValues(alpha: 0.5)),
-                                ),
-                                child: const Text('Νέος',
-                                    style: TextStyle(
-                                        color: kGreen,
-                                        fontSize: 9,
-                                        fontWeight: FontWeight.w700)),
-                              )
-                            else
-                              Row(children: [
-                                const Icon(Icons.star_rounded,
-                                    color: kGold, size: 13),
-                                const SizedBox(width: 2),
-                                Text(rating.toStringAsFixed(1),
-                                    style: const TextStyle(
-                                        color: Colors.white,
-                                        fontSize: 11,
-                                        fontWeight: FontWeight.w600)),
-                              ]),
-                            const SizedBox(width: 8),
-                            Text('+${(docs.length * 10).clamp(10, 99)}λ',
-                                style: TextStyle(
-                                    color: _g(0.55), fontSize: 10)),
+                            Text(rating > 0 ? '⭐ ${rating.toStringAsFixed(1)}' : '⭐ Νέος',
+                                style: const TextStyle(color: kGold, fontSize: 10, fontWeight: FontWeight.w600)),
+                            const Spacer(),
+                            Text('~30λ', style: TextStyle(color: _g(0.3), fontSize: 9)),
                           ]),
                         ]),
                       ),
-                      // Avatar fallback (top center when no photo)
-                      if (photoUrl == null || photoUrl.isEmpty)
-                        Positioned(
-                          top: 20,
-                          left: 0, right: 0,
-                          child: Center(
-                            child: Container(
-                              width: 80, height: 80,
-                              decoration: BoxDecoration(
-                                shape: BoxShape.circle,
-                                color: kGold.withValues(alpha: 0.15),
-                                border: Border.all(color: kGold, width: 2),
-                              ),
-                              child: Center(
-                                child: Text(
-                                  name.isNotEmpty ? name[0].toUpperCase() : 'P',
-                                  style: const TextStyle(
-                                      color: kGold,
-                                      fontSize: 32,
-                                      fontWeight: FontWeight.bold),
-                                ),
-                              ),
-                            ),
-                          ),
-                        ),
                     ]),
                   ),
                 ),
               );
             },
-          );
-        },
-      ),
+          ),
+        );
+      },
     );
   }
+
+  Widget _proInitialsBox(String initials) => Container(
+    color: kGold.withValues(alpha: 0.08),
+    child: Center(child: Text(initials,
+        style: const TextStyle(color: kGold, fontSize: 36, fontWeight: FontWeight.bold))),
+  );
 }
 
 // ══════════════════════════════════════════════════════
@@ -9273,6 +9494,2053 @@ class _EventFormSheetState extends State<_EventFormSheet> {
           ]),
         ),
       ),
+    );
+  }
+}
+
+// ══════════════════════════════════════════════════════
+// IN-APP NOTIFICATION OVERLAY
+// ══════════════════════════════════════════════════════
+class _InAppNotif {
+  final String title;
+  final String body;
+  final String id;
+  const _InAppNotif({required this.title, required this.body, required this.id});
+}
+
+final ValueNotifier<_InAppNotif?> _inAppNotifNotifier = ValueNotifier(null);
+
+class InAppNotifOverlay extends StatefulWidget {
+  final Widget child;
+  const InAppNotifOverlay({super.key, required this.child});
+  @override
+  State<InAppNotifOverlay> createState() => _InAppNotifOverlayState();
+}
+
+class _InAppNotifOverlayState extends State<InAppNotifOverlay>
+    with SingleTickerProviderStateMixin {
+  late AnimationController _animCtrl;
+  late Animation<Offset> _slideAnim;
+  late Animation<double> _fadeAnim;
+  _InAppNotif? _current;
+  Timer? _hideTimer;
+
+  @override
+  void initState() {
+    super.initState();
+    _animCtrl = AnimationController(vsync: this, duration: const Duration(milliseconds: 350));
+    _slideAnim = Tween<Offset>(begin: const Offset(0, -1.5), end: Offset.zero)
+        .animate(CurvedAnimation(parent: _animCtrl, curve: Curves.easeOutBack));
+    _fadeAnim = CurvedAnimation(parent: _animCtrl, curve: Curves.easeOut);
+    _inAppNotifNotifier.addListener(_onNotif);
+  }
+
+  @override
+  void dispose() {
+    _inAppNotifNotifier.removeListener(_onNotif);
+    _hideTimer?.cancel();
+    _animCtrl.dispose();
+    super.dispose();
+  }
+
+  void _onNotif() {
+    final notif = _inAppNotifNotifier.value;
+    if (notif == null) return;
+    setState(() => _current = notif);
+    _animCtrl.forward(from: 0);
+    _hideTimer?.cancel();
+    _hideTimer = Timer(const Duration(seconds: 4), () {
+      _animCtrl.reverse().then((_) {
+        if (mounted) setState(() => _current = null);
+      });
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Stack(children: [
+      widget.child,
+      if (_current != null)
+        Positioned(
+          top: MediaQuery.of(context).padding.top + 8,
+          left: 16, right: 16,
+          child: SlideTransition(
+            position: _slideAnim,
+            child: FadeTransition(
+              opacity: _fadeAnim,
+              child: GestureDetector(
+                onTap: () {
+                  _hideTimer?.cancel();
+                  _animCtrl.reverse().then((_) {
+                    if (mounted) setState(() => _current = null);
+                  });
+                },
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(16),
+                    color: const Color(0xFF1A1500),
+                    border: Border.all(color: kGold.withValues(alpha: 0.5)),
+                    boxShadow: [
+                      BoxShadow(color: Colors.black.withValues(alpha: 0.5), blurRadius: 20),
+                      BoxShadow(color: kGold.withValues(alpha: 0.1), blurRadius: 12),
+                    ],
+                  ),
+                  child: Row(children: [
+                    Container(
+                      width: 38, height: 38,
+                      decoration: BoxDecoration(shape: BoxShape.circle,
+                          color: kGold.withValues(alpha: 0.15)),
+                      child: const Center(child: Text('🔔', style: TextStyle(fontSize: 18))),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start,
+                        mainAxisSize: MainAxisSize.min, children: [
+                      Text(_current!.title, maxLines: 1, overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(color: Colors.white, fontSize: 13,
+                              fontWeight: FontWeight.w700)),
+                      if (_current!.body.isNotEmpty)
+                        Text(_current!.body, maxLines: 2, overflow: TextOverflow.ellipsis,
+                            style: TextStyle(color: _g(0.55), fontSize: 11, height: 1.4)),
+                    ])),
+                    Icon(Icons.close, color: _g(0.3), size: 16),
+                  ]),
+                ),
+              ),
+            ),
+          ),
+        ),
+    ]);
+  }
+}
+
+// ══════════════════════════════════════════════════════
+// RATING DIALOG
+// ══════════════════════════════════════════════════════
+class _RatingDialog extends StatefulWidget {
+  final String proName;
+  const _RatingDialog({required this.proName});
+  @override
+  State<_RatingDialog> createState() => _RatingDialogState();
+}
+class _RatingDialogState extends State<_RatingDialog> {
+  int _stars = 0;
+  final _commentCtrl = TextEditingController();
+
+  @override
+  void dispose() { _commentCtrl.dispose(); super.dispose(); }
+
+  @override
+  Widget build(BuildContext context) {
+    return Dialog(
+      backgroundColor: Colors.transparent,
+      child: Container(
+        padding: const EdgeInsets.all(24),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(24),
+          color: const Color(0xFF111111),
+          border: Border.all(color: kGold.withValues(alpha: 0.35)),
+          boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.6), blurRadius: 30)],
+        ),
+        child: Column(mainAxisSize: MainAxisSize.min, children: [
+          const Text('⭐', style: TextStyle(fontSize: 36)),
+          const SizedBox(height: 10),
+          Text('Αξιολόγησε τον\n${widget.proName}',
+              textAlign: TextAlign.center,
+              style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.w700, height: 1.4)),
+          const SizedBox(height: 18),
+          Row(mainAxisAlignment: MainAxisAlignment.center, children: List.generate(5, (i) {
+            final filled = i < _stars;
+            return GestureDetector(
+              onTap: () => setState(() => _stars = i + 1),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 4),
+                child: Icon(
+                  filled ? Icons.star_rounded : Icons.star_outline_rounded,
+                  color: filled ? kGold : _g(0.25), size: 40,
+                ),
+              ),
+            );
+          })),
+          const SizedBox(height: 6),
+          if (_stars > 0)
+            Text(['', '😕 Κακό', '😐 Μέτριο', '🙂 Καλό', '😊 Πολύ καλό', '🤩 Εξαιρετικό'][_stars],
+                style: TextStyle(color: kGold.withValues(alpha: 0.8), fontSize: 12)),
+          const SizedBox(height: 14),
+          Container(
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(12),
+              color: _g(0.05),
+              border: Border.all(color: kGold.withValues(alpha: 0.2)),
+            ),
+            child: TextField(
+              controller: _commentCtrl, maxLines: 3, maxLength: 300,
+              style: TextStyle(color: _g(0.85), fontSize: 13),
+              decoration: InputDecoration(
+                hintText: 'Σχόλιο (προαιρετικό)...',
+                hintStyle: TextStyle(color: _g(0.3), fontSize: 12),
+                border: InputBorder.none,
+                contentPadding: const EdgeInsets.all(14),
+                counterStyle: TextStyle(color: _g(0.2), fontSize: 9),
+              ),
+            ),
+          ),
+          const SizedBox(height: 20),
+          Row(children: [
+            Expanded(
+              child: GestureDetector(
+                onTap: () => Navigator.pop(context),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(vertical: 12),
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(12),
+                    color: _g(0.06), border: Border.all(color: _g(0.1)),
+                  ),
+                  child: Center(child: Text('Άκυρο', style: TextStyle(color: _g(0.55), fontSize: 14))),
+                ),
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: GestureDetector(
+                onTap: _stars == 0 ? null : () =>
+                    Navigator.pop(context, {'rating': _stars, 'comment': _commentCtrl.text.trim()}),
+                child: AnimatedContainer(
+                  duration: const Duration(milliseconds: 200),
+                  padding: const EdgeInsets.symmetric(vertical: 12),
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(12),
+                    gradient: _stars > 0 ? const LinearGradient(colors: [kGoldLight, kGold]) : null,
+                    color: _stars == 0 ? _g(0.06) : null,
+                  ),
+                  child: Center(child: Text('Υποβολή',
+                      style: TextStyle(
+                          color: _stars > 0 ? Colors.black : _g(0.25),
+                          fontWeight: FontWeight.w700, fontSize: 14))),
+                ),
+              ),
+            ),
+          ]),
+        ]),
+      ),
+    );
+  }
+}
+
+Future<void> _submitRating({
+  required BuildContext context,
+  required String selectionDocId,
+  required String userId,
+  required String proId,
+  required String proName,
+  required String requestId,
+  required int rating,
+  required String comment,
+}) async {
+  try {
+    await FirebaseFirestore.instance.collection('reviews').add({
+      'rating': rating,
+      'comment': comment,
+      'userId': userId,
+      'proId': proId,
+      'proName': proName,
+      'requestId': requestId,
+      'createdAt': FieldValue.serverTimestamp(),
+    });
+    if (proId.isNotEmpty) {
+      final userRef = FirebaseFirestore.instance.collection('users').doc(proId);
+      final profRef = FirebaseFirestore.instance.collection('professionals').doc(proId);
+      await FirebaseFirestore.instance.runTransaction((tx) async {
+        final snap = await tx.get(userRef);
+        final data = snap.data() ?? {};
+        final oldCount = ((data['reviewCount'] ?? 0) as num).toInt();
+        final oldAvg = ((data['averageRating'] ?? 0) as num).toDouble();
+        final newCount = oldCount + 1;
+        final newAvg = ((oldAvg * oldCount) + rating) / newCount;
+        tx.update(userRef, {'reviewCount': newCount, 'averageRating': newAvg});
+        tx.set(profRef, {'reviewCount': newCount, 'averageRating': newAvg}, SetOptions(merge: true));
+      });
+    }
+    if (userId.isNotEmpty && selectionDocId.isNotEmpty) {
+      await FirebaseFirestore.instance
+          .collection('users').doc(userId)
+          .collection('selectedProfessionals').doc(selectionDocId)
+          .update({'rated': true, 'myRating': rating});
+    }
+  } catch (e) {
+    if (context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Σφάλμα αξιολόγησης: $e')));
+    }
+  }
+}
+
+// ══════════════════════════════════════════════════════
+// PRO PORTFOLIO SCREEN
+// ══════════════════════════════════════════════════════
+class ProPortfolioScreen extends StatefulWidget {
+  final Map<String, dynamic> pro;
+  const ProPortfolioScreen({super.key, required this.pro});
+  @override
+  State<ProPortfolioScreen> createState() => _ProPortfolioScreenState();
+}
+
+class _ProPortfolioScreenState extends State<ProPortfolioScreen> {
+  Uint8List? _photoBytes;
+  double? _liveRating;
+  int? _liveReviewCount;
+  double? _googleRating;
+  int _googleRatingCount = 0;
+  String _googleMapsUrl = '';
+
+  @override
+  void initState() {
+    super.initState();
+    final url = (widget.pro['profilePhotoUrl'] ?? widget.pro['photo_url'] ?? '') as String;
+    if (url.isNotEmpty) {
+      http.get(Uri.parse(url)).timeout(const Duration(seconds: 10)).then((res) {
+        if (res.statusCode == 200 && mounted) setState(() => _photoBytes = res.bodyBytes);
+      }).catchError((_) {});
+    }
+    final proId = (widget.pro['id'] ?? widget.pro['uid'] ?? '') as String;
+    if (proId.isNotEmpty) {
+      FirebaseFirestore.instance.collection('users').doc(proId).get().then((snap) {
+        if (!mounted || !snap.exists) return;
+        final d = snap.data() ?? {};
+        final r = ((d['averageRating'] ?? 0) as num).toDouble();
+        final c = ((d['reviewCount'] ?? 0) as num).toInt();
+        if (c > 0) setState(() { _liveRating = r; _liveReviewCount = c; });
+      }).catchError((_) {});
+    }
+    final googlePlaceId = (widget.pro['googlePlaceId'] ?? '') as String;
+    if (googlePlaceId.isNotEmpty) {
+      final cached = (widget.pro['googleRating'] as num?)?.toDouble();
+      final cachedCount = (widget.pro['googleRatingCount'] as num?)?.toInt() ?? 0;
+      final cachedUrl = (widget.pro['googleMapsUrl'] as String?) ?? '';
+      if (cached != null && cached > 0) {
+        _googleRating = cached;
+        _googleRatingCount = cachedCount;
+        _googleMapsUrl = cachedUrl;
+      }
+      Future(() async {
+        try {
+          final resp = await http.get(
+            Uri.parse('$kBackendUrl/places-rating?placeId=$googlePlaceId'),
+          ).timeout(const Duration(seconds: 10));
+          final d = jsonDecode(resp.body) as Map<String, dynamic>;
+          final r = (d['rating'] as num?)?.toDouble();
+          final c = (d['userRatingsTotal'] as num?)?.toInt() ?? 0;
+          final mu = d['mapsUrl'] as String? ?? '';
+          if (r != null && r > 0 && mounted) {
+            setState(() { _googleRating = r; _googleRatingCount = c; _googleMapsUrl = mu; });
+          }
+        } catch (_) {}
+      });
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final pro = widget.pro;
+    final name = (pro['name'] ?? pro['displayName'] ?? 'Επαγγελματίας') as String;
+    final specialty = (pro['specialty'] ?? pro['profession'] ?? '') as String;
+    final area = (pro['area'] ?? '') as String;
+    final bio = (pro['bio'] ?? pro['description'] ?? '') as String;
+    final isVerified = pro['verified'] == true || pro['afmVerified'] == true;
+    final isOnline = pro['is_active'] == true;
+    final rating = _liveRating ?? ((pro['averageRating'] ?? pro['rating'] ?? 0.0) as num).toDouble();
+    final reviewCount = _liveReviewCount ?? ((pro['reviewCount'] ?? 0) as num).toInt();
+    final jobs = ((pro['jobs_count'] ?? pro['completed_jobs'] ?? 0) as num).toInt();
+    final initial = name.isNotEmpty ? name[0].toUpperCase() : 'Π';
+    final portfolioProjects = ((pro['portfolioProjects'] as List?) ?? [])
+        .map((p) => Map<String, dynamic>.from(p as Map)).toList();
+    final legacyPhotos = (pro['portfolioPhotos'] ?? pro['photos'] ?? []) as List;
+
+    return Scaffold(
+      backgroundColor: kBg,
+      body: Column(children: [
+        SizedBox(
+          height: 220,
+          child: Stack(fit: StackFit.expand, children: [
+            _photoBytes != null
+                ? Image.memory(_photoBytes!, fit: BoxFit.cover)
+                : Container(
+                    color: const Color(0xFF1A1500),
+                    child: Center(child: Text(initial,
+                        style: const TextStyle(color: kGold, fontSize: 80, fontWeight: FontWeight.w800))),
+                  ),
+            const DecoratedBox(
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topCenter, end: Alignment.bottomCenter,
+                  stops: [0.4, 1.0],
+                  colors: [Colors.transparent, kBg],
+                ),
+              ),
+            ),
+            Positioned(
+              top: MediaQuery.of(context).padding.top + 8, left: 12,
+              child: GestureDetector(
+                onTap: () => Navigator.pop(context),
+                child: Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(shape: BoxShape.circle, color: Colors.black.withValues(alpha: 0.55)),
+                  child: const Icon(Icons.arrow_back_ios_new, color: Colors.white, size: 16),
+                ),
+              ),
+            ),
+            if (isOnline)
+              Positioned(
+                top: MediaQuery.of(context).padding.top + 10, right: 14,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(20),
+                    color: kGreen.withValues(alpha: 0.18),
+                    border: Border.all(color: kGreen.withValues(alpha: 0.6)),
+                  ),
+                  child: Row(mainAxisSize: MainAxisSize.min, children: [
+                    Container(width: 7, height: 7,
+                        decoration: const BoxDecoration(shape: BoxShape.circle, color: kGreen)),
+                    const SizedBox(width: 5),
+                    const Text('Online', style: TextStyle(color: kGreen, fontSize: 11, fontWeight: FontWeight.w700)),
+                  ]),
+                ),
+              ),
+            Positioned(
+              bottom: 12, left: 16, right: 16,
+              child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                Row(children: [
+                  Flexible(child: Text(name,
+                      style: const TextStyle(color: Colors.white, fontSize: 22, fontWeight: FontWeight.w800,
+                          shadows: [Shadow(blurRadius: 10, color: Colors.black)]))),
+                  if (isVerified) ...[
+                    const SizedBox(width: 8),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(20),
+                        gradient: const LinearGradient(colors: [kGoldLight, kGold]),
+                        boxShadow: [BoxShadow(color: kGold.withValues(alpha: 0.4), blurRadius: 8)],
+                      ),
+                      child: const Row(mainAxisSize: MainAxisSize.min, children: [
+                        Icon(Icons.verified_rounded, color: Colors.black, size: 12),
+                        SizedBox(width: 4),
+                        Text('Verified ΑΦΜ', style: TextStyle(color: Colors.black, fontSize: 11, fontWeight: FontWeight.w800)),
+                      ]),
+                    ),
+                  ],
+                ]),
+                if (specialty.isNotEmpty)
+                  Text(specialty, style: const TextStyle(color: kGold, fontSize: 13, fontWeight: FontWeight.w600)),
+              ]),
+            ),
+          ]),
+        ),
+        Expanded(
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.fromLTRB(20, 12, 20, 24),
+            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Row(children: [
+                _statPill('⭐', rating > 0 ? rating.toStringAsFixed(1) : '—',
+                    reviewCount > 0 ? '$reviewCount κριτικές' : 'Βαθμολογία'),
+                const SizedBox(width: 8),
+                _statPill('🏆', jobs > 0 ? '$jobs' : 'Νέος', 'Έργα'),
+                const SizedBox(width: 8),
+                _statPill('⚡', '~30λ', 'Απόκριση'),
+              ]),
+              if (area.isNotEmpty) ...[
+                const SizedBox(height: 10),
+                Row(children: [
+                  Icon(Icons.location_on_outlined, color: kGold.withValues(alpha: 0.6), size: 13),
+                  const SizedBox(width: 4),
+                  Text(area, style: TextStyle(color: _g(0.45), fontSize: 12)),
+                ]),
+              ],
+              if (bio.isNotEmpty) ...[
+                const SizedBox(height: 20),
+                Row(children: [
+                  Container(width: 3, height: 16,
+                      decoration: BoxDecoration(borderRadius: BorderRadius.circular(2),
+                          gradient: const LinearGradient(begin: Alignment.topCenter, end: Alignment.bottomCenter,
+                              colors: [kGoldLight, kGold]))),
+                  const SizedBox(width: 8),
+                  const Text('MINI CV', style: TextStyle(color: kGold, fontSize: 11, fontWeight: FontWeight.w800, letterSpacing: 1.2)),
+                ]),
+                const SizedBox(height: 10),
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(16),
+                    color: _g(0.04),
+                    border: Border.all(color: kGold.withValues(alpha: 0.12)),
+                  ),
+                  child: Text(bio, style: TextStyle(color: _g(0.75), fontSize: 13, height: 1.65)),
+                ),
+              ],
+              const SizedBox(height: 20),
+              Row(children: [
+                Container(width: 3, height: 16,
+                    decoration: BoxDecoration(borderRadius: BorderRadius.circular(2),
+                        gradient: const LinearGradient(begin: Alignment.topCenter, end: Alignment.bottomCenter,
+                            colors: [kGoldLight, kGold]))),
+                const SizedBox(width: 8),
+                const Text('ΑΞΙΟΛΟΓΗΣΕΙΣ', style: TextStyle(color: kGold, fontSize: 11, fontWeight: FontWeight.w800, letterSpacing: 1.2)),
+              ]),
+              const SizedBox(height: 10),
+              StreamBuilder<QuerySnapshot>(
+                stream: (pro['id'] ?? pro['uid'] ?? '').toString().isEmpty
+                    ? const Stream.empty()
+                    : FirebaseFirestore.instance
+                        .collection('reviews')
+                        .where('proId', isEqualTo: (pro['id'] ?? pro['uid'] ?? '').toString())
+                        .limit(5).snapshots(),
+                builder: (ctx, revSnap) {
+                  if (!revSnap.hasData || revSnap.data!.docs.isEmpty) {
+                    return Container(
+                      padding: const EdgeInsets.symmetric(vertical: 16),
+                      decoration: BoxDecoration(borderRadius: BorderRadius.circular(14),
+                          color: _g(0.04), border: Border.all(color: _g(0.08))),
+                      child: Center(child: Text('Δεν υπάρχουν αξιολογήσεις ακόμα',
+                          style: TextStyle(color: _g(0.3), fontSize: 12))),
+                    );
+                  }
+                  return Column(children: revSnap.data!.docs.map((rd) {
+                    final rv = rd.data() as Map<String, dynamic>;
+                    final rvRating = (rv['rating'] as int?) ?? 5;
+                    final rvComment = (rv['comment'] as String?) ?? '';
+                    final rvTs = rv['createdAt'] as Timestamp?;
+                    final rvDate = rvTs != null ? rvTs.toDate() : DateTime.now();
+                    return Container(
+                      margin: const EdgeInsets.only(bottom: 10),
+                      padding: const EdgeInsets.all(14),
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(14),
+                        color: _g(0.04),
+                        border: Border.all(color: kGold.withValues(alpha: 0.1)),
+                      ),
+                      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                        Row(children: [
+                          ...List.generate(5, (si) => Icon(
+                            si < rvRating ? Icons.star_rounded : Icons.star_outline_rounded,
+                            color: si < rvRating ? kGold : _g(0.2), size: 14,
+                          )),
+                          const Spacer(),
+                          Text('${rvDate.day}/${rvDate.month}/${rvDate.year}',
+                              style: TextStyle(color: _g(0.3), fontSize: 10)),
+                        ]),
+                        if (rvComment.isNotEmpty) ...[
+                          const SizedBox(height: 8),
+                          Text(rvComment, style: TextStyle(color: _g(0.65), fontSize: 12, height: 1.5)),
+                        ],
+                      ]),
+                    );
+                  }).toList());
+                },
+              ),
+              if (_googleRating != null && _googleRating! > 0) ...[
+                const SizedBox(height: 20),
+                Row(children: [
+                  Container(width: 3, height: 16,
+                      decoration: BoxDecoration(borderRadius: BorderRadius.circular(2),
+                          color: const Color(0xFF4285F4))),
+                  const SizedBox(width: 8),
+                  const Text('ΑΞΙΟΛΟΓΗΣΕΙΣ GOOGLE', style: TextStyle(
+                      color: Color(0xFF4285F4), fontSize: 11, fontWeight: FontWeight.w800, letterSpacing: 1.2)),
+                ]),
+                const SizedBox(height: 10),
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(14),
+                    color: const Color(0xFF4285F4).withValues(alpha: 0.05),
+                    border: Border.all(color: const Color(0xFF4285F4).withValues(alpha: 0.2)),
+                  ),
+                  child: Row(children: [
+                    Container(width: 42, height: 42,
+                      decoration: BoxDecoration(shape: BoxShape.circle,
+                          color: const Color(0xFF4285F4).withValues(alpha: 0.12)),
+                      child: const Center(child: Text('G', style: TextStyle(
+                          color: Color(0xFF4285F4), fontSize: 20, fontWeight: FontWeight.w900)))),
+                    const SizedBox(width: 14),
+                    Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start,
+                        mainAxisSize: MainAxisSize.min, children: [
+                      Row(children: [
+                        const Icon(Icons.star_rounded, color: Color(0xFFFFC107), size: 18),
+                        const SizedBox(width: 5),
+                        Text(_googleRating!.toStringAsFixed(1),
+                            style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.w800)),
+                        const SizedBox(width: 8),
+                        Text('$_googleRatingCount κριτικές', style: TextStyle(color: _g(0.45), fontSize: 12)),
+                      ]),
+                      Text('Google Reviews', style: TextStyle(
+                          color: const Color(0xFF4285F4).withValues(alpha: 0.7), fontSize: 11)),
+                    ])),
+                  ]),
+                ),
+              ],
+              const SizedBox(height: 20),
+              Row(children: [
+                Container(width: 3, height: 16,
+                    decoration: BoxDecoration(borderRadius: BorderRadius.circular(2),
+                        gradient: const LinearGradient(begin: Alignment.topCenter, end: Alignment.bottomCenter,
+                            colors: [kGoldLight, kGold]))),
+                const SizedBox(width: 8),
+                const Text('PORTFOLIO', style: TextStyle(color: kGold, fontSize: 11, fontWeight: FontWeight.w800, letterSpacing: 1.2)),
+              ]),
+              const SizedBox(height: 12),
+              if (portfolioProjects.isEmpty && legacyPhotos.isEmpty)
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.symmetric(vertical: 24),
+                  decoration: BoxDecoration(borderRadius: BorderRadius.circular(14),
+                      color: _g(0.04), border: Border.all(color: _g(0.08))),
+                  child: Column(mainAxisSize: MainAxisSize.min, children: [
+                    const Text('📷', style: TextStyle(fontSize: 28)),
+                    const SizedBox(height: 8),
+                    Text('Δεν υπάρχουν φωτογραφίες ακόμα', style: TextStyle(color: _g(0.3), fontSize: 12)),
+                  ]),
+                )
+              else if (portfolioProjects.isNotEmpty)
+                ...portfolioProjects.map((proj) {
+                  final projTitle = proj['title'] as String? ?? '';
+                  final projPhotos = List<String>.from(proj['photos'] ?? []);
+                  if (projPhotos.isEmpty) return const SizedBox.shrink();
+                  return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                    Container(
+                      margin: const EdgeInsets.only(bottom: 10),
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(10),
+                        color: kGold.withValues(alpha: 0.08),
+                        border: Border.all(color: kGold.withValues(alpha: 0.2)),
+                      ),
+                      child: Row(children: [
+                        const Text('📁', style: TextStyle(fontSize: 13)),
+                        const SizedBox(width: 7),
+                        Expanded(child: Text(projTitle,
+                            style: const TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.w700))),
+                        Text('${projPhotos.length} φωτ.', style: TextStyle(color: _g(0.35), fontSize: 10)),
+                      ]),
+                    ),
+                    GridView.builder(
+                      shrinkWrap: true,
+                      physics: const NeverScrollableScrollPhysics(),
+                      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                          crossAxisCount: 3, crossAxisSpacing: 5, mainAxisSpacing: 5, childAspectRatio: 1.0),
+                      itemCount: projPhotos.length,
+                      itemBuilder: (_, i) => GestureDetector(
+                        onTap: () => Navigator.push(context, PageRouteBuilder(
+                          pageBuilder: (_, __, ___) => _FullscreenPhotoViewer(photos: projPhotos, startIndex: i),
+                          transitionsBuilder: (_, a, __, c) => FadeTransition(opacity: a, child: c),
+                        )),
+                        child: ClipRRect(borderRadius: BorderRadius.circular(10),
+                          child: Image.network(projPhotos[i], fit: BoxFit.cover,
+                              errorBuilder: (_, __, ___) => Container(color: _g(0.06)))),
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                  ]);
+                })
+              else
+                GridView.builder(
+                  shrinkWrap: true,
+                  physics: const NeverScrollableScrollPhysics(),
+                  gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                      crossAxisCount: 3, crossAxisSpacing: 5, mainAxisSpacing: 5, childAspectRatio: 1.0),
+                  itemCount: legacyPhotos.length,
+                  itemBuilder: (_, i) {
+                    final url = legacyPhotos[i] as String? ?? '';
+                    return GestureDetector(
+                      onTap: () => Navigator.push(context, PageRouteBuilder(
+                        pageBuilder: (_, __, ___) => _FullscreenPhotoViewer(
+                            photos: legacyPhotos.map((e) => e as String).toList(), startIndex: i),
+                        transitionsBuilder: (_, a, __, c) => FadeTransition(opacity: a, child: c),
+                      )),
+                      child: ClipRRect(borderRadius: BorderRadius.circular(10),
+                        child: Image.network(url, fit: BoxFit.cover,
+                            errorBuilder: (_, __, ___) => Container(color: _g(0.06)))),
+                    );
+                  },
+                ),
+            ]),
+          ),
+        ),
+        SafeArea(
+          top: false,
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(20, 8, 20, 12),
+            child: GestureDetector(
+              onTap: () => Navigator.push(context, PageRouteBuilder(
+                pageBuilder: (_, __, ___) => DirectRequestScreen(pro: widget.pro),
+                transitionsBuilder: (_, a, __, c) => FadeTransition(opacity: a, child: c),
+                transitionDuration: const Duration(milliseconds: 350),
+              )),
+              child: Container(
+                width: double.infinity,
+                padding: const EdgeInsets.symmetric(vertical: 16),
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(16),
+                  gradient: const LinearGradient(colors: [kGoldLight, kGold, kGoldDark]),
+                  boxShadow: [BoxShadow(color: kGold.withValues(alpha: 0.4), blurRadius: 16)],
+                ),
+                child: const Center(child: Text('💬 Επικοινώνησε με τον Επαγγελματία',
+                    style: TextStyle(color: Colors.black, fontSize: 14, fontWeight: FontWeight.w900))),
+              ),
+            ),
+          ),
+        ),
+      ]),
+    );
+  }
+
+  Widget _statPill(String emoji, String value, String label) => Expanded(
+    child: Container(
+      padding: const EdgeInsets.symmetric(vertical: 10),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(12),
+        color: _g(0.05),
+        border: Border.all(color: _g(0.09)),
+      ),
+      child: Column(mainAxisSize: MainAxisSize.min, children: [
+        Text(emoji, style: const TextStyle(fontSize: 16)),
+        const SizedBox(height: 3),
+        Text(value, style: const TextStyle(color: Colors.white, fontSize: 14,
+            fontWeight: FontWeight.w800, fontFamily: 'Raleway')),
+        Text(label, style: TextStyle(color: _g(0.35), fontSize: 9)),
+      ]),
+    ),
+  );
+}
+
+// ══════════════════════════════════════════════════════
+// DIRECT REQUEST SCREEN
+// ══════════════════════════════════════════════════════
+class DirectRequestScreen extends StatefulWidget {
+  final Map<String, dynamic> pro;
+  const DirectRequestScreen({super.key, required this.pro});
+  @override
+  State<DirectRequestScreen> createState() => _DirectRequestScreenState();
+}
+
+class _DirectRequestScreenState extends State<DirectRequestScreen> {
+  final _msgCtrl = TextEditingController();
+  final List<Uint8List> _photos = [];
+  bool _sending = false;
+
+  @override
+  void dispose() { _msgCtrl.dispose(); super.dispose(); }
+
+  Future<void> _pickPhoto() async {
+    try {
+      final picker = ImagePicker();
+      final xf = await picker.pickImage(source: ImageSource.gallery, imageQuality: 75);
+      if (xf == null) return;
+      final bytes = await xf.readAsBytes();
+      if (mounted) setState(() => _photos.add(bytes));
+    } catch (_) {}
+  }
+
+  Future<void> _send() async {
+    final msg = _msgCtrl.text.trim();
+    if (msg.isEmpty && _photos.isEmpty) return;
+    setState(() => _sending = true);
+    try {
+      final user = FirebaseAuth.instance.currentUser;
+      if (user == null) return;
+      final userDoc = await FirebaseFirestore.instance.collection('users').doc(user.uid).get();
+      final userName = userDoc.data()?['name'] ?? 'Χρήστης';
+      final pro = widget.pro;
+      final proId = (pro['id'] ?? pro['uid'] ?? '') as String;
+      final proName = (pro['name'] ?? pro['displayName'] ?? 'Επαγγελματίας') as String;
+
+      final List<String> photoUrls = [];
+      for (int i = 0; i < _photos.length; i++) {
+        try {
+          final ref = FirebaseStorage.instance
+              .ref('chat_photos/${user.uid}/${DateTime.now().millisecondsSinceEpoch}_$i.jpg');
+          await ref.putData(_photos[i], SettableMetadata(contentType: 'image/jpeg'));
+          photoUrls.add(await ref.getDownloadURL());
+        } catch (_) {}
+      }
+
+      final chatId = '${user.uid}_$proId';
+      final msgText = msg.isNotEmpty
+          ? (photoUrls.isNotEmpty ? '$msg\n📷 ${photoUrls.length} φωτογραφίες' : msg)
+          : '📷 ${photoUrls.length} φωτογραφίες';
+
+      await FirebaseFirestore.instance.collection('chats').doc(chatId).set({
+        'userId': user.uid, 'proId': proId,
+        'userName': userName, 'proName': proName,
+        'lastMessage': msgText, 'lastMessageAt': FieldValue.serverTimestamp(),
+        'unreadUser': 0, 'unreadPro': FieldValue.increment(1),
+      }, SetOptions(merge: true));
+
+      await FirebaseFirestore.instance
+          .collection('chats').doc(chatId)
+          .collection('messages').add({
+        'senderId': user.uid, 'senderName': userName,
+        'text': msgText, 'photoUrls': photoUrls,
+        'createdAt': FieldValue.serverTimestamp(),
+      });
+
+      if (proId.isNotEmpty) {
+        await FirebaseFirestore.instance
+            .collection('users').doc(proId)
+            .collection('notifications').add({
+          'title': '💬 Νέο μήνυμα από $userName',
+          'body': msg.isNotEmpty ? msg : '${photoUrls.length} φωτογραφίες',
+          'type': 'direct_chat', 'chatId': chatId,
+          'userId': user.uid, 'userName': userName,
+          'isRead': false, 'createdAt': FieldValue.serverTimestamp(),
+        });
+      }
+
+      if (!mounted) return;
+      Navigator.pop(context);
+      Navigator.push(context, PageRouteBuilder(
+        pageBuilder: (_, __, ___) => ChatScreen(
+          chatId: chatId, currentUserId: user.uid,
+          currentUserName: userName, otherName: proName, isPro: false,
+        ),
+        transitionsBuilder: (_, a, __, c) => FadeTransition(opacity: a, child: c),
+        transitionDuration: const Duration(milliseconds: 300),
+      ));
+    } catch (e) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Σφάλμα: $e'), backgroundColor: Colors.red));
+    } finally {
+      if (mounted) setState(() => _sending = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final pro = widget.pro;
+    final name = (pro['name'] ?? pro['displayName'] ?? 'Επαγγελματίας') as String;
+    final specialty = (pro['specialty'] ?? pro['profession'] ?? '') as String;
+    return Scaffold(
+      backgroundColor: kBg,
+      body: SafeArea(child: Column(children: [
+        Padding(
+          padding: const EdgeInsets.fromLTRB(20, 14, 20, 0),
+          child: Row(children: [
+            GestureDetector(
+              onTap: () => Navigator.pop(context),
+              child: Container(width: 38, height: 38,
+                decoration: BoxDecoration(shape: BoxShape.circle, color: _g(0.06)),
+                child: const Icon(Icons.arrow_back_ios_new, color: Colors.white, size: 16)),
+            ),
+            const SizedBox(width: 14),
+            Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Text('Αίτημα σε $name',
+                  style: const TextStyle(color: Colors.white, fontFamily: 'Raleway', fontSize: 16, fontWeight: FontWeight.w800)),
+              Text(specialty, style: TextStyle(color: _g(0.4), fontSize: 12)),
+            ])),
+          ]),
+        ),
+        const SizedBox(height: 20),
+        Expanded(child: SingleChildScrollView(
+          padding: const EdgeInsets.symmetric(horizontal: 20),
+          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Container(
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(18),
+                color: _g(0.05), border: Border.all(color: _g(0.1)),
+              ),
+              child: TextField(
+                controller: _msgCtrl, maxLines: 6, autofocus: false,
+                style: const TextStyle(color: Colors.white, fontSize: 14),
+                decoration: InputDecoration(
+                  hintText: 'Γράψε τι χρειάζεσαι από τον $name...',
+                  hintStyle: TextStyle(color: _g(0.3), fontSize: 13),
+                  border: InputBorder.none, contentPadding: const EdgeInsets.all(16),
+                ),
+              ),
+            ),
+            const SizedBox(height: 16),
+            if (_photos.isNotEmpty) ...[
+              SizedBox(
+                height: 80,
+                child: ListView.builder(
+                  scrollDirection: Axis.horizontal,
+                  itemCount: _photos.length,
+                  itemBuilder: (_, i) => Stack(children: [
+                    Container(width: 80, height: 80, margin: const EdgeInsets.only(right: 8),
+                      child: ClipRRect(borderRadius: BorderRadius.circular(12),
+                          child: Image.memory(_photos[i], fit: BoxFit.cover))),
+                    Positioned(top: 2, right: 10, child: GestureDetector(
+                      onTap: () => setState(() => _photos.removeAt(i)),
+                      child: Container(width: 20, height: 20,
+                        decoration: const BoxDecoration(shape: BoxShape.circle, color: Colors.red),
+                        child: const Icon(Icons.close, color: Colors.white, size: 12)),
+                    )),
+                  ]),
+                ),
+              ),
+              const SizedBox(height: 12),
+            ],
+            GestureDetector(
+              onTap: _pickPhoto,
+              child: Container(
+                padding: const EdgeInsets.symmetric(vertical: 14),
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(14),
+                  border: Border.all(color: _g(0.12)), color: _g(0.04),
+                ),
+                child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [
+                  Icon(Icons.add_photo_alternate_outlined, color: _g(0.4), size: 20),
+                  const SizedBox(width: 8),
+                  Text('Πρόσθεσε φωτογραφία', style: TextStyle(color: _g(0.4), fontSize: 13)),
+                ]),
+              ),
+            ),
+          ]),
+        )),
+        Padding(
+          padding: const EdgeInsets.fromLTRB(20, 12, 20, 16),
+          child: GestureDetector(
+            onTap: _sending ? null : _send,
+            child: Container(
+              width: double.infinity,
+              padding: const EdgeInsets.symmetric(vertical: 16),
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(16),
+                gradient: const LinearGradient(colors: [kGoldLight, kGold, kGoldDark]),
+                boxShadow: [BoxShadow(color: kGold.withValues(alpha: 0.4), blurRadius: 16)],
+              ),
+              child: Center(child: _sending
+                  ? const SizedBox(width: 20, height: 20,
+                      child: CircularProgressIndicator(color: Colors.black, strokeWidth: 2))
+                  : const Text('📩 Στείλε Αίτημα',
+                      style: TextStyle(color: Colors.black, fontSize: 15, fontWeight: FontWeight.w800))),
+            ),
+          ),
+        ),
+      ])),
+    );
+  }
+}
+
+// ══════════════════════════════════════════════════════
+// MESSAGES SCREEN
+// ══════════════════════════════════════════════════════
+class MessagesScreen extends StatefulWidget {
+  final String userId;
+  const MessagesScreen({super.key, required this.userId});
+  @override
+  State<MessagesScreen> createState() => _MessagesScreenState();
+}
+
+class _MessagesScreenState extends State<MessagesScreen> {
+  Future<void> _deleteChat(String chatId, String proName) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => Dialog(
+        backgroundColor: Colors.transparent,
+        child: Container(
+          padding: const EdgeInsets.all(20),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(20),
+            color: const Color(0xFF111111),
+            border: Border.all(color: Colors.red.withValues(alpha: 0.4)),
+          ),
+          child: Column(mainAxisSize: MainAxisSize.min, children: [
+            const Text('🗑️', style: TextStyle(fontSize: 36)),
+            const SizedBox(height: 10),
+            const Text('Διαγραφή συνομιλίας;',
+                style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.w800)),
+            const SizedBox(height: 8),
+            Text('Η συνομιλία με $proName θα διαγραφεί.',
+                textAlign: TextAlign.center,
+                style: TextStyle(color: Colors.white.withValues(alpha: 0.45), fontSize: 13, height: 1.4)),
+            const SizedBox(height: 20),
+            Row(children: [
+              Expanded(child: GestureDetector(
+                onTap: () => Navigator.pop(ctx, false),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(vertical: 12),
+                  decoration: BoxDecoration(borderRadius: BorderRadius.circular(12),
+                      color: Colors.white.withValues(alpha: 0.06)),
+                  child: const Center(child: Text('Άκυρο',
+                      style: TextStyle(color: Colors.white70, fontWeight: FontWeight.w600))),
+                ),
+              )),
+              const SizedBox(width: 10),
+              Expanded(child: GestureDetector(
+                onTap: () => Navigator.pop(ctx, true),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(vertical: 12),
+                  decoration: BoxDecoration(borderRadius: BorderRadius.circular(12),
+                      color: Colors.red.withValues(alpha: 0.15),
+                      border: Border.all(color: Colors.red.withValues(alpha: 0.4))),
+                  child: const Center(child: Text('Διαγραφή',
+                      style: TextStyle(color: Colors.red, fontWeight: FontWeight.w700))),
+                ),
+              )),
+            ]),
+          ]),
+        ),
+      ),
+    );
+    if (confirmed != true) return;
+    try {
+      final msgs = await FirebaseFirestore.instance
+          .collection('chats').doc(chatId).collection('messages').get();
+      for (final m in msgs.docs) { await m.reference.delete(); }
+      await FirebaseFirestore.instance.collection('chats').doc(chatId).delete();
+    } catch (_) {}
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: kBg,
+      body: SafeArea(child: Column(children: [
+        Container(
+          padding: const EdgeInsets.fromLTRB(16, 14, 20, 14),
+          decoration: BoxDecoration(
+            color: kBg,
+            border: Border(bottom: BorderSide(color: kGold.withValues(alpha: 0.1))),
+          ),
+          child: Row(children: [
+            GestureDetector(
+              onTap: () => Navigator.pop(context),
+              child: Container(width: 38, height: 38,
+                decoration: BoxDecoration(shape: BoxShape.circle, color: _g(0.06)),
+                child: const Icon(Icons.arrow_back_ios_new, color: kGold, size: 16)),
+            ),
+            const SizedBox(width: 14),
+            Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              const Text('Συνομιλίες', style: TextStyle(color: Colors.white,
+                  fontFamily: 'Raleway', fontSize: 20, fontWeight: FontWeight.w800)),
+              Text('Οι επαγγελματίες σου', style: TextStyle(color: _g(0.35), fontSize: 11)),
+            ])),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(12),
+                color: kGold.withValues(alpha: 0.1),
+                border: Border.all(color: kGold.withValues(alpha: 0.25)),
+              ),
+              child: const Row(mainAxisSize: MainAxisSize.min, children: [
+                Icon(Icons.lock_outline_rounded, color: kGold, size: 11),
+                SizedBox(width: 4),
+                Text('Κρυπτογραφημένα', style: TextStyle(color: kGold, fontSize: 9, fontWeight: FontWeight.w600)),
+              ]),
+            ),
+          ]),
+        ),
+        Expanded(child: StreamBuilder<QuerySnapshot>(
+          stream: FirebaseFirestore.instance
+              .collection('chats')
+              .where('userId', isEqualTo: widget.userId)
+              .snapshots(),
+          builder: (context, snap) {
+            if (!snap.hasData) return const Center(child: CircularProgressIndicator(color: kGold));
+            final docs = [...snap.data!.docs]..sort((a, b) {
+                final aTs = (a.data() as Map)['lastMessageAt'] as Timestamp?;
+                final bTs = (b.data() as Map)['lastMessageAt'] as Timestamp?;
+                if (aTs == null) return 1;
+                if (bTs == null) return -1;
+                return bTs.compareTo(aTs);
+              });
+            if (docs.isEmpty) {
+              return Center(child: Column(mainAxisSize: MainAxisSize.min, children: [
+                Container(width: 80, height: 80,
+                  decoration: BoxDecoration(shape: BoxShape.circle,
+                      color: kGold.withValues(alpha: 0.07),
+                      border: Border.all(color: kGold.withValues(alpha: 0.15))),
+                  child: const Center(child: Text('💬', style: TextStyle(fontSize: 34)))),
+                const SizedBox(height: 18),
+                const Text('Καμία συνομιλία ακόμα',
+                    style: TextStyle(color: Colors.white, fontFamily: 'Raleway', fontSize: 16, fontWeight: FontWeight.w700)),
+                const SizedBox(height: 8),
+                Text('Επέλεξε επαγγελματία και πάτα\n"💬 Chat" για να ξεκινήσεις.',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(color: _g(0.3), fontSize: 13, height: 1.5)),
+              ]));
+            }
+            return ListView.builder(
+              padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
+              itemCount: docs.length,
+              itemBuilder: (_, i) {
+                final doc = docs[i];
+                final d = doc.data() as Map<String, dynamic>;
+                final chatId = doc.id;
+                final proName = d['proName'] as String? ?? 'Επαγγελματίας';
+                final proPhotoUrl = d['proPhotoUrl'] as String?;
+                final lastMsg = d['lastMessage'] as String? ?? '';
+                final ts = d['lastMessageAt'] as Timestamp?;
+                final unread = (d['unreadUser'] as int?) ?? 0;
+                String timeStr = '';
+                if (ts != null) {
+                  final now = DateTime.now();
+                  final msgDate = ts.toDate();
+                  if (now.difference(msgDate).inDays == 0) {
+                    timeStr = '${msgDate.hour.toString().padLeft(2,'0')}:${msgDate.minute.toString().padLeft(2,'0')}';
+                  } else if (now.difference(msgDate).inDays == 1) {
+                    timeStr = 'Χθες';
+                  } else {
+                    timeStr = '${msgDate.day}/${msgDate.month}';
+                  }
+                }
+                return Dismissible(
+                  key: ValueKey(chatId),
+                  direction: DismissDirection.endToStart,
+                  confirmDismiss: (_) async { await _deleteChat(chatId, proName); return false; },
+                  background: Container(
+                    margin: const EdgeInsets.only(bottom: 12),
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(18),
+                      color: Colors.red.withValues(alpha: 0.12),
+                      border: Border.all(color: Colors.red.withValues(alpha: 0.3)),
+                    ),
+                    alignment: Alignment.centerRight,
+                    padding: const EdgeInsets.only(right: 22),
+                    child: const Column(mainAxisSize: MainAxisSize.min, children: [
+                      Icon(Icons.delete_outline_rounded, color: Colors.red, size: 22),
+                      SizedBox(height: 2),
+                      Text('Διαγραφή', style: TextStyle(color: Colors.red, fontSize: 10)),
+                    ]),
+                  ),
+                  child: GestureDetector(
+                    onTap: () => Navigator.push(context, PageRouteBuilder(
+                      pageBuilder: (_, __, ___) => ChatScreen(
+                        chatId: chatId, currentUserId: widget.userId,
+                        currentUserName: d['userName'] as String? ?? 'Χρήστης',
+                        otherName: proName, isPro: false,
+                      ),
+                      transitionsBuilder: (_, a, __, c) => FadeTransition(opacity: a, child: c),
+                      transitionDuration: const Duration(milliseconds: 300),
+                    )),
+                    child: Container(
+                      margin: const EdgeInsets.only(bottom: 14),
+                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 13),
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(20),
+                        color: unread > 0 ? const Color(0xFF1A1400) : const Color(0xFF0F1628),
+                        border: Border.all(
+                          color: unread > 0 ? kGold.withValues(alpha: 0.5) : Colors.white.withValues(alpha: 0.06),
+                          width: unread > 0 ? 1.5 : 1,
+                        ),
+                        boxShadow: [BoxShadow(
+                          color: unread > 0 ? kGold.withValues(alpha: 0.18) : Colors.black.withValues(alpha: 0.35),
+                          blurRadius: unread > 0 ? 20 : 12, offset: const Offset(0, 6),
+                        )],
+                      ),
+                      child: Row(children: [
+                        Container(width: 54, height: 54,
+                          decoration: BoxDecoration(shape: BoxShape.circle,
+                              color: kGold.withValues(alpha: unread > 0 ? 0.2 : 0.08),
+                              border: Border.all(color: unread > 0 ? kGold.withValues(alpha: 0.8) : kGold.withValues(alpha: 0.25))),
+                          child: ClipOval(child: proPhotoUrl != null && proPhotoUrl.isNotEmpty
+                              ? Image.network(proPhotoUrl, fit: BoxFit.cover,
+                                  errorBuilder: (_, __, ___) => Center(child: Text(
+                                      proName.isNotEmpty ? proName[0].toUpperCase() : '?',
+                                      style: const TextStyle(color: kGold, fontSize: 21, fontWeight: FontWeight.w900))))
+                              : Center(child: Text(proName.isNotEmpty ? proName[0].toUpperCase() : '?',
+                                  style: const TextStyle(color: kGold, fontSize: 21, fontWeight: FontWeight.w900)))),
+                        ),
+                        const SizedBox(width: 14),
+                        Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                          Row(children: [
+                            Expanded(child: Text(proName, maxLines: 1, overflow: TextOverflow.ellipsis,
+                                style: TextStyle(color: Colors.white, fontSize: 15,
+                                    fontWeight: unread > 0 ? FontWeight.w800 : FontWeight.w600))),
+                            if (timeStr.isNotEmpty)
+                              Text(timeStr, style: TextStyle(
+                                  color: unread > 0 ? kGold : Colors.white.withValues(alpha: 0.3),
+                                  fontSize: 10, fontWeight: unread > 0 ? FontWeight.w700 : FontWeight.w500)),
+                          ]),
+                          const SizedBox(height: 5),
+                          Row(children: [
+                            Expanded(child: Text(lastMsg.isNotEmpty ? lastMsg : 'Ξεκίνα τη συνομιλία...',
+                                maxLines: 1, overflow: TextOverflow.ellipsis,
+                                style: TextStyle(
+                                    color: unread > 0 ? Colors.white.withValues(alpha: 0.75) : Colors.white.withValues(alpha: 0.3),
+                                    fontSize: 13, fontWeight: unread > 0 ? FontWeight.w500 : FontWeight.w400))),
+                            if (unread > 0)
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                decoration: BoxDecoration(
+                                  borderRadius: BorderRadius.circular(10),
+                                  gradient: const LinearGradient(colors: [kGoldLight, kGold]),
+                                ),
+                                child: Text('$unread', style: const TextStyle(
+                                    color: Colors.black, fontSize: 11, fontWeight: FontWeight.w900)),
+                              ),
+                          ]),
+                        ])),
+                      ]),
+                    ),
+                  ),
+                );
+              },
+            );
+          },
+        )),
+      ])),
+    );
+  }
+}
+
+// ══════════════════════════════════════════════════════
+// CHAT SCREEN
+// ══════════════════════════════════════════════════════
+class ChatScreen extends StatefulWidget {
+  final String chatId;
+  final String currentUserId;
+  final String currentUserName;
+  final String otherName;
+  final bool isPro;
+  const ChatScreen({
+    super.key, required this.chatId, required this.currentUserId,
+    required this.currentUserName, required this.otherName, required this.isPro,
+  });
+  @override
+  State<ChatScreen> createState() => _ChatScreenState();
+}
+
+class _ChatScreenState extends State<ChatScreen> {
+  final _msgCtrl = TextEditingController();
+  final _scrollCtrl = ScrollController();
+  bool _sending = false;
+  final List<Uint8List> _selectedImages = [];
+
+  @override
+  void initState() { super.initState(); _markAsRead(); }
+
+  @override
+  void dispose() { _msgCtrl.dispose(); _scrollCtrl.dispose(); super.dispose(); }
+
+  Future<void> _markAsRead() async {
+    try {
+      final field = widget.isPro ? 'unreadPro' : 'unreadUser';
+      await FirebaseFirestore.instance
+          .collection('chats').doc(widget.chatId).update({field: 0});
+    } catch (_) {}
+  }
+
+  Future<void> _pickImage() async {
+    try {
+      final picker = ImagePicker();
+      final xf = await picker.pickImage(source: ImageSource.gallery, imageQuality: 75);
+      if (xf == null) return;
+      final bytes = await xf.readAsBytes();
+      if (mounted) setState(() => _selectedImages.add(bytes));
+    } catch (_) {}
+  }
+
+  void _openImageFullscreen(BuildContext context, String url) {
+    Navigator.push(context, PageRouteBuilder(
+      opaque: false,
+      barrierColor: Colors.black87,
+      pageBuilder: (_, __, ___) => _FullscreenPhotoViewer(photos: [url], startIndex: 0),
+      transitionsBuilder: (_, a, __, c) => FadeTransition(opacity: a, child: c),
+    ));
+  }
+
+  Future<void> _sendMessage() async {
+    final text = _msgCtrl.text.trim();
+    if (text.isEmpty && _selectedImages.isEmpty) return;
+    if (_sending) return;
+    _msgCtrl.clear();
+    setState(() => _sending = true);
+    try {
+      final List<String> photoUrls = [];
+      for (int i = 0; i < _selectedImages.length; i++) {
+        try {
+          final ref = FirebaseStorage.instance.ref(
+              'chat_media/${widget.chatId}/${DateTime.now().millisecondsSinceEpoch}_img_$i.jpg');
+          await ref.putData(_selectedImages[i], SettableMetadata(contentType: 'image/jpeg'));
+          photoUrls.add(await ref.getDownloadURL());
+        } catch (_) {}
+      }
+      String previewText = text;
+      if (photoUrls.isNotEmpty && text.isEmpty) previewText = '📷 ${photoUrls.length} φωτογραφία';
+
+      final chatRef = FirebaseFirestore.instance.collection('chats').doc(widget.chatId);
+      await chatRef.collection('messages').add({
+        'text': text, 'photoUrls': photoUrls, 'videoUrls': <String>[],
+        'senderId': widget.currentUserId, 'senderName': widget.currentUserName,
+        'createdAt': FieldValue.serverTimestamp(),
+      });
+      final unreadField = widget.isPro ? 'unreadUser' : 'unreadPro';
+      final chatParts = widget.chatId.split('_');
+      await chatRef.set({
+        'lastMessage': previewText, 'lastMessageAt': FieldValue.serverTimestamp(),
+        unreadField: FieldValue.increment(1),
+        widget.isPro ? 'unreadPro' : 'unreadUser': 0,
+        if (chatParts.isNotEmpty) 'userId': chatParts[0],
+        if (chatParts.length > 1) 'proId': chatParts[1],
+      }, SetOptions(merge: true));
+
+      if (mounted) setState(() { _selectedImages.clear(); _sending = false; });
+      await Future.delayed(const Duration(milliseconds: 100));
+      if (_scrollCtrl.hasClients) {
+        _scrollCtrl.animateTo(_scrollCtrl.position.maxScrollExtent,
+            duration: const Duration(milliseconds: 300), curve: Curves.easeOut);
+      }
+    } catch (_) {}
+    if (mounted) setState(() => _sending = false);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: kBg,
+      body: SafeArea(child: Column(children: [
+        Container(
+          padding: const EdgeInsets.fromLTRB(14, 12, 14, 12),
+          decoration: BoxDecoration(color: kBg,
+              border: Border(bottom: BorderSide(color: kGold.withValues(alpha: 0.12)))),
+          child: Row(children: [
+            GestureDetector(
+              onTap: () => Navigator.pop(context),
+              child: Container(width: 36, height: 36,
+                  decoration: BoxDecoration(shape: BoxShape.circle, color: _g(0.06)),
+                  child: const Icon(Icons.arrow_back_ios_new, color: kGold, size: 16)),
+            ),
+            const SizedBox(width: 12),
+            Container(width: 38, height: 38,
+              decoration: BoxDecoration(shape: BoxShape.circle,
+                  color: kGold.withValues(alpha: 0.12), border: Border.all(color: kGold.withValues(alpha: 0.3))),
+              child: Center(child: Text(
+                  widget.otherName.isNotEmpty ? widget.otherName[0].toUpperCase() : '?',
+                  style: const TextStyle(color: kGold, fontSize: 16, fontWeight: FontWeight.w800))),
+            ),
+            const SizedBox(width: 10),
+            Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Text(widget.otherName, style: const TextStyle(color: Colors.white, fontSize: 15, fontWeight: FontWeight.w700)),
+              Text(widget.isPro ? 'Πελάτης' : 'Επαγγελματίας', style: TextStyle(color: _g(0.35), fontSize: 11)),
+            ])),
+          ]),
+        ),
+        Expanded(
+          child: StreamBuilder<QuerySnapshot>(
+            stream: FirebaseFirestore.instance
+                .collection('chats').doc(widget.chatId)
+                .collection('messages')
+                .orderBy('createdAt', descending: false)
+                .snapshots(),
+            builder: (ctx, snap) {
+              if (!snap.hasData) return const Center(child: CircularProgressIndicator(color: kGold));
+              final msgs = snap.data!.docs;
+              if (msgs.isEmpty) {
+                return Center(child: Column(mainAxisSize: MainAxisSize.min, children: [
+                  const Text('💬', style: TextStyle(fontSize: 40)),
+                  const SizedBox(height: 12),
+                  Text('Ξεκίνα τη συνομιλία!', style: TextStyle(color: _g(0.4), fontSize: 14)),
+                ]));
+              }
+              WidgetsBinding.instance.addPostFrameCallback((_) {
+                if (_scrollCtrl.hasClients) _scrollCtrl.jumpTo(_scrollCtrl.position.maxScrollExtent);
+              });
+              return ListView.builder(
+                controller: _scrollCtrl,
+                padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
+                itemCount: msgs.length,
+                itemBuilder: (_, i) {
+                  final d = msgs[i].data() as Map<String, dynamic>;
+                  final isMine = d['senderId'] == widget.currentUserId;
+                  final text = d['text'] as String? ?? '';
+                  final ts = d['createdAt'] as Timestamp?;
+                  final timeStr = ts != null
+                      ? '${ts.toDate().hour.toString().padLeft(2,'0')}:${ts.toDate().minute.toString().padLeft(2,'0')}'
+                      : '';
+                  final photoUrls = List<String>.from(d['photoUrls'] ?? []);
+                  return Padding(
+                    padding: const EdgeInsets.only(bottom: 8),
+                    child: Row(
+                      mainAxisAlignment: isMine ? MainAxisAlignment.end : MainAxisAlignment.start,
+                      crossAxisAlignment: CrossAxisAlignment.end,
+                      children: [
+                        if (!isMine) ...[
+                          Container(width: 28, height: 28,
+                              decoration: BoxDecoration(shape: BoxShape.circle, color: kGold.withValues(alpha: 0.12)),
+                              child: Center(child: Text(
+                                  widget.otherName.isNotEmpty ? widget.otherName[0].toUpperCase() : '?',
+                                  style: const TextStyle(color: kGold, fontSize: 12, fontWeight: FontWeight.w700)))),
+                          const SizedBox(width: 8),
+                        ],
+                        Flexible(
+                          child: Container(
+                            padding: EdgeInsets.symmetric(
+                                horizontal: photoUrls.isNotEmpty ? 8 : 14,
+                                vertical: photoUrls.isNotEmpty ? 8 : 10),
+                            decoration: BoxDecoration(
+                              borderRadius: BorderRadius.only(
+                                topLeft: const Radius.circular(16), topRight: const Radius.circular(16),
+                                bottomLeft: Radius.circular(isMine ? 16 : 4),
+                                bottomRight: Radius.circular(isMine ? 4 : 16),
+                              ),
+                              gradient: isMine ? const LinearGradient(colors: [Color(0xFFCC8800), kGold]) : null,
+                              color: isMine ? null : _g(0.07),
+                              border: isMine ? null : Border.all(color: _g(0.1)),
+                            ),
+                            child: Column(
+                              crossAxisAlignment: isMine ? CrossAxisAlignment.end : CrossAxisAlignment.start,
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                if (photoUrls.isNotEmpty) ...[
+                                  Wrap(spacing: 4, runSpacing: 4, children: photoUrls.map((url) =>
+                                    GestureDetector(
+                                      onTap: () => _openImageFullscreen(context, url),
+                                      child: ClipRRect(borderRadius: BorderRadius.circular(8),
+                                        child: Image.network(url, width: 160, height: 160, fit: BoxFit.cover,
+                                            errorBuilder: (_, __, ___) => Container(width: 160, height: 160,
+                                                color: _g(0.08), child: Icon(Icons.broken_image, color: _g(0.3))))),
+                                    ),
+                                  ).toList()),
+                                  if (text.isNotEmpty) const SizedBox(height: 6),
+                                ],
+                                if (text.isNotEmpty)
+                                  Text(text, style: TextStyle(
+                                      color: isMine ? Colors.black : _gw, fontSize: 13, height: 1.4)),
+                                const SizedBox(height: 4),
+                                Text(timeStr, style: TextStyle(
+                                    color: isMine ? Colors.black.withValues(alpha: 0.5) : _g(0.3), fontSize: 9)),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  );
+                },
+              );
+            },
+          ),
+        ),
+        Container(
+          decoration: BoxDecoration(color: kBg,
+              border: Border(top: BorderSide(color: kGold.withValues(alpha: 0.1)))),
+          child: Column(mainAxisSize: MainAxisSize.min, children: [
+            if (_selectedImages.isNotEmpty)
+              Container(
+                height: 84,
+                padding: const EdgeInsets.fromLTRB(12, 8, 12, 0),
+                child: ListView(scrollDirection: Axis.horizontal,
+                  children: _selectedImages.asMap().entries.map((entry) =>
+                    Padding(padding: const EdgeInsets.only(right: 8),
+                      child: Stack(children: [
+                        ClipRRect(borderRadius: BorderRadius.circular(10),
+                            child: Image.memory(entry.value, width: 68, height: 68, fit: BoxFit.cover)),
+                        Positioned(top: 2, right: 2,
+                          child: GestureDetector(
+                            onTap: () => setState(() => _selectedImages.removeAt(entry.key)),
+                            child: Container(width: 20, height: 20,
+                              decoration: const BoxDecoration(shape: BoxShape.circle, color: Colors.black54),
+                              child: const Icon(Icons.close, size: 13, color: Colors.white)),
+                          )),
+                      ])),
+                  ).toList()),
+              ),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(12, 8, 12, 10),
+              child: Row(children: [
+                GestureDetector(
+                  onTap: _pickImage,
+                  child: Container(width: 38, height: 38,
+                    decoration: BoxDecoration(shape: BoxShape.circle, color: _g(0.08),
+                        border: Border.all(color: kGold.withValues(alpha: 0.25))),
+                    child: const Icon(Icons.photo_outlined, color: kGold, size: 20)),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Container(
+                    decoration: BoxDecoration(borderRadius: BorderRadius.circular(24),
+                        color: _g(0.06), border: Border.all(color: kGold.withValues(alpha: 0.2))),
+                    child: TextField(
+                      controller: _msgCtrl, maxLines: null, autofocus: false,
+                      textCapitalization: TextCapitalization.sentences,
+                      style: TextStyle(color: _gw, fontSize: 14),
+                      decoration: InputDecoration(
+                        hintText: 'Γράψε μήνυμα...',
+                        hintStyle: TextStyle(color: _g(0.3), fontSize: 13),
+                        border: InputBorder.none,
+                        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                      ),
+                      onSubmitted: (_) => _sendMessage(),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 10),
+                GestureDetector(
+                  onTap: _sendMessage,
+                  child: Container(width: 44, height: 44,
+                    decoration: BoxDecoration(shape: BoxShape.circle,
+                        gradient: const LinearGradient(colors: [kGoldLight, kGold]),
+                        boxShadow: [BoxShadow(color: kGold.withValues(alpha: 0.4), blurRadius: 10)]),
+                    child: _sending
+                        ? const Center(child: SizedBox(width: 18, height: 18,
+                            child: CircularProgressIndicator(strokeWidth: 2, color: Colors.black)))
+                        : const Icon(Icons.send_rounded, color: Colors.black, size: 20)),
+                ),
+              ]),
+            ),
+          ]),
+        ),
+      ])),
+    );
+  }
+}
+
+// ══════════════════════════════════════════════════════
+// DIRECT REPLY SCREEN
+// ══════════════════════════════════════════════════════
+class DirectReplyScreen extends StatefulWidget {
+  final String directRequestId;
+  const DirectReplyScreen({super.key, required this.directRequestId});
+  @override
+  State<DirectReplyScreen> createState() => _DirectReplyScreenState();
+}
+
+class _DirectReplyScreenState extends State<DirectReplyScreen> {
+  final _priceCtrl = TextEditingController();
+  final _msgCtrl = TextEditingController();
+  Map<String, dynamic>? _reqData;
+  bool _loading = true, _sending = false;
+
+  @override
+  void initState() { super.initState(); _loadRequest(); }
+
+  @override
+  void dispose() { _priceCtrl.dispose(); _msgCtrl.dispose(); super.dispose(); }
+
+  Future<void> _loadRequest() async {
+    try {
+      final doc = await FirebaseFirestore.instance
+          .collection('direct_requests').doc(widget.directRequestId).get();
+      if (mounted) setState(() { _reqData = doc.data(); _loading = false; });
+    } catch (_) {
+      if (mounted) setState(() => _loading = false);
+    }
+  }
+
+  Future<void> _sendOffer() async {
+    final price = double.tryParse(_priceCtrl.text.replaceAll(',', '.'));
+    if (price == null) return;
+    setState(() => _sending = true);
+    try {
+      final d = _reqData!;
+      await FirebaseFirestore.instance
+          .collection('direct_requests').doc(widget.directRequestId)
+          .update({'status': 'replied', 'offer': {'price': price, 'message': _msgCtrl.text.trim()}});
+      final userId = d['userId'] as String? ?? '';
+      if (userId.isNotEmpty) {
+        final proName = d['proName'] ?? 'Επαγγελματίας';
+        await FirebaseFirestore.instance
+            .collection('users').doc(userId)
+            .collection('notifications').add({
+          'title': '💼 Νέα Προσφορά από $proName',
+          'body': '${price.toStringAsFixed(0)}€ — πάτα Μηνύματα για να δεις',
+          'type': 'direct_offer', 'directRequestId': widget.directRequestId,
+          'isRead': false, 'createdAt': FieldValue.serverTimestamp(),
+        });
+      }
+      if (mounted) {
+        Navigator.pop(context);
+        ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('✅ Η προσφορά στάλθηκε!'), backgroundColor: Colors.green));
+      }
+    } catch (_) {
+      if (mounted) setState(() => _sending = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (_loading) return const Scaffold(backgroundColor: kBg,
+        body: Center(child: CircularProgressIndicator(color: kGold)));
+    if (_reqData == null) return const Scaffold(backgroundColor: kBg,
+        body: Center(child: Text('Δεν βρέθηκε αίτημα', style: TextStyle(color: Colors.white))));
+    final d = _reqData!;
+    final userName = d['userName'] as String? ?? 'Χρήστης';
+    final message = d['message'] as String? ?? '';
+    final photoUrls = List<String>.from(d['photoUrls'] ?? []);
+    return Scaffold(
+      backgroundColor: kBg,
+      body: SafeArea(child: Column(children: [
+        Padding(
+          padding: const EdgeInsets.fromLTRB(20, 14, 20, 0),
+          child: Row(children: [
+            GestureDetector(onTap: () => Navigator.pop(context),
+              child: Container(width: 38, height: 38,
+                decoration: BoxDecoration(shape: BoxShape.circle, color: _g(0.06)),
+                child: const Icon(Icons.arrow_back_ios_new, color: Colors.white, size: 16))),
+            const SizedBox(width: 14),
+            Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Text('Αίτημα από $userName',
+                  style: const TextStyle(color: Colors.white, fontFamily: 'Raleway', fontSize: 15, fontWeight: FontWeight.w800)),
+              Text('Στείλε την προσφορά σου', style: TextStyle(color: _g(0.4), fontSize: 12)),
+            ])),
+          ]),
+        ),
+        Expanded(child: SingleChildScrollView(
+          padding: const EdgeInsets.all(20),
+          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            if (message.isNotEmpty) ...[
+              Container(
+                padding: const EdgeInsets.all(14),
+                decoration: BoxDecoration(borderRadius: BorderRadius.circular(16),
+                    color: _g(0.05), border: Border.all(color: _g(0.1))),
+                child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                  Text('Μήνυμα από $userName',
+                      style: TextStyle(color: _g(0.4), fontSize: 11, fontWeight: FontWeight.w600)),
+                  const SizedBox(height: 6),
+                  Text(message, style: TextStyle(color: _gw, fontSize: 13, height: 1.5)),
+                ]),
+              ),
+              const SizedBox(height: 12),
+            ],
+            if (photoUrls.isNotEmpty) ...[
+              SizedBox(height: 90,
+                child: ListView.builder(
+                  scrollDirection: Axis.horizontal, itemCount: photoUrls.length,
+                  itemBuilder: (_, i) => Container(width: 90, height: 90, margin: const EdgeInsets.only(right: 8),
+                    child: ClipRRect(borderRadius: BorderRadius.circular(12),
+                      child: Image.network(photoUrls[i], fit: BoxFit.cover,
+                          errorBuilder: (_, __, ___) => Container(color: _g(0.05))))),
+                ),
+              ),
+              const SizedBox(height: 16),
+            ],
+            Text('Τιμή σου (€)', style: TextStyle(color: _g(0.5), fontSize: 12, fontWeight: FontWeight.w600)),
+            const SizedBox(height: 8),
+            Container(
+              decoration: BoxDecoration(borderRadius: BorderRadius.circular(14),
+                  color: _g(0.05), border: Border.all(color: kGold.withValues(alpha: 0.3))),
+              child: TextField(
+                controller: _priceCtrl,
+                keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                style: const TextStyle(color: kGold, fontSize: 20, fontWeight: FontWeight.w800),
+                decoration: InputDecoration(
+                  hintText: '0', hintStyle: TextStyle(color: _g(0.2), fontSize: 20),
+                  prefixText: '€ ', prefixStyle: const TextStyle(color: kGold, fontSize: 20, fontWeight: FontWeight.w800),
+                  border: InputBorder.none, contentPadding: const EdgeInsets.all(16),
+                ),
+              ),
+            ),
+            const SizedBox(height: 14),
+            Text('Μήνυμα (προαιρετικό)', style: TextStyle(color: _g(0.5), fontSize: 12, fontWeight: FontWeight.w600)),
+            const SizedBox(height: 8),
+            Container(
+              decoration: BoxDecoration(borderRadius: BorderRadius.circular(14),
+                  color: _g(0.05), border: Border.all(color: _g(0.1))),
+              child: TextField(
+                controller: _msgCtrl, maxLines: 4,
+                style: TextStyle(color: _gw, fontSize: 13),
+                decoration: InputDecoration(
+                  hintText: 'Περίγραψε τι περιλαμβάνει η προσφορά σου...',
+                  hintStyle: TextStyle(color: _g(0.25), fontSize: 12),
+                  border: InputBorder.none, contentPadding: const EdgeInsets.all(14),
+                ),
+              ),
+            ),
+          ]),
+        )),
+        Padding(
+          padding: const EdgeInsets.fromLTRB(20, 8, 20, 16),
+          child: GestureDetector(
+            onTap: _sending ? null : _sendOffer,
+            child: Container(
+              width: double.infinity,
+              padding: const EdgeInsets.symmetric(vertical: 16),
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(16),
+                gradient: const LinearGradient(colors: [kGoldLight, kGold, kGoldDark]),
+                boxShadow: [BoxShadow(color: kGold.withValues(alpha: 0.4), blurRadius: 16)],
+              ),
+              child: Center(child: _sending
+                  ? const SizedBox(width: 20, height: 20,
+                      child: CircularProgressIndicator(color: Colors.black, strokeWidth: 2))
+                  : const Text('💼 Στείλε Προσφορά',
+                      style: TextStyle(color: Colors.black, fontSize: 15, fontWeight: FontWeight.w800))),
+            ),
+          ),
+        ),
+      ])),
+    );
+  }
+}
+
+// ══════════════════════════════════════════════════════
+// EVENT ORGANIZER SCREEN
+// ══════════════════════════════════════════════════════
+class EventOrganizerScreen extends StatefulWidget {
+  const EventOrganizerScreen({super.key});
+  @override
+  State<EventOrganizerScreen> createState() => _EventOrganizerScreenState();
+}
+
+class _EventOrganizerScreenState extends State<EventOrganizerScreen> {
+  int _step = 0;
+  String? _categoryId;
+  String _categoryTitle = '';
+  String _categoryEmoji = '';
+  final _notesCtrl = TextEditingController();
+  int _guests = 50;
+  double _budget = 3000;
+  DateTime? _date;
+  String? _selectedArea;
+  bool _submitting = false;
+
+  static const _eventAreas = [
+    'Αθήνα Κέντρο','Κολωνάκι','Γλυφάδα','Βούλα','Βουλιαγμένη','Καλλιθέα','Νέα Σμύρνη',
+    'Παλαιό Φάληρο','Χαλάνδρι','Μαρούσι','Κηφισιά','Περιστέρι','Αιγάλεω','Πειραιάς',
+    'Θεσσαλονίκη Κέντρο','Καλαμαριά','Πυλαία','Πάτρα','Ηράκλειο Κρήτης','Χανιά','Ρέθυμνο',
+    'Λάρισα','Βόλος','Ιωάννινα','Κέρκυρα','Ρόδος','Κως','Μυτιλήνη',
+  ];
+
+  static const _categories = [
+    {'id': 'wedding', 'emoji': '💍', 'title': 'Γάμος',
+     'subtitle': 'Φωτογράφος · DJ · Catering · Αίθουσα · Ανθοπωλείο',
+     'pros': ['Εκδηλώσεις Γάμου','Φωτογράφος Γάμου','DJ / Μουσική Εκδηλώσεων','Catering','Ανθοδέτης / Στολισμός','Αίθουσα Εκδηλώσεων']},
+    {'id': 'baptism', 'emoji': '👶', 'title': 'Βάφτιση',
+     'subtitle': 'Φωτογράφος · Catering · Στολισμός · Μπομπονιέρες',
+     'pros': ['Εκδηλώσεις Βάφτισης','Φωτογράφος Γάμου','Catering','Ανθοδέτης / Στολισμός','Αίθουσα Εκδηλώσεων']},
+    {'id': 'party', 'emoji': '🎉', 'title': 'Πάρτυ',
+     'subtitle': 'DJ · Catering · Στολισμός · Φωτογράφος',
+     'pros': ['Διοργάνωση Πάρτυ','DJ / Μουσική Εκδηλώσεων','Catering','Ανθοδέτης / Στολισμός','Αίθουσα Εκδηλώσεων','Φωτογράφος Γάμου']},
+  ];
+
+  @override
+  void dispose() { _notesCtrl.dispose(); super.dispose(); }
+
+  Future<void> _submit() async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) return;
+    setState(() => _submitting = true);
+    try {
+      final cat = _categories.firstWhere((c) => c['id'] == _categoryId);
+      String userName = 'Χρήστης';
+      try {
+        final uDoc = await FirebaseFirestore.instance.collection('users').doc(user.uid).get();
+        userName = uDoc.data()?['name'] as String? ?? user.displayName ?? 'Χρήστης';
+      } catch (_) {}
+      await FirebaseFirestore.instance.collection('event_requests').add({
+        'userId': user.uid, 'userName': userName,
+        'category': _categoryId, 'categoryTitle': cat['title'], 'categoryEmoji': cat['emoji'],
+        'categoryPros': List<String>.from(cat['pros'] as List),
+        'location': _selectedArea ?? '', 'guests': _guests, 'budget': _budget.round(),
+        'date': _date?.toIso8601String() ?? '', 'notes': _notesCtrl.text.trim(),
+        'status': 'active', 'offersCount': 0, 'submittedPros': [], 'prosNotified': 5,
+        'expiresAt': Timestamp.fromDate(DateTime.now().add(const Duration(hours: 1))),
+        'createdAt': FieldValue.serverTimestamp(),
+      });
+      if (mounted) setState(() { _submitting = false; _step = 2; });
+    } catch (_) {
+      if (mounted) setState(() => _submitting = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: kBg,
+      body: SafeArea(child: AnimatedSwitcher(
+        duration: const Duration(milliseconds: 350),
+        transitionBuilder: (child, anim) => SlideTransition(
+          position: Tween<Offset>(begin: const Offset(1, 0), end: Offset.zero)
+              .animate(CurvedAnimation(parent: anim, curve: Curves.easeOutCubic)),
+          child: FadeTransition(opacity: anim, child: child),
+        ),
+        child: _step == 0 ? _buildCategoryPicker() : _step == 1 ? _buildDetailsForm() : _buildSuccess(),
+      )),
+    );
+  }
+
+  Widget _buildCategoryPicker() {
+    return Column(key: const ValueKey(0), children: [
+      Padding(
+        padding: const EdgeInsets.fromLTRB(20, 16, 20, 0),
+        child: Row(children: [
+          GestureDetector(onTap: () => Navigator.pop(context),
+            child: Container(padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(shape: BoxShape.circle, color: _g(0.07)),
+              child: Icon(Icons.close, color: _g(0.6), size: 18))),
+        ]),
+      ),
+      const SizedBox(height: 24),
+      Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 24),
+        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          ShaderMask(
+            shaderCallback: (b) => const LinearGradient(colors: [kGoldLight, kGold]).createShader(b),
+            child: const Text('Τι οργανώνεις;',
+                style: TextStyle(fontFamily: 'Raleway', fontSize: 30, fontWeight: FontWeight.w900, color: Colors.white)),
+          ),
+          const SizedBox(height: 6),
+          Text('Επέλεξε κατηγορία και το AI σου βρίσκει\nτους καλύτερους επαγγελματίες.',
+              style: TextStyle(color: _g(0.45), fontSize: 14, height: 1.5)),
+        ]),
+      ),
+      const SizedBox(height: 32),
+      Expanded(child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 20),
+        child: Column(children: _categories.map((cat) => GestureDetector(
+          onTap: () {
+            _notesCtrl.clear();
+            setState(() {
+              _categoryId = cat['id'] as String;
+              _categoryTitle = cat['title'] as String;
+              _categoryEmoji = cat['emoji'] as String;
+              _guests = 50; _budget = 3000; _date = null; _selectedArea = null; _step = 1;
+            });
+          },
+          child: Container(
+            margin: const EdgeInsets.only(bottom: 14),
+            padding: const EdgeInsets.all(20),
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(20),
+              color: _g(0.04), border: Border.all(color: kGold.withValues(alpha: 0.18)),
+              boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.3), blurRadius: 12)],
+            ),
+            child: Row(children: [
+              Container(width: 60, height: 60,
+                decoration: BoxDecoration(shape: BoxShape.circle,
+                    color: kGold.withValues(alpha: 0.12), border: Border.all(color: kGold.withValues(alpha: 0.25))),
+                child: Center(child: Text(cat['emoji'] as String, style: const TextStyle(fontSize: 28)))),
+              const SizedBox(width: 16),
+              Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                Text(cat['title'] as String, style: const TextStyle(color: Colors.white,
+                    fontSize: 20, fontWeight: FontWeight.w800, fontFamily: 'Raleway')),
+                const SizedBox(height: 4),
+                Text(cat['subtitle'] as String, style: TextStyle(color: _g(0.4), fontSize: 11, height: 1.4)),
+              ])),
+              Icon(Icons.arrow_forward_ios_rounded, color: kGold.withValues(alpha: 0.5), size: 16),
+            ]),
+          ),
+        )).toList()),
+      )),
+    ]);
+  }
+
+  Widget _buildDetailsForm() {
+    return SingleChildScrollView(
+      key: const ValueKey(1),
+      padding: const EdgeInsets.fromLTRB(20, 16, 20, 40),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Row(children: [
+          GestureDetector(onTap: () => setState(() => _step = 0),
+            child: Container(padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(shape: BoxShape.circle, color: _g(0.07)),
+              child: Icon(Icons.arrow_back_ios_new, color: _g(0.6), size: 16))),
+          const SizedBox(width: 12),
+          Text('$_categoryEmoji $_categoryTitle',
+              style: const TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.w800, fontFamily: 'Raleway')),
+        ]),
+        const SizedBox(height: 28),
+        const Text('📅 Ημερομηνία', style: TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.w700)),
+        const SizedBox(height: 8),
+        GestureDetector(
+          onTap: () async {
+            final picked = await showDatePicker(
+              context: context,
+              initialDate: DateTime.now().add(const Duration(days: 30)),
+              firstDate: DateTime.now(),
+              lastDate: DateTime.now().add(const Duration(days: 730)),
+              builder: (ctx, child) => Theme(
+                data: ThemeData.dark().copyWith(
+                    colorScheme: const ColorScheme.dark(primary: kGold, surface: Color(0xFF1A1500))),
+                child: child!,
+              ),
+            );
+            if (picked != null) setState(() => _date = picked);
+          },
+          child: Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(borderRadius: BorderRadius.circular(14),
+                color: _g(0.05), border: Border.all(color: _date != null ? kGold.withValues(alpha: 0.4) : _g(0.1))),
+            child: Row(children: [
+              Icon(Icons.calendar_today_outlined, color: _date != null ? kGold : _g(0.35), size: 18),
+              const SizedBox(width: 12),
+              Text(_date != null ? '${_date!.day}/${_date!.month}/${_date!.year}' : 'Επίλεξε ημερομηνία',
+                  style: TextStyle(color: _date != null ? Colors.white : _g(0.3), fontSize: 15)),
+            ]),
+          ),
+        ),
+        const SizedBox(height: 20),
+        const Text('📍 Περιοχή', style: TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.w700)),
+        const SizedBox(height: 8),
+        GestureDetector(
+          onTap: () async {
+            final result = await showModalBottomSheet<String>(
+              context: context, backgroundColor: Colors.transparent, isScrollControlled: true,
+              builder: (ctx) => _SimpleListPicker(title: '📍 Επίλεξε περιοχή', items: _eventAreas, selected: _selectedArea),
+            );
+            if (result != null) setState(() => _selectedArea = result);
+          },
+          child: Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(borderRadius: BorderRadius.circular(14),
+                color: _g(0.05), border: Border.all(color: _selectedArea != null ? kGold.withValues(alpha: 0.4) : _g(0.1))),
+            child: Row(children: [
+              Icon(Icons.location_on_outlined, color: _selectedArea != null ? kGold : _g(0.35), size: 18),
+              const SizedBox(width: 12),
+              Expanded(child: Text(_selectedArea ?? 'Επίλεξε περιοχή...',
+                  style: TextStyle(color: _selectedArea != null ? Colors.white : _g(0.3), fontSize: 14))),
+              Icon(Icons.keyboard_arrow_down_rounded, color: _g(0.35), size: 20),
+            ]),
+          ),
+        ),
+        const SizedBox(height: 20),
+        Text('👥 Αριθμός ατόμων: $_guests', style: const TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.w700)),
+        const SizedBox(height: 8),
+        SliderTheme(
+          data: SliderTheme.of(context).copyWith(
+            activeTrackColor: kGold, inactiveTrackColor: _g(0.1), thumbColor: kGold,
+            overlayColor: kGold.withValues(alpha: 0.15),
+          ),
+          child: Slider(value: _guests.toDouble(), min: 10, max: 500, divisions: 49,
+              label: '$_guests άτομα', onChanged: (v) => setState(() => _guests = v.round())),
+        ),
+        const SizedBox(height: 20),
+        Text('💰 Budget: ${_budget.round()}€', style: const TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.w700)),
+        const SizedBox(height: 8),
+        SliderTheme(
+          data: SliderTheme.of(context).copyWith(
+            activeTrackColor: kGold, inactiveTrackColor: _g(0.1), thumbColor: kGold,
+          ),
+          child: Slider(value: _budget, min: 500, max: 30000, divisions: 59,
+              label: '${_budget.round()}€', onChanged: (v) => setState(() => _budget = v)),
+        ),
+        const SizedBox(height: 20),
+        const Text('✏️ Επιπλέον λεπτομέρειες (προαιρετικό)',
+            style: TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.w700)),
+        const SizedBox(height: 8),
+        TextField(
+          controller: _notesCtrl, maxLines: 3,
+          style: TextStyle(color: _gw, fontSize: 13),
+          decoration: InputDecoration(
+            hintText: 'π.χ. "Θέλω υπαίθριο γάμο, στυλ boho..."',
+            hintStyle: TextStyle(color: _g(0.3), fontSize: 12),
+            filled: true, fillColor: _g(0.05),
+            border: OutlineInputBorder(borderRadius: BorderRadius.circular(14), borderSide: BorderSide(color: _g(0.1))),
+            enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(14), borderSide: BorderSide(color: _g(0.1))),
+            focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(14), borderSide: const BorderSide(color: kGold)),
+          ),
+        ),
+        const SizedBox(height: 32),
+        GestureDetector(
+          onTap: _submitting ? null : _submit,
+          child: Container(
+            width: double.infinity, padding: const EdgeInsets.symmetric(vertical: 18),
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(18),
+              gradient: _submitting ? LinearGradient(colors: [_g(0.1), _g(0.1)])
+                  : const LinearGradient(colors: [kGoldLight, kGold, kGoldDark]),
+              boxShadow: _submitting ? [] : [BoxShadow(color: kGold.withValues(alpha: 0.4), blurRadius: 20, offset: const Offset(0, 6))],
+            ),
+            child: Center(child: _submitting
+                ? const SizedBox(width: 22, height: 22,
+                    child: CircularProgressIndicator(color: Colors.black, strokeWidth: 2.5))
+                : const Text('🚀 Αποστολή αιτήματος',
+                    style: TextStyle(color: Colors.black, fontSize: 16, fontWeight: FontWeight.w900))),
+          ),
+        ),
+      ]),
+    );
+  }
+
+  Widget _buildSuccess() {
+    return Center(key: const ValueKey(2),
+      child: Padding(padding: const EdgeInsets.all(32),
+        child: Column(mainAxisSize: MainAxisSize.min, children: [
+          Container(width: 100, height: 100,
+            decoration: BoxDecoration(shape: BoxShape.circle,
+                gradient: RadialGradient(colors: [kGold.withValues(alpha: 0.2), kGold.withValues(alpha: 0.04)]),
+                border: Border.all(color: kGold.withValues(alpha: 0.4), width: 2)),
+            child: const Center(child: Text('🎉', style: TextStyle(fontSize: 46)))),
+          const SizedBox(height: 24),
+          ShaderMask(
+            shaderCallback: (b) => const LinearGradient(colors: [kGoldLight, kGold]).createShader(b),
+            child: const Text('Το αίτημά σου στάλθηκε!',
+                textAlign: TextAlign.center,
+                style: TextStyle(fontFamily: 'Raleway', fontSize: 26, fontWeight: FontWeight.w900, color: Colors.white)),
+          ),
+          const SizedBox(height: 12),
+          Text('Οι επαγγελματίες θα σου στείλουν\nτις προσφορές τους σύντομα.',
+              textAlign: TextAlign.center, style: TextStyle(color: _g(0.45), fontSize: 14, height: 1.6)),
+          const SizedBox(height: 32),
+          GestureDetector(
+            onTap: () => Navigator.pop(context),
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 14),
+              decoration: BoxDecoration(borderRadius: BorderRadius.circular(14),
+                  gradient: const LinearGradient(colors: [kGoldLight, kGold]),
+                  boxShadow: [BoxShadow(color: kGold.withValues(alpha: 0.3), blurRadius: 12)]),
+              child: const Text('Πίσω στην αρχική',
+                  style: TextStyle(color: Colors.black, fontWeight: FontWeight.w800, fontSize: 14)),
+            ),
+          ),
+        ]),
+      ),
+    );
+  }
+}
+
+// ══════════════════════════════════════════════════════
+// FULLSCREEN PHOTO VIEWER
+// ══════════════════════════════════════════════════════
+class _FullscreenPhotoViewer extends StatefulWidget {
+  final List<String> photos;
+  final int startIndex;
+  const _FullscreenPhotoViewer({required this.photos, required this.startIndex});
+  @override
+  State<_FullscreenPhotoViewer> createState() => _FullscreenPhotoViewerState();
+}
+
+class _FullscreenPhotoViewerState extends State<_FullscreenPhotoViewer> {
+  late PageController _pageCtrl;
+  late int _current;
+
+  @override
+  void initState() {
+    super.initState();
+    _current = widget.startIndex;
+    _pageCtrl = PageController(initialPage: widget.startIndex);
+  }
+
+  @override
+  void dispose() { _pageCtrl.dispose(); super.dispose(); }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: Colors.black,
+      body: Stack(children: [
+        PageView.builder(
+          controller: _pageCtrl,
+          itemCount: widget.photos.length,
+          onPageChanged: (i) => setState(() => _current = i),
+          itemBuilder: (_, i) => InteractiveViewer(
+            minScale: 0.5, maxScale: 4.0,
+            child: Center(child: Image.network(widget.photos[i], fit: BoxFit.contain,
+                loadingBuilder: (_, child, progress) => progress == null ? child
+                    : const Center(child: CircularProgressIndicator(color: kGold)),
+                errorBuilder: (_, __, ___) => const Center(
+                    child: Icon(Icons.broken_image_outlined, color: Colors.white24, size: 48)))),
+          ),
+        ),
+        SafeArea(child: Padding(
+          padding: const EdgeInsets.all(12),
+          child: GestureDetector(
+            onTap: () => Navigator.pop(context),
+            child: Container(width: 36, height: 36,
+              decoration: BoxDecoration(shape: BoxShape.circle, color: Colors.black54),
+              child: const Icon(Icons.close, color: Colors.white, size: 20)),
+          ),
+        )),
+        if (widget.photos.length > 1)
+          Positioned(bottom: 20, left: 0, right: 0,
+            child: Center(child: Text('${_current + 1} / ${widget.photos.length}',
+                style: TextStyle(color: Colors.white.withValues(alpha: 0.6), fontSize: 13)))),
+      ]),
     );
   }
 }
