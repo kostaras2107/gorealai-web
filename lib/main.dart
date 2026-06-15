@@ -1553,14 +1553,24 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                                 .where('proId', isEqualTo: _userId)
                                 .snapshots()
                             : const Stream.empty(),
-                        builder: (context, snap) {
+                        builder: (context, snapChats) {
                           int unread = 0;
-                          if (snap.hasData) {
-                            for (final d in snap.data!.docs) {
+                          if (snapChats.hasData) {
+                            for (final d in snapChats.data!.docs) {
                               final data = d.data() as Map<String, dynamic>;
                               unread += ((data['unreadPro'] as int?) ?? 0);
                             }
                           }
+                          // Also count active requests the pro hasn't responded to
+                          return StreamBuilder<QuerySnapshot>(
+                            stream: FirebaseFirestore.instance
+                                .collection('requests')
+                                .where('status', isEqualTo: 'active')
+                                .limit(20)
+                                .snapshots(),
+                            builder: (context, snapReq) {
+                          final reqCount = snapReq.hasData ? snapReq.data!.docs.length : 0;
+                          final total = unread + reqCount;
                           return GestureDetector(
                             onTap: () => Navigator.push(context, PageRouteBuilder(
                               transitionDuration: const Duration(milliseconds: 350),
@@ -1585,7 +1595,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                                   Icon(Icons.arrow_forward_ios, size: 9, color: kGold.withValues(alpha: 0.6)),
                                 ]),
                               ),
-                              if (unread > 0)
+                              if (total > 0)
                                 Positioned(
                                   top: -5, right: -5,
                                   child: Container(
@@ -1597,12 +1607,14 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                                       boxShadow: [BoxShadow(color: Colors.red.withValues(alpha: 0.6), blurRadius: 6)],
                                     ),
                                     child: Center(child: Text(
-                                      unread > 99 ? '99+' : '$unread',
+                                      total > 99 ? '99+' : '$total',
                                       style: const TextStyle(color: Colors.white, fontSize: 9, fontWeight: FontWeight.bold, height: 1),
                                     )),
                                   ),
                                 ),
                             ]),
+                          );
+                        },
                           );
                         },
                       ),
@@ -3124,32 +3136,71 @@ class _ProfessionalHomeScreenState extends State<ProfessionalHomeScreen> {
   }
 
   Widget _buildGrid() {
-    return SingleChildScrollView(
-      padding: const EdgeInsets.fromLTRB(16, 0, 16, 20),
-      child: Column(children: [
-
-        // ── 7-card grid ──
-        GridView.count(
-          shrinkWrap: true,
-          physics: const NeverScrollableScrollPhysics(),
-          crossAxisCount: 2,
-          childAspectRatio: 2.1,
-          crossAxisSpacing: 10,
-          mainAxisSpacing: 10,
-          children: [
-            _buildNavCard('requests', '📋', 'Αιτήματα', 'Ολοκλήρωσε αιτήματα'),
-            _buildNavCard('messages', '💬', 'Μηνύματα', 'Εξυπηρέτηση πελατών',
-                customOnTap: () => Navigator.push(context, MaterialPageRoute(
-                    builder: (_) => MessagesScreen(userId: _proId ?? '')))),
-            _buildNavCard('minicv', '👤', 'Mini CV', 'Βιογραφικό & ειδικότητες'),
-            _buildNavCard('portfolio', '📸', 'Portfolio', 'Φωτογραφίες έργων'),
-            _buildNavCard('bookings', '📅', 'Bookings', 'Προπληρωμένα ραντεβού'),
-            _buildNavCard('rejected', '❌', 'Απορριφθέντα', 'Ιστορικό απορρίψεων',
-                iconColor: Colors.red),
-            _buildNavCard('social', '📱', 'Social Media', 'Instagram & TikTok'),
-          ],
-        ),
-      ]),
+    return StreamBuilder<QuerySnapshot>(
+      stream: FirebaseFirestore.instance
+          .collection('requests')
+          .where('status', isEqualTo: 'active')
+          .limit(20)
+          .snapshots(),
+      builder: (_, snapReq) {
+        final reqCount = snapReq.hasData
+            ? snapReq.data!.docs.where((d) => !_submittedIds.contains(d.id)).length
+            : 0;
+        return StreamBuilder<QuerySnapshot>(
+          stream: _proId != null
+              ? FirebaseFirestore.instance
+                  .collection('chats')
+                  .where('proId', isEqualTo: _proId)
+                  .snapshots()
+              : const Stream.empty(),
+          builder: (_, snapChats) {
+            int unreadMsg = 0;
+            if (snapChats.hasData) {
+              for (final d in snapChats.data!.docs) {
+                unreadMsg += (((d.data() as Map)['unreadPro'] as int?) ?? 0);
+              }
+            }
+            return StreamBuilder<QuerySnapshot>(
+              stream: _proName != null && _proName!.isNotEmpty
+                  ? FirebaseFirestore.instance
+                      .collection('bookings')
+                      .where('professionalName', isEqualTo: _proName)
+                      .where('status', isEqualTo: 'pending')
+                      .snapshots()
+                  : const Stream.empty(),
+              builder: (_, snapBook) {
+                final bookCount = snapBook.hasData ? snapBook.data!.docs.length : 0;
+                return SingleChildScrollView(
+                  padding: const EdgeInsets.fromLTRB(16, 0, 16, 20),
+                  child: Column(children: [
+                    GridView.count(
+                      shrinkWrap: true,
+                      physics: const NeverScrollableScrollPhysics(),
+                      crossAxisCount: 2,
+                      childAspectRatio: 2.1,
+                      crossAxisSpacing: 10,
+                      mainAxisSpacing: 10,
+                      children: [
+                        _buildNavCard('requests', '📋', 'Αιτήματα', 'Ολοκλήρωσε αιτήματα', badge: reqCount),
+                        _buildNavCard('messages', '💬', 'Μηνύματα', 'Εξυπηρέτηση πελατών',
+                            badge: unreadMsg,
+                            customOnTap: () => Navigator.push(context, MaterialPageRoute(
+                                builder: (_) => MessagesScreen(userId: _proId ?? '')))),
+                        _buildNavCard('minicv', '👤', 'Mini CV', 'Βιογραφικό & ειδικότητες'),
+                        _buildNavCard('portfolio', '📸', 'Portfolio', 'Φωτογραφίες έργων'),
+                        _buildNavCard('bookings', '📅', 'Bookings', 'Προπληρωμένα ραντεβού', badge: bookCount),
+                        _buildNavCard('rejected', '❌', 'Απορριφθέντα', 'Ιστορικό απορρίψεων',
+                            iconColor: Colors.red),
+                        _buildNavCard('social', '📱', 'Social Media', 'Instagram & TikTok'),
+                      ],
+                    ),
+                  ]),
+                );
+              },
+            );
+          },
+        );
+      },
     );
   }
 
@@ -11447,27 +11498,7 @@ class _ChatScreenState extends State<ChatScreen> {
   }
 
   void _openVideoFullscreen(BuildContext context, String url) {
-    showDialog(context: context, builder: (ctx) => Dialog(
-      backgroundColor: Colors.black,
-      insetPadding: EdgeInsets.zero,
-      child: Stack(children: [
-        Center(child: Column(mainAxisSize: MainAxisSize.min, children: [
-          const Icon(Icons.videocam_rounded, color: kGold, size: 60),
-          const SizedBox(height: 16),
-          const Text('Άνοιγμα βίντεο;', style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.w700)),
-          const SizedBox(height: 8),
-          Text('Θα ανοίξει σε εξωτερικό πρόγραμμα.', style: TextStyle(color: _g(0.4), fontSize: 12)),
-          const SizedBox(height: 20),
-          GestureDetector(
-            onTap: () { Navigator.pop(ctx); },
-            child: Container(padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 12),
-              decoration: BoxDecoration(borderRadius: BorderRadius.circular(12),
-                  gradient: const LinearGradient(colors: [kGoldLight, kGold])),
-              child: const Text('Κλείσιμο', style: TextStyle(color: Colors.black, fontWeight: FontWeight.w700))),
-          ),
-        ])),
-      ]),
-    ));
+    launchUrl(Uri.parse(url), mode: LaunchMode.externalApplication);
   }
 
   Future<void> _sendMessage() async {
@@ -11490,11 +11521,20 @@ class _ChatScreenState extends State<ChatScreen> {
       if (_selectedVideo != null) {
         try {
           final bytes = await _selectedVideo!.readAsBytes();
+          if (bytes.lengthInBytes > 50 * 1024 * 1024) {
+            if (mounted) ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('Το βίντεο είναι πολύ μεγάλο (max 50MB)')));
+            setState(() { _selectedVideo = null; _sending = false; });
+            return;
+          }
           final ref = FirebaseStorage.instance.ref(
               'chat_media/${widget.chatId}/${DateTime.now().millisecondsSinceEpoch}_vid.mp4');
           await ref.putData(bytes, SettableMetadata(contentType: 'video/mp4'));
           videoUrls.add(await ref.getDownloadURL());
-        } catch (_) {}
+        } catch (e) {
+          if (mounted) ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Σφάλμα βίντεο: $e')));
+        }
       }
       String previewText = text;
       if (videoUrls.isNotEmpty && text.isEmpty) previewText = '🎥 Βίντεο';
