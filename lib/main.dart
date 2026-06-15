@@ -1546,33 +1546,69 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                   ),
                   Row(children: [
                     if (_isPro) ...[
-                      GestureDetector(
-                        onTap: () => Navigator.push(context, PageRouteBuilder(
-                          transitionDuration: const Duration(milliseconds: 350),
-                          pageBuilder: (_, __, ___) => const ProfessionalHomeScreen(),
-                          transitionsBuilder: (_, a, __, c) => FadeTransition(opacity: a, child: c),
-                        )),
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                          decoration: BoxDecoration(
-                            borderRadius: BorderRadius.circular(20),
-                            color: kGold.withValues(alpha: 0.12),
-                            border: Border.all(color: kGold.withValues(alpha: 0.35)),
-                          ),
-                          child: Row(mainAxisSize: MainAxisSize.min, children: [
-                            Container(width: 6, height: 6,
-                                decoration: const BoxDecoration(shape: BoxShape.circle, color: kGold)),
-                            const SizedBox(width: 6),
-                            const Text('Επαγγελματίας',
-                                style: TextStyle(color: kGold, fontSize: 11, fontWeight: FontWeight.w700)),
-                            const SizedBox(width: 4),
-                            Icon(Icons.arrow_forward_ios, size: 9, color: kGold.withValues(alpha: 0.6)),
-                          ]),
-                        ),
+                      StreamBuilder<QuerySnapshot>(
+                        stream: _userId != null
+                            ? FirebaseFirestore.instance
+                                .collection('chats')
+                                .where('proId', isEqualTo: _userId)
+                                .snapshots()
+                            : const Stream.empty(),
+                        builder: (context, snap) {
+                          int unread = 0;
+                          if (snap.hasData) {
+                            for (final d in snap.data!.docs) {
+                              final data = d.data() as Map<String, dynamic>;
+                              unread += ((data['unreadPro'] as int?) ?? 0);
+                            }
+                          }
+                          return GestureDetector(
+                            onTap: () => Navigator.push(context, PageRouteBuilder(
+                              transitionDuration: const Duration(milliseconds: 350),
+                              pageBuilder: (_, __, ___) => const ProfessionalHomeScreen(),
+                              transitionsBuilder: (_, a, __, c) => FadeTransition(opacity: a, child: c),
+                            )),
+                            child: Stack(clipBehavior: Clip.none, children: [
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                                decoration: BoxDecoration(
+                                  borderRadius: BorderRadius.circular(20),
+                                  color: kGold.withValues(alpha: 0.12),
+                                  border: Border.all(color: kGold.withValues(alpha: 0.35)),
+                                ),
+                                child: Row(mainAxisSize: MainAxisSize.min, children: [
+                                  Container(width: 6, height: 6,
+                                      decoration: const BoxDecoration(shape: BoxShape.circle, color: kGold)),
+                                  const SizedBox(width: 6),
+                                  const Text('Επαγγελματίας',
+                                      style: TextStyle(color: kGold, fontSize: 11, fontWeight: FontWeight.w700)),
+                                  const SizedBox(width: 4),
+                                  Icon(Icons.arrow_forward_ios, size: 9, color: kGold.withValues(alpha: 0.6)),
+                                ]),
+                              ),
+                              if (unread > 0)
+                                Positioned(
+                                  top: -5, right: -5,
+                                  child: Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
+                                    constraints: const BoxConstraints(minWidth: 18, minHeight: 18),
+                                    decoration: BoxDecoration(
+                                      color: Colors.red,
+                                      borderRadius: BorderRadius.circular(9),
+                                      boxShadow: [BoxShadow(color: Colors.red.withValues(alpha: 0.6), blurRadius: 6)],
+                                    ),
+                                    child: Center(child: Text(
+                                      unread > 99 ? '99+' : '$unread',
+                                      style: const TextStyle(color: Colors.white, fontSize: 9, fontWeight: FontWeight.bold, height: 1),
+                                    )),
+                                  ),
+                                ),
+                            ]),
+                          );
+                        },
                       ),
                       const SizedBox(width: 8),
                     ],
-                    _NotificationBell(userId: _userId ?? ''),
+                    if (!_isPro) _NotificationBell(userId: _userId ?? ''),
                   ]),
                 ]),
           ),
@@ -11286,9 +11322,56 @@ class _ChatScreenState extends State<ChatScreen> {
   }
 
   Future<void> _pickImage() async {
+    final source = await showModalBottomSheet<ImageSource>(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) => Container(
+        padding: const EdgeInsets.all(20),
+        decoration: const BoxDecoration(
+          color: Color(0xFF111111),
+          borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+        ),
+        child: Column(mainAxisSize: MainAxisSize.min, children: [
+          Container(width: 36, height: 4,
+              decoration: BoxDecoration(color: _g(0.2), borderRadius: BorderRadius.circular(2))),
+          const SizedBox(height: 16),
+          const Text('Επιλογή φωτογραφίας', style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.w700)),
+          const SizedBox(height: 16),
+          GestureDetector(
+            onTap: () => Navigator.pop(ctx, ImageSource.camera),
+            child: Container(
+              padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 20),
+              margin: const EdgeInsets.only(bottom: 10),
+              decoration: BoxDecoration(borderRadius: BorderRadius.circular(14),
+                  color: kGold.withValues(alpha: 0.1), border: Border.all(color: kGold.withValues(alpha: 0.3))),
+              child: const Row(children: [
+                Icon(Icons.camera_alt_rounded, color: kGold, size: 22),
+                SizedBox(width: 12),
+                Text('Τράβα φωτογραφία', style: TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.w600)),
+              ]),
+            ),
+          ),
+          GestureDetector(
+            onTap: () => Navigator.pop(ctx, ImageSource.gallery),
+            child: Container(
+              padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 20),
+              decoration: BoxDecoration(borderRadius: BorderRadius.circular(14),
+                  color: _g(0.06), border: Border.all(color: _g(0.1))),
+              child: const Row(children: [
+                Icon(Icons.photo_library_outlined, color: Colors.white70, size: 22),
+                SizedBox(width: 12),
+                Text('Άνοιξε γκαλερί', style: TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.w600)),
+              ]),
+            ),
+          ),
+          const SizedBox(height: 8),
+        ]),
+      ),
+    );
+    if (source == null) return;
     try {
       final picker = ImagePicker();
-      final xf = await picker.pickImage(source: ImageSource.gallery, imageQuality: 75);
+      final xf = await picker.pickImage(source: source, imageQuality: 75);
       if (xf == null) return;
       final bytes = await xf.readAsBytes();
       if (mounted) setState(() => _selectedImages.add(bytes));
@@ -11296,10 +11379,57 @@ class _ChatScreenState extends State<ChatScreen> {
   }
 
   Future<void> _pickVideo() async {
+    final source = await showModalBottomSheet<ImageSource>(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) => Container(
+        padding: const EdgeInsets.all(20),
+        decoration: const BoxDecoration(
+          color: Color(0xFF111111),
+          borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+        ),
+        child: Column(mainAxisSize: MainAxisSize.min, children: [
+          Container(width: 36, height: 4,
+              decoration: BoxDecoration(color: _g(0.2), borderRadius: BorderRadius.circular(2))),
+          const SizedBox(height: 16),
+          const Text('Επιλογή βίντεο (max 20\")', style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.w700)),
+          const SizedBox(height: 16),
+          GestureDetector(
+            onTap: () => Navigator.pop(ctx, ImageSource.camera),
+            child: Container(
+              padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 20),
+              margin: const EdgeInsets.only(bottom: 10),
+              decoration: BoxDecoration(borderRadius: BorderRadius.circular(14),
+                  color: kGold.withValues(alpha: 0.1), border: Border.all(color: kGold.withValues(alpha: 0.3))),
+              child: const Row(children: [
+                Icon(Icons.videocam_rounded, color: kGold, size: 22),
+                SizedBox(width: 12),
+                Text('Τράβα βίντεο', style: TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.w600)),
+              ]),
+            ),
+          ),
+          GestureDetector(
+            onTap: () => Navigator.pop(ctx, ImageSource.gallery),
+            child: Container(
+              padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 20),
+              decoration: BoxDecoration(borderRadius: BorderRadius.circular(14),
+                  color: _g(0.06), border: Border.all(color: _g(0.1))),
+              child: const Row(children: [
+                Icon(Icons.video_library_outlined, color: Colors.white70, size: 22),
+                SizedBox(width: 12),
+                Text('Άνοιξε γκαλερί', style: TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.w600)),
+              ]),
+            ),
+          ),
+          const SizedBox(height: 8),
+        ]),
+      ),
+    );
+    if (source == null) return;
     try {
       final picker = ImagePicker();
       final xf = await picker.pickVideo(
-        source: ImageSource.gallery,
+        source: source,
         maxDuration: const Duration(seconds: 20),
       );
       if (xf == null || !mounted) return;
