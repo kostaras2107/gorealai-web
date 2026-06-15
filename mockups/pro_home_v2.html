@@ -1,0 +1,397 @@
+<!DOCTYPE html>
+<html lang="el">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=390, initial-scale=1.0">
+<title>Pro Home – Design 2: Command Center</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    background: #07091A;
+    font-family: -apple-system, 'Segoe UI', sans-serif;
+    color: #fff;
+    width: 390px;
+    min-height: 844px;
+  }
+  .screen { width: 390px; min-height: 844px; display: flex; flex-direction: column; }
+
+  /* ── MINIMAL TOP BAR ── */
+  .topbar {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 52px 20px 12px;
+  }
+  .greeting-block { }
+  .greeting-sub { font-size: 11px; color: rgba(255,255,255,0.3); font-weight: 600; letter-spacing: 0.5px; }
+  .greeting-name { font-size: 20px; font-weight: 900; margin-top: 1px; }
+  .greeting-name span { background: linear-gradient(90deg, #FFD47A, #FFB340); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+
+  .topbar-right { display: flex; align-items: center; gap: 8px; }
+  .avatar-small {
+    width: 40px; height: 40px; border-radius: 50%;
+    background: linear-gradient(135deg, #FFD47A, #FFB340);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 16px; font-weight: 800; color: #000;
+    border: 2px solid rgba(255,179,64,0.4);
+    position: relative;
+  }
+  .avatar-online {
+    position: absolute; bottom: 0; right: 0;
+    width: 11px; height: 11px; border-radius: 50%;
+    background: #00D4AA; border: 2px solid #07091A;
+  }
+  .notif-btn {
+    width: 40px; height: 40px; border-radius: 50%;
+    background: rgba(255,179,64,0.07); border: 1px solid rgba(255,179,64,0.18);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 18px; position: relative; cursor: pointer;
+  }
+  .notif-badge {
+    position: absolute; top: -2px; right: -2px;
+    width: 17px; height: 17px; background: #ef4444; border-radius: 50%;
+    font-size: 9px; font-weight: 700; display: flex; align-items: center; justify-content: center;
+    border: 2px solid #07091A;
+  }
+
+  /* ── TODAY AT A GLANCE ── */
+  .glance {
+    margin: 8px 16px 14px;
+    border-radius: 24px;
+    overflow: hidden;
+    position: relative;
+  }
+  .glance-bg {
+    background: linear-gradient(135deg, #1a0e00 0%, #0d0d1e 50%, #001a10 100%);
+    border: 1px solid rgba(255,179,64,0.2);
+    border-radius: 24px;
+    padding: 20px 20px 16px;
+    position: relative;
+  }
+  .glance-bg::after {
+    content: ''; position: absolute;
+    top: -60px; right: -60px; width: 180px; height: 180px;
+    background: radial-gradient(circle, rgba(255,179,64,0.12), transparent 65%);
+    pointer-events: none;
+  }
+  .glance-title {
+    font-size: 10px; font-weight: 700; color: rgba(255,179,64,0.6);
+    letter-spacing: 1.5px; text-transform: uppercase; margin-bottom: 14px;
+  }
+  .glance-metrics { display: flex; gap: 0; }
+  .metric {
+    flex: 1; text-align: center; padding: 0 8px;
+    border-right: 1px solid rgba(255,255,255,0.06);
+  }
+  .metric:last-child { border-right: none; }
+  .metric-num {
+    font-size: 28px; font-weight: 900; line-height: 1;
+  }
+  .metric-num.gold { background: linear-gradient(90deg, #FFD47A, #FFB340); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+  .metric-num.green { color: #00D4AA; }
+  .metric-num.blue { color: #60a5fa; }
+  .metric-label {
+    font-size: 9px; color: rgba(255,255,255,0.3);
+    margin-top: 5px; font-weight: 600; line-height: 1.3;
+  }
+
+  /* revenue strip */
+  .revenue-strip {
+    margin-top: 16px; padding-top: 14px;
+    border-top: 1px solid rgba(255,255,255,0.06);
+    display: flex; align-items: center; justify-content: space-between;
+  }
+  .revenue-label { font-size: 11px; color: rgba(255,255,255,0.35); }
+  .revenue-val { font-size: 18px; font-weight: 900; color: #00D4AA; }
+  .revenue-month { font-size: 10px; color: rgba(0,212,170,0.5); }
+  .progress-bar {
+    height: 4px; background: rgba(255,255,255,0.06); border-radius: 2px;
+    margin-top: 6px; overflow: hidden;
+  }
+  .progress-fill { height: 100%; border-radius: 2px; background: linear-gradient(90deg, #00D4AA, #00ffcc); width: 62%; }
+
+  /* ── AVAILABILITY TOGGLE ── */
+  .avail-row {
+    margin: 0 16px 14px;
+    background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.07);
+    border-radius: 18px; padding: 14px 16px;
+    display: flex; align-items: center; justify-content: space-between;
+  }
+  .avail-left { display: flex; align-items: center; gap: 10px; }
+  .avail-icon { font-size: 22px; }
+  .avail-title { font-size: 13px; font-weight: 700; }
+  .avail-sub { font-size: 10px; color: rgba(255,255,255,0.35); margin-top: 1px; }
+  .toggle {
+    width: 52px; height: 28px; border-radius: 14px;
+    background: linear-gradient(90deg, #00D4AA, #00a88a);
+    display: flex; align-items: center; padding: 3px; cursor: pointer;
+    box-shadow: 0 0 12px rgba(0,212,170,0.35);
+  }
+  .toggle-knob {
+    width: 22px; height: 22px; border-radius: 50%; background: #fff;
+    margin-left: auto; box-shadow: 0 2px 4px rgba(0,0,0,0.3);
+  }
+
+  /* ── SECTION HEADER ── */
+  .section-header {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 0 16px; margin-bottom: 10px;
+  }
+  .section-title { font-size: 13px; font-weight: 800; }
+  .section-count {
+    font-size: 10px; color: #FFB340; background: rgba(255,179,64,0.12);
+    padding: 4px 10px; border-radius: 8px; font-weight: 700;
+  }
+
+  /* ── REQUEST LIST ── */
+  .req-list { padding: 0 16px; flex: 1; overflow-y: auto; }
+
+  .req-item {
+    display: flex; gap: 12px; align-items: stretch;
+    background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.06);
+    border-radius: 18px; padding: 14px 14px 14px 12px;
+    margin-bottom: 8px; cursor: pointer;
+    transition: border-color .2s, background .2s;
+    position: relative; overflow: hidden;
+  }
+  .req-item.urgent { border-color: rgba(255,179,64,0.4); background: rgba(255,179,64,0.04); }
+  .req-item.urgent::before {
+    content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: 3px;
+    background: linear-gradient(180deg, #FFD47A, #FFB340);
+  }
+  .req-item.blue-border { border-color: rgba(96,165,250,0.3); background: rgba(96,165,250,0.03); }
+  .req-item.blue-border::before {
+    content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: 3px;
+    background: linear-gradient(180deg, #93c5fd, #3b82f6);
+  }
+
+  .req-left { display: flex; flex-direction: column; align-items: center; justify-content: center; flex-shrink: 0; width: 40px; }
+  .req-emoji { font-size: 26px; }
+  .req-ago { font-size: 8px; color: rgba(255,255,255,0.25); text-align: center; margin-top: 4px; line-height: 1.2; }
+
+  .req-body { flex: 1; }
+  .req-top { display: flex; align-items: center; gap: 6px; margin-bottom: 5px; }
+  .req-badge {
+    font-size: 8px; font-weight: 800; letter-spacing: 0.8px;
+    padding: 3px 7px; border-radius: 6px;
+  }
+  .req-badge.new { background: rgba(255,179,64,0.15); color: #FFB340; }
+  .req-badge.event { background: rgba(124,58,237,0.18); color: #a78bfa; }
+  .req-badge.msg { background: rgba(96,165,250,0.15); color: #60a5fa; }
+  .req-badge.urgent { background: rgba(239,68,68,0.15); color: #f87171; }
+  .req-desc2 { font-size: 13px; color: rgba(255,255,255,0.85); line-height: 1.4; font-style: italic; margin-bottom: 6px; }
+  .req-footer { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+  .req-chip { font-size: 10px; color: rgba(255,255,255,0.35); }
+  .req-price { font-size: 12px; font-weight: 800; color: #00D4AA; margin-left: auto; }
+
+  .req-action-btn {
+    flex-shrink: 0; align-self: center;
+    background: linear-gradient(135deg, #FFD47A, #FFB340);
+    border: none; border-radius: 12px; padding: 10px 14px;
+    font-size: 12px; font-weight: 800; color: #000;
+    cursor: pointer; font-family: inherit; white-space: nowrap;
+  }
+
+  /* ── BOTTOM NAV ── */
+  .bottom-nav {
+    margin: 10px 16px 20px;
+    background: linear-gradient(180deg, #242424, #141414);
+    border-radius: 28px; padding: 10px 4px;
+    display: flex; justify-content: space-around; align-items: center;
+    box-shadow: 0 -4px 30px rgba(0,0,0,0.5), 0 10px 30px rgba(0,0,0,0.5);
+    border: 1px solid rgba(255,255,255,0.06);
+  }
+  .nav-item {
+    display: flex; flex-direction: column; align-items: center; gap: 3px;
+    cursor: pointer; padding: 6px 16px; border-radius: 18px;
+    position: relative;
+  }
+  .nav-item.active { background: rgba(255,179,64,0.12); }
+  .nav-icon { font-size: 20px; }
+  .nav-label { font-size: 9px; font-weight: 700; }
+  .nav-item.active .nav-label { color: #FFB340; }
+  .nav-item:not(.active) .nav-label { color: rgba(255,255,255,0.22); }
+  .nav-badge {
+    position: absolute; top: 2px; right: 8px;
+    width: 16px; height: 16px; background: #ef4444; border-radius: 50%;
+    font-size: 8px; font-weight: 700; display: flex; align-items: center; justify-content: center;
+    border: 2px solid #07091A;
+  }
+</style>
+</head>
+<body>
+<div class="screen">
+
+  <!-- MINIMAL TOP BAR -->
+  <div class="topbar">
+    <div class="greeting-block">
+      <div class="greeting-sub">Καλημέρα 👋</div>
+      <div class="greeting-name"><span>Νίκος</span></div>
+    </div>
+    <div class="topbar-right">
+      <div class="notif-btn">🔔<span class="notif-badge">3</span></div>
+      <div class="avatar-small">
+        Ν
+        <div class="avatar-online"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- TODAY AT A GLANCE -->
+  <div class="glance">
+    <div class="glance-bg">
+      <div class="glance-title">📊 Σήμερα</div>
+      <div class="glance-metrics">
+        <div class="metric">
+          <div class="metric-num gold">5</div>
+          <div class="metric-label">Νέα<br>Αιτήματα</div>
+        </div>
+        <div class="metric">
+          <div class="metric-num blue">2</div>
+          <div class="metric-label">Νέα<br>Μηνύματα</div>
+        </div>
+        <div class="metric">
+          <div class="metric-num" style="color:#fff">4.9</div>
+          <div class="metric-label">⭐ Rating</div>
+        </div>
+        <div class="metric">
+          <div class="metric-num" style="color:#fff">124</div>
+          <div class="metric-label">Ολοκλ.</div>
+        </div>
+      </div>
+      <div class="revenue-strip">
+        <div>
+          <div class="revenue-label">Έσοδα Μαΐου</div>
+          <div class="revenue-month">στόχος €3.000</div>
+          <div class="progress-bar"><div class="progress-fill"></div></div>
+        </div>
+        <div style="text-align:right">
+          <div class="revenue-val">€1.840</div>
+          <div style="font-size:9px; color:rgba(0,212,170,0.5)">62% του στόχου</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- AVAILABILITY TOGGLE -->
+  <div class="avail-row">
+    <div class="avail-left">
+      <span class="avail-icon">⚡</span>
+      <div>
+        <div class="avail-title">Διαθέσιμος για αιτήματα</div>
+        <div class="avail-sub">Λαμβάνεις νέα αιτήματα · 5 ενεργά</div>
+      </div>
+    </div>
+    <div class="toggle"><div class="toggle-knob"></div></div>
+  </div>
+
+  <!-- SECTION HEADER -->
+  <div class="section-header">
+    <span class="section-title">Αιτήματα για εσένα</span>
+    <span class="section-count">5 νέα</span>
+  </div>
+
+  <!-- REQUEST LIST -->
+  <div class="req-list">
+
+    <!-- Item 1 – URGENT -->
+    <div class="req-item urgent">
+      <div class="req-left">
+        <div class="req-emoji">🔧</div>
+        <div class="req-ago">3 λεπτά</div>
+      </div>
+      <div class="req-body">
+        <div class="req-top">
+          <span class="req-badge new">ΝΕΟ</span>
+          <span class="req-badge urgent">⚡ ΕΠΕΙΓΟΝ</span>
+        </div>
+        <div class="req-desc2">"Βλάβη καλοριφέρ, χρειάζεται άμεση επισκευή"</div>
+        <div class="req-footer">
+          <span class="req-chip">📍 Κολωνάκι</span>
+          <span class="req-price">€80–120</span>
+        </div>
+      </div>
+      <button class="req-action-btn">Προσφορά</button>
+    </div>
+
+    <!-- Item 2 -->
+    <div class="req-item urgent">
+      <div class="req-left">
+        <div class="req-emoji">🚿</div>
+        <div class="req-ago">11 λεπτά</div>
+      </div>
+      <div class="req-body">
+        <div class="req-top">
+          <span class="req-badge new">ΝΕΟ</span>
+        </div>
+        <div class="req-desc2">"Αλλαγή βρύσης κουζίνας και σιφόν"</div>
+        <div class="req-footer">
+          <span class="req-chip">📍 Χαλάνδρι</span>
+          <span class="req-price">€50–80</span>
+        </div>
+      </div>
+      <button class="req-action-btn">Προσφορά</button>
+    </div>
+
+    <!-- Item 3 – MESSAGE -->
+    <div class="req-item blue-border">
+      <div class="req-left">
+        <div class="req-emoji">💬</div>
+        <div class="req-ago">18 λεπτά</div>
+      </div>
+      <div class="req-body">
+        <div class="req-top">
+          <span class="req-badge msg">ΜΗΝΥΜΑ</span>
+        </div>
+        <div class="req-desc2">"Θα μπορούσατε να έρθετε αύριο πρωί;"</div>
+        <div class="req-footer">
+          <span class="req-chip">Μαρία Π. · Κολωνάκι</span>
+        </div>
+      </div>
+      <button class="req-action-btn" style="background:rgba(96,165,250,0.15); color:#60a5fa;">Απάντηση</button>
+    </div>
+
+    <!-- Item 4 – EVENT -->
+    <div class="req-item">
+      <div class="req-left">
+        <div class="req-emoji">🎉</div>
+        <div class="req-ago">28 λεπτά</div>
+      </div>
+      <div class="req-body">
+        <div class="req-top">
+          <span class="req-badge event">EVENT</span>
+        </div>
+        <div class="req-desc2">"Γάμος – εγκατάσταση υδραυλικού συστήματος"</div>
+        <div class="req-footer">
+          <span class="req-chip">📍 Γλυφάδα · 15 Ιουν</span>
+          <span class="req-price">€300+</span>
+        </div>
+      </div>
+      <button class="req-action-btn">Προσφορά</button>
+    </div>
+
+  </div>
+
+  <!-- BOTTOM NAV -->
+  <div class="bottom-nav">
+    <div class="nav-item active">
+      <span class="nav-icon">🏠</span>
+      <span class="nav-label">Αρχική</span>
+    </div>
+    <div class="nav-item" style="position:relative">
+      <span class="nav-icon">📋</span>
+      <span class="nav-label">Αιτήματα</span>
+      <span class="nav-badge">5</span>
+    </div>
+    <div class="nav-item" style="position:relative">
+      <span class="nav-icon">💬</span>
+      <span class="nav-label">Μηνύματα</span>
+      <span class="nav-badge" style="background:#3b82f6">2</span>
+    </div>
+    <div class="nav-item">
+      <span class="nav-icon">👤</span>
+      <span class="nav-label">Προφίλ</span>
+    </div>
+  </div>
+
+</div>
+</body>
+</html>

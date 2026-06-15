@@ -1,162 +1,1057 @@
-<!DOCTYPE html><html lang="el">
+<!DOCTYPE html>
+<html lang="el">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>GorealAI – Ο προσωπικός σου σύμβουλος</title>  <style>
-    * {
-      margin: 0;
-      padding: 0;
-      box-sizing: border-box;
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="theme-color" content="#080600" />
+  <title>GorealAI – Βρες τον καλύτερο επαγγελματία</title>
+  <meta name="description" content="Στείλε αίτημα, λάβε προσφορές σε 15 λεπτά. Ηλεκτρολόγοι, υδραυλικοί, καθαρίστριες, event planners και πολλοί άλλοι." />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Raleway:wght@400;700;800;900&display=swap" rel="stylesheet" />
+
+  <style>
+    *, *::before, *::after { margin:0; padding:0; box-sizing:border-box; }
+
+    :root {
+      --gold: #C9A84C;
+      --gold-light: #F0D080;
+      --bg: #080600;
+      --bg2: #0E0B04;
+      --green: #00C853;
+      --text: #ffffff;
+      --muted: rgba(255,255,255,0.45);
     }
+
+    html { scroll-behavior: smooth; }
 
     body {
-      background: radial-gradient(circle at top, #111 0%, #000 70%);
-      color: #fff;
-      min-height: 100vh;
+      background: var(--bg);
+      color: var(--text);
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      overflow-x: hidden;
+    }
+
+    /* ── NAV ── */
+    nav {
+      position: fixed;
+      top: 0; left: 0; right: 0;
+      z-index: 100;
+      padding: 16px 24px;
       display: flex;
-      flex-direction: column;
+      align-items: center;
+      justify-content: space-between;
+      background: rgba(8,6,0,0.85);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      border-bottom: 1px solid rgba(201,168,76,0.1);
     }
 
-    header {
-      padding: 24px;
-      text-align: center;
-      font-size: 28px;
-      font-weight: 700;
-      letter-spacing: 1px;
+    .nav-logo {
+      font-family: 'Raleway', sans-serif;
+      font-weight: 900;
+      font-size: 20px;
+      letter-spacing: 4px;
+      background: linear-gradient(90deg, var(--gold-light), var(--gold));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
     }
 
+    .nav-cta {
+      background: linear-gradient(135deg, var(--gold-light), var(--gold));
+      color: #000;
+      font-weight: 800;
+      font-size: 13px;
+      padding: 10px 20px;
+      border-radius: 12px;
+      text-decoration: none;
+      white-space: nowrap;
+    }
+
+    /* ── HERO ── */
     .hero {
-      flex: 1;
+      min-height: 100vh;
       display: flex;
       flex-direction: column;
       align-items: center;
       justify-content: center;
+      padding: 100px 24px 60px;
       text-align: center;
-      padding: 40px 20px;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .hero::before {
+      content: '';
+      position: absolute;
+      top: -200px; left: 50%;
+      transform: translateX(-50%);
+      width: 600px; height: 600px;
+      background: radial-gradient(circle, rgba(201,168,76,0.12) 0%, transparent 70%);
+      pointer-events: none;
+    }
+
+    .hero-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      background: rgba(201,168,76,0.1);
+      border: 1px solid rgba(201,168,76,0.25);
+      border-radius: 100px;
+      padding: 8px 16px;
+      font-size: 12px;
+      font-weight: 700;
+      color: var(--gold);
+      letter-spacing: 1px;
+      margin-bottom: 28px;
+    }
+
+    .hero-badge .dot {
+      width: 6px; height: 6px;
+      background: var(--green);
+      border-radius: 50%;
+      animation: pulse 1.5s infinite;
+    }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50% { opacity: 0.5; transform: scale(0.8); }
     }
 
     .hero h1 {
-      font-size: 48px;
-      font-weight: 800;
-      margin-bottom: 16px;
-      background: linear-gradient(90deg, #ffd700, #ff9d00);
+      font-family: 'Raleway', sans-serif;
+      font-size: clamp(32px, 8vw, 62px);
+      font-weight: 900;
+      line-height: 1.15;
+      margin-bottom: 20px;
+    }
+
+    .hero h1 .gold {
+      background: linear-gradient(90deg, var(--gold-light), var(--gold));
       -webkit-background-clip: text;
       -webkit-text-fill-color: transparent;
+      background-clip: text;
     }
 
     .hero p {
-      font-size: 18px;
-      color: #ccc;
-      max-width: 600px;
-      margin-bottom: 32px;
-      line-height: 1.6;
+      font-size: clamp(15px, 4vw, 19px);
+      color: var(--muted);
+      max-width: 540px;
+      line-height: 1.7;
+      margin-bottom: 36px;
     }
 
-    .cta-btn {
-      background: linear-gradient(90deg, #ffd700, #ff9d00);
+    .hero-btns {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      width: 100%;
+      max-width: 340px;
+      margin-bottom: 56px;
+    }
+
+    .btn-primary {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      background: linear-gradient(135deg, var(--gold-light), var(--gold));
       color: #000;
-      border: none;
-      padding: 16px 32px;
-      font-size: 18px;
-      font-weight: 700;
-      border-radius: 14px;
-      cursor: pointer;
-      transition: 0.25s ease;
+      font-weight: 800;
+      font-size: 16px;
+      padding: 18px 28px;
+      border-radius: 16px;
       text-decoration: none;
-      box-shadow: 0 10px 25px rgba(255, 170, 0, 0.25);
+      box-shadow: 0 12px 30px rgba(201,168,76,0.3);
+      transition: transform 0.2s, box-shadow 0.2s;
     }
 
-    .cta-btn:hover {
-      transform: translateY(-2px) scale(1.03);
-      box-shadow: 0 15px 35px rgba(255, 170, 0, 0.35);
+    .btn-primary:hover, .btn-primary:active {
+      transform: translateY(-2px);
+      box-shadow: 0 18px 40px rgba(201,168,76,0.4);
     }
 
-    .features {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-      gap: 24px;
-      padding: 60px 24px;
-      max-width: 1100px;
+    .btn-secondary {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      background: rgba(255,255,255,0.05);
+      border: 1px solid rgba(255,255,255,0.12);
+      color: #fff;
+      font-weight: 700;
+      font-size: 15px;
+      padding: 17px 28px;
+      border-radius: 16px;
+      text-decoration: none;
+      transition: background 0.2s;
+    }
+
+    .btn-secondary:hover, .btn-secondary:active {
+      background: rgba(255,255,255,0.09);
+    }
+
+    /* ── STATS BAR ── */
+    .stats-bar {
+      display: flex;
+      justify-content: center;
+      gap: 32px;
+      flex-wrap: wrap;
+      padding: 0 24px 20px;
+    }
+
+    .stat-item {
+      text-align: center;
+    }
+
+    .stat-num {
+      font-family: 'Raleway', sans-serif;
+      font-size: 28px;
+      font-weight: 900;
+      background: linear-gradient(90deg, var(--gold-light), var(--gold));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    .stat-label {
+      font-size: 12px;
+      color: var(--muted);
+      margin-top: 2px;
+    }
+
+    /* ── PHONE MOCKUP ── */
+    .mockup-wrap {
+      width: 100%;
+      max-width: 300px;
+      margin: 0 auto 16px;
+      position: relative;
+    }
+
+    .phone-frame {
+      background: #111;
+      border-radius: 44px;
+      border: 2px solid rgba(201,168,76,0.3);
+      box-shadow:
+        0 0 0 1px rgba(0,0,0,0.5),
+        0 40px 80px rgba(0,0,0,0.7),
+        0 0 60px rgba(201,168,76,0.08);
+      overflow: hidden;
+      aspect-ratio: 9/19;
+      position: relative;
+    }
+
+    .phone-screen {
+      width: 100%;
+      height: 100%;
+      background: linear-gradient(160deg, #0E0B04 0%, #080600 100%);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 20px 16px;
+      gap: 10px;
+    }
+
+    .phone-logo {
+      font-family: 'Raleway', sans-serif;
+      font-weight: 900;
+      font-size: 11px;
+      letter-spacing: 4px;
+      background: linear-gradient(90deg, var(--gold-light), var(--gold));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    .phone-card {
+      width: 100%;
+      background: rgba(0,200,83,0.08);
+      border: 1px solid rgba(0,200,83,0.25);
+      border-radius: 16px;
+      padding: 12px;
+    }
+
+    .phone-card-label {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      font-size: 7px;
+      font-weight: 800;
+      color: var(--green);
+      letter-spacing: 1px;
+      margin-bottom: 8px;
+    }
+
+    .phone-card-label .dot {
+      width: 4px; height: 4px;
+      background: var(--green);
+      border-radius: 50%;
+    }
+
+    .phone-ring-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .phone-ring {
+      width: 40px; height: 40px;
+      border-radius: 50%;
+      border: 3px solid rgba(201,168,76,0.2);
+      border-top-color: var(--gold);
+      border-right-color: var(--gold);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 8px;
+      font-weight: 900;
+      font-family: 'Raleway', sans-serif;
+      color: var(--gold);
+      flex-shrink: 0;
+    }
+
+    .phone-stats { flex: 1; }
+    .phone-stat-line {
+      font-size: 7px;
+      color: rgba(255,255,255,0.6);
+      margin-bottom: 3px;
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+
+    .phone-cta {
+      width: 100%;
+      background: linear-gradient(90deg, var(--gold-light), var(--gold));
+      border-radius: 10px;
+      padding: 8px;
+      text-align: center;
+      font-size: 8px;
+      font-weight: 800;
+      color: #000;
+      margin-top: 4px;
+    }
+
+    .phone-pros {
+      width: 100%;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .phone-pro-card {
+      background: rgba(255,255,255,0.04);
+      border: 1px solid rgba(255,255,255,0.07);
+      border-radius: 12px;
+      padding: 10px 12px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .phone-avatar {
+      width: 28px; height: 28px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, var(--gold-light), var(--gold));
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 12px;
+      flex-shrink: 0;
+    }
+
+    .phone-pro-info { flex: 1; }
+    .phone-pro-name { font-size: 8px; font-weight: 700; color: #fff; }
+    .phone-pro-spec { font-size: 6px; color: var(--muted); margin-top: 2px; }
+    .phone-pro-rating { font-size: 7px; color: var(--gold); font-weight: 700; }
+
+    /* ── HOW IT WORKS ── */
+    .section {
+      padding: 72px 24px;
+      max-width: 700px;
       margin: 0 auto;
     }
 
-    .card {
-      background: rgba(255, 255, 255, 0.04);
-      border: 1px solid rgba(255, 255, 255, 0.08);
-      border-radius: 20px;
-      padding: 24px;
+    .section-label {
+      font-size: 11px;
+      font-weight: 800;
+      letter-spacing: 2px;
+      color: var(--gold);
       text-align: center;
-      transition: 0.25s ease;
-    }
-
-    .card:hover {
-      transform: translateY(-6px);
-      background: rgba(255, 255, 255, 0.07);
-    }
-
-    .card h3 {
       margin-bottom: 12px;
-      font-size: 20px;
     }
 
-    .card p {
-      color: #bbb;
+    .section-title {
+      font-family: 'Raleway', sans-serif;
+      font-size: clamp(26px, 6vw, 40px);
+      font-weight: 900;
+      text-align: center;
+      line-height: 1.2;
+      margin-bottom: 48px;
+    }
+
+    .steps {
+      display: flex;
+      flex-direction: column;
+      gap: 0;
+      position: relative;
+    }
+
+    .steps::before {
+      content: '';
+      position: absolute;
+      left: 27px; top: 40px; bottom: 40px;
+      width: 2px;
+      background: linear-gradient(180deg, var(--gold) 0%, transparent 100%);
+      opacity: 0.2;
+    }
+
+    .step {
+      display: flex;
+      gap: 20px;
+      align-items: flex-start;
+      padding: 20px 0;
+    }
+
+    .step-num {
+      width: 56px; height: 56px;
+      border-radius: 50%;
+      background: rgba(201,168,76,0.1);
+      border: 2px solid rgba(201,168,76,0.3);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 24px;
+      flex-shrink: 0;
+    }
+
+    .step-body { padding-top: 6px; }
+
+    .step-title {
+      font-family: 'Raleway', sans-serif;
+      font-size: 18px;
+      font-weight: 800;
+      margin-bottom: 6px;
+    }
+
+    .step-desc {
+      font-size: 14px;
+      color: var(--muted);
+      line-height: 1.6;
+    }
+
+    /* ── FEATURES GRID ── */
+    .features {
+      padding: 0 24px 72px;
+      max-width: 700px;
+      margin: 0 auto;
+    }
+
+    .features-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 14px;
+    }
+
+    @media (max-width: 380px) {
+      .features-grid { grid-template-columns: 1fr; }
+    }
+
+    .feat-card {
+      background: rgba(255,255,255,0.03);
+      border: 1px solid rgba(255,255,255,0.07);
+      border-radius: 20px;
+      padding: 22px 18px;
+      transition: border-color 0.2s, background 0.2s;
+    }
+
+    .feat-card:hover {
+      border-color: rgba(201,168,76,0.25);
+      background: rgba(201,168,76,0.04);
+    }
+
+    .feat-icon {
+      font-size: 28px;
+      margin-bottom: 12px;
+      display: block;
+    }
+
+    .feat-title {
+      font-family: 'Raleway', sans-serif;
       font-size: 15px;
+      font-weight: 800;
+      margin-bottom: 6px;
+    }
+
+    .feat-desc {
+      font-size: 13px;
+      color: var(--muted);
       line-height: 1.5;
     }
 
-    footer {
+    .feat-card.wide {
+      grid-column: 1 / -1;
+      display: flex;
+      gap: 16px;
+      align-items: flex-start;
+    }
 
-      text-align: center;
-      padding: 24px;
+    .feat-card.wide .feat-icon {
+      margin-bottom: 0;
+      flex-shrink: 0;
+    }
+
+    /* ── CATEGORIES ── */
+    .categories {
+      padding: 0 24px 72px;
+      max-width: 700px;
+      margin: 0 auto;
+    }
+
+    .cats-scroll {
+      display: flex;
+      gap: 12px;
+      overflow-x: auto;
+      padding-bottom: 12px;
+      -webkit-overflow-scrolling: touch;
+      scrollbar-width: none;
+    }
+
+    .cats-scroll::-webkit-scrollbar { display: none; }
+
+    .cat-chip {
+      flex-shrink: 0;
+      background: rgba(255,255,255,0.04);
+      border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 100px;
+      padding: 10px 18px;
+      font-size: 13px;
+      font-weight: 600;
+      white-space: nowrap;
+      cursor: default;
+      transition: border-color 0.2s, background 0.2s;
+    }
+
+    .cat-chip:hover {
+      border-color: rgba(201,168,76,0.4);
+      background: rgba(201,168,76,0.06);
+    }
+
+    /* ── EVENTS SECTION ── */
+    .events-section {
+      padding: 0 24px 72px;
+      max-width: 700px;
+      margin: 0 auto;
+    }
+
+    .events-cards {
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+    }
+
+    .event-card {
+      background: rgba(201,168,76,0.06);
+      border: 1px solid rgba(201,168,76,0.2);
+      border-radius: 20px;
+      padding: 22px 20px;
+      display: flex;
+      align-items: center;
+      gap: 18px;
+    }
+
+    .event-emoji { font-size: 40px; flex-shrink: 0; }
+
+    .event-body {}
+    .event-title {
+      font-family: 'Raleway', sans-serif;
+      font-size: 18px;
+      font-weight: 800;
+      margin-bottom: 4px;
+    }
+
+    .event-desc {
+      font-size: 13px;
+      color: var(--muted);
+      line-height: 1.5;
+    }
+
+    /* ── TESTIMONIALS ── */
+    .testimonials {
+      padding: 0 24px 72px;
+      max-width: 700px;
+      margin: 0 auto;
+    }
+
+    .review-cards {
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+    }
+
+    .review-card {
+      background: rgba(255,255,255,0.03);
+      border: 1px solid rgba(255,255,255,0.07);
+      border-radius: 20px;
+      padding: 22px 20px;
+    }
+
+    .review-stars { color: var(--gold); font-size: 14px; margin-bottom: 10px; }
+
+    .review-text {
       font-size: 14px;
-      color: #888;
+      line-height: 1.7;
+      color: rgba(255,255,255,0.8);
+      margin-bottom: 14px;
+      font-style: italic;
     }
 
-    footer a {
-      color: #ffd700;
+    .review-author {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .review-avatar {
+      width: 36px; height: 36px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, var(--gold-light), var(--gold));
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 16px;
+      flex-shrink: 0;
+    }
+
+    .review-name { font-size: 13px; font-weight: 700; }
+    .review-role { font-size: 11px; color: var(--muted); }
+
+    /* ── FINAL CTA ── */
+    .final-cta {
+      padding: 72px 24px;
+      text-align: center;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .final-cta::before {
+      content: '';
+      position: absolute;
+      top: 50%; left: 50%;
+      transform: translate(-50%, -50%);
+      width: 400px; height: 400px;
+      background: radial-gradient(circle, rgba(201,168,76,0.1) 0%, transparent 70%);
+      pointer-events: none;
+    }
+
+    .final-cta h2 {
+      font-family: 'Raleway', sans-serif;
+      font-size: clamp(26px, 6vw, 42px);
+      font-weight: 900;
+      line-height: 1.2;
+      margin-bottom: 16px;
+    }
+
+    .final-cta p {
+      font-size: 15px;
+      color: var(--muted);
+      margin-bottom: 36px;
+      line-height: 1.6;
+    }
+
+    .final-btns {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      max-width: 340px;
+      margin: 0 auto;
+    }
+
+    /* ── FOOTER ── */
+    footer {
+      border-top: 1px solid rgba(255,255,255,0.06);
+      padding: 32px 24px;
+      text-align: center;
+    }
+
+    .footer-logo {
+      font-family: 'Raleway', sans-serif;
+      font-weight: 900;
+      font-size: 16px;
+      letter-spacing: 4px;
+      background: linear-gradient(90deg, var(--gold-light), var(--gold));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      margin-bottom: 16px;
+    }
+
+    .footer-links {
+      display: flex;
+      gap: 20px;
+      justify-content: center;
+      flex-wrap: wrap;
+      margin-bottom: 16px;
+    }
+
+    .footer-links a {
+      font-size: 13px;
+      color: var(--muted);
       text-decoration: none;
-      margin-left: 10px;
     }
-  </style></head>
-<body>  <header>GorealAI</header>  <section class="hero">
-    <h1>Ο έξυπνος σύμβουλος αγορών & αποφάσεων</h1>
+
+    .footer-copy {
+      font-size: 12px;
+      color: rgba(255,255,255,0.2);
+    }
+
+    /* ── DIVIDER ── */
+    .divider {
+      width: 60px; height: 2px;
+      background: linear-gradient(90deg, var(--gold-light), var(--gold));
+      margin: 0 auto 48px;
+      border-radius: 2px;
+    }
+
+    /* ── TRUST BAR ── */
+    .trust-bar {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+      padding: 0 24px 72px;
+      max-width: 600px;
+      margin: 0 auto;
+    }
+
+    .trust-item {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 13px;
+      color: var(--muted);
+    }
+
+    .trust-item .check { color: var(--green); font-size: 14px; }
+
+    .trust-sep { color: rgba(255,255,255,0.15); font-size: 18px; }
+
+    /* ── DESKTOP ADJUSTMENTS ── */
+    @media (min-width: 640px) {
+      .hero-btns { flex-direction: row; max-width: 480px; }
+      .hero-btns .btn-primary, .hero-btns .btn-secondary { flex: 1; }
+
+      .features-grid { grid-template-columns: 1fr 1fr; }
+
+      .final-btns { flex-direction: row; max-width: 480px; }
+      .final-btns .btn-primary, .final-btns .btn-secondary { flex: 1; }
+
+      .mockup-wrap { max-width: 260px; }
+
+      .events-cards { flex-direction: row; }
+      .event-card { flex-direction: column; text-align: center; flex: 1; }
+      .event-emoji { margin-bottom: 4px; }
+    }
+
+    @media (min-width: 768px) {
+      .hero { padding-top: 120px; }
+      .mockup-wrap { max-width: 240px; }
+    }
+  </style>
+</head>
+
+<body>
+
+  <!-- NAV -->
+  <nav>
+    <span class="nav-logo">GOREALAI</span>
+    <a class="nav-cta" href="/app/">Άνοιξε δωρεάν →</a>
+  </nav>
+
+  <!-- HERO -->
+  <section class="hero">
+    <div class="hero-badge">
+      <span class="dot"></span>
+      ΔΙΑΘΕΣΙΜΟ ΤΩΡΑ
+    </div>
+
+    <h1>
+      Βρες τον καλύτερο<br/>
+      <span class="gold">επαγγελματία</span><br/>
+      σε 15 λεπτά
+    </h1>
+
     <p>
-  Ρώτα το GorealAI οτιδήποτε θέλεις να αγοράσεις, να οργανώσεις ή να βρεις.
-  Μιλάς φυσικά — και σου βρίσκει την καλύτερη επιλογή για σένα.
-</p>
+      Στείλε αίτημα, λάβε προσφορές αμέσως. Ηλεκτρολόγοι, υδραυλικοί, καθαρίστριες, event planners — ό,τι χρειαστείς.
+    </p>
 
-<div style="margin-top:20px;">
-  <a class="cta-btn" href="/app/" style="margin-right:10px;">
-    Άνοιξε την εφαρμογή
-  </a>
+    <div class="hero-btns">
+      <a class="btn-primary" href="/app/">
+        ⚡ Ξεκίνα δωρεάν
+      </a>
+      <a class="btn-secondary" href="#how">
+        Πώς λειτουργεί
+      </a>
+    </div>
 
-  <a class="cta-btn" href="/app/?demo=1" style="background:#00c853;">
-    Δοκίμασε demo
-  </a>
-</div>
+    <!-- Phone mockup -->
+    <div class="mockup-wrap">
+      <div class="phone-frame">
+        <div class="phone-screen">
+          <div class="phone-logo">GOREALAI</div>
 
-  </section>  <section class="features"><div class="card">
-  <h3>🛒 Έξυπνες αγορές</h3>
-  <p>Το AI καταλαβαίνει τι πραγματικά ψάχνεις και σου προτείνει τις καλύτερες επιλογές.</p>
-</div>
+          <!-- Active request card -->
+          <div class="phone-card">
+            <div class="phone-card-label">
+              <div class="dot"></div>
+              ΖΩΝΤΑΝΟ ΑΙΤΗΜΑ
+            </div>
+            <div class="phone-ring-row">
+              <div class="phone-ring">12:43</div>
+              <div class="phone-stats">
+                <div class="phone-stat-line">🟢 8 επαγγελματίες ειδοποιήθηκαν</div>
+                <div class="phone-stat-line">🔥 3 προσφορές μέχρι τώρα</div>
+                <div class="phone-stat-line">🤖 AI αναλύει & κατατάσσει</div>
+              </div>
+            </div>
+            <div class="phone-cta">⏱ Παρακολούθησε ζωντανά</div>
+          </div>
 
-<div class="card">
-  <h3>✈️ Ταξίδια χωρίς άγχος</h3>
-  <p>Βρες ξενοδοχεία και προορισμούς που ταιριάζουν ακριβώς στις ανάγκες σου.</p>
-</div>
+          <!-- Nearby pros -->
+          <div class="phone-pros">
+            <div class="phone-pro-card">
+              <div class="phone-avatar">👨‍🔧</div>
+              <div class="phone-pro-info">
+                <div class="phone-pro-name">Νίκος Π. · Ηλεκτρολόγος</div>
+                <div class="phone-pro-spec">Κοντά σου · 2.3 χλμ</div>
+              </div>
+              <div class="phone-pro-rating">★ 4.9</div>
+            </div>
+            <div class="phone-pro-card">
+              <div class="phone-avatar">🧹</div>
+              <div class="phone-pro-info">
+                <div class="phone-pro-name">Μαρία Κ. · Καθαρίστρια</div>
+                <div class="phone-pro-spec">Κοντά σου · 1.1 χλμ</div>
+              </div>
+              <div class="phone-pro-rating">★ 5.0</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
 
-<div class="card">
-  <h3>🧑‍🔧 Επαγγελματίες κοντά σου</h3>
-  <p>Ανακάλυψε αξιόπιστους επαγγελματίες στην περιοχή σου μέσα σε δευτερόλεπτα.</p>
-</div>
+    <!-- Stats -->
+    <div class="stats-bar">
+      <div class="stat-item">
+        <div class="stat-num">15'</div>
+        <div class="stat-label">Μέσος χρόνος απόκρισης</div>
+      </div>
+      <div class="stat-item">
+        <div class="stat-num">Free</div>
+        <div class="stat-label">Δωρεάν εγγραφή</div>
+      </div>
+      <div class="stat-item">
+        <div class="stat-num">AI</div>
+        <div class="stat-label">Έξυπνη κατάταξη</div>
+      </div>
+    </div>
+  </section>
 
-  </section>  <footer>
-  <p>© 2026 GorealAI</p>
-  <p>
-    <a href="/privacy.html">Privacy Policy</a> |
-    <a href="/terms.html">Terms of Service</a>
-  </p>
-</footer></body>
+  <!-- HOW IT WORKS -->
+  <section class="section" id="how">
+    <div class="section-label">ΠΩΣ ΛΕΙΤΟΥΡΓΕΙ</div>
+    <h2 class="section-title">3 βήματα και τελειώσατε</h2>
+    <div class="divider"></div>
+
+    <div class="steps">
+      <div class="step">
+        <div class="step-num">📝</div>
+        <div class="step-body">
+          <div class="step-title">Περιέγραψε τι χρειάζεσαι</div>
+          <div class="step-desc">Πες μας τι δουλειά θέλεις, πού και πότε. Παίρνει μόνο 30 δευτερόλεπτα.</div>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-num">⚡</div>
+        <div class="step-body">
+          <div class="step-title">Λάβε προσφορές αμέσως</div>
+          <div class="step-desc">Οι κοντινοί επαγγελματίες λαμβάνουν ειδοποίηση και στέλνουν προσφορά μέσα σε λεπτά.</div>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-num">🏆</div>
+        <div class="step-body">
+          <div class="step-title">Επέλεξε τον καλύτερο</div>
+          <div class="step-desc">Το AI κατατάσσει τις προσφορές. Εσύ επιλέγεις — εντελώς δωρεάν.</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- FEATURES -->
+  <section class="features">
+    <div class="section-label" style="text-align:center; margin-bottom:12px;">ΧΑΡΑΚΤΗΡΙΣΤΙΚΑ</div>
+    <h2 class="section-title">Όλα σε μια εφαρμογή</h2>
+    <div class="divider"></div>
+
+    <div class="features-grid">
+      <div class="feat-card">
+        <span class="feat-icon">⏱</span>
+        <div class="feat-title">Countdown ζωντανά</div>
+        <div class="feat-desc">Παρακολούθα σε πραγματικό χρόνο πόσες προσφορές έρχονται.</div>
+      </div>
+      <div class="feat-card">
+        <span class="feat-icon">🤖</span>
+        <div class="feat-title">AI Κατάταξη</div>
+        <div class="feat-desc">Το AI αξιολογεί τιμή, αξιολογήσεις και ταχύτητα απόκρισης.</div>
+      </div>
+      <div class="feat-card">
+        <span class="feat-icon">📸</span>
+        <div class="feat-title">Portfolio επαγγελματία</div>
+        <div class="feat-desc">Δες δείγματα δουλειάς πριν επιλέξεις.</div>
+      </div>
+      <div class="feat-card">
+        <span class="feat-icon">📬</span>
+        <div class="feat-title">Direct Request</div>
+        <div class="feat-desc">Επικοινώνησε απευθείας με τον επαγγελματία που σε ενδιαφέρει.</div>
+      </div>
+      <div class="feat-card wide">
+        <span class="feat-icon">📅</span>
+        <div>
+          <div class="feat-title">Bookings & Reminders</div>
+          <div class="feat-desc">Κράτησε ραντεβού, λάβε υπενθυμίσεις και παρακολούθα όλα τα ενεργά bookings σου σε ένα μέρος.</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- CATEGORIES -->
+  <section class="categories">
+    <div class="section-label" style="text-align:center; margin-bottom:12px;">ΚΑΤΗΓΟΡΙΕΣ</div>
+    <h2 class="section-title" style="margin-bottom:32px;">Βρες ειδικό για οτιδήποτε</h2>
+
+    <div class="cats-scroll">
+      <div class="cat-chip">🔌 Ηλεκτρολόγος</div>
+      <div class="cat-chip">🚿 Υδραυλικός</div>
+      <div class="cat-chip">🧹 Καθαρίστρια</div>
+      <div class="cat-chip">🏗️ Ανακαίνιση</div>
+      <div class="cat-chip">🎨 Ελαιοχρωματιστής</div>
+      <div class="cat-chip">❄️ Κλιματιστικό</div>
+      <div class="cat-chip">🔒 Κλειδαράς</div>
+      <div class="cat-chip">🪴 Κηπουρός</div>
+      <div class="cat-chip">📦 Μετακόμιση</div>
+      <div class="cat-chip">💻 Τεχνικός Η/Υ</div>
+      <div class="cat-chip">🐕 Pet sitter</div>
+      <div class="cat-chip">📐 Αρχιτέκτονας</div>
+    </div>
+  </section>
+
+  <!-- EVENTS -->
+  <section class="events-section">
+    <div class="section-label" style="text-align:center; margin-bottom:12px;">EVENT ORGANIZER</div>
+    <h2 class="section-title">Οργάνωσε την τέλεια εκδήλωση</h2>
+    <div class="divider"></div>
+
+    <div class="events-cards">
+      <div class="event-card">
+        <div class="event-emoji">💍</div>
+        <div class="event-body">
+          <div class="event-title">Γάμος</div>
+          <div class="event-desc">Φωτογράφος, catering, στολισμός, DJ — όλα μαζί με ένα αίτημα.</div>
+        </div>
+      </div>
+      <div class="event-card">
+        <div class="event-emoji">👶</div>
+        <div class="event-body">
+          <div class="event-title">Βάφτιση</div>
+          <div class="event-desc">Βρες αίθουσα, ανθοδέτη και όλους τους επαγγελματίες που χρειάζεσαι.</div>
+        </div>
+      </div>
+      <div class="event-card">
+        <div class="event-emoji">🎉</div>
+        <div class="event-body">
+          <div class="event-title">Πάρτυ</div>
+          <div class="event-desc">Διοργάνωση, catering, μουσική — κάνε το πάρτυ αξέχαστο.</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- REVIEWS -->
+  <section class="testimonials">
+    <div class="section-label" style="text-align:center; margin-bottom:12px;">ΑΞΙΟΛΟΓΗΣΕΙΣ</div>
+    <h2 class="section-title">Τι λένε οι χρήστες</h2>
+    <div class="divider"></div>
+
+    <div class="review-cards">
+      <div class="review-card">
+        <div class="review-stars">★★★★★</div>
+        <div class="review-text">"Έστειλα αίτημα για ηλεκτρολόγο και σε 10 λεπτά είχα 4 προσφορές. Διάλεξα αυτόν με τις καλύτερες κριτικές και ήρθε την επόμενη μέρα!"</div>
+        <div class="review-author">
+          <div class="review-avatar">👩</div>
+          <div>
+            <div class="review-name">Ελένη Π.</div>
+            <div class="review-role">Χρήστης από Αθήνα</div>
+          </div>
+        </div>
+      </div>
+      <div class="review-card">
+        <div class="review-stars">★★★★★</div>
+        <div class="review-text">"Ως υδραυλικός, η εφαρμογή μου έφερε 3 νέους πελάτες την πρώτη εβδομάδα. Πολύ εύκολη εγγραφή και αμέσως αρχίζουν τα αιτήματα."</div>
+        <div class="review-author">
+          <div class="review-avatar">👨‍🔧</div>
+          <div>
+            <div class="review-name">Κώστας Μ.</div>
+            <div class="review-role">Επαγγελματίας · Υδραυλικός</div>
+          </div>
+        </div>
+      </div>
+      <div class="review-card">
+        <div class="review-stars">★★★★★</div>
+        <div class="review-text">"Χρησιμοποίησα το Event Organizer για τη βάφτιση της κόρης μου. Βρήκα φωτογράφο, ανθοδέτη και catering μέσα σε μια μέρα!"</div>
+        <div class="review-author">
+          <div class="review-avatar">👨</div>
+          <div>
+            <div class="review-name">Γιώργης Δ.</div>
+            <div class="review-role">Χρήστης από Θεσσαλονίκη</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- TRUST BAR -->
+  <div class="trust-bar">
+    <div class="trust-item"><span class="check">✓</span> Δωρεάν εγγραφή</div>
+    <div class="trust-sep">·</div>
+    <div class="trust-item"><span class="check">✓</span> Επαληθευμένοι επαγγελματίες</div>
+    <div class="trust-sep">·</div>
+    <div class="trust-item"><span class="check">✓</span> Χωρίς δέσμευση</div>
+  </div>
+
+  <!-- FINAL CTA -->
+  <section class="final-cta">
+    <h2>Έτοιμος να ξεκινήσεις;<br/><span style="background:linear-gradient(90deg,var(--gold-light),var(--gold));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;">Είναι δωρεάν.</span></h2>
+    <p>Εγγραφή δωρεάν. Στείλε το πρώτο σου αίτημα σε 30 δευτερόλεπτα.</p>
+    <div class="final-btns">
+      <a class="btn-primary" href="/app/">⚡ Ξεκίνα τώρα</a>
+      <a class="btn-secondary" href="/app/?signup=pro">Είμαι επαγγελματίας</a>
+    </div>
+  </section>
+
+  <!-- FOOTER -->
+  <footer>
+    <div class="footer-logo">GOREALAI</div>
+    <div class="footer-links">
+      <a href="/privacy.html">Πολιτική Απορρήτου</a>
+      <a href="/terms.html">Όροι Χρήσης</a>
+      <a href="/app/">Εφαρμογή</a>
+    </div>
+    <div class="footer-copy">© 2026 GorealAI · Όλα τα δικαιώματα κατοχυρωμένα</div>
+  </footer>
+
+</body>
 </html>

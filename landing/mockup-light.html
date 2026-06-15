@@ -1,0 +1,746 @@
+<!DOCTYPE html>
+<html lang="el">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>GorealAI — Light Liquid Glass</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Raleway:wght@300;400;500;600;700;800;900&family=Cormorant+Garamond:ital,wght@0,300;0,400;0,600;1,300;1,400&display=swap');
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --gold: #B8892A;
+    --gold-light: #D4AF37;
+    --gold-pale: #F0D080;
+    --gold-glow: rgba(184,137,42,0.18);
+    --glass-bg: rgba(255,255,255,0.55);
+    --glass-bg-strong: rgba(255,255,255,0.72);
+    --glass-border: rgba(255,255,255,0.85);
+    --glass-shadow: 0 8px 32px rgba(120,100,60,0.13), 0 2px 8px rgba(120,100,60,0.08);
+    --glass-shadow-lg: 0 20px 60px rgba(100,80,40,0.18), 0 4px 16px rgba(100,80,40,0.10);
+    --text-primary: #1a1510;
+    --text-secondary: #6b5c3e;
+    --text-muted: rgba(80,60,30,0.45);
+    --bg-base: #f5f0e8;
+  }
+
+  body {
+    font-family: 'Raleway', sans-serif;
+    background: var(--bg-base);
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 40px 20px;
+    overflow-x: hidden;
+  }
+
+  /* ── Animated background ── */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background:
+      radial-gradient(ellipse 80% 60% at 20% 10%, rgba(255,240,190,0.7) 0%, transparent 60%),
+      radial-gradient(ellipse 60% 50% at 80% 90%, rgba(220,200,160,0.5) 0%, transparent 60%),
+      radial-gradient(ellipse 50% 40% at 60% 30%, rgba(255,255,240,0.6) 0%, transparent 50%),
+      linear-gradient(160deg, #faf6ee 0%, #f0e8d4 40%, #e8dcc4 100%);
+    z-index: -2;
+  }
+  body::after {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image:
+      radial-gradient(circle 3px at 15% 25%, rgba(184,137,42,0.12) 0%, transparent 70%),
+      radial-gradient(circle 2px at 75% 15%, rgba(184,137,42,0.08) 0%, transparent 70%),
+      radial-gradient(circle 4px at 85% 70%, rgba(184,137,42,0.10) 0%, transparent 70%),
+      radial-gradient(circle 2px at 35% 80%, rgba(184,137,42,0.08) 0%, transparent 70%);
+    z-index: -1;
+  }
+
+  /* ── Phone frame ── */
+  .phone {
+    width: 390px;
+    min-height: 844px;
+    background: rgba(250,246,238,0.5);
+    backdrop-filter: blur(2px);
+    border-radius: 52px;
+    border: 1.5px solid rgba(255,255,255,0.9);
+    box-shadow:
+      0 40px 100px rgba(100,80,40,0.22),
+      0 12px 40px rgba(100,80,40,0.14),
+      inset 0 1px 0 rgba(255,255,255,0.95),
+      inset 0 -1px 0 rgba(200,180,140,0.3);
+    overflow: hidden;
+    position: relative;
+    padding: 0 0 32px;
+  }
+
+  /* Dynamic island */
+  .island {
+    width: 126px;
+    height: 34px;
+    background: rgba(20,18,14,0.88);
+    border-radius: 20px;
+    margin: 14px auto 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+  }
+  .island-cam { width: 10px; height: 10px; background: #1a1510; border-radius: 50%; border: 1.5px solid #333; }
+  .island-speaker { width: 42px; height: 5px; background: #1a1510; border-radius: 3px; }
+
+  /* ── Glass mixin ── */
+  .glass {
+    background: var(--glass-bg);
+    backdrop-filter: blur(20px) saturate(180%);
+    -webkit-backdrop-filter: blur(20px) saturate(180%);
+    border: 1px solid var(--glass-border);
+    box-shadow: var(--glass-shadow);
+    border-radius: 20px;
+  }
+  .glass-strong {
+    background: var(--glass-bg-strong);
+    backdrop-filter: blur(32px) saturate(200%);
+    -webkit-backdrop-filter: blur(32px) saturate(200%);
+    border: 1px solid rgba(255,255,255,0.92);
+    box-shadow: var(--glass-shadow-lg);
+    border-radius: 24px;
+  }
+  .glass-gold {
+    background: linear-gradient(135deg, rgba(255,255,255,0.65) 0%, rgba(240,208,128,0.18) 100%);
+    backdrop-filter: blur(24px) saturate(180%);
+    -webkit-backdrop-filter: blur(24px) saturate(180%);
+    border: 1px solid rgba(212,175,55,0.35);
+    box-shadow: 0 8px 32px rgba(184,137,42,0.15), 0 2px 8px rgba(184,137,42,0.08);
+    border-radius: 20px;
+  }
+
+  /* ── Liquid shimmer effect ── */
+  .liquid::before {
+    content: '';
+    position: absolute;
+    top: -1px; left: -1px; right: -1px;
+    height: 50%;
+    background: linear-gradient(180deg, rgba(255,255,255,0.55) 0%, rgba(255,255,255,0) 100%);
+    border-radius: inherit;
+    pointer-events: none;
+    z-index: 1;
+  }
+
+  /* ── Top bar ── */
+  .topbar {
+    padding: 18px 24px 12px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+  .logo {
+    font-family: 'Raleway', sans-serif;
+    font-size: 17px;
+    font-weight: 800;
+    letter-spacing: 3px;
+    color: var(--text-primary);
+  }
+  .logo span { color: var(--gold); }
+  .new-btn {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    padding: 7px 14px;
+    border-radius: 20px;
+    background: linear-gradient(135deg, rgba(255,255,255,0.8), rgba(255,255,255,0.5));
+    backdrop-filter: blur(12px);
+    border: 1px solid rgba(212,175,55,0.4);
+    box-shadow: 0 4px 12px rgba(184,137,42,0.12), inset 0 1px 0 rgba(255,255,255,0.9);
+    font-size: 11px;
+    font-weight: 700;
+    color: var(--gold);
+    letter-spacing: 0.3px;
+  }
+  .new-btn .plus { font-size: 13px; }
+
+  /* ── Main content ── */
+  .content { padding: 0 20px; }
+
+  /* ── Hero card ── */
+  .hero-card {
+    position: relative;
+    overflow: hidden;
+    padding: 22px 22px 20px;
+    margin-bottom: 16px;
+    background: linear-gradient(135deg,
+      rgba(255,255,255,0.72) 0%,
+      rgba(255,252,240,0.58) 50%,
+      rgba(248,240,220,0.5) 100%);
+    backdrop-filter: blur(28px) saturate(200%);
+    -webkit-backdrop-filter: blur(28px) saturate(200%);
+    border: 1px solid rgba(255,255,255,0.9);
+    border-radius: 28px;
+    box-shadow:
+      0 24px 60px rgba(100,80,40,0.16),
+      0 6px 20px rgba(100,80,40,0.10),
+      inset 0 1px 0 rgba(255,255,255,0.95),
+      inset 0 -1px 0 rgba(200,180,140,0.2);
+  }
+  .hero-card::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 55%;
+    background: linear-gradient(180deg, rgba(255,255,255,0.5) 0%, rgba(255,255,255,0) 100%);
+    border-radius: 28px 28px 0 0;
+    pointer-events: none;
+  }
+  .hero-tag {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 4px 10px;
+    border-radius: 10px;
+    background: rgba(255,255,255,0.7);
+    border: 1px solid rgba(212,175,55,0.3);
+    font-size: 9px;
+    font-weight: 700;
+    letter-spacing: 1px;
+    color: var(--gold);
+    text-transform: uppercase;
+    margin-bottom: 12px;
+  }
+  .hero-title {
+    font-family: 'Cormorant Garamond', serif;
+    font-size: 26px;
+    font-weight: 600;
+    color: var(--text-primary);
+    line-height: 1.25;
+    margin-bottom: 6px;
+  }
+  .hero-sub {
+    font-size: 12px;
+    color: var(--text-secondary);
+    line-height: 1.5;
+    margin-bottom: 18px;
+    opacity: 0.8;
+  }
+  .hero-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 11px 20px;
+    border-radius: 14px;
+    background: linear-gradient(135deg, var(--gold-pale), var(--gold-light), var(--gold));
+    box-shadow:
+      0 8px 24px rgba(184,137,42,0.35),
+      0 2px 6px rgba(184,137,42,0.2),
+      inset 0 1px 0 rgba(255,255,255,0.4);
+    font-size: 12px;
+    font-weight: 800;
+    color: #fff;
+    letter-spacing: 0.3px;
+  }
+
+  /* ── Section label ── */
+  .section-label {
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 1.5px;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    margin: 18px 0 10px;
+  }
+
+  /* ── Request input card ── */
+  .input-card {
+    position: relative;
+    overflow: hidden;
+    padding: 18px 18px 16px;
+    margin-bottom: 14px;
+    background: linear-gradient(145deg,
+      rgba(255,255,255,0.75) 0%,
+      rgba(255,252,244,0.60) 100%);
+    backdrop-filter: blur(24px) saturate(180%);
+    -webkit-backdrop-filter: blur(24px) saturate(180%);
+    border: 1px solid rgba(255,255,255,0.88);
+    border-radius: 24px;
+    box-shadow:
+      0 16px 48px rgba(100,80,40,0.13),
+      0 4px 14px rgba(100,80,40,0.08),
+      inset 0 1px 0 rgba(255,255,255,0.9);
+  }
+  .input-card::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 45%;
+    background: linear-gradient(180deg, rgba(255,255,255,0.45) 0%, transparent 100%);
+    border-radius: 24px 24px 0 0;
+    pointer-events: none;
+  }
+  .input-label {
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 1px;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    margin-bottom: 10px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .pill-row {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 14px;
+  }
+  .pill {
+    flex: 1;
+    padding: 9px 12px;
+    border-radius: 12px;
+    background: rgba(255,255,255,0.65);
+    border: 1px solid rgba(212,175,55,0.22);
+    box-shadow: 0 2px 8px rgba(100,80,40,0.06), inset 0 1px 0 rgba(255,255,255,0.8);
+    font-size: 11px;
+    color: var(--text-secondary);
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    backdrop-filter: blur(8px);
+  }
+  .pill .icon { font-size: 13px; }
+  .textarea-mock {
+    width: 100%;
+    padding: 12px 14px;
+    border-radius: 14px;
+    background: rgba(255,255,255,0.55);
+    border: 1px solid rgba(212,175,55,0.18);
+    box-shadow: inset 0 2px 6px rgba(100,80,40,0.06), inset 0 1px 0 rgba(255,255,255,0.7);
+    font-size: 13px;
+    color: rgba(80,60,30,0.3);
+    font-family: 'Raleway', sans-serif;
+    margin-bottom: 12px;
+    min-height: 70px;
+    line-height: 1.6;
+  }
+  .action-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .icon-btn {
+    width: 40px;
+    height: 40px;
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(255,255,255,0.7);
+    border: 1px solid rgba(212,175,55,0.25);
+    box-shadow: 0 2px 8px rgba(100,80,40,0.08), inset 0 1px 0 rgba(255,255,255,0.85);
+    font-size: 16px;
+    flex-shrink: 0;
+    backdrop-filter: blur(10px);
+  }
+  .send-btn {
+    flex: 1;
+    height: 40px;
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: linear-gradient(135deg, #f0d080, #d4af37, #b8892a);
+    box-shadow:
+      0 6px 20px rgba(184,137,42,0.35),
+      0 2px 6px rgba(184,137,42,0.18),
+      inset 0 1px 0 rgba(255,255,255,0.35);
+    font-size: 12px;
+    font-weight: 800;
+    color: #fff;
+    letter-spacing: 0.3px;
+    gap: 6px;
+  }
+
+  /* ── Criteria chips ── */
+  .chips-row {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 14px;
+  }
+  .chip {
+    flex: 1;
+    padding: 10px 8px 9px;
+    border-radius: 14px;
+    text-align: center;
+    background: rgba(255,255,255,0.60);
+    border: 1px solid rgba(255,255,255,0.88);
+    box-shadow: 0 4px 14px rgba(100,80,40,0.08), inset 0 1px 0 rgba(255,255,255,0.85);
+    backdrop-filter: blur(12px);
+    cursor: pointer;
+    transition: all .15s;
+  }
+  .chip.active {
+    background: linear-gradient(135deg, rgba(255,255,255,0.8), rgba(240,208,128,0.25));
+    border-color: rgba(212,175,55,0.45);
+    box-shadow: 0 6px 20px rgba(184,137,42,0.18), 0 2px 8px rgba(184,137,42,0.10), inset 0 1px 0 rgba(255,255,255,0.9);
+  }
+  .chip-emoji { font-size: 18px; display: block; margin-bottom: 4px; }
+  .chip-label { font-size: 9px; font-weight: 700; color: var(--text-muted); line-height: 1.3; }
+  .chip.active .chip-label { color: var(--gold); }
+
+  /* ── AI card ── */
+  .ai-card {
+    position: relative;
+    overflow: hidden;
+    padding: 14px 16px;
+    margin-bottom: 14px;
+    background: linear-gradient(135deg,
+      rgba(255,255,255,0.68) 0%,
+      rgba(240,208,128,0.12) 100%);
+    backdrop-filter: blur(20px) saturate(160%);
+    -webkit-backdrop-filter: blur(20px) saturate(160%);
+    border: 1px solid rgba(212,175,55,0.28);
+    border-radius: 20px;
+    box-shadow: 0 8px 28px rgba(184,137,42,0.12), inset 0 1px 0 rgba(255,255,255,0.85);
+  }
+  .ai-card::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 50%;
+    background: linear-gradient(180deg, rgba(255,255,255,0.4) 0%, transparent 100%);
+    border-radius: 20px 20px 0 0;
+    pointer-events: none;
+  }
+  .ai-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 10px;
+  }
+  .ai-icon {
+    width: 28px; height: 28px;
+    border-radius: 8px;
+    background: linear-gradient(135deg, rgba(255,255,255,0.9), rgba(240,208,128,0.3));
+    border: 1px solid rgba(212,175,55,0.3);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 13px;
+    box-shadow: 0 2px 8px rgba(184,137,42,0.15);
+    flex-shrink: 0;
+  }
+  .ai-title { font-size: 11px; font-weight: 700; color: var(--gold); letter-spacing: 0.3px; }
+  .ai-meta { font-size: 10px; color: var(--text-muted); line-height: 1.6; }
+  .ai-meta strong { color: var(--text-secondary); font-weight: 600; }
+
+  /* ── Notifications card ── */
+  .notif-card {
+    position: relative;
+    overflow: hidden;
+    padding: 16px;
+    margin-bottom: 14px;
+    background: linear-gradient(145deg,
+      rgba(255,255,255,0.70) 0%,
+      rgba(255,252,244,0.55) 100%);
+    backdrop-filter: blur(22px) saturate(180%);
+    -webkit-backdrop-filter: blur(22px) saturate(180%);
+    border: 1px solid rgba(255,255,255,0.88);
+    border-radius: 22px;
+    box-shadow: 0 12px 36px rgba(100,80,40,0.12), inset 0 1px 0 rgba(255,255,255,0.9);
+  }
+  .notif-card::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 40%;
+    background: linear-gradient(180deg, rgba(255,255,255,0.45) 0%, transparent 100%);
+    border-radius: 22px 22px 0 0;
+    pointer-events: none;
+  }
+  .notif-item {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    padding: 10px 0;
+    border-bottom: 1px solid rgba(200,180,140,0.15);
+  }
+  .notif-item:last-child { border-bottom: none; padding-bottom: 0; }
+  .notif-avatar {
+    width: 38px; height: 38px; border-radius: 12px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 17px;
+    flex-shrink: 0;
+    background: rgba(255,255,255,0.7);
+    border: 1px solid rgba(212,175,55,0.2);
+    box-shadow: 0 2px 8px rgba(100,80,40,0.08);
+  }
+  .notif-body { flex: 1; }
+  .notif-title { font-size: 12px; font-weight: 700; color: var(--text-primary); margin-bottom: 2px; }
+  .notif-sub { font-size: 10px; color: var(--text-muted); line-height: 1.4; }
+  .notif-badge {
+    padding: 3px 8px;
+    border-radius: 8px;
+    font-size: 9px;
+    font-weight: 700;
+    background: linear-gradient(135deg, rgba(255,255,255,0.8), rgba(240,208,128,0.2));
+    border: 1px solid rgba(212,175,55,0.3);
+    color: var(--gold);
+    flex-shrink: 0;
+    align-self: center;
+  }
+  .notif-badge.green {
+    background: linear-gradient(135deg, rgba(255,255,255,0.8), rgba(0,200,130,0.1));
+    border-color: rgba(0,180,100,0.3);
+    color: #00a870;
+  }
+
+  /* ── Bottom nav ── */
+  .bottom-nav {
+    position: relative;
+    margin: 20px 16px 0;
+    overflow: hidden;
+    background: linear-gradient(135deg,
+      rgba(255,255,255,0.78) 0%,
+      rgba(255,250,235,0.65) 100%);
+    backdrop-filter: blur(32px) saturate(200%);
+    -webkit-backdrop-filter: blur(32px) saturate(200%);
+    border: 1px solid rgba(255,255,255,0.92);
+    border-radius: 28px;
+    box-shadow:
+      0 16px 48px rgba(100,80,40,0.16),
+      0 4px 14px rgba(100,80,40,0.08),
+      inset 0 1px 0 rgba(255,255,255,0.95);
+    padding: 14px 24px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+  .bottom-nav::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 50%;
+    background: linear-gradient(180deg, rgba(255,255,255,0.4) 0%, transparent 100%);
+    border-radius: 28px 28px 0 0;
+    pointer-events: none;
+  }
+  .nav-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+    opacity: 0.4;
+  }
+  .nav-item.active { opacity: 1; }
+  .nav-icon { font-size: 20px; }
+  .nav-label { font-size: 8px; font-weight: 700; letter-spacing: 0.5px; color: var(--text-secondary); text-transform: uppercase; }
+  .nav-item.active .nav-label { color: var(--gold); }
+
+  /* ── FAB ── */
+  .fab {
+    width: 58px; height: 58px;
+    border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    background: linear-gradient(135deg, #f0d080, #d4af37, #b8892a);
+    box-shadow:
+      0 10px 30px rgba(184,137,42,0.45),
+      0 4px 12px rgba(184,137,42,0.25),
+      inset 0 1.5px 0 rgba(255,255,255,0.45);
+    font-family: 'Raleway', sans-serif;
+    font-size: 26px;
+    font-weight: 800;
+    color: #fff;
+    position: relative;
+  }
+  .fab::after {
+    content: '';
+    position: absolute;
+    top: 2px; left: 8px; right: 8px; height: 45%;
+    background: linear-gradient(180deg, rgba(255,255,255,0.3) 0%, transparent 100%);
+    border-radius: 50%;
+    pointer-events: none;
+  }
+
+  /* ── Scroll hint ── */
+  .scroll-hint {
+    text-align: center;
+    margin-top: 24px;
+    font-size: 10px;
+    color: var(--text-muted);
+    letter-spacing: 0.5px;
+    opacity: 0.6;
+  }
+
+  /* ── Ambient orbs ── */
+  .orb {
+    position: fixed;
+    border-radius: 50%;
+    filter: blur(80px);
+    pointer-events: none;
+    z-index: -1;
+    animation: drift 8s ease-in-out infinite alternate;
+  }
+  .orb-1 { width: 400px; height: 400px; background: rgba(240,208,128,0.22); top: -10%; left: -10%; animation-delay: 0s; }
+  .orb-2 { width: 300px; height: 300px; background: rgba(255,240,190,0.28); bottom: 5%; right: -5%; animation-delay: -3s; }
+  .orb-3 { width: 250px; height: 250px; background: rgba(200,180,140,0.18); top: 40%; left: 60%; animation-delay: -5s; }
+
+  @keyframes drift {
+    0%   { transform: translate(0, 0) scale(1); }
+    100% { transform: translate(30px, 20px) scale(1.08); }
+  }
+
+  /* ── Liquid highlight pulse ── */
+  @keyframes shimmer {
+    0%   { opacity: 0.3; }
+    50%  { opacity: 0.7; }
+    100% { opacity: 0.3; }
+  }
+  .shimmer-line {
+    animation: shimmer 3s ease-in-out infinite;
+  }
+</style>
+</head>
+<body>
+
+<div class="orb orb-1"></div>
+<div class="orb orb-2"></div>
+<div class="orb orb-3"></div>
+
+<div class="phone">
+  <!-- Dynamic island -->
+  <div class="island">
+    <div class="island-speaker"></div>
+    <div class="island-cam"></div>
+  </div>
+
+  <!-- Top bar -->
+  <div class="topbar">
+    <div class="logo">G<span>O</span>REALAI</div>
+    <div class="new-btn"><span class="plus">+</span> ΝΕΟ ΑΙΤΗΜΑ</div>
+  </div>
+
+  <!-- Content -->
+  <div class="content">
+
+    <!-- Hero card -->
+    <div class="hero-card liquid">
+      <div class="hero-tag shimmer-line">✦ &nbsp;AI POWERED</div>
+      <div class="hero-title">Τι χρειάζεσαι<span style="color:var(--gold)">;</span></div>
+      <div class="hero-sub">Οι επαγγελματίες ανταγωνίζονται —<br>το AI επιλέγει τους 3 καλύτερους.</div>
+      <div class="hero-btn">🚀 &nbsp;Ξεκίνα τώρα</div>
+    </div>
+
+    <!-- Section label -->
+    <div class="section-label">✦ &nbsp;Νέο Αίτημα</div>
+
+    <!-- Input card -->
+    <div class="input-card liquid">
+      <!-- Dropdowns -->
+      <div class="pill-row">
+        <div class="pill"><span class="icon">🔧</span>Επάγγελμα</div>
+        <div class="pill"><span class="icon">📍</span>Περιοχή</div>
+      </div>
+
+      <!-- Textarea -->
+      <div class="textarea-mock">πχ. "Θέλω να βάψω το σαλόνι μου ~40τμ…"</div>
+
+      <!-- Action row -->
+      <div class="action-row">
+        <div class="icon-btn">🎤</div>
+        <div class="icon-btn" style="position:relative;">
+          📷
+          <div style="position:absolute;top:-4px;right:-4px;width:14px;height:14px;background:#2ecc71;border-radius:50%;border:1.5px solid rgba(255,255,255,0.85);display:flex;align-items:center;justify-content:center;font-size:7px;font-weight:800;color:#fff;">2</div>
+        </div>
+        <div class="send-btn">🚀 &nbsp;Στείλε αίτημα</div>
+      </div>
+    </div>
+
+    <!-- Criteria chips -->
+    <div class="section-label">🎯 &nbsp;Τι σε ενδιαφέρει;</div>
+    <div class="chips-row">
+      <div class="chip active liquid" style="position:relative;overflow:hidden;">
+        <span class="chip-emoji">💰</span>
+        <span class="chip-label">Φθηνότερο</span>
+      </div>
+      <div class="chip liquid" style="position:relative;overflow:hidden;">
+        <span class="chip-emoji">⭐</span>
+        <span class="chip-label">Value</span>
+      </div>
+      <div class="chip liquid" style="position:relative;overflow:hidden;">
+        <span class="chip-emoji">⚡</span>
+        <span class="chip-label">Άμεσα</span>
+      </div>
+    </div>
+
+    <!-- AI insights -->
+    <div class="ai-card liquid">
+      <div class="ai-row">
+        <div class="ai-icon">🤖</div>
+        <div class="ai-title">AI Ανάλυση</div>
+      </div>
+      <div class="ai-meta">
+        <div>🏷️ Κατηγορία: <strong>Ηλεκτρολόγος</strong></div>
+        <div>💶 Εκτιμώμενο κόστος: <strong>80€–250€</strong></div>
+        <div>⏱ Αναμενόμενος χρόνος: <strong>15 λεπτά για προσφορές</strong></div>
+        <div>👷 Επαγγελματίες: <strong>Θα ειδοποιηθούν άμεσα</strong></div>
+      </div>
+    </div>
+
+    <!-- Section label -->
+    <div class="section-label">🔔 &nbsp;Τελευταία Ενημέρωση</div>
+
+    <!-- Notifications card -->
+    <div class="notif-card liquid">
+      <div class="notif-item">
+        <div class="notif-avatar">⚡</div>
+        <div class="notif-body">
+          <div class="notif-title">Νέα προσφορά — Ηλεκτρολόγος</div>
+          <div class="notif-sub">Γιάννης Π. · 120€ · Χαλάνδρι · 2 λεπτά</div>
+        </div>
+        <div class="notif-badge">ΝΕΟ</div>
+      </div>
+      <div class="notif-item">
+        <div class="notif-avatar">🔨</div>
+        <div class="notif-body">
+          <div class="notif-title">Αίτημα ολοκληρώθηκε</div>
+          <div class="notif-sub">Υδραυλικός · Επιλέχθηκε Κώστας Μ. · €95</div>
+        </div>
+        <div class="notif-badge green">✓</div>
+      </div>
+      <div class="notif-item">
+        <div class="notif-avatar">🏗️</div>
+        <div class="notif-body">
+          <div class="notif-title">Project Mode · 3 προσφορές</div>
+          <div class="notif-sub">Ανακαίνιση μπάνιου · Προβολή αποτελεσμάτων</div>
+        </div>
+        <div class="notif-badge">3</div>
+      </div>
+    </div>
+
+  </div><!-- /content -->
+
+  <!-- Bottom nav -->
+  <div class="bottom-nav">
+    <div class="nav-item active">
+      <span class="nav-icon">🏠</span>
+      <span class="nav-label">Αρχική</span>
+    </div>
+    <div class="nav-item">
+      <span class="nav-icon">🔔</span>
+      <span class="nav-label">Ειδοποιήσεις</span>
+    </div>
+    <div class="fab">G</div>
+    <div class="nav-item">
+      <span class="nav-icon">📋</span>
+      <span class="nav-label">Ιστορικό</span>
+    </div>
+    <div class="nav-item">
+      <span class="nav-icon">👤</span>
+      <span class="nav-label">Προφίλ</span>
+    </div>
+  </div>
+
+</div><!-- /phone -->
+
+</body>
+</html>

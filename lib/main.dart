@@ -398,35 +398,50 @@ class LoginScreen extends StatefulWidget {
   State<LoginScreen> createState() => _LoginScreenState();
 }
 
+// screen: 'login' | 'role' | 'register'
 class _LoginScreenState extends State<LoginScreen>
     with SingleTickerProviderStateMixin {
+  String _screen = 'login';
+  String _role = 'user';
+
+  // Login fields
   final _email = TextEditingController();
   final _pass = TextEditingController();
+  bool _showPass = false;
+
+  // Register fields
   final _name = TextEditingController();
   final _lastName = TextEditingController();
   final _phone = TextEditingController();
-  String? _selectedSpecialty;
-  String? _selectedArea;
+  final _passConfirm = TextEditingController();
+  final _afm = TextEditingController();
+  final _referralPhone = TextEditingController();
+  bool _showPassReg = false;
+  bool _showPassConfirm = false;
+  bool _wantsVerifiedBadge = false;
+  List<String> _selectedSpecialties = [];
+  List<String> _selectedAreas = [];
+  String? _selectedArea; // for user
+  String? _referralProName;
+  String? _referralProUid;
+  XFile? _selfieFile;
+  bool _uploadingSelfie = false;
+
   bool _loading = false;
-  bool _isLogin = true;
-  String _role = 'user';
   late AnimationController _fadeCtrl;
   late Animation<double> _fade;
 
   @override
   void initState() {
     super.initState();
-    _fadeCtrl = AnimationController(
-        vsync: this, duration: const Duration(milliseconds: 900));
+    _fadeCtrl = AnimationController(vsync: this, duration: const Duration(milliseconds: 900));
     _fade = CurvedAnimation(parent: _fadeCtrl, curve: Curves.easeOut);
     _fadeCtrl.forward();
     Future.delayed(const Duration(milliseconds: 300), () async {
       final has = await AuthService.hasAccount();
       if (has) {
         final prefs = await SharedPreferences.getInstance();
-        if (prefs.getBool('biometric_enabled') ?? true) {
-          _autoLoginWithBiometrics();
-        }
+        if (prefs.getBool('biometric_enabled') ?? true) _autoLoginWithBiometrics();
       }
     });
   }
@@ -434,11 +449,8 @@ class _LoginScreenState extends State<LoginScreen>
   @override
   void dispose() {
     _fadeCtrl.dispose();
-    _email.dispose();
-    _pass.dispose();
-    _name.dispose();
-    _lastName.dispose();
-    _phone.dispose();
+    _email.dispose(); _pass.dispose(); _name.dispose(); _lastName.dispose();
+    _phone.dispose(); _passConfirm.dispose(); _afm.dispose(); _referralPhone.dispose();
     super.dispose();
   }
 
@@ -452,78 +464,218 @@ class _LoginScreenState extends State<LoginScreen>
           localizedReason: 'Σύνδεση με δαχτυλικό αποτύπωμα',
           options: const AuthenticationOptions(biometricOnly: true));
       if (!ok) return;
-      await FirebaseAuth.instance
-          .signInWithEmailAndPassword(email: email, password: password);
-      if (mounted) {
-        Navigator.pushReplacement(
-            context, MaterialPageRoute(builder: (_) => const AuthGate()));
+      await FirebaseAuth.instance.signInWithEmailAndPassword(email: email, password: password);
+      if (mounted) Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => const AuthGate()));
+    } catch (e) { debugPrint('Auto login error: $e'); }
+  }
+
+  Future<void> _pickSelfie(ImageSource source) async {
+    final picker = ImagePicker();
+    final file = await picker.pickImage(source: source, imageQuality: 80, maxWidth: 800);
+    if (file != null && mounted) setState(() => _selfieFile = file);
+  }
+
+  void _showSelfieOptions() {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (_) => Container(
+        padding: const EdgeInsets.all(20),
+        decoration: const BoxDecoration(color: Color(0xFF0E0B04), borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
+        child: Column(mainAxisSize: MainAxisSize.min, children: [
+          Container(width: 36, height: 4, decoration: BoxDecoration(color: _g(0.2), borderRadius: BorderRadius.circular(2))),
+          const SizedBox(height: 16),
+          const Text('Προσθήκη φωτογραφίας', style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.w700)),
+          const SizedBox(height: 16),
+          ListTile(
+            leading: const Icon(Icons.camera_alt, color: kGold),
+            title: const Text('Τράβηξε selfie', style: TextStyle(color: Colors.white)),
+            onTap: () { Navigator.pop(context); _pickSelfie(ImageSource.camera); },
+          ),
+          ListTile(
+            leading: const Icon(Icons.photo_library, color: kGold),
+            title: const Text('Επιλογή από βιβλιοθήκη', style: TextStyle(color: Colors.white)),
+            onTap: () { Navigator.pop(context); _pickSelfie(ImageSource.gallery); },
+          ),
+        ]),
+      ),
+    );
+  }
+
+  bool _referralNotFound = false;
+  bool _referralLoading = false;
+
+  Future<void> _lookupReferral(String phone) async {
+    if (phone.length < 10) {
+      setState(() { _referralProName = null; _referralProUid = null; _referralNotFound = false; });
+      return;
+    }
+    setState(() { _referralLoading = true; _referralNotFound = false; _referralProName = null; _referralProUid = null; });
+    try {
+      // Ψάχνουμε στο professionals collection (εγγεγραμμένοι επαγγελματίες)
+      final snap = await FirebaseFirestore.instance
+          .collection('professionals')
+          .where('phone', isEqualTo: phone)
+          .limit(1)
+          .get();
+      if (!mounted) return;
+      if (snap.docs.isNotEmpty) {
+        final data = snap.docs.first.data();
+        final name = (data['name'] as String? ?? '').trim();
+        setState(() {
+          _referralProName = name.isNotEmpty ? name : 'Επαγγελματίας';
+          _referralProUid = snap.docs.first.id;
+          _referralNotFound = false;
+          _referralLoading = false;
+        });
+      } else {
+        setState(() { _referralProName = null; _referralProUid = null; _referralNotFound = true; _referralLoading = false; });
       }
     } catch (e) {
-      debugPrint('Auto login error: $e');
+      if (mounted) setState(() { _referralProName = null; _referralProUid = null; _referralNotFound = true; _referralLoading = false; });
     }
   }
 
-  Future<void> _submit() async {
+  Future<void> _submitLogin() async {
     setState(() => _loading = true);
     try {
-      if (_isLogin) {
-        await FirebaseAuth.instance.signInWithEmailAndPassword(
-            email: _email.text.trim(), password: _pass.text.trim());
-        await AuthService.saveUser(_email.text.trim());
-        await AuthService.savePassword(_pass.text.trim());
-        if (mounted) {
-          Navigator.pushReplacement(
-              context, MaterialPageRoute(builder: (_) => const AuthGate()));
-        }
-      } else {
-        if (_role == 'professional' &&
-            (_selectedSpecialty == null || _selectedSpecialty!.isEmpty)) {
-          ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text('Παρακαλώ επιλέξτε ειδικότητα')));
-          setState(() => _loading = false);
-          return;
-        }
-        final cred = await FirebaseAuth.instance.createUserWithEmailAndPassword(
-            email: _email.text.trim(), password: _pass.text.trim());
-        final fullName =
-            '${_name.text.trim()} ${_lastName.text.trim()}'.trim();
-        await cred.user!.updateDisplayName(fullName);
-        await FirebaseFirestore.instance
-            .collection('users')
-            .doc(cred.user!.uid)
-            .set({
-          'name': fullName,
-          'city': _selectedArea ?? '',
-          'phone': _phone.text.trim(),
-          'role': _role,
+      await FirebaseAuth.instance.signInWithEmailAndPassword(
+          email: _email.text.trim(), password: _pass.text.trim());
+      await AuthService.saveUser(_email.text.trim());
+      await AuthService.savePassword(_pass.text.trim());
+      if (mounted) Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => const AuthGate()));
+    } catch (e) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Σφάλμα: $e')));
+    }
+    if (mounted) setState(() => _loading = false);
+  }
+
+  Future<void> _submitRegister() async {
+    if (_pass.text.trim() != _passConfirm.text.trim()) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Οι κωδικοί δεν ταιριάζουν')));
+      return;
+    }
+    if (_role == 'professional' && _selectedSpecialties.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Παρακαλώ επιλέξτε ειδικότητα')));
+      return;
+    }
+    setState(() => _loading = true);
+    try {
+      final cred = await FirebaseAuth.instance.createUserWithEmailAndPassword(
+          email: _email.text.trim(), password: _pass.text.trim());
+      final fullName = '${_name.text.trim()} ${_lastName.text.trim()}'.trim();
+      await cred.user!.updateDisplayName(fullName);
+      // Upload selfie if selected
+      String? selfieUrl;
+      if (_selfieFile != null && _role == 'professional') {
+        final bytes = await _selfieFile!.readAsBytes();
+        final ref = FirebaseStorage.instance.ref().child('profile_photos/${cred.user!.uid}/profile.jpg');
+        await ref.putData(bytes, SettableMetadata(contentType: 'image/jpeg'));
+        selfieUrl = await ref.getDownloadURL();
+      }
+
+      final userData = {
+        'name': fullName,
+        'phone': _phone.text.trim(),
+        'role': _role,
+        'createdAt': FieldValue.serverTimestamp(),
+        if (_role == 'user') 'city': _selectedArea ?? '',
+        if (_role == 'professional') ...{
+          'specialties': _selectedSpecialties,
+          'areas': _selectedAreas,
+          'specialty': _selectedSpecialties.isNotEmpty ? _selectedSpecialties.first : '',
+          'afm': _afm.text.trim(),
+          'wantsVerifiedBadge': _wantsVerifiedBadge,
+          if (_referralProUid != null) 'referredBy': _referralProUid,
+          'isAvailable': true,
+          if (selfieUrl != null) 'profilePhotoUrl': selfieUrl,
+        },
+      };
+      await FirebaseFirestore.instance.collection('users').doc(cred.user!.uid).set(userData);
+      if (_role == 'professional') {
+        await FirebaseFirestore.instance.collection('professionals').add({
+          'name': fullName, 'email': _email.text.trim(), 'phone': _phone.text.trim(),
+          'specialties': _selectedSpecialties,
+          'specialty': _selectedSpecialties.isNotEmpty ? _selectedSpecialties.first : '',
+          'areas': _selectedAreas, 'is_active': true, 'userId': cred.user!.uid,
           'createdAt': FieldValue.serverTimestamp(),
         });
-        if (_role == 'professional') {
-          await FirebaseFirestore.instance.collection('professionals').add({
-            'name': fullName,
-            'email': _email.text.trim(),
-            'phone': _phone.text.trim(),
-            'specialty': _selectedSpecialty ?? '',
-            'area': _selectedArea ?? '',
-            'is_active': true,
-            'userId': cred.user!.uid,
-            'createdAt': FieldValue.serverTimestamp(),
+        // Update referrer's count
+        if (_referralProUid != null) {
+          final ref = FirebaseFirestore.instance.collection('users').doc(_referralProUid);
+          await FirebaseFirestore.instance.runTransaction((tx) async {
+            final doc = await tx.get(ref);
+            final count = ((doc.data()?['referralCount'] as int?) ?? 0) + 1;
+            final updates = <String, dynamic>{'referralCount': count};
+            if (count >= 5 && doc.data()?['freeUntil'] == null) {
+              updates['freeUntil'] = Timestamp.fromDate(DateTime.now().add(const Duration(days: 365)));
+            }
+            tx.update(ref, updates);
           });
         }
-        await AuthService.saveUser(_email.text.trim());
-        await AuthService.savePassword(_pass.text.trim());
-        if (mounted) {
-          Navigator.pushReplacement(
-              context, MaterialPageRoute(builder: (_) => const AuthGate()));
-        }
       }
+      await AuthService.saveUser(_email.text.trim());
+      await AuthService.savePassword(_pass.text.trim());
+      if (mounted) Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => const AuthGate()));
     } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context)
-            .showSnackBar(SnackBar(content: Text('Σφάλμα: $e')));
-      }
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Σφάλμα: $e')));
     }
-    setState(() => _loading = false);
+    if (mounted) setState(() => _loading = false);
+  }
+
+  // ── Input field helper ──
+  Widget _field(TextEditingController ctrl, String hint, {bool obscure = false, bool? showObs, VoidCallback? onToggle, TextInputType? keyboard}) {
+    return TextField(
+      controller: ctrl,
+      obscureText: obscure && !(showObs ?? false),
+      keyboardType: keyboard,
+      style: const TextStyle(color: Colors.white, fontSize: 15),
+      decoration: InputDecoration(
+        hintText: hint,
+        hintStyle: TextStyle(color: _g(0.3)),
+        enabledBorder: UnderlineInputBorder(borderSide: BorderSide(color: _g(0.2))),
+        focusedBorder: const UnderlineInputBorder(borderSide: BorderSide(color: kGold)),
+        suffixIcon: obscure ? GestureDetector(
+          onTap: onToggle,
+          child: Icon(showObs == true ? Icons.visibility_off : Icons.visibility, color: _g(0.3), size: 20),
+        ) : null,
+      ),
+    );
+  }
+
+  // ── Picker row helper ──
+  Widget _pickerRow(IconData icon, String label, String subtitle, String? value, List<String>? values, VoidCallback onTap, {String? selectedSingle}) {
+    final hasValue = (values != null && values.isNotEmpty) || selectedSingle != null;
+    final displayValue = values != null && values.isNotEmpty ? values.join(', ') : selectedSingle;
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 13),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(12),
+          color: hasValue ? kGold.withValues(alpha: 0.05) : _g(0.04),
+          border: Border.all(color: hasValue ? kGold.withValues(alpha: 0.35) : _g(0.12)),
+        ),
+        child: Row(children: [
+          Icon(icon, color: hasValue ? kGold : _g(0.35), size: 18),
+          const SizedBox(width: 10),
+          Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Text(label, style: TextStyle(color: hasValue ? kGold.withValues(alpha: 0.8) : Colors.white.withValues(alpha: 0.7), fontSize: 12, fontWeight: FontWeight.w600)),
+            const SizedBox(height: 2),
+            Text(
+              displayValue ?? subtitle,
+              style: TextStyle(color: displayValue != null ? Colors.white : _g(0.3), fontSize: 11),
+              maxLines: 1, overflow: TextOverflow.ellipsis,
+            ),
+          ])),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+            decoration: BoxDecoration(borderRadius: BorderRadius.circular(8), color: kGold.withValues(alpha: 0.12), border: Border.all(color: kGold.withValues(alpha: 0.3))),
+            child: const Text('+ Επίλεξε', style: TextStyle(color: kGold, fontSize: 11, fontWeight: FontWeight.w700)),
+          ),
+        ]),
+      ),
+    );
   }
 
   @override
@@ -531,243 +683,475 @@ class _LoginScreenState extends State<LoginScreen>
     return Scaffold(
       resizeToAvoidBottomInset: true,
       body: SafeArea(
-        child: SingleChildScrollView(
-          padding: EdgeInsets.only(
-              bottom: MediaQuery.of(context).viewInsets.bottom + 24),
-          child: Center(
-            child: FadeTransition(
-              opacity: _fade,
-              child: ClipRRect(
-                borderRadius: BorderRadius.circular(30),
-                child: BackdropFilter(
-                  filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
-                  child: Container(
-                    width: 360,
-                    margin: const EdgeInsets.symmetric(vertical: 32),
-                    padding: const EdgeInsets.all(28),
-                    decoration: BoxDecoration(
-                      color: _g(0.06),
-                      borderRadius: BorderRadius.circular(30),
-                      border: Border.all(color: Colors.white12),
-                    ),
-                    child: Column(mainAxisSize: MainAxisSize.min, children: [
-                      ShaderMask(
-                        shaderCallback: (b) => const LinearGradient(
-                            colors: [kGoldLight, kGold]).createShader(b),
-                        child: const Text('GorealAI',
-                            style: TextStyle(
-                                fontSize: 36,
-                                fontWeight: FontWeight.w600,
-                                color: Colors.white)),
-                      ),
-                      const SizedBox(height: 6),
-                      Text('Βρες τον κατάλληλο επαγγελματία',
-                          style: TextStyle(
-                              fontSize: 12,
-                              color: _g(0.4))),
-                      const SizedBox(height: 20),
-
-                      // Role toggle
-                      if (!_isLogin) ...[
-                        Container(
-                          decoration: BoxDecoration(
-                              borderRadius: BorderRadius.circular(14),
-                              color: _g(0.05)),
-                          child: Row(children: [
-                            Expanded(
-                                child: GestureDetector(
-                              onTap: () => setState(() => _role = 'user'),
-                              child: AnimatedContainer(
-                                duration: const Duration(milliseconds: 200),
-                                padding:
-                                    const EdgeInsets.symmetric(vertical: 12),
-                                decoration: BoxDecoration(
-                                    borderRadius: BorderRadius.circular(12),
-                                    color: _role == 'user'
-                                        ? kGold
-                                        : Colors.transparent),
-                                child: Center(
-                                    child: Text('👤 Χρήστης',
-                                        style: TextStyle(
-                                            color: _role == 'user'
-                                                ? Colors.black
-                                                : Colors.white54,
-                                            fontWeight: FontWeight.w600,
-                                            fontSize: 13))),
-                              ),
-                            )),
-                            Expanded(
-                                child: GestureDetector(
-                              onTap: () =>
-                                  setState(() => _role = 'professional'),
-                              child: AnimatedContainer(
-                                duration: const Duration(milliseconds: 200),
-                                padding:
-                                    const EdgeInsets.symmetric(vertical: 12),
-                                decoration: BoxDecoration(
-                                    borderRadius: BorderRadius.circular(12),
-                                    color: _role == 'professional'
-                                        ? kGold
-                                        : Colors.transparent),
-                                child: Center(
-                                    child: Text('🔧 Επαγγελματίας',
-                                        style: TextStyle(
-                                            color: _role == 'professional'
-                                                ? Colors.black
-                                                : Colors.white54,
-                                            fontWeight: FontWeight.w600,
-                                            fontSize: 13))),
-                              ),
-                            )),
-                          ]),
-                        ),
-                        const SizedBox(height: 14),
-                        Row(children: [
-                          Expanded(
-                              child: TextField(
-                                  controller: _name,
-                                  decoration: const InputDecoration(
-                                      labelText: 'Όνομα'))),
-                          const SizedBox(width: 10),
-                          Expanded(
-                              child: TextField(
-                                  controller: _lastName,
-                                  decoration: const InputDecoration(
-                                      labelText: 'Επώνυμο'))),
-                        ]),
-                        const SizedBox(height: 12),
-                        TextField(
-                            controller: _phone,
-                            keyboardType: TextInputType.phone,
-                            decoration:
-                                const InputDecoration(labelText: 'Τηλέφωνο')),
-                        const SizedBox(height: 12),
-                      ],
-
-                      // Specialty picker
-                      if (!_isLogin && _role == 'professional') ...[
-                        GestureDetector(
-                          onTap: () async {
-                            final r = await showModalBottomSheet<String>(
-                                context: context,
-                                backgroundColor: Colors.transparent,
-                                isScrollControlled: true,
-                                builder: (ctx) => const _SpecialtyPicker());
-                            if (r != null)
-                              setState(() => _selectedSpecialty = r);
-                          },
-                          child: _DropdownField(
-                              value: _selectedSpecialty,
-                              hint: 'Επιλέξτε ειδικότητα...'),
-                        ),
-                        const SizedBox(height: 12),
-                      ],
-
-                      // Area picker
-                      if (!_isLogin) ...[
-                        GestureDetector(
-                          onTap: () async {
-                            final r = await showModalBottomSheet<String>(
-                                context: context,
-                                backgroundColor: Colors.transparent,
-                                isScrollControlled: true,
-                                builder: (ctx) => const _AreaPicker());
-                            if (r != null) setState(() => _selectedArea = r);
-                          },
-                          child: _DropdownField(
-                              value: _selectedArea,
-                              hint: _role == 'professional'
-                                  ? 'Επιλέξτε περιοχή εργασίας...'
-                                  : 'Επιλέξτε περιοχή...'),
-                        ),
-                        const SizedBox(height: 12),
-                      ],
-
-                      TextField(
-                          controller: _email,
-                          decoration:
-                              const InputDecoration(labelText: 'Email')),
-                      const SizedBox(height: 14),
-                      TextField(
-                          controller: _pass,
-                          obscureText: true,
-                          decoration:
-                              const InputDecoration(labelText: 'Password')),
-                      const SizedBox(height: 26),
-
-                      SizedBox(
-                        width: double.infinity,
-                        height: 52,
-                        child: ElevatedButton(
-                          onPressed: _loading ? null : _submit,
-                          style: ElevatedButton.styleFrom(
-                              backgroundColor: kGold,
-                              foregroundColor: Colors.black,
-                              shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(18))),
-                          child: _loading
-                              ? const CircularProgressIndicator(
-                                  color: Colors.black)
-                              : Text(
-                                  _isLogin
-                                      ? 'Είσοδος'
-                                      : 'Δημιουργία λογαριασμού',
-                                  style: const TextStyle(
-                                      fontWeight: FontWeight.bold,
-                                      fontSize: 16)),
-                        ),
-                      ),
-
-                      if (_isLogin) ...[
-                        const SizedBox(height: 14),
-                        GestureDetector(
-                          onTap: _autoLoginWithBiometrics,
-                          child: Container(
-                            width: double.infinity,
-                            height: 52,
-                            decoration: BoxDecoration(
-                                borderRadius: BorderRadius.circular(18),
-                                border: Border.all(
-                                    color: kGold.withValues(alpha: 0.4)),
-                                color: kGold.withValues(alpha: 0.06)),
-                            child: const Row(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                children: [
-                                  Icon(Icons.fingerprint,
-                                      color: kGold, size: 26),
-                                  SizedBox(width: 10),
-                                  Text('Είσοδος με δαχτυλικό αποτύπωμα',
-                                      style: TextStyle(
-                                          color: kGold,
-                                          fontSize: 14,
-                                          fontWeight: FontWeight.w500)),
-                                ]),
-                          ),
-                        ),
-                      ],
-
-                      const SizedBox(height: 10),
-                      TextButton(
-                        onPressed: () => setState(() {
-                          _isLogin = !_isLogin;
-                          _role = 'user';
-                        }),
-                        child: Text(
-                            _isLogin
-                                ? 'Δεν έχεις λογαριασμό; Sign up'
-                                : 'Έχεις λογαριασμό; Login',
-                            style: TextStyle(color: _g(0.7))),
-                      ),
-                    ]),
-                  ),
-                ),
-              ),
-            ),
-          ),
+        child: FadeTransition(
+          opacity: _fade,
+          child: _screen == 'login' ? _buildLogin() : _screen == 'role' ? _buildRoleSelect() : _buildRegister(),
         ),
       ),
     );
   }
+
+  // ════════════════════════════════
+  // SCREEN 1: LOGIN
+  // ════════════════════════════════
+  Widget _buildLogin() {
+    return SingleChildScrollView(
+      padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom + 24),
+      child: Center(child: Container(
+        width: 360,
+        margin: const EdgeInsets.symmetric(vertical: 40),
+        padding: const EdgeInsets.all(28),
+        decoration: BoxDecoration(
+          color: _g(0.06), borderRadius: BorderRadius.circular(30), border: Border.all(color: Colors.white12),
+        ),
+        child: Column(mainAxisSize: MainAxisSize.min, children: [
+          ShaderMask(
+            shaderCallback: (b) => const LinearGradient(colors: [kGoldLight, kGold]).createShader(b),
+            child: const Text('GorealAI', style: TextStyle(fontSize: 36, fontWeight: FontWeight.w600, color: Colors.white)),
+          ),
+          const SizedBox(height: 6),
+          Text('The first app with Reverse Auction', style: TextStyle(fontSize: 12, color: _g(0.4))),
+          const SizedBox(height: 28),
+          _field(_email, 'Email', keyboard: TextInputType.emailAddress),
+          const SizedBox(height: 16),
+          _field(_pass, 'Password', obscure: true, showObs: _showPass, onToggle: () => setState(() => _showPass = !_showPass)),
+          const SizedBox(height: 28),
+          SizedBox(
+            width: double.infinity, height: 52,
+            child: ElevatedButton(
+              onPressed: _loading ? null : _submitLogin,
+              style: ElevatedButton.styleFrom(backgroundColor: kGold, foregroundColor: Colors.black, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18))),
+              child: _loading ? const CircularProgressIndicator(color: Colors.black) : const Text('Είσοδος', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+            ),
+          ),
+          const SizedBox(height: 14),
+          GestureDetector(
+            onTap: _autoLoginWithBiometrics,
+            child: Container(
+              width: double.infinity, height: 52,
+              decoration: BoxDecoration(borderRadius: BorderRadius.circular(18), border: Border.all(color: kGold.withValues(alpha: 0.4)), color: kGold.withValues(alpha: 0.06)),
+              child: const Row(mainAxisAlignment: MainAxisAlignment.center, children: [
+                Icon(Icons.fingerprint, color: kGold, size: 26),
+                SizedBox(width: 10),
+                Text('Είσοδος με δαχτυλικό αποτύπωμα', style: TextStyle(color: kGold, fontSize: 14, fontWeight: FontWeight.w500)),
+              ]),
+            ),
+          ),
+          const SizedBox(height: 14),
+          TextButton(
+            onPressed: () => setState(() => _screen = 'role'),
+            child: Text('Δεν έχεις λογαριασμό; Sign up', style: TextStyle(color: _g(0.7))),
+          ),
+        ]),
+      )),
+    );
+  }
+
+  // ════════════════════════════════
+  // SCREEN 2: ROLE SELECTION
+  // ════════════════════════════════
+  Widget _buildRoleSelect() {
+    return Center(child: Container(
+      width: 360,
+      padding: const EdgeInsets.all(28),
+      child: Column(mainAxisSize: MainAxisSize.min, children: [
+        ShaderMask(
+          shaderCallback: (b) => const LinearGradient(colors: [kGoldLight, kGold]).createShader(b),
+          child: const Text('GorealAI', style: TextStyle(fontSize: 36, fontWeight: FontWeight.w600, color: Colors.white)),
+        ),
+        const SizedBox(height: 8),
+        const Text('Καλώς ήρθες!', style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.w700)),
+        const SizedBox(height: 6),
+        Text('Εγγράφεσαι ως:', style: TextStyle(color: _g(0.45), fontSize: 14)),
+        const SizedBox(height: 28),
+        GestureDetector(
+          onTap: () => setState(() { _role = 'user'; _screen = 'register'; }),
+          child: Container(
+            width: double.infinity, height: 148,
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(24),
+              gradient: const LinearGradient(
+                colors: [Color(0xFFFFD04A), Color(0xFFFFA500)],
+                begin: Alignment.topLeft, end: Alignment.bottomRight,
+              ),
+            ),
+            child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
+              Icon(Icons.person, color: Colors.blue.shade600, size: 52),
+              const SizedBox(height: 10),
+              const Text('Χρήστης', style: TextStyle(color: Colors.black, fontSize: 22, fontWeight: FontWeight.w900)),
+              const SizedBox(height: 4),
+              Text('Ψάχνω επαγγελματία', style: TextStyle(color: Colors.black.withValues(alpha: 0.6), fontSize: 13, fontWeight: FontWeight.w500)),
+            ]),
+          ),
+        ),
+        const SizedBox(height: 16),
+        GestureDetector(
+          onTap: () => setState(() { _role = 'professional'; _screen = 'register'; }),
+          child: Container(
+            width: double.infinity, height: 148,
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(24),
+              color: const Color(0xFF0E0B04),
+              border: Border.all(color: kGold.withValues(alpha: 0.45), width: 1.5),
+            ),
+            child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
+              Icon(Icons.build, color: kGold.withValues(alpha: 0.9), size: 52),
+              const SizedBox(height: 10),
+              Text('Επαγγελματίας', style: TextStyle(color: kGold.withValues(alpha: 0.95), fontSize: 22, fontWeight: FontWeight.w900)),
+              const SizedBox(height: 4),
+              Text('Προσφέρω υπηρεσίες', style: TextStyle(color: _g(0.45), fontSize: 13, fontWeight: FontWeight.w500)),
+            ]),
+          ),
+        ),
+        const SizedBox(height: 24),
+        TextButton.icon(
+          onPressed: () => setState(() => _screen = 'login'),
+          icon: Icon(Icons.arrow_back, size: 14, color: _g(0.5)),
+          label: Text('Πίσω στη Σύνδεση', style: TextStyle(color: _g(0.5), fontSize: 13)),
+        ),
+      ]),
+    ));
+  }
+
+  // ════════════════════════════════
+  // SCREEN 3: REGISTER FORM
+  // ════════════════════════════════
+  Widget _buildRegister() {
+    final isPro = _role == 'professional';
+    return SingleChildScrollView(
+      padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom + 32),
+      child: Center(child: Container(
+        width: 360,
+        margin: const EdgeInsets.symmetric(vertical: 32),
+        padding: const EdgeInsets.all(24),
+        decoration: BoxDecoration(
+          color: _g(0.05), borderRadius: BorderRadius.circular(28), border: Border.all(color: Colors.white12),
+        ),
+        child: Column(crossAxisAlignment: CrossAxisAlignment.start, mainAxisSize: MainAxisSize.min, children: [
+          // Header row — full-width pill
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(12),
+              color: isPro ? kGold.withValues(alpha: 0.10) : Colors.blue.withValues(alpha: 0.10),
+              border: Border.all(color: isPro ? kGold.withValues(alpha: 0.35) : Colors.blue.withValues(alpha: 0.35)),
+            ),
+            child: Row(children: [
+              Icon(isPro ? Icons.build : Icons.person, color: isPro ? kGold : Colors.blue.shade300, size: 16),
+              const SizedBox(width: 8),
+              Expanded(child: Text(
+                'Εγγραφή ως ${isPro ? 'Επαγγελματίας' : 'Χρήστης'}',
+                style: TextStyle(color: isPro ? kGold : Colors.blue.shade300, fontSize: 13, fontWeight: FontWeight.w700),
+              )),
+              GestureDetector(
+                onTap: () => setState(() => _screen = 'role'),
+                child: Text('Αλλαγή', style: TextStyle(color: _g(0.45), fontSize: 12, decoration: TextDecoration.underline, decorationColor: _g(0.45))),
+              ),
+            ]),
+          ),
+          const SizedBox(height: 20),
+
+          // Όνομα + Επώνυμο
+          Row(children: [
+            Expanded(child: _field(_name, 'Όνομα')),
+            const SizedBox(width: 12),
+            Expanded(child: _field(_lastName, 'Επώνυμο')),
+          ]),
+          const SizedBox(height: 16),
+
+          // Τηλέφωνο
+          _field(_phone, 'Τηλέφωνο', keyboard: TextInputType.phone),
+          const SizedBox(height: 16),
+
+          // Pro: Ειδικότητες
+          if (isPro) ...[
+            _pickerRow(Icons.work_outline, 'Ειδικότητες εργασίας', 'Επίλεξε όσες θέλεις κάνεις', null, _selectedSpecialties, () async {
+              final r = await showModalBottomSheet<List<String>>(
+                  context: context, backgroundColor: Colors.transparent, isScrollControlled: true,
+                  builder: (_) => _MultiSpecialtyPicker(initial: _selectedSpecialties));
+              if (r != null) setState(() => _selectedSpecialties = r);
+            }),
+            const SizedBox(height: 12),
+          ],
+
+          // User: Περιοχή (single) | Pro: Περιοχές (multi)
+          if (!isPro) ...[
+            _pickerRow(Icons.location_on_outlined, 'Περιοχή', 'Επίλεξε την περιοχή σου', null, null, () async {
+              final r = await showModalBottomSheet<String>(
+                  context: context, backgroundColor: Colors.transparent, isScrollControlled: true,
+                  builder: (_) => const _AreaPicker());
+              if (r != null) setState(() => _selectedArea = r);
+            }, selectedSingle: _selectedArea),
+            const SizedBox(height: 16),
+          ] else ...[
+            _pickerRow(Icons.location_on_outlined, 'Περιοχές εργασίας', 'Επίλεξε όλες τις περιοχές που εξυπηρετείς', null, _selectedAreas, () async {
+              final r = await showModalBottomSheet<List<String>>(
+                  context: context, backgroundColor: Colors.transparent, isScrollControlled: true,
+                  builder: (_) => _MultiAreaPicker(initial: _selectedAreas));
+              if (r != null) setState(() => _selectedAreas = r);
+            }),
+            const SizedBox(height: 12),
+          ],
+
+          // Pro extra fields
+          if (isPro) ...[
+            // Selfie
+            GestureDetector(
+              onTap: _showSelfieOptions,
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(12),
+                  color: _selfieFile != null ? kGold.withValues(alpha: 0.08) : _g(0.04),
+                  border: Border.all(color: _selfieFile != null ? kGold.withValues(alpha: 0.4) : _g(0.12)),
+                ),
+                child: Row(children: [
+                  if (_selfieFile != null) ...[
+                    ClipRRect(
+                      borderRadius: BorderRadius.circular(8),
+                      child: FutureBuilder<Uint8List>(
+                        future: _selfieFile!.readAsBytes(),
+                        builder: (_, snap) => snap.hasData
+                          ? Image.memory(snap.data!, width: 40, height: 40, fit: BoxFit.cover)
+                          : const SizedBox(width: 40, height: 40),
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(child: Text('Φωτογραφία επιλέχθηκε ✓', style: TextStyle(color: kGold, fontSize: 13, fontWeight: FontWeight.w600))),
+                    GestureDetector(
+                      onTap: () => setState(() => _selfieFile = null),
+                      child: Icon(Icons.close, color: _g(0.4), size: 16),
+                    ),
+                  ] else ...[
+                    Icon(Icons.camera_alt_outlined, color: _g(0.4), size: 18),
+                    const SizedBox(width: 10),
+                    Row(children: [
+                      const Text('🤳', style: TextStyle(fontSize: 15)),
+                      const SizedBox(width: 6),
+                      Text('Τράβηξε selfie (προαιρετικό)', style: TextStyle(color: _g(0.5), fontSize: 13)),
+                    ]),
+                  ],
+                ]),
+              ),
+            ),
+            const SizedBox(height: 12),
+
+            // ΑΦΜ — verified badge αυτόματα όταν συμπληρωθεί
+            Row(children: [
+              Expanded(child: TextField(
+                controller: _afm,
+                keyboardType: TextInputType.number,
+                style: const TextStyle(color: Colors.white, fontSize: 15),
+                onChanged: (_) => setState(() {}),
+                decoration: InputDecoration(
+                  hintText: 'ΑΦΜ (προαιρετικό)',
+                  hintStyle: TextStyle(color: _g(0.3)),
+                  enabledBorder: UnderlineInputBorder(borderSide: BorderSide(color: _g(0.2))),
+                  focusedBorder: const UnderlineInputBorder(borderSide: BorderSide(color: kGold)),
+                ),
+              )),
+              const SizedBox(width: 10),
+              AnimatedContainer(
+                duration: const Duration(milliseconds: 300),
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(8),
+                  color: _afm.text.trim().isNotEmpty ? kGold.withValues(alpha: 0.15) : _g(0.04),
+                  border: Border.all(color: _afm.text.trim().isNotEmpty ? kGold.withValues(alpha: 0.5) : _g(0.12)),
+                ),
+                child: Row(mainAxisSize: MainAxisSize.min, children: [
+                  Icon(Icons.verified, color: _afm.text.trim().isNotEmpty ? kGold : _g(0.25), size: 14),
+                  const SizedBox(width: 4),
+                  Text('✓ Verified badge',
+                      style: TextStyle(color: _afm.text.trim().isNotEmpty ? kGold : _g(0.3), fontSize: 10, fontWeight: FontWeight.w600)),
+                ]),
+              ),
+            ]),
+            const SizedBox(height: 12),
+
+            // Σύσταση
+            Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Row(children: [
+                Icon(Icons.group_outlined, color: _g(0.4), size: 16),
+                const SizedBox(width: 8),
+                Text('Σύσταση από επαγγελματία', style: TextStyle(color: _g(0.5), fontSize: 12)),
+              ]),
+              const SizedBox(height: 6),
+              TextField(
+                controller: _referralPhone,
+                keyboardType: TextInputType.phone,
+                style: const TextStyle(color: Colors.white, fontSize: 14),
+                onChanged: (v) => _lookupReferral(v.trim()),
+                decoration: InputDecoration(
+                  hintText: 'Κινητό επαγγελματία (προαιρετικό)',
+                  hintStyle: TextStyle(color: _g(0.25)),
+                  enabledBorder: UnderlineInputBorder(borderSide: BorderSide(color: _g(0.2))),
+                  focusedBorder: const UnderlineInputBorder(borderSide: BorderSide(color: kGold)),
+                  suffixIcon: _referralLoading
+                    ? const SizedBox(width: 18, height: 18, child: Padding(padding: EdgeInsets.all(2), child: CircularProgressIndicator(color: kGold, strokeWidth: 2)))
+                    : _referralProName != null
+                      ? const Icon(Icons.check_circle, color: kGreen, size: 18)
+                      : _referralNotFound
+                        ? const Icon(Icons.cancel, color: Colors.red, size: 18)
+                        : null,
+                ),
+              ),
+              if (_referralProName != null) ...[
+                const SizedBox(height: 5),
+                Row(children: [
+                  const Icon(Icons.person, color: kGreen, size: 14),
+                  const SizedBox(width: 5),
+                  Text(_referralProName!, style: const TextStyle(color: kGreen, fontSize: 12, fontWeight: FontWeight.w600)),
+                  const SizedBox(width: 4),
+                  Text('(συστάθηκε)', style: TextStyle(color: _g(0.35), fontSize: 11)),
+                ]),
+              ] else if (_referralNotFound) ...[
+                const SizedBox(height: 5),
+                Row(children: [
+                  const Icon(Icons.info_outline, color: Colors.red, size: 14),
+                  const SizedBox(width: 5),
+                  Text('Δεν βρέθηκε επαγγελματίας με αυτό το κινητό', style: TextStyle(color: Colors.red.withValues(alpha: 0.8), fontSize: 11)),
+                ]),
+              ],
+            ]),
+            const SizedBox(height: 16),
+          ],
+
+          // Email
+          _field(_email, 'Email', keyboard: TextInputType.emailAddress),
+          const SizedBox(height: 16),
+          _field(_pass, 'Password', obscure: true, showObs: _showPassReg, onToggle: () => setState(() => _showPassReg = !_showPassReg)),
+          const SizedBox(height: 16),
+          _field(_passConfirm, 'Επιβεβαίωση Password', obscure: true, showObs: _showPassConfirm, onToggle: () => setState(() => _showPassConfirm = !_showPassConfirm)),
+          const SizedBox(height: 28),
+
+          SizedBox(
+            width: double.infinity, height: 52,
+            child: ElevatedButton(
+              onPressed: _loading ? null : _submitRegister,
+              style: ElevatedButton.styleFrom(backgroundColor: kGold, foregroundColor: Colors.black, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18))),
+              child: _loading ? const CircularProgressIndicator(color: Colors.black) : const Text('Δημιουργία λογαριασμού', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+            ),
+          ),
+          const SizedBox(height: 10),
+          Center(child: TextButton(
+            onPressed: () => setState(() => _screen = 'login'),
+            child: Text('Έχεις λογαριασμό; Login', style: TextStyle(color: _g(0.7))),
+          )),
+        ]),
+      )),
+    );
+  }
+}
+
+// ── Multi-select specialty picker ──
+class _MultiSpecialtyPicker extends StatefulWidget {
+  final List<String> initial;
+  const _MultiSpecialtyPicker({required this.initial});
+  @override
+  State<_MultiSpecialtyPicker> createState() => _MultiSpecialtyPickerState();
+}
+class _MultiSpecialtyPickerState extends State<_MultiSpecialtyPicker> {
+  late List<String> _selected;
+  @override
+  void initState() { super.initState(); _selected = List.from(widget.initial); }
+  @override
+  Widget build(BuildContext context) {
+    final items = _allSpecialtiesSorted;
+    return _PickerContainer(
+      title: 'Ειδικότητες εργασίας',
+      onOk: _selected.isNotEmpty ? () => Navigator.pop(context, _selected) : null,
+      child: ListView.builder(
+        padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+        itemCount: items.length,
+        itemBuilder: (_, i) {
+          final item = items[i];
+          final isSel = _selected.contains(item);
+          return GestureDetector(
+            onTap: () => setState(() => isSel ? _selected.remove(item) : _selected.add(item)),
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 150),
+              margin: const EdgeInsets.only(bottom: 6),
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 13),
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(12),
+                color: isSel ? kGold.withValues(alpha: 0.12) : _g(0.04),
+                border: Border.all(color: isSel ? kGold.withValues(alpha: 0.5) : _g(0.07)),
+              ),
+              child: Row(children: [
+                AnimatedContainer(
+                  duration: const Duration(milliseconds: 150),
+                  width: 20, height: 20,
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(4),
+                    color: isSel ? kGold : Colors.transparent,
+                    border: Border.all(color: isSel ? kGold : _g(0.25), width: 1.5),
+                  ),
+                  child: isSel ? const Icon(Icons.check, color: Colors.black, size: 13) : null,
+                ),
+                const SizedBox(width: 12),
+                Expanded(child: Text(item, style: TextStyle(color: isSel ? kGold : Colors.white, fontSize: 14, fontWeight: isSel ? FontWeight.w600 : FontWeight.w400))),
+              ]),
+            ),
+          );
+        },
+      ),
+    );
+  }
+}
+
+// ── Multi-select area picker ──
+class _MultiAreaPicker extends StatefulWidget {
+  final List<String> initial;
+  const _MultiAreaPicker({required this.initial});
+  @override
+  State<_MultiAreaPicker> createState() => _MultiAreaPickerState();
+}
+class _MultiAreaPickerState extends State<_MultiAreaPicker> {
+  late List<String> _selected;
+  @override
+  void initState() { super.initState(); _selected = List.from(widget.initial); }
+  @override
+  Widget build(BuildContext context) => _PickerContainer(
+    title: 'Περιοχές εργασίας',
+    onOk: _selected.isNotEmpty ? () => Navigator.pop(context, _selected) : null,
+    child: ListView.builder(
+      padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+      itemCount: _greekAreasSorted.length,
+      itemBuilder: (_, i) {
+        final area = _greekAreasSorted[i];
+        final isSel = _selected.contains(area);
+        return GestureDetector(
+          onTap: () => setState(() => isSel ? _selected.remove(area) : _selected.add(area)),
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 150),
+            margin: const EdgeInsets.only(bottom: 6),
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 13),
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(12),
+              color: isSel ? kGold.withValues(alpha: 0.12) : _g(0.04),
+              border: Border.all(color: isSel ? kGold.withValues(alpha: 0.5) : _g(0.07)),
+            ),
+            child: Row(children: [
+              AnimatedContainer(
+                duration: const Duration(milliseconds: 150),
+                width: 20, height: 20,
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(4),
+                  color: isSel ? kGold : Colors.transparent,
+                  border: Border.all(color: isSel ? kGold : _g(0.25), width: 1.5),
+                ),
+                child: isSel ? const Icon(Icons.check, color: Colors.black, size: 13) : null,
+              ),
+              const SizedBox(width: 12),
+              Text(area, style: TextStyle(color: isSel ? kGold : Colors.white, fontSize: 14, fontWeight: isSel ? FontWeight.w600 : FontWeight.w400)),
+            ]),
+          ),
+        );
+      },
+    ),
+  );
 }
 
 // ── Dropdown field helper ──
@@ -3629,25 +4013,7 @@ class _RequestProfessionPickerState extends State<_RequestProfessionPicker> {
   ];
 
   Future<void> _showPicker() async {
-    // Φέρε από Firestore αν υπάρχουν
-    List<String> items = List.from(_fallback);
-    try {
-      final snap = await FirebaseFirestore.instance
-          .collection('professionals')
-          .where('is_active', isEqualTo: true)
-          .get();
-      final specialties = snap.docs
-          .map((d) => d.data()['specialty'] as String? ?? '')
-          .where((s) => s.isNotEmpty)
-          .toSet()
-          .toList();
-      if (specialties.isNotEmpty) {
-        for (final s in specialties) {
-          if (!items.contains(s)) items.insert(0, s);
-        }
-      }
-    } catch (_) {}
-
+    final items = _allSpecialtiesSorted;
     if (!mounted) return;
     final result = await showModalBottomSheet<String>(
       context: context,
@@ -3703,16 +4069,6 @@ class _RequestLocationPicker extends StatefulWidget {
   State<_RequestLocationPicker> createState() => _RequestLocationPickerState();
 }
 class _RequestLocationPickerState extends State<_RequestLocationPicker> {
-  static const _areas = [
-    'Αθήνα Κέντρο', 'Κολωνάκι', 'Γλυφάδα', 'Βούλα', 'Βουλιαγμένη',
-    'Καλλιθέα', 'Νέα Σμύρνη', 'Παλαιό Φάληρο', 'Άλιμος', 'Χαλάνδρι',
-    'Μαρούσι', 'Κηφισιά', 'Νέα Ιωνία', 'Αγία Παρασκευή', 'Ζωγράφου',
-    'Βύρωνας', 'Ηλιούπολη', 'Περιστέρι', 'Αιγάλεω', 'Πειραιάς',
-    'Θεσσαλονίκη Κέντρο', 'Καλαμαριά', 'Πυλαία', 'Θέρμη',
-    'Πάτρα', 'Ηράκλειο Κρήτης', 'Χανιά', 'Ρέθυμνο', 'Λάρισα', 'Βόλος',
-    'Ιωάννινα', 'Κέρκυρα', 'Ρόδος', 'Μυτιλήνη',
-  ];
-
   Future<void> _showPicker() async {
     final result = await showModalBottomSheet<String>(
       context: context,
@@ -3720,7 +4076,7 @@ class _RequestLocationPickerState extends State<_RequestLocationPicker> {
       isScrollControlled: true,
       builder: (ctx) => _SimpleListPicker(
         title: '📍 Περιοχή εργασίας',
-        items: ['📍 Κοντά μου (GPS)', ..._areas],
+        items: ['📍 Κοντά μου (GPS)', ..._greekAreasSorted],
         selected: widget.value,
       ),
     );
@@ -3776,14 +4132,19 @@ class _SimpleListPicker extends StatefulWidget {
 }
 class _SimpleListPickerState extends State<_SimpleListPicker> {
   late String? _sel;
+  String _query = '';
+  final _searchCtrl = TextEditingController();
   @override
-  void initState() {
-    super.initState();
-    _sel = widget.selected;
-  }
+  void initState() { super.initState(); _sel = widget.selected; }
   @override
-  Widget build(BuildContext context) => Container(
-    height: MediaQuery.of(context).size.height * 0.75,
+  void dispose() { _searchCtrl.dispose(); super.dispose(); }
+  @override
+  Widget build(BuildContext context) {
+    final filtered = _query.isEmpty
+        ? widget.items
+        : widget.items.where((item) => item.toLowerCase().contains(_query.toLowerCase())).toList();
+    return Container(
+    height: MediaQuery.of(context).size.height * 0.80,
     decoration: const BoxDecoration(
       color: Color(0xFF0E0B04),
       borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
@@ -3800,13 +4161,40 @@ class _SimpleListPickerState extends State<_SimpleListPicker> {
       const SizedBox(height: 10),
       Padding(
         padding: const EdgeInsets.symmetric(horizontal: 16),
+        child: TextField(
+          controller: _searchCtrl,
+          onChanged: (v) => setState(() => _query = v),
+          style: const TextStyle(color: Colors.white, fontSize: 14),
+          decoration: InputDecoration(
+            hintText: 'Αναζήτηση...',
+            hintStyle: TextStyle(color: _g(0.35), fontSize: 14),
+            prefixIcon: Icon(Icons.search, color: _g(0.4), size: 18),
+            suffixIcon: _query.isNotEmpty
+                ? GestureDetector(
+                    onTap: () { _searchCtrl.clear(); setState(() => _query = ''); },
+                    child: Icon(Icons.close, color: _g(0.4), size: 16))
+                : null,
+            filled: true,
+            fillColor: _g(0.06),
+            contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+            border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: _g(0.1))),
+            enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: _g(0.1))),
+            focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: kGold.withValues(alpha: 0.4))),
+          ),
+        ),
+      ),
+      const SizedBox(height: 8),
+      Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 16),
         child: Divider(color: kGold.withValues(alpha: 0.15), height: 1),
       ),
-      Expanded(child: ListView.builder(
+      Expanded(child: filtered.isEmpty
+        ? Center(child: Text('Δεν βρέθηκαν αποτελέσματα', style: TextStyle(color: _g(0.4), fontSize: 14)))
+        : ListView.builder(
         padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
-        itemCount: widget.items.length,
+        itemCount: filtered.length,
         itemBuilder: (_, i) {
-          final item = widget.items[i];
+          final item = filtered[i];
           final isSel = _sel == item;
           return GestureDetector(
             onTap: () {
@@ -3851,6 +4239,7 @@ class _SimpleListPickerState extends State<_SimpleListPicker> {
       )),
     ]),
   );
+  }
 }
 
 // lib/main.dart — αντικατάστησε ολόκληρη την _RequestImageGallery class
@@ -4452,24 +4841,7 @@ Future<void> _notifyProsDirectly(
                           isScrollControlled: true,
                           builder: (_) => _SimpleListPicker(
                             title: '🔨 Είδος επαγγελματία',
-                            items: ([
-                              'Αλουμινάς', 'Αποφράξεις', 'Αρχιτέκτονας',
-                              'Baby Sitter', 'Γραφίστας', 'Δικηγόρος',
-                              'Διατροφολόγος', 'Εγκατάσταση Ηλιακών',
-                              'Ηλεκτρολόγος', 'Θεραπευτής', 'Καθαρίστρια',
-                              'Καθηγητής Αγγλικών', 'Καθηγητής Μαθηματικών',
-                              'Κηπουρός', 'Κτίστης', 'Λογιστής',
-                              'Μετακομίσεις', 'Μηχανικός', 'Μηχανικός Αυτοκινήτων',
-                              'Ξυλουργός', 'Οδοντίατρος', 'Παθολόγος', 'Παιδίατρος',
-                              'Personal Trainer', 'Πλακάς', 'Συνεργείο Ανακαίνισης',
-                              'Συνεργείο Βαφής & Διακόσμησης', 'Συνεργείο Ηλεκτρολόγων',
-                              'Συνεργείο Κατασκευών', 'Συνεργείο Κλιματισμού',
-                              'Συνεργείο Υδραυλικών', 'Συντήρηση Κλιματιστικών',
-                              'Τεχνικός Ανελκυστήρων', 'Τεχνικός Υπολογιστών',
-                              'Υαλουργός', 'Υδραυλικός', 'Φυσιοθεραπευτής',
-                              'Φωτογράφος', 'Web Developer', 'Ελαιοχρωματιστής',
-                              'Ψυκτικός', 'Ψυχολόγος',
-                            ]..sort((a, b) => a.toLowerCase().compareTo(b.toLowerCase()))),
+                            items: _allSpecialtiesSorted,
                             selected: _selectedProfession,
                           ),
                         );
@@ -4511,16 +4883,7 @@ Future<void> _notifyProsDirectly(
                           isScrollControlled: true,
                           builder: (_) => _SimpleListPicker(
                             title: '📍 Περιοχή εργασίας',
-                            items: const [
-                              '📍 Κοντά μου (GPS)',
-                              'Αθήνα Κέντρο', 'Κολωνάκι', 'Γλυφάδα', 'Βούλα', 'Βουλιαγμένη',
-                              'Καλλιθέα', 'Νέα Σμύρνη', 'Παλαιό Φάληρο', 'Άλιμος', 'Χαλάνδρι',
-                              'Μαρούσι', 'Κηφισιά', 'Νέα Ιωνία', 'Αγία Παρασκευή', 'Ζωγράφου',
-                              'Βύρωνας', 'Ηλιούπολη', 'Περιστέρι', 'Αιγάλεω', 'Πειραιάς',
-                              'Θεσσαλονίκη Κέντρο', 'Καλαμαριά', 'Πυλαία', 'Θέρμη',
-                              'Πάτρα', 'Ηράκλειο Κρήτης', 'Χανιά', 'Ρέθυμνο', 'Λάρισα', 'Βόλος',
-                              'Ιωάννινα', 'Κέρκυρα', 'Ρόδος', 'Μυτιλήνη',
-                            ],
+                            items: ['📍 Κοντά μου (GPS)', ..._greekAreasSorted],
                             selected: _selectedLocation,
                           ),
                         );
@@ -8071,7 +8434,7 @@ const List<Map<String, dynamic>> _specialtyCategories = [
       'Ηλεκτρολόγος', 'Υδραυλικός', 'Ψυκτικός', 'Ελαιοχρωματιστής',
       'Μηχανικός', 'Κτίστης', 'Ξυλουργός', 'Υαλουργός',
       'Τεχνικός Ανελκυστήρων', 'Αποφράξεις', 'Αλουμινάς', 'Πλακάς',
-      'Συντήρηση Κλιματιστικών', 'Εγκατάσταση Ηλιακών'
+      'Συντήρηση Κλιματιστικών', 'Εγκατάσταση Ηλιακών', 'Υπηρεσία Αποξήλωσης'
     ]
   },
   {
@@ -8088,19 +8451,29 @@ const List<Map<String, dynamic>> _specialtyCategories = [
   {
     'category': 'Εκπαίδευση',
     'items': [
-      'Καθηγητής Μαθηματικών',
-      'Καθηγητής Αγγλικών',
-      'Personal Trainer'
+      'Καθηγητής Μαθηματικών', 'Καθηγητής Αγγλικών', 'Καθηγητής Γαλλικών',
+      'Καθηγητής Ιταλικών', 'Καθηγητής Γερμανικών', 'Καθηγητής Ισπανικών',
+      'Φιλόλογος', 'Καθηγητής Φυσικής', 'Καθηγητής Χημείας',
+      'Καθηγητής Πληροφορικής', 'Καθηγητής Βιολογίας', 'Personal Trainer'
     ]
   },
   {
     'category': 'Ψηφιακές',
     'items': [
-      'Web Developer',
-      'Γραφίστας',
-      'Φωτογράφος',
-      'Τεχνικός Υπολογιστών'
+      'Web Developer', 'Γραφίστας', 'Φωτογράφος', 'Τεχνικός Υπολογιστών'
     ]
+  },
+  {
+    'category': 'Εκδηλώσεις',
+    'items': [
+      'Εκδηλώσεις Γάμου', 'Εκδηλώσεις Βάφτισης', 'Διοργάνωση Πάρτυ',
+      'Φωτογράφος Γάμου', 'DJ / Μουσική Εκδηλώσεων', 'Catering',
+      'Ανθοδέτης / Στολισμός', 'Αίθουσα Εκδηλώσεων'
+    ]
+  },
+  {
+    'category': 'Ομορφιά & Αισθητική',
+    'items': ['Tattoo Artist', 'Τεχνίτρια Νυχιών']
   },
   {
     'category': 'Άλλα',
@@ -8109,16 +8482,11 @@ const List<Map<String, dynamic>> _specialtyCategories = [
   {
     'category': 'Συνεργεία',
     'items': [
-      'Συνεργείο Ανακαίνισης',
-      'Συνεργείο Κατασκευών',
-      'Συνεργείο Βαφής & Διακόσμησης',
-      'Συνεργείο Ηλεκτρολόγων',
-      'Συνεργείο Υδραυλικών',
-      'Συνεργείο Κλιματισμού',
-      'Συνεργείο Αλουμινίου & Κουφωμάτων',
-      'Συνεργείο Πλακιδίων & Δαπέδων',
-      'Συνεργείο Κήπου & Εξωτερικών Χώρων',
-      'Συνεργείο Γυψοσανίδας & Οροφής',
+      'Συνεργείο Ανακαίνισης', 'Συνεργείο Κατασκευών',
+      'Συνεργείο Βαφής & Διακόσμησης', 'Συνεργείο Ηλεκτρολόγων',
+      'Συνεργείο Υδραυλικών', 'Συνεργείο Κλιματισμού',
+      'Συνεργείο Αλουμινίου & Κουφωμάτων', 'Συνεργείο Πλακιδίων & Δαπέδων',
+      'Συνεργείο Κήπου & Εξωτερικών Χώρων', 'Συνεργείο Γυψοσανίδας & Οροφής',
       'Συνεργείο Ξυλουργικών Εργασιών',
     ]
   },
@@ -8205,14 +8573,62 @@ class _SpecialtyPickerState extends State<_SpecialtyPicker> {
 }
 
 const List<String> _greekAreas = [
-  'Αθήνα Κέντρο', 'Κολωνάκι', 'Γλυφάδα', 'Βούλα', 'Βουλιαγμένη',
-  'Καλλιθέα', 'Νέα Σμύρνη', 'Παλαιό Φάληρο', 'Άλιμος', 'Χαλάνδρι',
-  'Μαρούσι', 'Κηφισιά', 'Νέα Ιωνία', 'Αγία Παρασκευή', 'Ζωγράφου',
-  'Βύρωνας', 'Ηλιούπολη', 'Περιστέρι', 'Αιγάλεω', 'Πειραιάς',
-  'Θεσσαλονίκη Κέντρο', 'Καλαμαριά', 'Πυλαία', 'Θέρμη',
-  'Πάτρα', 'Ηράκλειο Κρήτης', 'Χανιά', 'Ρέθυμνο', 'Λάρισα', 'Βόλος',
-  'Ιωάννινα', 'Κέρκυρα', 'Ρόδος', 'Μυτιλήνη',
+  // Αθήνα Κέντρο & Νότια
+  'Αθήνα Κέντρο', 'Κολωνάκι', 'Εξάρχεια', 'Παγκράτι', 'Πετράλωνα',
+  'Κουκάκι', 'Νέος Κόσμος', 'Γλυφάδα', 'Βούλα', 'Βουλιαγμένη',
+  'Καλλιθέα', 'Μοσχάτο', 'Ταύρος', 'Νέα Σμύρνη', 'Παλαιό Φάληρο',
+  'Άλιμος', 'Αργυρούπολη', 'Ελληνικό',
+  // Βόρεια Προάστια
+  'Χαλάνδρι', 'Μαρούσι', 'Κηφισιά', 'Βριλήσσια', 'Νέα Ιωνία',
+  'Ηράκλειο Αττικής', 'Μεταμόρφωση', 'Αγία Παρασκευή', 'Παπάγου',
+  'Χολαργός', 'Ζωγράφου', 'Βύρωνας', 'Καισαριανή', 'Ηλιούπολη',
+  'Άγιος Δημήτριος', 'Δάφνη', 'Υμηττός',
+  // Δυτικά Προάστια
+  'Περιστέρι', 'Αιγάλεω', 'Χαϊδάρι', 'Πετρούπολη', 'Ίλιον',
+  'Αγία Βαρβάρα', 'Κορυδαλλός', 'Νίκαια', 'Κερατσίνι', 'Δραπετσώνα',
+  'Πειραιάς', 'Πέραμα', 'Σαλαμίνα',
+  // Ανατολικά & Βορειοανατολικά
+  'Αχαρνές', 'Κρυονέρι', 'Διόνυσος', 'Ωρωπός', 'Μαραθώνας',
+  'Ραφήνα', 'Αρτέμιδα', 'Μαρκόπουλο', 'Κορωπί', 'Παιανία',
+  'Κρόπια', 'Παλλήνη', 'Γέρακας', 'Ανθούσα',
+  // Θεσσαλονίκη
+  'Θεσσαλονίκη Κέντρο', 'Καλαμαριά', 'Πυλαία', 'Σταυρούπολη',
+  'Αμπελόκηποι Θεσσαλονίκης', 'Ευόσμος', 'Κορδελιό',
+  'Νεάπολη Θεσσαλονίκης', 'Συκιές', 'Πολίχνη', 'Τριανδρία',
+  'Νέα Μηχανιώνα', 'Θέρμη',
+  // Πελοπόννησος & Δυτική Ελλάδα
+  'Πάτρα', 'Αίγιο', 'Καλαμάτα', 'Κόρινθος', 'Τρίπολη', 'Σπάρτη',
+  'Πύλος',
+  // Κρήτη
+  'Ηράκλειο Κρήτης', 'Χανιά', 'Ρέθυμνο', 'Άγιος Νικόλαος',
+  // Θεσσαλία & Κεντρική Ελλάδα
+  'Λάρισα', 'Βόλος', 'Τρίκαλα', 'Καρδίτσα', 'Λαμία',
+  // Ήπειρος & Ιόνια
+  'Ιωάννινα', 'Άρτα', 'Πρέβεζα', 'Λευκάδα', 'Κέρκυρα', 'Ζάκυνθος',
+  // Βόρεια Ελλάδα
+  'Καβάλα', 'Δράμα', 'Σέρρες', 'Κιλκίς', 'Αλεξανδρούπολη',
+  'Κομοτηνή', 'Ξάνθη', 'Κοζάνη', 'Βέροια', 'Κατερίνη',
+  // Νησιά
+  'Ρόδος', 'Κως', 'Μυτιλήνη', 'Χίος', 'Σάμος', 'Αργοστόλι',
 ];
+
+// Flat sorted list of all specialties (χρησιμοποιείται παντού)
+List<String> get _allSpecialtiesSorted {
+  final all = <String>[];
+  for (final cat in _specialtyCategories) {
+    all.addAll(cat['items'] as List<String>);
+  }
+  final sorted = all.toSet().toList();
+  sorted.sort((a, b) => a.toLowerCase().compareTo(b.toLowerCase()));
+  return sorted;
+}
+
+// Sorted areas
+List<String> get _greekAreasSorted {
+  final s = List<String>.from(_greekAreas);
+  s.sort((a, b) => a.toLowerCase().compareTo(b.toLowerCase()));
+  return s;
+}
 
 class _AreaPicker extends StatefulWidget {
   const _AreaPicker();
@@ -8230,9 +8646,9 @@ class _AreaPickerState extends State<_AreaPicker> {
             : null,
         child: ListView.builder(
           padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-          itemCount: _greekAreas.length,
+          itemCount: _greekAreasSorted.length,
           itemBuilder: (_, i) {
-            final area = _greekAreas[i];
+            final area = _greekAreasSorted[i];
             final isSel = _selected == area;
             return GestureDetector(
               onTap: () => setState(() => _selected = area),
@@ -8927,8 +9343,8 @@ class _NearbyProsSectionState extends State<_NearbyProsSection> {
   Widget build(BuildContext context) {
     return StreamBuilder<QuerySnapshot>(
       stream: FirebaseFirestore.instance
-          .collection('users')
-          .where('role', isEqualTo: 'professional')
+          .collection('professionals')
+          .where('is_active', isEqualTo: true)
           .limit(20)
           .snapshots(),
       builder: (context, snap) {

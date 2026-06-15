@@ -1,0 +1,777 @@
+<!DOCTYPE html>
+<html lang="el">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=390,initial-scale=1">
+<title>GorealAI — TikTok Promo</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap');
+
+*{box-sizing:border-box;margin:0;padding:0;}
+
+body{
+  background:#000;
+  display:flex;align-items:center;justify-content:center;
+  min-height:100vh;
+  font-family:'Inter',sans-serif;
+}
+
+/* ── PHONE FRAME ── */
+.phone{
+  width:390px;height:844px;
+  background:#000;
+  border-radius:48px;
+  border:3px solid #222;
+  position:relative;
+  overflow:hidden;
+  box-shadow:0 0 0 1px #333, 0 40px 120px rgba(0,0,0,.8);
+}
+
+/* notch */
+.phone::before{
+  content:'';position:absolute;top:0;left:50%;transform:translateX(-50%);
+  width:120px;height:34px;background:#000;border-radius:0 0 20px 20px;z-index:100;
+}
+
+/* ── SLIDES ── */
+.slide{
+  position:absolute;inset:0;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  opacity:0;transition:opacity .6s ease;
+  pointer-events:none;
+}
+.slide.active{opacity:1;}
+
+/* ─── SLIDE 1: Logo Intro ─── */
+#s1{background:radial-gradient(ellipse at 40% 35%,#1a1400 0%,#000 70%);}
+#s1 .logo-wrap{
+  display:flex;flex-direction:column;align-items:center;gap:16px;
+  animation:logoIn 1s ease both;
+}
+@keyframes logoIn{from{opacity:0;transform:scale(.6)}to{opacity:1;transform:scale(1)}}
+
+.big-g{
+  width:110px;height:110px;
+  background:#000;border-radius:24px;
+  display:flex;align-items:center;justify-content:center;
+  box-shadow:0 0 40px rgba(201,160,60,.45), 0 0 80px rgba(201,160,60,.2);
+  border:2px solid rgba(201,160,60,.3);
+}
+.big-g svg{width:90px;height:90px;}
+
+.brand-name{
+  font-size:32px;font-weight:900;letter-spacing:.15em;
+  background:linear-gradient(180deg,#e8c96a 0%,#c9a03c 50%,#9a7020 100%);
+  -webkit-background-clip:text;-webkit-text-fill-color:transparent;
+}
+.brand-sub{
+  font-size:12px;font-weight:500;letter-spacing:.25em;color:rgba(201,160,60,.45);
+  text-transform:uppercase;
+}
+
+#s1 .tagbadge{
+  margin-top:32px;
+  padding:10px 22px;border-radius:50px;
+  background:rgba(201,160,60,.12);border:1px solid rgba(201,160,60,.25);
+  font-size:13px;color:#e8c96a;font-weight:500;letter-spacing:.06em;
+  animation:fadeUp .8s .7s ease both;
+}
+@keyframes fadeUp{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:translateY(0)}}
+
+/* ─── SLIDE 2: Problem ─── */
+#s2{
+  background:linear-gradient(180deg,#0a0a0a 0%,#111 100%);
+  padding:60px 32px;
+}
+#s2 .headline{
+  font-size:30px;font-weight:800;color:#fff;line-height:1.25;text-align:center;
+  animation:fadeUp .6s ease both;
+}
+#s2 .headline span{color:#e8c96a;}
+#s2 .sub{
+  margin-top:16px;font-size:15px;color:rgba(255,255,255,.45);text-align:center;line-height:1.6;
+  animation:fadeUp .6s .2s ease both;
+}
+.emoji-row{
+  display:flex;gap:20px;margin-top:36px;
+  animation:fadeUp .6s .4s ease both;
+}
+.emoji-card{
+  flex:1;background:#181818;border-radius:20px;padding:20px 12px;
+  display:flex;flex-direction:column;align-items:center;gap:10px;
+  border:1px solid #222;
+}
+.emoji-card .emo{font-size:28px;}
+.emoji-card .elbl{font-size:11px;color:rgba(255,255,255,.45);text-align:center;line-height:1.4;}
+
+/* ─── SLIDE 3: App Demo – Home ─── */
+#s3{background:#0d0d0d;padding:0;}
+.mockscreen{
+  position:absolute;inset:0;
+  background:#0d0d0d;
+  display:flex;flex-direction:column;
+}
+.statusbar{height:50px;flex-shrink:0;}
+.app-topbar{
+  display:flex;align-items:center;justify-content:space-between;
+  padding:8px 20px 12px;flex-shrink:0;
+}
+.app-topbar .logo-sm{
+  display:flex;align-items:center;gap:8px;
+}
+.app-topbar .g-small{
+  width:32px;height:32px;background:#000;border-radius:8px;
+  display:flex;align-items:center;justify-content:center;
+  border:1px solid rgba(201,160,60,.3);
+  box-shadow:0 0 10px rgba(201,160,60,.2);
+}
+.app-topbar .g-small svg{width:26px;height:26px;}
+.app-topbar .brand-sm{
+  font-size:16px;font-weight:800;letter-spacing:.08em;
+  background:linear-gradient(135deg,#e8c96a,#c9a03c);
+  -webkit-background-clip:text;-webkit-text-fill-color:transparent;
+}
+.notif-btn{
+  width:36px;height:36px;background:#181818;border-radius:50%;
+  display:flex;align-items:center;justify-content:center;
+  border:1px solid #2a2a2a;font-size:16px;
+}
+
+.search-box{
+  margin:0 16px 16px;
+  background:#181818;border-radius:14px;
+  padding:12px 16px;
+  display:flex;align-items:center;gap:10px;
+  border:1px solid #2a2a2a;
+  animation:slideIn .5s ease both;
+}
+@keyframes slideIn{from{opacity:0;transform:translateX(-20px)}to{opacity:1;transform:translateX(0)}}
+.search-box .search-ico{font-size:16px;color:#555;}
+.search-box .search-txt{font-size:14px;color:#444;flex:1;}
+.search-box .loc{
+  font-size:11px;color:#e8c96a;background:rgba(201,160,60,.1);
+  padding:4px 10px;border-radius:20px;
+}
+
+.section-lbl{
+  padding:0 16px 12px;
+  font-size:12px;font-weight:600;letter-spacing:.1em;color:rgba(255,255,255,.3);
+  text-transform:uppercase;
+}
+
+/* Category chips */
+.cat-scroll{
+  display:flex;gap:8px;padding:0 16px 16px;overflow:hidden;
+}
+.cat-chip{
+  flex-shrink:0;background:#181818;border-radius:50px;
+  padding:8px 14px;font-size:12px;color:rgba(255,255,255,.55);
+  border:1px solid #242424;white-space:nowrap;
+}
+.cat-chip.active{
+  background:rgba(201,160,60,.15);color:#e8c96a;
+  border-color:rgba(201,160,60,.3);
+}
+
+/* Pro cards */
+.pro-cards{padding:0 16px;display:flex;flex-direction:column;gap:12px;}
+.pro-card{
+  background:#181818;border-radius:18px;padding:16px;
+  border:1px solid #232323;
+  display:flex;align-items:center;gap:14px;
+  animation:cardIn .5s ease both;
+}
+.pro-card:nth-child(2){animation-delay:.15s;}
+.pro-card:nth-child(3){animation-delay:.3s;}
+@keyframes cardIn{from{opacity:0;transform:translateY(20px)}to{opacity:1;transform:translateY(0)}}
+
+.pro-avatar{
+  width:52px;height:52px;border-radius:16px;
+  display:flex;align-items:center;justify-content:center;
+  font-size:22px;flex-shrink:0;
+}
+.pro-info{flex:1;}
+.pro-name{font-size:14px;font-weight:700;color:#fff;}
+.pro-job{font-size:12px;color:rgba(255,255,255,.4);margin-top:2px;}
+.pro-meta{display:flex;gap:8px;margin-top:6px;align-items:center;}
+.pro-star{font-size:11px;color:#e8c96a;}
+.pro-dist{font-size:11px;color:rgba(255,255,255,.3);}
+.pro-badge{
+  font-size:10px;color:#10b981;background:rgba(16,185,129,.12);
+  padding:3px 8px;border-radius:20px;
+}
+.pro-action{
+  width:36px;height:36px;background:rgba(201,160,60,.12);border-radius:12px;
+  display:flex;align-items:center;justify-content:center;font-size:16px;
+  border:1px solid rgba(201,160,60,.2);
+}
+
+/* ─── SLIDE 4: Request/Offer Flow ─── */
+#s4{background:#0d0d0d;padding:0;}
+.flow-wrap{
+  position:absolute;inset:0;display:flex;flex-direction:column;padding:60px 24px 40px;
+  gap:20px;
+}
+.flow-step{
+  background:#161616;border-radius:20px;padding:20px;
+  border:1px solid #252525;
+  animation:fadeUp .5s ease both;
+}
+.flow-step:nth-child(2){animation-delay:.2s;}
+.flow-step:nth-child(3){animation-delay:.4s;}
+
+.step-header{display:flex;align-items:center;gap:12px;margin-bottom:12px;}
+.step-num{
+  width:32px;height:32px;border-radius:10px;
+  background:rgba(201,160,60,.15);
+  border:1px solid rgba(201,160,60,.3);
+  display:flex;align-items:center;justify-content:center;
+  font-size:14px;font-weight:700;color:#e8c96a;
+}
+.step-title{font-size:15px;font-weight:700;color:#fff;}
+.step-body{font-size:13px;color:rgba(255,255,255,.4);line-height:1.5;}
+.step-chips{display:flex;gap:6px;flex-wrap:wrap;margin-top:10px;}
+.schip{
+  font-size:11px;padding:5px 10px;border-radius:20px;
+  background:#1e1e1e;color:rgba(255,255,255,.5);border:1px solid #2a2a2a;
+}
+.schip.gold{background:rgba(201,160,60,.1);color:#e8c96a;border-color:rgba(201,160,60,.25);}
+
+.offer-preview{
+  background:#1e1e1e;border-radius:14px;padding:14px;margin-top:12px;
+  display:flex;justify-content:space-between;align-items:center;
+}
+.offer-price{font-size:20px;font-weight:800;color:#e8c96a;}
+.offer-from{font-size:11px;color:rgba(255,255,255,.35);}
+.offer-btn{
+  background:linear-gradient(135deg,#e8c96a,#c9a03c);
+  padding:8px 16px;border-radius:10px;
+  font-size:12px;font-weight:700;color:#000;
+}
+
+/* ─── SLIDE 5: Social proof / CTA ─── */
+#s5{
+  background:radial-gradient(ellipse at 50% 100%,#1a0f00 0%,#000 60%);
+  padding:40px 28px;
+  display:flex;flex-direction:column;align-items:center;
+  justify-content:center;gap:28px;
+}
+
+.cta-logo{
+  display:flex;flex-direction:column;align-items:center;gap:12px;
+  animation:logoIn .8s ease both;
+}
+.cta-big-g{
+  width:80px;height:80px;background:#000;border-radius:20px;
+  display:flex;align-items:center;justify-content:center;
+  box-shadow:0 0 60px rgba(201,160,60,.5),0 0 120px rgba(201,160,60,.2);
+  border:1.5px solid rgba(201,160,60,.4);
+}
+.cta-big-g svg{width:65px;height:65px;}
+.cta-brand{
+  font-size:26px;font-weight:900;letter-spacing:.15em;
+  background:linear-gradient(180deg,#e8c96a,#c9a03c);
+  -webkit-background-clip:text;-webkit-text-fill-color:transparent;
+}
+
+.stats-row{
+  display:flex;gap:16px;
+  animation:fadeUp .6s .3s ease both;
+}
+.stat-box{
+  flex:1;background:#111;border-radius:16px;padding:16px 12px;
+  display:flex;flex-direction:column;align-items:center;gap:4px;
+  border:1px solid #1e1e1e;
+}
+.stat-num{font-size:22px;font-weight:800;color:#e8c96a;}
+.stat-lbl{font-size:10px;color:rgba(255,255,255,.35);text-align:center;line-height:1.4;}
+
+.cta-headline{
+  text-align:center;
+  font-size:22px;font-weight:800;color:#fff;line-height:1.3;
+  animation:fadeUp .6s .5s ease both;
+}
+.cta-headline span{color:#e8c96a;}
+
+.cta-url{
+  background:rgba(201,160,60,.12);border:1px solid rgba(201,160,60,.3);
+  border-radius:50px;padding:14px 32px;
+  font-size:15px;font-weight:700;color:#e8c96a;letter-spacing:.04em;
+  animation:fadeUp .6s .7s ease both;
+}
+
+.tiktok-badge{
+  display:flex;align-items:center;gap:8px;
+  font-size:12px;color:rgba(255,255,255,.3);
+  animation:fadeUp .6s .9s ease both;
+}
+.tiktok-badge .tt-ico{font-size:18px;}
+
+/* ── PROGRESS BAR ── */
+.progress-bar{
+  position:absolute;bottom:0;left:0;
+  height:3px;background:linear-gradient(90deg,#e8c96a,#c9a03c);
+  border-radius:0 2px 2px 0;
+  transition:width .1s linear;
+  z-index:50;
+}
+
+/* ── SLIDE DOTS ── */
+.dots{
+  position:absolute;bottom:24px;left:50%;transform:translateX(-50%);
+  display:flex;gap:6px;z-index:50;
+}
+.dot{
+  width:6px;height:6px;border-radius:50%;
+  background:rgba(255,255,255,.2);transition:all .3s ease;
+}
+.dot.active{width:20px;border-radius:3px;background:#e8c96a;}
+
+/* tap to play overlay */
+.tap-overlay{
+  position:absolute;inset:0;z-index:200;
+  display:flex;align-items:center;justify-content:center;
+  background:rgba(0,0,0,.7);backdrop-filter:blur(4px);
+  cursor:pointer;transition:opacity .3s ease;
+}
+.tap-overlay.hidden{opacity:0;pointer-events:none;}
+.play-btn{
+  width:72px;height:72px;border-radius:50%;
+  background:rgba(201,160,60,.2);border:2px solid rgba(201,160,60,.5);
+  display:flex;align-items:center;justify-content:center;font-size:28px;
+  box-shadow:0 0 40px rgba(201,160,60,.3);
+}
+
+/* replay */
+.replay-btn{
+  position:absolute;bottom:60px;left:50%;transform:translateX(-50%);
+  background:rgba(201,160,60,.15);border:1px solid rgba(201,160,60,.3);
+  border-radius:50px;padding:10px 24px;
+  font-size:13px;font-weight:600;color:#e8c96a;cursor:pointer;
+  display:none;z-index:50;transition:opacity .3s ease;
+}
+
+</style>
+</head>
+<body>
+
+<div class="phone" id="phone">
+
+  <!-- TAP TO PLAY -->
+  <div class="tap-overlay" id="tapOverlay" onclick="startPromo()">
+    <div class="play-btn">▶</div>
+  </div>
+
+  <!-- REPLAY BUTTON -->
+  <button class="replay-btn" id="replayBtn" onclick="restartPromo()">↺ Replay</button>
+
+  <!-- PROGRESS BAR -->
+  <div class="progress-bar" id="progressBar" style="width:0%"></div>
+
+  <!-- DOTS -->
+  <div class="dots">
+    <div class="dot active" id="d0"></div>
+    <div class="dot" id="d1"></div>
+    <div class="dot" id="d2"></div>
+    <div class="dot" id="d3"></div>
+    <div class="dot" id="d4"></div>
+  </div>
+
+  <!-- ═══ SLIDE 1: Intro ═══ -->
+  <div class="slide active" id="s1">
+    <div class="logo-wrap">
+      <div class="big-g">
+        <svg viewBox="0 0 120 120" xmlns="http://www.w3.org/2000/svg">
+          <defs>
+            <linearGradient id="g1" x1="0%" y1="0%" x2="0%" y2="100%">
+              <stop offset="0%"   stop-color="#ecd472"/>
+              <stop offset="45%"  stop-color="#c9a03c"/>
+              <stop offset="100%" stop-color="#9a7020"/>
+            </linearGradient>
+          </defs>
+          <text x="62" y="92" font-family="Arial Black,Impact,sans-serif" font-size="96"
+                font-weight="900" fill="url(#g1)" text-anchor="middle">G</text>
+        </svg>
+      </div>
+      <div class="brand-name">GOREALAI</div>
+      <div class="brand-sub">Real Pros · AI Speed</div>
+    </div>
+    <div class="tagbadge">🇬🇷 Η πλατφόρμα για επαγγελματίες υπηρεσίες</div>
+  </div>
+
+  <!-- ═══ SLIDE 2: Problem ═══ -->
+  <div class="slide" id="s2">
+    <div class="headline">Ψάχνεις <span>αξιόπιστο</span><br>επαγγελματία;</div>
+    <div class="sub">Βρες τον καλύτερο κοντά σου<br>σε λίγα δευτερόλεπτα</div>
+    <div class="emoji-row">
+      <div class="emoji-card">
+        <div class="emo">🔧</div>
+        <div class="elbl">Υδραυλικοί<br>& Ηλεκτρολόγοι</div>
+      </div>
+      <div class="emoji-card">
+        <div class="emo">🏠</div>
+        <div class="elbl">Ανακαινίσεις<br>& Κατασκευές</div>
+      </div>
+      <div class="emoji-card">
+        <div class="emo">💆</div>
+        <div class="elbl">Beauty<br>& Wellness</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══ SLIDE 3: App Demo ═══ -->
+  <div class="slide" id="s3">
+    <div class="mockscreen">
+      <div class="statusbar"></div>
+      <div class="app-topbar">
+        <div class="logo-sm">
+          <div class="g-small">
+            <svg viewBox="0 0 120 120" xmlns="http://www.w3.org/2000/svg">
+              <defs>
+                <linearGradient id="g2" x1="0%" y1="0%" x2="0%" y2="100%">
+                  <stop offset="0%" stop-color="#ecd472"/>
+                  <stop offset="100%" stop-color="#9a7020"/>
+                </linearGradient>
+              </defs>
+              <text x="62" y="92" font-family="Arial Black,Impact,sans-serif" font-size="96"
+                    font-weight="900" fill="url(#g2)" text-anchor="middle">G</text>
+            </svg>
+          </div>
+          <div class="brand-sm">GorealAI</div>
+        </div>
+        <div class="notif-btn">🔔</div>
+      </div>
+
+      <div class="search-box">
+        <span class="search-ico">🔍</span>
+        <span class="search-txt">Τι χρειάζεσαι σήμερα;</span>
+        <span class="loc">📍 Αθήνα</span>
+      </div>
+
+      <div class="cat-scroll">
+        <div class="cat-chip active">Όλοι</div>
+        <div class="cat-chip">🔧 Υδραυλικοί</div>
+        <div class="cat-chip">⚡ Ηλεκτρολόγοι</div>
+        <div class="cat-chip">🎨 Ζωγράφοι</div>
+      </div>
+
+      <div class="section-lbl">Επαγγελματίες κοντά σου</div>
+
+      <div class="pro-cards">
+        <div class="pro-card">
+          <div class="pro-avatar" style="background:#1a2a1a;">🔧</div>
+          <div class="pro-info">
+            <div class="pro-name">Νίκος Παπαδόπουλος</div>
+            <div class="pro-job">Υδραυλικός · 5 χρόνια εμπ.</div>
+            <div class="pro-meta">
+              <span class="pro-star">⭐ 4.9</span>
+              <span class="pro-dist">1.2 km</span>
+              <span class="pro-badge">● Διαθέσιμος</span>
+            </div>
+          </div>
+          <div class="pro-action">→</div>
+        </div>
+
+        <div class="pro-card">
+          <div class="pro-avatar" style="background:#1a1a2a;">⚡</div>
+          <div class="pro-info">
+            <div class="pro-name">Γιώργης Κωστόπουλος</div>
+            <div class="pro-job">Ηλεκτρολόγος · 8 χρόνια</div>
+            <div class="pro-meta">
+              <span class="pro-star">⭐ 4.8</span>
+              <span class="pro-dist">2.5 km</span>
+              <span class="pro-badge">● Διαθέσιμος</span>
+            </div>
+          </div>
+          <div class="pro-action">→</div>
+        </div>
+
+        <div class="pro-card">
+          <div class="pro-avatar" style="background:#2a1a1a;">🎨</div>
+          <div class="pro-info">
+            <div class="pro-name">Μαρία Σταματίου</div>
+            <div class="pro-job">Ζωγράφος · 3 χρόνια</div>
+            <div class="pro-meta">
+              <span class="pro-star">⭐ 5.0</span>
+              <span class="pro-dist">0.8 km</span>
+              <span class="pro-badge">● Διαθέσιμος</span>
+            </div>
+          </div>
+          <div class="pro-action">→</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══ SLIDE 4: How it works ═══ -->
+  <div class="slide" id="s4">
+    <div class="flow-wrap">
+      <div style="font-size:18px;font-weight:800;color:#fff;text-align:center;animation:fadeUp .5s ease both">
+        Πώς λειτουργεί;
+        <div style="font-size:12px;font-weight:400;color:rgba(255,255,255,.35);margin-top:4px;letter-spacing:.05em">3 απλά βήματα</div>
+      </div>
+
+      <div class="flow-step">
+        <div class="step-header">
+          <div class="step-num">1</div>
+          <div class="step-title">Στείλε αίτημα</div>
+        </div>
+        <div class="step-body">Γράφεις τι χρειάζεσαι και διαλέγεις πότε</div>
+        <div class="step-chips">
+          <span class="schip gold">Σήμερα</span>
+          <span class="schip gold">Αύριο</span>
+          <span class="schip">Επιλογή ημερομηνίας</span>
+        </div>
+      </div>
+
+      <div class="flow-step">
+        <div class="step-header">
+          <div class="step-num">2</div>
+          <div class="step-title">Λαμβάνεις προσφορές</div>
+        </div>
+        <div class="step-body">Οι επαγγελματίες της περιοχής σου στέλνουν τιμές αμέσως</div>
+        <div class="offer-preview">
+          <div>
+            <div class="offer-price">€45</div>
+            <div class="offer-from">Νίκος Π. · ⭐ 4.9</div>
+          </div>
+          <div class="offer-btn">Κλείσε τώρα</div>
+        </div>
+      </div>
+
+      <div class="flow-step">
+        <div class="step-header">
+          <div class="step-num">3</div>
+          <div class="step-title">Ολοκλήρωση</div>
+        </div>
+        <div class="step-body">Επιλέγεις, κλείνεις και η δουλειά γίνεται. Τόσο απλά! ✅</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══ SLIDE 5: CTA ═══ -->
+  <div class="slide" id="s5">
+    <div class="cta-logo">
+      <div class="cta-big-g">
+        <svg viewBox="0 0 120 120" xmlns="http://www.w3.org/2000/svg">
+          <defs>
+            <linearGradient id="g3" x1="0%" y1="0%" x2="0%" y2="100%">
+              <stop offset="0%"   stop-color="#ecd472"/>
+              <stop offset="45%"  stop-color="#c9a03c"/>
+              <stop offset="100%" stop-color="#9a7020"/>
+            </linearGradient>
+          </defs>
+          <text x="62" y="92" font-family="Arial Black,Impact,sans-serif" font-size="96"
+                font-weight="900" fill="url(#g3)" text-anchor="middle">G</text>
+        </svg>
+      </div>
+      <div class="cta-brand">GOREALAI</div>
+    </div>
+
+    <div class="stats-row">
+      <div class="stat-box">
+        <div class="stat-num">100%</div>
+        <div class="stat-lbl">Ελληνική<br>πλατφόρμα</div>
+      </div>
+      <div class="stat-box">
+        <div class="stat-num">AI</div>
+        <div class="stat-lbl">Έξυπνη<br>αντιστοίχηση</div>
+      </div>
+      <div class="stat-box">
+        <div class="stat-num">Free</div>
+        <div class="stat-lbl">Δωρεάν<br>εγγραφή</div>
+      </div>
+    </div>
+
+    <div class="cta-headline">Κατέβασε την εφαρμογή<br>και δοκίμασε <span>δωρεάν</span> σήμερα!</div>
+
+    <div class="cta-url">gorealai.web.app/app</div>
+
+    <div class="tiktok-badge">
+      <span class="tt-ico">📱</span>
+      <span>@gorealai7 · Ακολούθα μας για νέα!</span>
+    </div>
+  </div>
+
+</div><!-- /phone -->
+
+<!-- RECORD BUTTON (outside phone) -->
+<div id="recWrap" style="margin-top:28px;display:flex;flex-direction:column;align-items:center;gap:12px;">
+  <button id="recBtn" onclick="startRecording()" style="
+    background:linear-gradient(135deg,#e8c96a,#c9a03c);
+    border:none;border-radius:16px;padding:16px 36px;
+    font-family:Inter,sans-serif;font-size:16px;font-weight:700;
+    color:#000;cursor:pointer;letter-spacing:.02em;
+    box-shadow:0 4px 20px rgba(201,160,60,.4);">
+    📹 Κατέβασε ως βίντεο
+  </button>
+  <div id="recStatus" style="font-size:13px;color:rgba(255,255,255,.4);letter-spacing:.04em;"></div>
+</div>
+
+<!-- html2canvas -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+
+<script>
+const SLIDES = ['s1','s2','s3','s4','s5'];
+const DURATIONS = [3500, 3500, 4500, 5000, 4000]; // ms per slide
+let current = 0;
+let timer = null;
+let progTimer = null;
+let progStart = null;
+let isRunning = false;
+
+function showSlide(idx){
+  SLIDES.forEach((id,i)=>{
+    document.getElementById(id).classList.toggle('active', i===idx);
+    document.getElementById('d'+i).classList.toggle('active', i===idx);
+  });
+  current = idx;
+}
+
+function updateProgress(){
+  if(!isRunning) return;
+  const elapsed = Date.now() - progStart;
+  const total = SLIDES.reduce((a,_,i)=> i<=current ? a+DURATIONS[i] : a+0, 0) - DURATIONS[current] + elapsed;
+  const grand = DURATIONS.reduce((a,b)=>a+b,0);
+  const pct = Math.min((total/grand)*100, 100);
+  document.getElementById('progressBar').style.width = pct+'%';
+  if(pct < 100) requestAnimationFrame(updateProgress);
+}
+
+function nextSlide(){
+  if(current < SLIDES.length-1){
+    showSlide(current+1);
+    progStart = Date.now();
+    scheduleNext();
+    requestAnimationFrame(updateProgress);
+  } else {
+    // end
+    isRunning = false;
+    document.getElementById('replayBtn').style.display='block';
+  }
+}
+
+function scheduleNext(){
+  clearTimeout(timer);
+  timer = setTimeout(nextSlide, DURATIONS[current]);
+}
+
+function startPromo(){
+  document.getElementById('tapOverlay').classList.add('hidden');
+  isRunning = true;
+  showSlide(0);
+  progStart = Date.now();
+  scheduleNext();
+  requestAnimationFrame(updateProgress);
+}
+
+function restartPromo(){
+  document.getElementById('replayBtn').style.display='none';
+  document.getElementById('progressBar').style.width='0%';
+  isRunning = true;
+  showSlide(0);
+  progStart = Date.now();
+  scheduleNext();
+  requestAnimationFrame(updateProgress);
+}
+
+// ══════════════════════════════════════
+// SELF-RECORDING  (html2canvas + MediaRecorder)
+// ══════════════════════════════════════
+const TOTAL_MS = 3500+3500+4500+5000+4000; // 21000ms
+
+async function startRecording(){
+  const btn = document.getElementById('recBtn');
+  const status = document.getElementById('recStatus');
+
+  btn.disabled = true;
+  btn.textContent = '⏳ Φόρτωση...';
+  status.textContent = 'Προετοιμασία εγγραφής...';
+
+  // Canvas ίδιο μέγεθος με το phone
+  const phone = document.getElementById('phone');
+  const W = 390, H = 844;
+  const cvs = document.createElement('canvas');
+  cvs.width = W; cvs.height = H;
+  const ctx = cvs.getContext('2d');
+
+  // Ξεκίνα animation από την αρχή
+  document.getElementById('tapOverlay').classList.add('hidden');
+  document.getElementById('replayBtn').style.display = 'none';
+  document.getElementById('progressBar').style.width = '0%';
+  // reset
+  isRunning = false;
+  clearTimeout(timer);
+  showSlide(0);
+
+  // Δώσε χρόνο να φορτωθεί το slide 1
+  await new Promise(r => setTimeout(r, 400));
+
+  // MediaRecorder setup
+  const stream = cvs.captureStream(24);
+  const mimeType = MediaRecorder.isTypeSupported('video/webm;codecs=vp9')
+    ? 'video/webm;codecs=vp9'
+    : 'video/webm';
+  const recorder = new MediaRecorder(stream, { mimeType, videoBitsPerSecond: 4_000_000 });
+  const chunks = [];
+  recorder.ondataavailable = e => { if(e.data.size > 0) chunks.push(e.data); };
+  recorder.onstop = () => {
+    const blob = new Blob(chunks, { type: mimeType });
+    const url  = URL.createObjectURL(blob);
+    const a    = document.createElement('a');
+    a.href     = url;
+    a.download = 'gorealai-promo.webm';
+    a.click();
+    URL.revokeObjectURL(url);
+    btn.disabled = false;
+    btn.textContent = '✅ Έτοιμο! Κατεβαίνει...';
+    status.textContent = 'Αν δεν ξεκίνησε αυτόματα, έλεγξε τις λήψεις';
+    setTimeout(()=>{ btn.textContent='📹 Κατέβασε ως βίντεο'; status.textContent=''; }, 4000);
+  };
+
+  // Καταγραφή frames
+  let recording = true;
+  let frameCount = 0;
+
+  async function captureFrame(){
+    if(!recording) return;
+    try {
+      const fc = await html2canvas(phone, {
+        scale:1, backgroundColor:'#000',
+        width:W, height:H,
+        useCORS:true, logging:false,
+        allowTaint:true
+      });
+      ctx.drawImage(fc, 0, 0, W, H);
+    } catch(e){}
+    frameCount++;
+    const elapsed = frameCount * 80;
+    const pct = Math.min(Math.round(elapsed/TOTAL_MS*100), 99);
+    status.textContent = `⏺ Εγγραφή... ${pct}%`;
+    if(recording) setTimeout(captureFrame, 80); // ~12fps
+  }
+
+  // Ξεκίνα εγγραφή
+  recorder.start(200);
+  btn.textContent = '⏺ Εγγράφεται...';
+
+  // Ξεκίνα animation
+  await new Promise(r => setTimeout(r, 100));
+  isRunning = true;
+  progStart = Date.now();
+  scheduleNext();
+  requestAnimationFrame(updateProgress);
+
+  // Ξεκίνα frame capture
+  captureFrame();
+
+  // Σταμάτα μετά το τέλος της animation + 1s buffer
+  setTimeout(()=>{
+    recording = false;
+    recorder.stop();
+    status.textContent = '✅ Δημιουργία αρχείου...';
+  }, TOTAL_MS + 1000);
+}
+</script>
+</body>
+</html>

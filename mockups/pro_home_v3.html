@@ -1,0 +1,453 @@
+<!DOCTYPE html>
+<html lang="el">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=390, initial-scale=1.0">
+<title>Pro Home – Design 2 Final</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    background: #07091A;
+    font-family: -apple-system, 'Segoe UI', sans-serif;
+    color: #fff;
+    width: 390px;
+    min-height: 844px;
+  }
+  .screen { width: 390px; min-height: 844px; display: flex; flex-direction: column; }
+
+  /* ── TOP BAR ── */
+  .topbar {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 52px 20px 10px;
+  }
+  .greeting-sub { font-size: 11px; color: rgba(255,255,255,0.3); font-weight: 600; letter-spacing: 0.5px; }
+  .greeting-name { font-size: 20px; font-weight: 900; margin-top: 1px; }
+  .greeting-name span { background: linear-gradient(90deg, #FFD47A, #FFB340); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+  .topbar-right { display: flex; align-items: center; gap: 8px; }
+  .avatar-small {
+    width: 40px; height: 40px; border-radius: 50%;
+    background: linear-gradient(135deg, #FFD47A, #FFB340);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 16px; font-weight: 800; color: #000;
+    border: 2px solid rgba(255,179,64,0.4); position: relative;
+  }
+  .avatar-online {
+    position: absolute; bottom: 0; right: 0;
+    width: 11px; height: 11px; border-radius: 50%;
+    background: #00D4AA; border: 2px solid #07091A;
+  }
+  .notif-btn {
+    width: 40px; height: 40px; border-radius: 50%;
+    background: rgba(255,179,64,0.07); border: 1px solid rgba(255,179,64,0.18);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 18px; position: relative; cursor: pointer;
+  }
+  .notif-badge {
+    position: absolute; top: -2px; right: -2px;
+    width: 17px; height: 17px; background: #ef4444; border-radius: 50%;
+    font-size: 9px; font-weight: 700; display: flex; align-items: center; justify-content: center;
+    border: 2px solid #07091A;
+  }
+
+  /* ── GLANCE CARD ── */
+  .glance {
+    margin: 6px 16px 12px;
+    background: linear-gradient(135deg, #1a0e00 0%, #0d0d1e 50%, #001a10 100%);
+    border: 1px solid rgba(255,179,64,0.2); border-radius: 24px;
+    padding: 18px 20px 16px; position: relative; overflow: hidden;
+  }
+  .glance::after {
+    content: ''; position: absolute;
+    top: -60px; right: -60px; width: 180px; height: 180px;
+    background: radial-gradient(circle, rgba(255,179,64,0.12), transparent 65%);
+    pointer-events: none;
+  }
+  .glance-title { font-size: 10px; font-weight: 700; color: rgba(255,179,64,0.6); letter-spacing: 1.5px; text-transform: uppercase; margin-bottom: 12px; }
+  .glance-metrics { display: flex; }
+  .metric { flex: 1; text-align: center; padding: 0 6px; border-right: 1px solid rgba(255,255,255,0.06); }
+  .metric:last-child { border-right: none; }
+  .metric-num { font-size: 26px; font-weight: 900; line-height: 1; }
+  .metric-num.gold { background: linear-gradient(90deg, #FFD47A, #FFB340); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+  .metric-num.green { color: #00D4AA; }
+  .metric-num.blue { color: #60a5fa; }
+  .metric-label { font-size: 8.5px; color: rgba(255,255,255,0.3); margin-top: 4px; font-weight: 600; line-height: 1.3; }
+  .revenue-strip {
+    margin-top: 14px; padding-top: 12px;
+    border-top: 1px solid rgba(255,255,255,0.06);
+    display: flex; align-items: center; justify-content: space-between;
+  }
+  .revenue-label { font-size: 11px; color: rgba(255,255,255,0.35); }
+  .revenue-month { font-size: 9px; color: rgba(0,212,170,0.45); margin-top: 1px; }
+  .progress-bar { height: 4px; background: rgba(255,255,255,0.06); border-radius: 2px; margin-top: 5px; width: 110px; overflow: hidden; }
+  .progress-fill { height: 100%; border-radius: 2px; background: linear-gradient(90deg, #00D4AA, #00ffcc); width: 62%; }
+  .revenue-val { font-size: 18px; font-weight: 900; color: #00D4AA; text-align: right; }
+  .revenue-pct { font-size: 9px; color: rgba(0,212,170,0.5); text-align: right; margin-top: 1px; }
+
+  /* ── AVAILABILITY ── */
+  .avail-row {
+    margin: 0 16px 12px;
+    background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.07);
+    border-radius: 18px; padding: 12px 16px;
+    display: flex; align-items: center; justify-content: space-between;
+  }
+  .avail-left { display: flex; align-items: center; gap: 10px; }
+  .avail-icon { font-size: 20px; }
+  .avail-title { font-size: 13px; font-weight: 700; }
+  .avail-sub { font-size: 10px; color: rgba(255,255,255,0.35); margin-top: 1px; }
+  .toggle {
+    width: 50px; height: 27px; border-radius: 14px;
+    background: linear-gradient(90deg, #00D4AA, #00a88a);
+    display: flex; align-items: center; padding: 3px; cursor: pointer;
+    box-shadow: 0 0 12px rgba(0,212,170,0.3);
+  }
+  .toggle-knob { width: 21px; height: 21px; border-radius: 50%; background: #fff; margin-left: auto; box-shadow: 0 2px 4px rgba(0,0,0,0.3); }
+
+  /* ── TAB BAR (scrollable) ── */
+  .tab-scroll-wrap {
+    padding: 0 16px 10px;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+  }
+  .tab-scroll-wrap::-webkit-scrollbar { display: none; }
+
+  .tab-bar {
+    display: flex; gap: 6px;
+    width: max-content;
+  }
+
+  .tab {
+    display: flex; align-items: center; gap: 5px;
+    padding: 9px 14px; border-radius: 14px;
+    font-size: 11px; font-weight: 700; cursor: pointer;
+    white-space: nowrap; transition: all .2s;
+    border: 1px solid transparent;
+    position: relative;
+  }
+  .tab.active {
+    background: linear-gradient(135deg, #FFD47A, #FFB340);
+    color: #000;
+    box-shadow: 0 3px 14px rgba(255,179,64,0.35);
+  }
+  .tab:not(.active) {
+    background: rgba(255,255,255,0.04);
+    color: rgba(255,255,255,0.4);
+    border-color: rgba(255,255,255,0.07);
+  }
+  .tab .tbadge {
+    min-width: 16px; height: 16px; border-radius: 8px;
+    font-size: 8px; font-weight: 800; padding: 0 4px;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .tab.active .tbadge { background: rgba(0,0,0,0.2); color: #000; }
+  .tab:not(.active) .tbadge { background: rgba(255,179,64,0.2); color: #FFB340; }
+  .tab .tbadge.blue { background: rgba(96,165,250,0.2); color: #60a5fa; }
+  .tab .tbadge.green { background: rgba(0,212,170,0.2); color: #00D4AA; }
+  .tab .tbadge.red { background: rgba(239,68,68,0.2); color: #f87171; }
+
+  /* scroll hint gradient */
+  .tab-scroll-outer { position: relative; }
+  .tab-scroll-outer::after {
+    content: '';
+    position: absolute; top: 0; right: 0; bottom: 10px; width: 40px;
+    background: linear-gradient(90deg, transparent, #07091A);
+    pointer-events: none;
+  }
+
+  /* ── CONTENT AREA ── */
+  .content { flex: 1; overflow-y: auto; padding: 0 16px; }
+
+  /* section label */
+  .section-label {
+    display: flex; align-items: center; justify-content: space-between;
+    margin-bottom: 10px;
+  }
+  .section-title { font-size: 13px; font-weight: 800; color: rgba(255,255,255,0.9); }
+  .section-count { font-size: 10px; color: #FFB340; background: rgba(255,179,64,0.12); padding: 4px 10px; border-radius: 8px; font-weight: 700; }
+
+  /* request items */
+  .req-item {
+    display: flex; gap: 12px; align-items: stretch;
+    background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.06);
+    border-radius: 18px; padding: 14px 12px 14px 14px;
+    margin-bottom: 8px; cursor: pointer; position: relative; overflow: hidden;
+  }
+  .req-item.gold { border-color: rgba(255,179,64,0.35); background: rgba(255,179,64,0.04); }
+  .req-item.gold::before {
+    content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: 3px;
+    background: linear-gradient(180deg, #FFD47A, #FFB340);
+  }
+  .req-item.blue-b { border-color: rgba(96,165,250,0.3); }
+  .req-item.blue-b::before {
+    content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: 3px;
+    background: linear-gradient(180deg, #93c5fd, #3b82f6);
+  }
+
+  .req-left { display: flex; flex-direction: column; align-items: center; justify-content: center; flex-shrink: 0; width: 40px; }
+  .req-emoji { font-size: 24px; }
+  .req-ago { font-size: 8px; color: rgba(255,255,255,0.25); text-align: center; margin-top: 4px; line-height: 1.2; }
+
+  .req-body { flex: 1; min-width: 0; }
+  .req-badges { display: flex; gap: 5px; margin-bottom: 5px; flex-wrap: wrap; }
+  .rbadge {
+    font-size: 8px; font-weight: 800; letter-spacing: 0.8px;
+    padding: 3px 7px; border-radius: 6px;
+  }
+  .rbadge.new { background: rgba(255,179,64,0.15); color: #FFB340; }
+  .rbadge.urgent { background: rgba(239,68,68,0.15); color: #f87171; }
+  .rbadge.event { background: rgba(124,58,237,0.15); color: #a78bfa; }
+  .rbadge.msg { background: rgba(96,165,250,0.15); color: #60a5fa; }
+  .req-desc { font-size: 12.5px; color: rgba(255,255,255,0.85); line-height: 1.4; font-style: italic; margin-bottom: 6px; }
+  .req-footer { display: flex; align-items: center; gap: 6px; }
+  .req-chip { font-size: 10px; color: rgba(255,255,255,0.35); }
+  .req-price { font-size: 12px; font-weight: 800; color: #00D4AA; margin-left: auto; }
+
+  .cta-btn {
+    flex-shrink: 0; align-self: center;
+    background: linear-gradient(135deg, #FFD47A, #FFB340);
+    border: none; border-radius: 12px; padding: 9px 13px;
+    font-size: 11px; font-weight: 800; color: #000;
+    cursor: pointer; font-family: inherit; white-space: nowrap;
+  }
+  .cta-btn.blue-btn { background: rgba(96,165,250,0.15); color: #60a5fa; border: 1px solid rgba(96,165,250,0.25); }
+
+  /* ── BOTTOM NAV ── */
+  .bottom-nav {
+    margin: 8px 16px 20px;
+    background: linear-gradient(180deg, #222, #141414);
+    border-radius: 28px; padding: 10px 4px;
+    display: flex; justify-content: space-around; align-items: center;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.6);
+    border: 1px solid rgba(255,255,255,0.06);
+  }
+  .nav-item {
+    display: flex; flex-direction: column; align-items: center; gap: 3px;
+    cursor: pointer; padding: 6px 14px; border-radius: 18px; position: relative;
+  }
+  .nav-item.active { background: rgba(255,179,64,0.12); }
+  .nav-icon { font-size: 20px; }
+  .nav-label { font-size: 9px; font-weight: 700; }
+  .nav-item.active .nav-label { color: #FFB340; }
+  .nav-item:not(.active) .nav-label { color: rgba(255,255,255,0.22); }
+  .nav-badge {
+    position: absolute; top: 2px; right: 6px;
+    width: 16px; height: 16px; background: #ef4444; border-radius: 50%;
+    font-size: 8px; font-weight: 700; display: flex; align-items: center; justify-content: center;
+    border: 2px solid #07091A;
+  }
+
+  /* ── TAB INDICATOR dots (below tab bar) ── */
+  .scroll-hint {
+    display: flex; justify-content: center; gap: 4px; padding-bottom: 8px;
+  }
+  .dot { width: 5px; height: 5px; border-radius: 50%; background: rgba(255,255,255,0.12); }
+  .dot.active-dot { background: #FFB340; width: 14px; border-radius: 3px; }
+</style>
+</head>
+<body>
+<div class="screen">
+
+  <!-- TOP BAR -->
+  <div class="topbar">
+    <div>
+      <div class="greeting-sub">Καλημέρα 👋</div>
+      <div class="greeting-name"><span>Νίκος</span></div>
+    </div>
+    <div class="topbar-right">
+      <div class="notif-btn">🔔<span class="notif-badge">3</span></div>
+      <div class="avatar-small">Ν<div class="avatar-online"></div></div>
+    </div>
+  </div>
+
+  <!-- GLANCE CARD -->
+  <div class="glance">
+    <div class="glance-title">📊 Σήμερα</div>
+    <div class="glance-metrics">
+      <div class="metric">
+        <div class="metric-num gold">5</div>
+        <div class="metric-label">Νέα<br>Αιτήματα</div>
+      </div>
+      <div class="metric">
+        <div class="metric-num blue">2</div>
+        <div class="metric-label">Νέα<br>Μηνύματα</div>
+      </div>
+      <div class="metric">
+        <div class="metric-num" style="color:#fff">4.9</div>
+        <div class="metric-label">⭐ Rating</div>
+      </div>
+      <div class="metric">
+        <div class="metric-num" style="color:#fff">124</div>
+        <div class="metric-label">Ολοκλ.</div>
+      </div>
+    </div>
+    <div class="revenue-strip">
+      <div>
+        <div class="revenue-label">Έσοδα Μαΐου</div>
+        <div class="revenue-month">στόχος €3.000</div>
+        <div class="progress-bar"><div class="progress-fill"></div></div>
+      </div>
+      <div>
+        <div class="revenue-val">€1.840</div>
+        <div class="revenue-pct">62% του στόχου</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- AVAILABILITY -->
+  <div class="avail-row">
+    <div class="avail-left">
+      <span class="avail-icon">⚡</span>
+      <div>
+        <div class="avail-title">Διαθέσιμος για αιτήματα</div>
+        <div class="avail-sub">Λαμβάνεις νέα αιτήματα · 5 ενεργά</div>
+      </div>
+    </div>
+    <div class="toggle"><div class="toggle-knob"></div></div>
+  </div>
+
+  <!-- SCROLLABLE TAB BAR -->
+  <div class="tab-scroll-outer">
+    <div class="tab-scroll-wrap">
+      <div class="tab-bar">
+        <div class="tab active">
+          📋 Αιτήματα
+          <span class="tbadge">5</span>
+        </div>
+        <div class="tab">
+          💬 Μηνύματα
+          <span class="tbadge blue">2</span>
+        </div>
+        <div class="tab">
+          👤 Mini CV
+        </div>
+        <div class="tab">
+          🖼️ Portfolio
+        </div>
+        <div class="tab">
+          ✅ Αποδεκτά
+          <span class="tbadge green">8</span>
+        </div>
+        <div class="tab">
+          ❌ Απορριφθέντα
+          <span class="tbadge red">2</span>
+        </div>
+        <div class="tab">
+          📅 Bookings
+          <span class="tbadge green">3</span>
+        </div>
+      </div>
+    </div>
+    <!-- scroll hint -->
+    <div class="scroll-hint">
+      <div class="dot active-dot"></div>
+      <div class="dot"></div>
+      <div class="dot"></div>
+      <div class="dot"></div>
+      <div class="dot"></div>
+    </div>
+  </div>
+
+  <!-- CONTENT -->
+  <div class="content">
+    <div class="section-label">
+      <span class="section-title">Αιτήματα για εσένα</span>
+      <span class="section-count">5 νέα</span>
+    </div>
+
+    <!-- Item 1 URGENT -->
+    <div class="req-item gold">
+      <div class="req-left">
+        <div class="req-emoji">🔧</div>
+        <div class="req-ago">3 λεπτά</div>
+      </div>
+      <div class="req-body">
+        <div class="req-badges">
+          <span class="rbadge new">ΝΕΟ</span>
+          <span class="rbadge urgent">⚡ ΕΠΕΙΓΟΝ</span>
+        </div>
+        <div class="req-desc">"Βλάβη καλοριφέρ, χρειάζεται άμεση επισκευή"</div>
+        <div class="req-footer">
+          <span class="req-chip">📍 Κολωνάκι</span>
+          <span class="req-price">€80–120</span>
+        </div>
+      </div>
+      <button class="cta-btn">Προσφορά</button>
+    </div>
+
+    <!-- Item 2 -->
+    <div class="req-item gold">
+      <div class="req-left">
+        <div class="req-emoji">🚿</div>
+        <div class="req-ago">11 λεπτά</div>
+      </div>
+      <div class="req-body">
+        <div class="req-badges"><span class="rbadge new">ΝΕΟ</span></div>
+        <div class="req-desc">"Αλλαγή βρύσης κουζίνας και σιφόν μπάνιου"</div>
+        <div class="req-footer">
+          <span class="req-chip">📍 Χαλάνδρι</span>
+          <span class="req-price">€50–80</span>
+        </div>
+      </div>
+      <button class="cta-btn">Προσφορά</button>
+    </div>
+
+    <!-- Item 3 MESSAGE -->
+    <div class="req-item blue-b">
+      <div class="req-left">
+        <div class="req-emoji">💬</div>
+        <div class="req-ago">18 λεπτά</div>
+      </div>
+      <div class="req-body">
+        <div class="req-badges"><span class="rbadge msg">ΜΗΝΥΜΑ</span></div>
+        <div class="req-desc">"Θα μπορούσατε να έρθετε αύριο πρωί;"</div>
+        <div class="req-footer">
+          <span class="req-chip">Μαρία Π. · Κολωνάκι</span>
+        </div>
+      </div>
+      <button class="cta-btn blue-btn">Απάντηση</button>
+    </div>
+
+    <!-- Item 4 EVENT -->
+    <div class="req-item">
+      <div class="req-left">
+        <div class="req-emoji">🎉</div>
+        <div class="req-ago">28 λεπτά</div>
+      </div>
+      <div class="req-body">
+        <div class="req-badges"><span class="rbadge event">EVENT</span></div>
+        <div class="req-desc">"Γάμος – εγκατάσταση υδραυλικού συστήματος"</div>
+        <div class="req-footer">
+          <span class="req-chip">📍 Γλυφάδα · 15 Ιουν</span>
+          <span class="req-price">€300+</span>
+        </div>
+      </div>
+      <button class="cta-btn">Προσφορά</button>
+    </div>
+
+  </div>
+
+  <!-- BOTTOM NAV -->
+  <div class="bottom-nav">
+    <div class="nav-item active">
+      <span class="nav-icon">🏠</span>
+      <span class="nav-label">Αρχική</span>
+    </div>
+    <div class="nav-item" style="position:relative">
+      <span class="nav-icon">📋</span>
+      <span class="nav-label">Αιτήματα</span>
+      <span class="nav-badge">5</span>
+    </div>
+    <div class="nav-item" style="position:relative">
+      <span class="nav-icon">💬</span>
+      <span class="nav-label">Μηνύματα</span>
+      <span class="nav-badge" style="background:#3b82f6">2</span>
+    </div>
+    <div class="nav-item">
+      <span class="nav-icon">👤</span>
+      <span class="nav-label">Προφίλ</span>
+    </div>
+  </div>
+
+</div>
+</body>
+</html>

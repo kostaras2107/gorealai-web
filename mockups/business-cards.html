@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html lang="el">
+<head>
+<meta charset="UTF-8">
+<title>GorealAI — Business Card</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;700;900&family=DM+Sans:wght@300;400;500&display=swap');
+  *{box-sizing:border-box;margin:0;padding:0;}
+  body{
+    background:#2a2a2a;
+    display:flex;flex-direction:column;align-items:center;justify-content:center;
+    min-height:100vh;gap:32px;padding:48px 24px;
+    font-family:'DM Sans',sans-serif;
+  }
+
+  /* ── CARD SET ── */
+  .card-set{display:flex;filter:drop-shadow(0 24px 64px rgba(0,0,0,.75));}
+
+  /* ── FRONT ── */
+  .front{
+    width:310px;height:180px;border-radius:12px 0 0 12px;
+    background:linear-gradient(150deg,#1e1e1e 0%,#111 55%,#0c0c0c 100%);
+    display:flex;flex-direction:column;align-items:center;justify-content:center;gap:9px;
+    position:relative;overflow:hidden;
+  }
+  .front::before{
+    content:'';position:absolute;inset:0;pointer-events:none;
+    background:
+      radial-gradient(ellipse at 25% 25%,rgba(201,160,60,.1) 0%,transparent 55%),
+      radial-gradient(ellipse at 75% 75%,rgba(201,160,60,.05) 0%,transparent 50%);
+  }
+  /* subtle dot grid */
+  .front::after{
+    content:'';position:absolute;inset:0;pointer-events:none;opacity:.4;
+    background-image:radial-gradient(circle,rgba(201,160,60,.12) 1px,transparent 1px);
+    background-size:20px 20px;
+  }
+  .logo-svg{width:68px;height:68px;position:relative;z-index:1;}
+  .brand{
+    font-family:'Cinzel',serif;font-size:18px;font-weight:700;letter-spacing:.3em;
+    background:linear-gradient(180deg,#e8c96a 0%,#c9a03c 50%,#9a7020 100%);
+    -webkit-background-clip:text;-webkit-text-fill-color:transparent;
+    position:relative;z-index:1;
+  }
+  .slogan{
+    font-family:'Cinzel',serif;font-size:7.5px;font-weight:400;letter-spacing:.18em;
+    color:rgba(201,160,60,.4);text-transform:uppercase;
+    position:relative;z-index:1;
+  }
+
+  /* ── INFO PANEL ── */
+  .info{
+    width:188px;height:180px;
+    background:linear-gradient(150deg,#181818 0%,#101010 100%);
+    border-left:1px solid rgba(201,160,60,.13);
+    display:flex;flex-direction:column;justify-content:center;
+    padding:0 20px;gap:0;position:relative;overflow:hidden;
+  }
+  .info::before{
+    content:'';position:absolute;top:14px;left:20px;right:20px;height:1px;
+    background:linear-gradient(90deg,transparent,rgba(201,160,60,.28),transparent);
+  }
+  .info::after{
+    content:'';position:absolute;bottom:14px;left:20px;right:20px;height:1px;
+    background:linear-gradient(90deg,transparent,rgba(201,160,60,.28),transparent);
+  }
+  /* watermark G */
+  .wm{
+    position:absolute;right:-8px;top:50%;transform:translateY(-50%);
+    font-family:'Cinzel',serif;font-size:90px;font-weight:900;
+    color:rgba(201,160,60,.04);line-height:1;user-select:none;pointer-events:none;
+  }
+
+  .tagline-label{
+    font-family:'Cinzel',serif;font-size:7.5px;font-weight:600;letter-spacing:.16em;
+    background:linear-gradient(135deg,#e8c96a,#c9a03c);
+    -webkit-background-clip:text;-webkit-text-fill-color:transparent;
+    margin-bottom:12px;margin-top:3px;
+  }
+  .row{display:flex;align-items:center;gap:8px;margin-bottom:8px;}
+  .row:last-child{margin-bottom:3px;}
+  .ico{width:15px;height:15px;flex-shrink:0;}
+  .txt{font-size:10px;font-weight:400;color:#d4b86a;letter-spacing:.02em;}
+
+  /* ── QR PANEL ── */
+  .qr-panel{
+    width:124px;height:180px;border-radius:0 12px 12px 0;
+    background:linear-gradient(150deg,#c9a03c 0%,#e8c96a 45%,#c9a03c 100%);
+    display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;
+    padding:14px 12px;
+  }
+  .qr-box{background:#fff;padding:5px;border-radius:4px;}
+  .qr-img{width:68px;height:68px;display:block;}
+  .qr-lbl{
+    font-family:'Cinzel',serif;font-size:7px;font-weight:700;
+    letter-spacing:.08em;color:#1a1000;text-align:center;line-height:1.55;
+  }
+
+  /* ── BOTTOM ── */
+  .note{font-size:11px;color:#444;letter-spacing:.06em;}
+  .btn{
+    background:linear-gradient(135deg,#c9a03c,#e8c96a);border:none;border-radius:10px;
+    padding:12px 30px;font-family:'Cinzel',serif;font-size:13px;font-weight:700;
+    color:#0a0800;cursor:pointer;letter-spacing:.08em;
+  }
+  .btn:hover{opacity:.88;}
+  @media print{
+    body{background:#fff;padding:0;min-height:auto;}
+    .note,.btn{display:none;}
+    .card-set{filter:none;}
+  }
+</style>
+</head>
+<body>
+
+<div class="card-set">
+
+  <!-- FRONT -->
+  <div class="front">
+    <svg class="logo-svg" viewBox="0 0 120 120" xmlns="http://www.w3.org/2000/svg">
+      <defs>
+        <linearGradient id="g1" x1="0%" y1="0%" x2="0%" y2="100%">
+          <stop offset="0%"   stop-color="#ecd472"/>
+          <stop offset="45%"  stop-color="#c9a03c"/>
+          <stop offset="100%" stop-color="#9a7020"/>
+        </linearGradient>
+      </defs>
+      <circle cx="60" cy="60" r="54" fill="none" stroke="url(#g1)" stroke-width="2.5" opacity=".3"/>
+      <text x="62" y="87" font-family="Cinzel,Georgia,serif" font-size="88"
+            font-weight="700" fill="url(#g1)" text-anchor="middle">G</text>
+    </svg>
+    <div class="brand">GOREALAI</div>
+    <div class="slogan">Go Real &nbsp;·&nbsp; Go AI &nbsp;·&nbsp; Go GorealAI</div>
+  </div>
+
+  <!-- INFO -->
+  <div class="info">
+    <div class="wm">G</div>
+    <div class="tagline-label">REAL PROS · AI SPEED</div>
+
+    <!-- Phone -->
+    <div class="row">
+      <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="#c9a03c" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07A19.5 19.5 0 013.07 9.81 19.79 19.79 0 012 1.18 2 2 0 014 0h3a2 2 0 012 1.72c.127.96.361 1.9.7 2.81a2 2 0 01-.45 2.11L8.09 7.91a16 16 0 006 6l1.27-1.27a2 2 0 012.11-.45c.91.339 1.85.572 2.81.7A2 2 0 0122 16.92z"/>
+      </svg>
+      <span class="txt">6937102492</span>
+    </div>
+
+    <!-- TikTok -->
+    <div class="row">
+      <svg class="ico" viewBox="0 0 24 24" fill="#c9a03c">
+        <path d="M19.59 6.69a4.83 4.83 0 01-3.77-4.25V2h-3.45v13.67a2.89 2.89 0 01-2.88 2.5 2.89 2.89 0 01-2.89-2.89 2.89 2.89 0 012.89-2.89c.28 0 .54.04.79.1V9.01a6.34 6.34 0 00-.79-.05A6.34 6.34 0 003.15 15.3a6.34 6.34 0 006.34 6.34 6.34 6.34 0 006.33-6.34V8.69a8.18 8.18 0 004.78 1.52V6.76a4.86 4.86 0 01-1.01-.07z"/>
+      </svg>
+      <span class="txt">@gorealai7</span>
+    </div>
+
+    <!-- Email -->
+    <div class="row">
+      <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="#c9a03c" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/>
+        <polyline points="22,6 12,13 2,6"/>
+      </svg>
+      <span class="txt">info@gorealai.gr</span>
+    </div>
+  </div>
+
+  <!-- QR -->
+  <div class="qr-panel">
+    <div class="qr-box">
+      <img class="qr-img"
+           src="https://api.qrserver.com/v1/create-qr-code/?size=68x68&data=https://gorealai.web.app/app/&color=1a1000&bgcolor=ffffff&margin=0"
+           alt="QR gorealai">
+    </div>
+    <div class="qr-lbl">ΣΚΑΝΑΡΕ<br>&amp; ΜΠΕΣ<br>ΣΤΗΝ ΠΛΑΤΦΟΡΜΑ</div>
+  </div>
+
+</div>
+
+<p class="note">85 × 55 mm — standard επαγγελματική κάρτα</p>
+<button class="btn" onclick="window.print()">🖨 Εκτύπωση</button>
+
+</body>
+</html>

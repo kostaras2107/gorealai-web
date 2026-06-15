@@ -164,7 +164,7 @@ class _SplashScreenState extends State<SplashScreen>
                         Opacity(
                           opacity: _text == "GoRealAI" ? _glow.value : 0.0,
                           child: Text(
-                            'Βρες το σωστό. Με τη δύναμη του AI.',
+                            'The first app with Reverse Auction',
                             style: TextStyle(
                               fontSize: 13,
                               color: Colors.white.withOpacity(0.4),

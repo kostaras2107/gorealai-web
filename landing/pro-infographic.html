@@ -1,0 +1,475 @@
+<!DOCTYPE html>
+<html lang="el">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=1080,initial-scale=1">
+<title>GorealAI — Pro Features</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap');
+*{box-sizing:border-box;margin:0;padding:0;}
+body{
+  background:#0a0a0a;
+  display:flex;flex-direction:column;align-items:center;
+  min-height:100vh;gap:28px;padding:40px 24px;
+  font-family:'Inter',sans-serif;
+}
+.canvas{
+  width:1080px;height:1350px;
+  background:#0a0a0a;
+  position:relative;overflow:hidden;
+}
+.canvas::before{
+  content:'';position:absolute;inset:0;pointer-events:none;
+  background:
+    radial-gradient(ellipse 800px 600px at 50% 42%,rgba(201,160,60,.07) 0%,transparent 70%),
+    radial-gradient(ellipse 350px 250px at 5% 85%,rgba(201,160,60,.04) 0%,transparent 60%),
+    radial-gradient(ellipse 350px 250px at 95% 20%,rgba(201,160,60,.04) 0%,transparent 60%);
+}
+.canvas::after{
+  content:'';position:absolute;inset:0;pointer-events:none;
+  background-image:radial-gradient(circle,rgba(201,160,60,.04) 1px,transparent 1px);
+  background-size:38px 38px;
+}
+
+/* ── HEADER ── */
+.header{
+  position:absolute;top:36px;left:0;right:0;
+  display:flex;flex-direction:column;align-items:center;gap:6px;
+  z-index:2;
+}
+.h-brand{display:flex;align-items:center;gap:12px;}
+.logo-box{
+  width:46px;height:46px;background:#000;border-radius:11px;
+  display:flex;align-items:center;justify-content:center;
+  border:1.5px solid rgba(201,160,60,.45);
+  box-shadow:0 0 24px rgba(201,160,60,.25);
+}
+.logo-name{
+  font-size:28px;font-weight:900;letter-spacing:.12em;
+  background:linear-gradient(180deg,#edd87a,#b8892e);
+  -webkit-background-clip:text;-webkit-text-fill-color:transparent;
+}
+.h-sub{
+  font-size:12px;font-weight:500;letter-spacing:.22em;
+  color:rgba(201,160,60,.38);text-transform:uppercase;
+}
+.h-title{
+  font-size:23px;font-weight:800;color:#fff;margin-top:2px;
+}
+
+/* ── PHONE ── */
+.phone-outer{
+  position:absolute;
+  left:50%;
+  top:168px;
+  transform:translateX(-50%);
+  width:300px;
+  z-index:3;
+}
+.phone{
+  width:300px;
+  background:#111;
+  border-radius:40px;
+  border:2px solid #272727;
+  overflow:hidden;
+  box-shadow:
+    0 0 0 1px #1c1c1c,
+    0 40px 90px rgba(0,0,0,.85),
+    0 0 50px rgba(201,160,60,.10);
+}
+.ph-notch{
+  height:24px;background:#111;
+  display:flex;align-items:center;justify-content:center;
+}
+.ph-notch-pill{
+  width:90px;height:14px;background:#000;border-radius:10px;
+}
+.ph-topbar{
+  display:flex;align-items:center;justify-content:space-between;
+  padding:8px 16px 10px;
+}
+.ph-name{font-size:14px;font-weight:700;color:#fff;}
+.ph-greeting{font-size:9px;color:rgba(255,255,255,.35);margin-bottom:1px;}
+.ph-avatar{
+  width:30px;height:30px;border-radius:50%;
+  background:linear-gradient(135deg,#e8c96a,#c9a03c);
+  display:flex;align-items:center;justify-content:center;
+  font-size:13px;font-weight:800;color:#000;
+}
+.ph-stats{
+  display:flex;justify-content:space-around;
+  padding:8px 16px;
+  background:rgba(201,160,60,.05);
+  border-top:1px solid rgba(255,255,255,.04);
+  border-bottom:1px solid rgba(255,255,255,.04);
+}
+.ph-st{display:flex;flex-direction:column;align-items:center;gap:1px;}
+.ph-stn{font-size:16px;font-weight:800;color:#fff;}
+.ph-stl{font-size:8px;color:rgba(255,255,255,.28);letter-spacing:.03em;}
+.ph-avail{
+  display:flex;align-items:center;justify-content:space-between;
+  padding:7px 16px;
+  border-bottom:1px solid rgba(255,255,255,.04);
+}
+.ph-avail-lbl{font-size:10px;font-weight:600;color:rgba(255,255,255,.5);}
+.toggle{width:28px;height:16px;border-radius:8px;background:#22c55e;position:relative;flex-shrink:0;}
+.toggle::after{content:'';position:absolute;top:2px;right:2px;width:12px;height:12px;border-radius:50%;background:#fff;}
+.ph-grid{padding:8px 10px;display:flex;flex-direction:column;gap:6px;}
+.ph-row{display:flex;gap:6px;}
+.ph-card{
+  flex:1;background:#191919;border-radius:12px;
+  padding:9px 9px 8px;
+  display:flex;align-items:center;gap:8px;
+  border:1px solid rgba(255,255,255,.065);
+}
+.ph-ico{width:28px;height:28px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:13px;flex-shrink:0;}
+.ph-tt{font-size:9.5px;font-weight:700;color:#fff;line-height:1.2;}
+.ph-ss{font-size:7.5px;color:rgba(255,255,255,.3);line-height:1.2;margin-top:1.5px;}
+.ph-ch{font-size:8px;color:rgba(255,255,255,.18);}
+.ph-soc{
+  margin:0 10px 10px;background:#191919;border-radius:12px;
+  padding:9px 12px;display:flex;align-items:center;gap:9px;
+  border:1px solid rgba(225,48,108,.18);
+}
+.ph-soc-ico{width:28px;height:28px;border-radius:8px;background:rgba(225,48,108,.14);display:flex;align-items:center;justify-content:center;font-size:13px;flex-shrink:0;}
+.ph-soc-tt{font-size:9.5px;font-weight:700;color:#fff;}
+.ph-soc-ss{font-size:7.5px;color:rgba(255,255,255,.3);margin-top:1.5px;}
+
+/* ── DESC BOXES ── */
+.desc{
+  position:absolute;
+  background:#141414;
+  border:1px solid rgba(201,160,60,.2);
+  border-radius:14px;
+  padding:12px 14px;
+  width:224px;
+  z-index:5;
+}
+.desc-num{
+  display:inline-flex;align-items:center;justify-content:center;
+  width:20px;height:20px;border-radius:6px;
+  background:linear-gradient(135deg,#e8c96a,#c9a03c);
+  font-size:10px;font-weight:800;color:#000;
+  margin-bottom:5px;
+}
+.desc-title{font-size:11.5px;font-weight:800;color:#e8c96a;margin-bottom:3px;}
+.desc-body{font-size:10px;color:rgba(255,255,255,.5);line-height:1.5;}
+
+/* ── SVG ── */
+.arrows-svg{
+  position:absolute;top:0;left:0;
+  width:1080px;height:1350px;
+  pointer-events:none;z-index:4;
+}
+
+/* ── BOTTOM CTA ── */
+.cta{
+  position:absolute;bottom:32px;left:60px;right:60px;
+  background:rgba(201,160,60,.055);
+  border:1px solid rgba(201,160,60,.18);
+  border-radius:22px;padding:22px 30px;
+  display:flex;align-items:center;justify-content:space-between;
+  z-index:6;
+}
+.cta-l{display:flex;flex-direction:column;gap:4px;}
+.cta-q{font-size:18px;font-weight:800;color:#fff;}
+.cta-s{font-size:12px;color:rgba(255,255,255,.3);}
+.cta-btn{
+  background:linear-gradient(135deg,#e8c96a,#c9a03c);
+  border-radius:14px;padding:14px 26px;
+  font-size:14px;font-weight:800;color:#000;
+  text-decoration:none;white-space:nowrap;letter-spacing:.01em;
+}
+
+.ctrl{display:flex;gap:14px;}
+.ctrl button{
+  background:rgba(201,160,60,.1);border:1px solid rgba(201,160,60,.28);
+  border-radius:12px;padding:12px 22px;
+  font-family:'Inter',sans-serif;font-size:13px;font-weight:600;color:#e8c96a;
+  cursor:pointer;
+}
+.note{font-size:11px;color:#2a2a2a;letter-spacing:.06em;}
+</style>
+</head>
+<body>
+
+<div class="canvas" id="canvas">
+
+  <!-- HEADER -->
+  <div class="header">
+    <div class="h-brand">
+      <div class="logo-box">
+        <svg width="38" height="38" viewBox="0 0 120 120" xmlns="http://www.w3.org/2000/svg">
+          <defs>
+            <linearGradient id="gl" x1="0%" y1="0%" x2="0%" y2="100%">
+              <stop offset="0%" stop-color="#ecd472"/>
+              <stop offset="100%" stop-color="#9a7020"/>
+            </linearGradient>
+          </defs>
+          <text x="62" y="93" font-family="Arial Black,sans-serif" font-size="96"
+                font-weight="900" fill="url(#gl)" text-anchor="middle">G</text>
+        </svg>
+      </div>
+      <div class="logo-name">GOREALAI</div>
+    </div>
+    <div class="h-sub">Η πλατφόρμα για επαγγελματίες</div>
+    <div class="h-title">Όλα όσα χρειάζεσαι ως Επαγγελματίας</div>
+  </div>
+
+  <!-- PHONE -->
+  <div class="phone-outer" id="phoneOuter">
+    <div class="phone" id="phone">
+      <div class="ph-notch"><div class="ph-notch-pill"></div></div>
+      <div class="ph-topbar">
+        <div>
+          <div class="ph-greeting">Καλημέρα 👋</div>
+          <div class="ph-name">Ο Επαγγελματίας</div>
+        </div>
+        <div class="ph-avatar">Ε</div>
+      </div>
+      <div class="ph-stats">
+        <div class="ph-st"><div class="ph-stn">0</div><div class="ph-stl">Αιτήματα</div></div>
+        <div class="ph-st"><div class="ph-stn">0</div><div class="ph-stl">Έσοδα</div></div>
+        <div class="ph-st"><div class="ph-stn">0</div><div class="ph-stl">Bookings</div></div>
+        <div class="ph-st"><div class="ph-stn">—</div><div class="ph-stl">Rating</div></div>
+      </div>
+      <div class="ph-avail">
+        <div class="ph-avail-lbl">🟢 Διαθέσιμος για αιτήματα</div>
+        <div class="toggle"></div>
+      </div>
+      <div class="ph-grid">
+        <div class="ph-row">
+          <div class="ph-card" id="c1">
+            <div class="ph-ico" style="background:rgba(245,158,11,.13);">📋</div>
+            <div style="flex:1"><div class="ph-tt">Αιτήματα</div><div class="ph-ss">Ενεργά αιτήματα</div></div>
+            <div class="ph-ch">›</div>
+          </div>
+          <div class="ph-card" id="c2">
+            <div class="ph-ico" style="background:rgba(6,182,212,.13);">💬</div>
+            <div style="flex:1"><div class="ph-tt">Μηνύματα</div><div class="ph-ss">Συνομιλίες</div></div>
+            <div class="ph-ch">›</div>
+          </div>
+        </div>
+        <div class="ph-row">
+          <div class="ph-card" id="c3">
+            <div class="ph-ico" style="background:rgba(59,130,246,.13);">👤</div>
+            <div style="flex:1"><div class="ph-tt">Mini CV</div><div class="ph-ss">Βιογραφικό</div></div>
+            <div class="ph-ch">›</div>
+          </div>
+          <div class="ph-card" id="c4">
+            <div class="ph-ico" style="background:rgba(139,92,246,.13);">📸</div>
+            <div style="flex:1"><div class="ph-tt">Portfolio</div><div class="ph-ss">Φωτογραφίες</div></div>
+            <div class="ph-ch">›</div>
+          </div>
+        </div>
+        <div class="ph-row">
+          <div class="ph-card" id="c5">
+            <div class="ph-ico" style="background:rgba(16,185,129,.13);">📅</div>
+            <div style="flex:1"><div class="ph-tt">Bookings</div><div class="ph-ss">Κρατήσεις</div></div>
+            <div class="ph-ch">›</div>
+          </div>
+          <div class="ph-card" id="c6">
+            <div class="ph-ico" style="background:rgba(239,68,68,.13);">❌</div>
+            <div style="flex:1"><div class="ph-tt">Απορριφθέντα</div><div class="ph-ss">Ιστορικό</div></div>
+            <div class="ph-ch">›</div>
+          </div>
+        </div>
+      </div>
+      <div class="ph-soc" id="c7">
+        <div class="ph-soc-ico">📱</div>
+        <div>
+          <div class="ph-soc-tt">Social Media</div>
+          <div class="ph-soc-ss">Instagram &amp; TikTok</div>
+        </div>
+        <div style="margin-left:auto;font-size:8px;color:rgba(255,255,255,.18);">›</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- SVG ARROWS -->
+  <svg class="arrows-svg" id="svg" xmlns="http://www.w3.org/2000/svg"></svg>
+
+  <!-- LEFT: d1, d3, d5 — σταθερές θέσεις που αντιστοιχούν στις 3 σειρές -->
+  <div class="desc" id="d1" style="left:44px;top:298px;">
+    <div class="desc-num">1</div>
+    <div class="desc-title">📋 Αιτήματα</div>
+    <div class="desc-body">Λαμβάνεις νέα αιτήματα εργασίας από πελάτες στην περιοχή σου και στέλνεις προσφορές.</div>
+  </div>
+  <div class="desc" id="d3" style="left:44px;top:398px;">
+    <div class="desc-num">3</div>
+    <div class="desc-title">👤 Mini CV</div>
+    <div class="desc-body">Γράφεις το όνομά σου, την ειδικότητά σου, χρόνια εμπειρίας και μια σύντομη περιγραφή. Αυτό βλέπουν οι πελάτες στο προφίλ σου.</div>
+  </div>
+  <div class="desc" id="d5" style="left:44px;top:498px;">
+    <div class="desc-num">5</div>
+    <div class="desc-title">📅 Bookings</div>
+    <div class="desc-body">Διαχειρίζεσαι τις κρατήσεις σου εύκολα και γρήγορα από ένα σημείο.</div>
+  </div>
+
+  <!-- RIGHT: d2, d4, d6 -->
+  <div class="desc" id="d2" style="right:44px;top:298px;">
+    <div class="desc-num">2</div>
+    <div class="desc-title">💬 Μηνύματα</div>
+    <div class="desc-body">Συνομιλείς απευθείας με πελάτες μέσα από την εφαρμογή, χωρίς να χρειαστεί τηλέφωνο.</div>
+  </div>
+  <div class="desc" id="d4" style="right:44px;top:398px;">
+    <div class="desc-num">4</div>
+    <div class="desc-title">📸 Portfolio</div>
+    <div class="desc-body">Ανεβάζεις φωτογραφίες από ολοκληρωμένες δουλειές σου. Οι πελάτες βλέπουν την ποιότητα της δουλειάς σου πριν σε επιλέξουν.</div>
+  </div>
+  <div class="desc" id="d6" style="right:44px;top:498px;">
+    <div class="desc-num">6</div>
+    <div class="desc-title">❌ Απορριφθέντα</div>
+    <div class="desc-body">Βλέπεις το ιστορικό αιτημάτων που απέρριψες για μελλοντική αναφορά.</div>
+  </div>
+
+  <!-- BOTTOM CENTER: d7 -->
+  <div class="desc" id="d7" style="left:50%;transform:translateX(-50%);width:270px;text-align:center;top:610px;">
+    <div style="display:flex;justify-content:center;margin-bottom:5px;"><div class="desc-num">7</div></div>
+    <div class="desc-title">📱 Social Media</div>
+    <div class="desc-body">Συνδέεις Instagram &amp; TikTok και προβάλλεις τη δουλειά σου σε ακόμα περισσότερους πελάτες.</div>
+  </div>
+
+  <!-- CTA -->
+  <div class="cta">
+    <div class="cta-l">
+      <div class="cta-q">Γίνε Επαγγελματίας στο GorealAI</div>
+      <div class="cta-s">Δωρεάν εγγραφή · Ξεκίνα να λαμβάνεις αιτήματα σήμερα</div>
+    </div>
+    <a class="cta-btn" href="https://gorealai.web.app/app/">Εγγραφή τώρα →</a>
+  </div>
+
+</div><!-- /canvas -->
+
+<div class="ctrl">
+  <button onclick="window.print()">🖨 Εκτύπωση / PDF</button>
+  <button onclick="savePNG()">💾 Αποθήκευση PNG</button>
+</div>
+<p class="note">1080 × 1350 px · Instagram 4:5</p>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<script>
+function getRect(el){
+  const cv = document.getElementById('canvas');
+  const cr = cv.getBoundingClientRect();
+  const er = el.getBoundingClientRect();
+  return {
+    l:er.left-cr.left, t:er.top-cr.top,
+    r:er.right-cr.left, b:er.bottom-cr.top,
+    w:er.width, h:er.height,
+    cx:er.left-cr.left+er.width/2,
+    cy:er.top-cr.top+er.height/2
+  };
+}
+
+function layout(){
+  // Pairs: [desc_id, card_id, side]
+  const pairs = [
+    ['d1','c1','left'],
+    ['d3','c3','left'],
+    ['d5','c5','left'],
+    ['d2','c2','right'],
+    ['d4','c4','right'],
+    ['d6','c6','right'],
+    ['d7','c7','below'],
+  ];
+
+  const canvasH = 1350;
+  const MARGIN = 8;
+
+  // Position each desc box vertically centered on its card
+  pairs.forEach(([did, cid, side]) => {
+    const desc = document.getElementById(did);
+    const card = document.getElementById(cid);
+    const cr = getRect(card);
+    const dh = desc.offsetHeight;
+
+    let top;
+    if(side === 'below'){
+      // place below phone
+      const phone = document.getElementById('phone');
+      const pr = getRect(phone);
+      top = pr.b + 30;
+    } else {
+      top = cr.cy - dh / 2;
+      top = Math.max(MARGIN, Math.min(canvasH - dh - MARGIN, top));
+    }
+    desc.style.top = top + 'px';
+  });
+
+  // Draw arrows
+  const svg = document.getElementById('svg');
+  svg.innerHTML = `<defs>
+    <marker id="ah" markerWidth="10" markerHeight="7" refX="8" refY="3.5" orient="auto">
+      <polygon points="0 0,10 3.5,0 7" fill="rgba(201,160,60,0.75)"/>
+    </marker>
+  </defs>`;
+
+  pairs.forEach(([did, cid, side]) => {
+    const desc = document.getElementById(did);
+    const card = document.getElementById(cid);
+    const dr = getRect(desc);
+    const cr = getRect(card);
+
+    let x1,y1,x2,y2,d;
+
+    if(side === 'left'){
+      x1 = dr.r + 2;   y1 = dr.cy;
+      x2 = cr.l - 4;   y2 = cr.cy;
+      const bx = (x2-x1)*0.5;
+      d = `M${x1},${y1} C${x1+bx},${y1} ${x1+bx},${y2} ${x2},${y2}`;
+    } else if(side === 'right'){
+      x1 = dr.l - 2;   y1 = dr.cy;
+      x2 = cr.r + 4;   y2 = cr.cy;
+      const bx = (x1-x2)*0.5;
+      d = `M${x1},${y1} C${x1-bx},${y1} ${x1-bx},${y2} ${x2},${y2}`;
+    } else {
+      // below → arrow goes UP from desc top to card bottom
+      x1 = dr.cx;  y1 = dr.t - 2;
+      x2 = cr.cx;  y2 = cr.b + 4;
+      const by = (y1-y2)*0.45;
+      d = `M${x1},${y1} C${x1},${y1-by} ${x2},${y2+by} ${x2},${y2}`;
+    }
+
+    const path = document.createElementNS('http://www.w3.org/2000/svg','path');
+    path.setAttribute('d', d);
+    path.setAttribute('fill','none');
+    path.setAttribute('stroke','rgba(201,160,60,0.55)');
+    path.setAttribute('stroke-width','2');
+    path.setAttribute('marker-end','url(#ah)');
+    svg.appendChild(path);
+
+    // dot at origin
+    const dot = document.createElementNS('http://www.w3.org/2000/svg','circle');
+    dot.setAttribute('cx', x1); dot.setAttribute('cy', y1);
+    dot.setAttribute('r','3.5');
+    dot.setAttribute('fill','rgba(201,160,60,0.7)');
+    svg.appendChild(dot);
+  });
+}
+
+window.addEventListener('load',()=>{
+  setTimeout(layout, 350);
+  setTimeout(layout, 800);
+});
+
+async function savePNG(){
+  const btns = [...document.querySelectorAll('.ctrl button')];
+  const btn = btns[1];
+  btn.textContent='⏳ Παρακαλώ περίμενε...'; btn.disabled=true;
+  try{
+    const c = await html2canvas(document.getElementById('canvas'),{
+      scale:1,useCORS:true,backgroundColor:'#0a0a0a',
+      width:1080,height:1350,logging:false
+    });
+    const a=document.createElement('a');
+    a.download='gorealai-pro-features.png';
+    a.href=c.toDataURL('image/png'); a.click();
+  } catch(e){
+    alert('Χρησιμοποίησε: Εκτύπωση → Αποθήκευση ως PDF για εναλλακτική.');
+  }
+  btn.textContent='💾 Αποθήκευση PNG'; btn.disabled=false;
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,181 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ─── USERS ────────────────────────────────────────────
+    match /users/{userId} {
+      // Any logged-in user can read profiles (needed for chat names, pro ratings)
+      allow read: if request.auth != null;
+      // Only the owner can write their own profile
+      allow write: if request.auth != null && request.auth.uid == userId;
+      // Any authenticated user can update ONLY rating aggregate fields on
+      // a professional's profile (triggered when someone submits a review)
+      allow update: if request.auth != null
+                    && request.resource.data.diff(resource.data).affectedKeys()
+                       .hasOnly(['reviewCount', 'averageRating']);
+
+      match /notifications/{notifId} {
+        allow read, update, delete: if request.auth != null && request.auth.uid == userId;
+        allow create: if request.auth != null;
+      }
+
+      match /selectedProfessionals/{docId} {
+        allow read, write: if request.auth != null && request.auth.uid == userId;
+      }
+    }
+
+    // ─── PRESENCE ─────────────────────────────────────────
+    match /presence/{userId} {
+      allow read: if request.auth != null;
+      allow write: if request.auth != null && request.auth.uid == userId;
+    }
+
+    // ─── REQUESTS ─────────────────────────────────────────
+    match /requests/{requestId} {
+      allow create: if request.auth != null;
+      allow read: if request.auth != null
+                  && (resource.data.userId == request.auth.uid
+                      || resource.data.status == 'active');
+      // Owner can update anything; others can only touch specific fields
+      allow update: if request.auth != null
+                    && (resource.data.userId == request.auth.uid
+                        || request.resource.data.diff(resource.data).affectedKeys()
+                           .hasOnly(['submittedPros', 'offersCount',
+                                     'images', 'hasImages',
+                                     'videoUrls', 'hasVideos',
+                                     'status', 'selectedPro', 'offersViewed',
+                                     'notifiedPros']));
+    }
+
+    // ─── OFFERS ───────────────────────────────────────────
+    match /offers/{offerId} {
+      allow create: if request.auth != null;
+      allow read: if request.auth != null;
+    }
+
+    // ─── PROFESSIONALS ────────────────────────────────────
+    match /professionals/{proId} {
+      // Public listing — anyone (including admin panel) can read
+      allow read: if true;
+      // Any authenticated user can create (self-registration via app)
+      allow create: if request.auth != null;
+      // Only the owner or anonymous admin panel can update/delete
+      allow update: if request.auth != null
+                    && (resource.data.userId == request.auth.uid
+                        || request.auth.token.firebase.sign_in_provider == 'anonymous');
+      allow delete: if request.auth != null
+                    && (resource.data.userId == request.auth.uid
+                        || request.auth.token.firebase.sign_in_provider == 'anonymous');
+    }
+
+    // ─── ADMIN ANALYTICS ──────────────────────────────────
+    match /admin_analytics/{docId} {
+      allow read: if request.auth != null;
+      allow write: if request.auth != null;
+    }
+
+    // ─── BOOKINGS ─────────────────────────────────────────
+    match /bookings/{bookingId} {
+      allow create: if request.auth != null;
+      // Single-doc read: must be owner or assigned professional
+      allow get: if request.auth != null
+                 && (resource.data.userId == request.auth.uid
+                     || resource.data.professionalId == request.auth.uid);
+      // List/query: authenticated users can list (client query always filters by userId or professionalId)
+      allow list: if request.auth != null;
+      allow update: if request.auth != null
+                    && (resource.data.userId == request.auth.uid
+                        || resource.data.professionalId == request.auth.uid);
+      // Professional or user can delete their own bookings
+      allow delete: if request.auth != null
+                    && (resource.data.userId == request.auth.uid
+                        || resource.data.professionalId == request.auth.uid);
+    }
+
+    // ─── AI MEMORY / REMINDERS ────────────────────────────
+    match /ai_memory/{memId} {
+      allow create: if request.auth != null
+                    && request.resource.data.userId == request.auth.uid;
+      allow read, update, delete: if request.auth != null
+                                   && resource.data.userId == request.auth.uid;
+    }
+
+    match /user_memory/{userId} {
+      allow read, write: if request.auth != null && request.auth.uid == userId;
+    }
+
+    match /reminders/{remId} {
+      allow create: if request.auth != null
+                    && request.resource.data.userId == request.auth.uid;
+      allow read, update, delete: if request.auth != null
+                                   && resource.data.userId == request.auth.uid;
+    }
+
+    // ─── EVENT REQUESTS ───────────────────────────────────
+    match /event_requests/{docId} {
+      allow create: if request.auth != null
+                    && request.resource.data.userId == request.auth.uid;
+      allow read: if request.auth != null;
+      allow update: if request.auth != null;
+      allow delete: if request.auth != null
+                    && resource.data.userId == request.auth.uid;
+
+      // Professionals submit offers into this subcollection
+      match /event_offers/{offerId} {
+        allow create: if request.auth != null;
+        allow read: if request.auth != null;
+        allow update, delete: if request.auth != null
+                              && resource.data.professionalId == request.auth.uid;
+      }
+    }
+
+    // ─── DIRECT REQUESTS (messaging) ──────────────────────
+    match /direct_requests/{docId} {
+      // User creates request to pro
+      allow create: if request.auth != null
+                    && request.resource.data.userId == request.auth.uid;
+      // User (sender) or pro (recipient) can read
+      allow read: if request.auth != null
+                  && (resource.data.userId == request.auth.uid
+                      || resource.data.proId == request.auth.uid);
+      // User or pro can update (accept/reject/reply)
+      allow update: if request.auth != null
+                    && (resource.data.userId == request.auth.uid
+                        || resource.data.proId == request.auth.uid);
+    }
+
+    // ─── CHATS ────────────────────────────────────────────
+    match /chats/{chatId} {
+      // Primary check: userId/proId fields (needed for list queries).
+      // Fallback: chatId pattern for docs that were created without those fields.
+      allow read, write: if request.auth != null
+                         && (resource.data.userId == request.auth.uid
+                             || resource.data.proId == request.auth.uid
+                             || chatId.matches(request.auth.uid + '_.*')
+                             || chatId.matches('.*_' + request.auth.uid));
+      allow create: if request.auth != null;
+
+      match /messages/{msgId} {
+        // chatId format is "{userId}_{proId}" — check UID membership directly
+        // without needing to get() the parent doc (avoids partial-doc issues).
+        allow read, update, delete: if request.auth != null
+                    && (chatId.matches(request.auth.uid + '_.*')
+                        || chatId.matches('.*_' + request.auth.uid));
+        // Only authenticated users can send messages (as themselves)
+        allow create: if request.auth != null
+                      && request.resource.data.senderId == request.auth.uid;
+      }
+    }
+
+    // ─── REVIEWS ──────────────────────────────────────────
+    match /reviews/{reviewId} {
+      // Anyone logged in can read reviews (shown on pro profiles)
+      allow read: if request.auth != null;
+      // Only the reviewer (userId) can create their review
+      allow create: if request.auth != null
+                    && request.resource.data.userId == request.auth.uid;
+      // No editing or deleting reviews
+      allow update, delete: if false;
+    }
+  }
+}

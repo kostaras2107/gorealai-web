@@ -1,0 +1,575 @@
+<!DOCTYPE html>
+<html lang="el">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>GorealAI — Business Cards</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800;900&family=DM+Sans:wght@300;400;500;600&display=swap');
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: #0d0d0d;
+    font-family: 'DM Sans', sans-serif;
+    padding: 40px 24px;
+    color: #fff;
+  }
+
+  h1 {
+    font-family: 'Syne', sans-serif;
+    font-size: 14px;
+    font-weight: 600;
+    color: #666;
+    text-transform: uppercase;
+    letter-spacing: .2em;
+    text-align: center;
+    margin-bottom: 8px;
+  }
+  .subtitle {
+    text-align: center;
+    font-size: 13px;
+    color: #444;
+    margin-bottom: 48px;
+  }
+
+  .section-label {
+    font-family: 'Syne', sans-serif;
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: .2em;
+    color: #444;
+    margin: 48px 0 20px;
+    text-align: center;
+  }
+
+  /* ─── GRID ─── */
+  .cards-grid {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 32px;
+    justify-content: center;
+    max-width: 1100px;
+    margin: 0 auto;
+  }
+
+  /* ─── CARD BASE ─── */
+  .card {
+    width: 350px;
+    height: 196px; /* Standard 3.5" × 2" ratio at 100px/inch */
+    border-radius: 16px;
+    position: relative;
+    overflow: hidden;
+    flex-shrink: 0;
+    cursor: default;
+    transition: transform .3s ease, box-shadow .3s ease;
+  }
+  .card:hover {
+    transform: translateY(-4px) scale(1.02);
+    box-shadow: 0 24px 60px rgba(0,0,0,.6);
+  }
+
+  /* ─── VARIANT 1: Classic Gold ─── */
+  .card-1 {
+    background: #000;
+    border: 1px solid #2a2200;
+    box-shadow: 0 8px 32px rgba(0,0,0,.5);
+  }
+  .card-1::before {
+    content: '';
+    position: absolute;
+    top: -60px; right: -60px;
+    width: 200px; height: 200px;
+    background: radial-gradient(circle, rgba(201,168,76,.15) 0%, transparent 70%);
+    pointer-events: none;
+  }
+  .card-1 .logo-mark {
+    position: absolute;
+    top: 24px; left: 24px;
+    width: 44px; height: 44px;
+    background: #000;
+    border: 1.5px solid #FFB340;
+    border-radius: 10px;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .card-1 .logo-mark span {
+    font-family: 'Syne', sans-serif;
+    font-size: 26px;
+    font-weight: 900;
+    color: #FFB340;
+    line-height: 1;
+  }
+  .card-1 .app-name {
+    position: absolute;
+    top: 31px; left: 76px;
+    font-family: 'Syne', sans-serif;
+    font-size: 18px;
+    font-weight: 800;
+    background: linear-gradient(135deg, #c9a84c, #e8c96a);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    letter-spacing: .02em;
+  }
+  .card-1 .tagline {
+    position: absolute;
+    bottom: 52px; left: 24px; right: 24px;
+    font-size: 13px;
+    font-weight: 400;
+    color: #fff;
+    line-height: 1.5;
+  }
+  .card-1 .tagline strong { color: #FFB340; font-weight: 600; }
+  .card-1 .website {
+    position: absolute;
+    bottom: 24px; left: 24px;
+    font-size: 11px;
+    color: #555;
+    letter-spacing: .05em;
+  }
+  .card-1 .corner-deco {
+    position: absolute;
+    bottom: 0; right: 0;
+    width: 80px; height: 80px;
+    background: linear-gradient(135deg, transparent 50%, rgba(201,168,76,.08) 50%);
+  }
+
+  /* ─── VARIANT 2: Dark Gradient ─── */
+  .card-2 {
+    background: linear-gradient(135deg, #0a0a0a 0%, #1a1200 100%);
+    border: 1px solid #2a2200;
+    box-shadow: 0 8px 32px rgba(0,0,0,.5);
+  }
+  .card-2 .stripe {
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 3px;
+    background: linear-gradient(90deg, #c9a84c, #e8c96a, #c9a84c);
+  }
+  .card-2 .logo-mark {
+    position: absolute;
+    top: 28px; left: 28px;
+    width: 48px; height: 48px;
+    border-radius: 12px;
+    overflow: hidden;
+    background: #000;
+    border: 1px solid #3a3000;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .card-2 .logo-mark span {
+    font-family: 'Syne', sans-serif;
+    font-size: 30px;
+    font-weight: 900;
+    color: #FFB340;
+    line-height: 1;
+  }
+  .card-2 .app-name {
+    position: absolute;
+    top: 34px; left: 86px;
+    font-family: 'Syne', sans-serif;
+    font-size: 20px;
+    font-weight: 900;
+    color: #fff;
+    letter-spacing: -.01em;
+  }
+  .card-2 .app-name em {
+    color: #FFB340;
+    font-style: normal;
+  }
+  .card-2 .tagline {
+    position: absolute;
+    bottom: 44px; left: 28px; right: 28px;
+    font-size: 14px;
+    font-weight: 300;
+    color: #ccc;
+    line-height: 1.6;
+    font-style: italic;
+  }
+  .card-2 .website {
+    position: absolute;
+    bottom: 20px; left: 28px;
+    font-size: 11px;
+    color: #FFB340;
+    letter-spacing: .08em;
+    text-transform: uppercase;
+  }
+  .card-2 .bg-g {
+    position: absolute;
+    right: -10px; top: 10px;
+    font-family: 'Syne', sans-serif;
+    font-size: 160px;
+    font-weight: 900;
+    color: rgba(255,179,64,.04);
+    line-height: 1;
+    pointer-events: none;
+    user-select: none;
+  }
+
+  /* ─── VARIANT 3: Gold on Black ─── */
+  .card-3 {
+    background: #000;
+    border: 1.5px solid #FFB340;
+    box-shadow: 0 0 40px rgba(255,179,64,.1), 0 8px 32px rgba(0,0,0,.5);
+  }
+  .card-3 .left-bar {
+    position: absolute;
+    left: 0; top: 0; bottom: 0;
+    width: 4px;
+    background: linear-gradient(180deg, #FFB340, #c9a84c);
+  }
+  .card-3 .logo-mark {
+    position: absolute;
+    top: 24px; left: 22px;
+    font-family: 'Syne', sans-serif;
+    font-size: 42px;
+    font-weight: 900;
+    color: #FFB340;
+    line-height: 1;
+  }
+  .card-3 .app-name {
+    position: absolute;
+    top: 26px; left: 70px;
+    font-family: 'Syne', sans-serif;
+    font-size: 19px;
+    font-weight: 800;
+    color: #fff;
+  }
+  .card-3 .tagline-top {
+    position: absolute;
+    top: 56px; left: 70px; right: 16px;
+    font-size: 11px;
+    color: #FFB340;
+    letter-spacing: .12em;
+    text-transform: uppercase;
+    font-weight: 600;
+  }
+  .card-3 .divider {
+    position: absolute;
+    top: 82px; left: 22px; right: 22px;
+    height: 1px;
+    background: linear-gradient(90deg, #FFB340, transparent);
+  }
+  .card-3 .tagline {
+    position: absolute;
+    top: 96px; left: 22px; right: 22px;
+    font-size: 13px;
+    color: #ddd;
+    line-height: 1.6;
+    font-weight: 300;
+  }
+  .card-3 .website {
+    position: absolute;
+    bottom: 20px; right: 22px;
+    font-size: 11px;
+    color: #FFB340;
+    letter-spacing: .05em;
+  }
+
+  /* ─── VARIANT 4: Split Layout ─── */
+  .card-4 {
+    background: #000;
+    box-shadow: 0 8px 32px rgba(0,0,0,.6);
+    display: flex;
+  }
+  .card-4 .left-panel {
+    width: 120px;
+    flex-shrink: 0;
+    background: linear-gradient(160deg, #1a1000, #0a0800);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    border-right: 1px solid #2a2000;
+  }
+  .card-4 .left-panel .logo-box {
+    width: 52px; height: 52px;
+    background: #000;
+    border: 1.5px solid #FFB340;
+    border-radius: 12px;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .card-4 .left-panel .logo-box span {
+    font-family: 'Syne', sans-serif;
+    font-size: 32px;
+    font-weight: 900;
+    color: #FFB340;
+  }
+  .card-4 .left-panel .name-v {
+    font-family: 'Syne', sans-serif;
+    font-size: 11px;
+    font-weight: 800;
+    color: #FFB340;
+    letter-spacing: .15em;
+    text-transform: uppercase;
+    writing-mode: vertical-rl;
+    transform: rotate(180deg);
+  }
+  .card-4 .right-panel {
+    flex: 1;
+    padding: 24px 22px;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+  }
+  .card-4 .right-panel .tagline {
+    font-size: 15px;
+    font-weight: 300;
+    color: #fff;
+    line-height: 1.6;
+  }
+  .card-4 .right-panel .tagline strong { color: #FFB340; font-weight: 700; }
+  .card-4 .right-panel .meta {
+    font-size: 11px;
+    color: #444;
+    letter-spacing: .05em;
+  }
+  .card-4 .right-panel .meta span { color: #666; }
+
+  /* ─── VARIANT 5: Minimal White ─── */
+  .card-5 {
+    background: #f5f0e8;
+    box-shadow: 0 8px 32px rgba(0,0,0,.4);
+  }
+  .card-5 .top-bar {
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 4px;
+    background: linear-gradient(90deg, #000, #c9a84c);
+  }
+  .card-5 .logo-mark {
+    position: absolute;
+    top: 24px; left: 24px;
+    width: 40px; height: 40px;
+    background: #000;
+    border-radius: 10px;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .card-5 .logo-mark span {
+    font-family: 'Syne', sans-serif;
+    font-size: 24px;
+    font-weight: 900;
+    color: #FFB340;
+  }
+  .card-5 .app-name {
+    position: absolute;
+    top: 30px; left: 72px;
+    font-family: 'Syne', sans-serif;
+    font-size: 18px;
+    font-weight: 800;
+    color: #111;
+  }
+  .card-5 .tagline {
+    position: absolute;
+    bottom: 50px; left: 24px; right: 24px;
+    font-size: 13px;
+    color: #333;
+    line-height: 1.6;
+  }
+  .card-5 .tagline strong { color: #c9a84c; }
+  .card-5 .website {
+    position: absolute;
+    bottom: 20px; left: 24px;
+    font-size: 11px;
+    color: #999;
+    letter-spacing: .05em;
+  }
+  .card-5 .corner {
+    position: absolute;
+    bottom: 0; right: 0;
+    width: 60px; height: 60px;
+    background: linear-gradient(135deg, transparent 50%, rgba(0,0,0,.06) 50%);
+  }
+
+  /* ─── VARIANT 6: Back of card ─── */
+  .card-back {
+    background: linear-gradient(135deg, #0a0800 0%, #1a1200 100%);
+    border: 1px solid #2a2000;
+    box-shadow: 0 8px 32px rgba(0,0,0,.5);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+  }
+  .card-back .big-g {
+    font-family: 'Syne', sans-serif;
+    font-size: 72px;
+    font-weight: 900;
+    color: #FFB340;
+    line-height: 1;
+  }
+  .card-back .big-name {
+    font-family: 'Syne', sans-serif;
+    font-size: 22px;
+    font-weight: 800;
+    background: linear-gradient(135deg, #c9a84c, #e8c96a);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    letter-spacing: .05em;
+  }
+  .card-back .tagline-back {
+    font-size: 12px;
+    color: #666;
+    letter-spacing: .1em;
+    text-transform: uppercase;
+  }
+  .card-back::before {
+    content: '';
+    position: absolute;
+    width: 200px; height: 200px;
+    background: radial-gradient(circle, rgba(255,179,64,.06) 0%, transparent 70%);
+    pointer-events: none;
+  }
+
+  /* ─── TAGLINE LABELS ─── */
+  .card-label {
+    text-align: center;
+    font-size: 11px;
+    color: #333;
+    margin-top: 8px;
+    font-style: italic;
+  }
+  .card-wrapper {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+  }
+
+  /* ─── PRINT BUTTON ─── */
+  .print-btn {
+    display: block;
+    margin: 48px auto 0;
+    background: linear-gradient(135deg, #c9a84c, #e8c96a);
+    border: none;
+    border-radius: 12px;
+    padding: 14px 36px;
+    font-family: 'Syne', sans-serif;
+    font-size: 14px;
+    font-weight: 700;
+    color: #000;
+    cursor: pointer;
+    letter-spacing: .05em;
+  }
+  .print-btn:hover { opacity: .9; }
+
+  @media print {
+    body { background: #fff; padding: 10mm; }
+    .print-btn, h1, .subtitle, .section-label, .card-label { display: none; }
+    .cards-grid { gap: 8mm; }
+    .card { break-inside: avoid; }
+  }
+</style>
+</head>
+<body>
+
+<h1>GorealAI — Business Card Designs</h1>
+<p class="subtitle">6 σχέδια · Κάνε κλικ σε αυτό που σου αρέσει περισσότερο</p>
+
+<!-- ─── ROW 1: Fronts ─── -->
+<p class="section-label">Μπροστινή όψη — Επιλογές</p>
+
+<div class="cards-grid">
+
+  <!-- Card 1: Classic -->
+  <div class="card-wrapper">
+    <div class="card card-1">
+      <div class="logo-mark"><span>G</span></div>
+      <div class="app-name">GorealAI</div>
+      <div class="tagline">
+        Βρες τον <strong>σωστό επαγγελματία</strong>.<br>
+        Γρήγορα. Έξυπνα. <strong>Gorealai</strong>.
+      </div>
+      <div class="website">gorealai.web.app</div>
+      <div class="corner-deco"></div>
+    </div>
+    <p class="card-label">Επιλογή 1 — Classic Dark</p>
+  </div>
+
+  <!-- Card 2: Gradient -->
+  <div class="card-wrapper">
+    <div class="card card-2">
+      <div class="stripe"></div>
+      <div class="logo-mark"><span>G</span></div>
+      <div class="app-name">Go<em>real</em>AI</div>
+      <div class="tagline">
+        «Γιατί οι καλύτεροι επαγγελματίες<br>
+        αξίζουν να βρεθούν.»
+      </div>
+      <div class="website">gorealai.web.app</div>
+      <div class="bg-g">G</div>
+    </div>
+    <p class="card-label">Επιλογή 2 — Με απόσπασμα</p>
+  </div>
+
+  <!-- Card 3: Gold Border -->
+  <div class="card-wrapper">
+    <div class="card card-3">
+      <div class="left-bar"></div>
+      <div class="logo-mark">G</div>
+      <div class="app-name">GorealAI</div>
+      <div class="tagline-top">Go Real · Go AI · Go GorealAI</div>
+      <div class="divider"></div>
+      <div class="tagline">
+        Η πλατφόρμα που συνδέει χρήστες<br>
+        με πιστοποιημένους επαγγελματίες<br>
+        μέσω τεχνητής νοημοσύνης.
+      </div>
+      <div class="website">gorealai.web.app</div>
+    </div>
+    <p class="card-label">Επιλογή 3 — Gold Border + Slogan</p>
+  </div>
+
+  <!-- Card 4: Split -->
+  <div class="card-wrapper">
+    <div class="card card-4">
+      <div class="left-panel">
+        <div class="logo-box"><span>G</span></div>
+        <div class="name-v">GorealAI</div>
+      </div>
+      <div class="right-panel">
+        <div class="tagline">
+          <strong>Real</strong> επαγγελματίες.<br>
+          <strong>AI</strong> επιλογή.<br>
+          <strong>Gorealai</strong> αποτέλεσμα.
+        </div>
+        <div class="meta">
+          gorealai.web.app<br>
+          <span>Διαθέσιμο για Android & Web</span>
+        </div>
+      </div>
+    </div>
+    <p class="card-label">Επιλογή 4 — Split Layout</p>
+  </div>
+
+  <!-- Card 5: Light -->
+  <div class="card-wrapper">
+    <div class="card card-5">
+      <div class="top-bar"></div>
+      <div class="logo-mark"><span>G</span></div>
+      <div class="app-name">GorealAI</div>
+      <div class="tagline">
+        Σταμάτα να ψάχνεις.<br>
+        Άρχισε να <strong>βρίσκεις</strong>.
+      </div>
+      <div class="website">gorealai.web.app</div>
+      <div class="corner"></div>
+    </div>
+    <p class="card-label">Επιλογή 5 — Light / Minimal</p>
+  </div>
+
+  <!-- Card 6: Back side -->
+  <div class="card-wrapper">
+    <div class="card card-back">
+      <div class="big-g">G</div>
+      <div class="big-name">GorealAI</div>
+      <div class="tagline-back">Go Real · Go AI</div>
+    </div>
+    <p class="card-label">Πίσω όψη (κοινή για όλες)</p>
+  </div>
+
+</div>
+
+<button class="print-btn" onclick="window.print()">🖨️ Εκτύπωση καρτών</button>
+
+</body>
+</html>

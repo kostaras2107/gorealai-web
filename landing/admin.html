@@ -246,9 +246,18 @@
     return `<span style="display:inline-flex;align-items:center;justify-content:center;width:36px;height:36px;border-radius:50%;background:#1a1200;border:1px solid #2a2000;color:var(--gold);font-weight:700;font-size:15px;margin-right:8px;vertical-align:middle">${initial}</span>`;
   }
 
+  // Auto-restore admin session on page refresh
+  if (sessionStorage.getItem('adminAuth') === 'true') {
+    try { await signInAnonymously(auth); } catch(_) {}
+    document.getElementById('login-screen').style.display = 'none';
+    document.getElementById('app').style.display = 'block';
+    startProsListener();
+  }
+
   window.doLogin = async function() {
     if (document.getElementById('pwd-input').value === ADMIN_PASSWORD) {
       try { await signInAnonymously(auth); } catch(_) {}
+      sessionStorage.setItem('adminAuth', 'true');
       document.getElementById('login-screen').style.display = 'none';
       document.getElementById('app').style.display = 'block';
       startProsListener(); // loadSelections() called inside after allPros is ready
@@ -256,6 +265,7 @@
   };
 
   window.doLogout = function() {
+    sessionStorage.removeItem('adminAuth');
     if (unsubPros) { unsubPros(); unsubPros = null; }
     signOut(auth).catch(()=>{});
     document.getElementById('login-screen').style.display = 'flex';
@@ -264,7 +274,7 @@
   };
 
   // ── BOOKINGS per professional ──
-  let bookingsPerPro = {}; // proId → count
+  let bookingsPerPro = {}; // authUID → count
 
   async function loadBookings() {
     try {
@@ -277,14 +287,33 @@
     } catch(e) { console.warn('bookings load error:', e); }
   }
 
+  // ── CLICKS per professional (from admin_analytics) ──
+  let clicksPerPro = {}; // authUID → count
+
+  async function loadClicks() {
+    try {
+      const snap = await getDoc(doc(db, 'admin_analytics', 'pro_selections'));
+      clicksPerPro = {};
+      if (snap.exists()) {
+        const data = snap.data();
+        Object.keys(data).forEach(k => {
+          if (k.startsWith('clicks_')) {
+            const uid = k.slice(7);
+            clicksPerPro[uid] = data[k] || 0;
+          }
+        });
+      }
+    } catch(e) { console.warn('clicks load error:', e); }
+  }
+
   // ── REAL-TIME listener ──
   async function startProsListener() {
     document.getElementById('loading').style.display = 'block';
     document.getElementById('pros-table').style.display = 'none';
     document.getElementById('empty-state').style.display = 'none';
 
-    // Load bookings + user count in parallel
-    await Promise.all([loadBookings(), loadUserCount()]);
+    // Load bookings + clicks + user count in parallel
+    await Promise.all([loadBookings(), loadClicks(), loadUserCount()]);
 
     if (unsubPros) unsubPros();
     unsubPros = onSnapshot(collection(db, 'professionals'), async snap => {
@@ -294,11 +323,11 @@
         const tb = b.created_at?.seconds || b.createdAt?.seconds || 0;
         return tb - ta;
       });
-      // Re-fetch bookings on every pros update to stay in sync
-      await loadBookings();
+      // Re-fetch bookings + clicks on every pros update to stay in sync
+      await Promise.all([loadBookings(), loadClicks()]);
       document.getElementById('loading').style.display = 'none';
       updateStats(); updateFilters(); renderTable(allPros);
-      loadSelections(); // Refresh clicks section to remove deleted pros
+      loadSelections(); // Refresh clicks section
     }, err => {
       console.error('Pros listener error:', err);
       document.getElementById('loading').style.display = 'none';
@@ -386,8 +415,10 @@
         <td><span class="pro-specialty">${p.specialty||'-'}</span></td>
         <td class="pro-area">${p.area||'-'}</td>
         <td style="font-size:13px;color:#999">${p.phone||'-'}</td>
-        <td><span class="clicks-badge">${p.total_clicks||0}</span></td>
-        <td><span style="font-family:'Syne',sans-serif;font-weight:700;color:#7ecfff">${bookingsPerPro[p.userId] || bookingsPerPro[p.id] || 0}</span></td>
+        <td><span class="clicks-badge">${(p.userId ? clicksPerPro[p.userId] : 0) || p.total_clicks || 0}</span></td>
+        <td>
+            <span style="font-family:'Syne',sans-serif;font-weight:700;color:#7ecfff">${p.totalBookingsEver || (p.userId ? bookingsPerPro[p.userId] : 0) || 0}</span>
+          </td>
         <td>${p.is_active
           ?'<span class="status-active"><span class="status-dot"></span>Ενεργός</span>'
           :'<span class="status-inactive"><span class="status-dot"></span>Ανενεργός</span>'}</td>
@@ -459,16 +490,20 @@
       if (!snap.exists()) { document.getElementById('selections-empty').style.display='block'; return; }
       const data = snap.data();
 
-      // Build set of active pro IDs for filtering
-      const activeProIds = new Set(allPros.map(p => p.id));
+      // Build set of active pro userIds (auth UIDs) for status check
+      const activeUserIds = new Set(allPros.map(p => p.userId).filter(Boolean));
 
       const entries = [];
       Object.keys(data).forEach(k => {
         if (k.startsWith('clicks_')) {
-          const proKey = k.slice(7);
-          // Only show if professional still exists
-          if (!activeProIds.has(proKey)) return;
-          entries.push({ name: data['name_'+proKey]||proKey, clicks: data[k]||0, proKey });
+          const proKey = k.slice(7); // auth UID
+          const isActive = activeUserIds.has(proKey);
+          entries.push({
+            name: data['name_'+proKey]||proKey,
+            clicks: data[k]||0,
+            proKey,
+            deleted: !isActive
+          });
         }
       });
       entries.sort((a,b)=>b.clicks-a.clicks);
@@ -477,7 +512,7 @@
       document.getElementById('selections-tbody').innerHTML = entries.map((e,i)=>`
         <tr>
           <td style="color:#888;font-size:13px">${i+1}</td>
-          <td class="pro-name">${e.name}</td>
+          <td class="pro-name">${e.name}${e.deleted ? ' <span style="font-size:10px;background:#2b0d0d;color:#e74c3c;border-radius:4px;padding:2px 6px">διαγράφηκε</span>' : ''}</td>
           <td><span class="clicks-badge" style="background:rgba(255,179,64,0.15);color:#FFB340;font-size:14px;font-weight:700;padding:4px 12px;border-radius:20px">${e.clicks}</span></td>
         </tr>`).join('');
     } catch(e) {

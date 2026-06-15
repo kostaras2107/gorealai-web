@@ -1,4 +1,10 @@
 {
+  "firestore": {
+    "rules": "firestore.rules"
+  },
+  "storage": {
+    "rules": "storage.rules"
+  },
   "hosting": [
     {
       "target": "gorealai",
@@ -12,6 +18,14 @@
         {
           "source": "/app/**",
           "destination": "/app/index.html"
+        },
+        {
+          "source": "/privacy",
+          "destination": "/privacy.html"
+        },
+        {
+          "source": "/terms",
+          "destination": "/terms.html"
         }
       ]
     }

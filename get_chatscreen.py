@@ -1,0 +1,47 @@
+#!/usr/bin/env python3
+import sys, io, json
+sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8', errors='replace')
+
+JSONL = r"C:\Users\bosinakos\.claude\projects\C--shoppilot--claude-worktrees-infallible-keller-8ca4d4\f5b96356-c969-492d-a13b-802cb96b2c69.jsonl"
+
+def is_main(path):
+    p = path.lower().replace('\\', '/').replace('//', '/')
+    return (p.endswith('shoppilot/lib/main.dart') and
+            'worktree' not in p and '.claude' not in p)
+
+# Reads covering ChatScreen - collecting all to understand coverage
+reads_needed = {12599, 4635, 4861, 7132, 11135}
+
+found = {}
+with open(JSONL, encoding='utf-8', errors='replace') as f:
+    for i, raw in enumerate(f, 1):
+        if i > 18617:
+            break
+        if i not in reads_needed:
+            continue
+        try:
+            obj = json.loads(raw)
+        except:
+            continue
+        tr = obj.get('toolUseResult', {})
+        if not isinstance(tr, dict):
+            continue
+        fi = tr.get('file', {})
+        if not fi or not is_main(fi.get('filePath', '')):
+            continue
+        found[i] = fi
+
+for i in sorted(found.keys()):
+    fi = found[i]
+    start = fi.get('startLine', 0)
+    num = fi.get('numLines', 0)
+    total = fi.get('totalLines', 0)
+    print(f"\n{'='*60}")
+    print(f"JSONL {i}: lines {start}-{start+num-1} of {total}")
+    lines = fi.get('content', '').split('\n')
+    for j, l in enumerate(lines[:20]):
+        print(f"  {start+j}: {l}")
+    print("  ...")
+    for j, l in enumerate(lines[-5:]):
+        ln = start + num - 5 + j
+        print(f"  {ln}: {l}")

@@ -1,0 +1,501 @@
+<!DOCTYPE html>
+<html lang="el">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=900, initial-scale=1.0">
+<title>Pro Home – Full Overview</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    background: #0a0b14;
+    font-family: -apple-system, 'Segoe UI', sans-serif;
+    color: #fff;
+    padding: 30px 24px 40px;
+    width: 960px;
+    margin: 0 auto;
+  }
+
+  h1 { font-size: 13px; color: rgba(255,179,64,0.7); letter-spacing: 2px; text-transform: uppercase; margin-bottom: 24px; text-align: center; }
+
+  .phones { display: flex; gap: 14px; justify-content: center; align-items: flex-start; }
+
+  /* ── PHONE SHELL ── */
+  .phone {
+    width: 280px; flex-shrink: 0;
+    background: #07091A; border-radius: 36px;
+    overflow: hidden;
+    box-shadow: 0 30px 70px rgba(0,0,0,0.8), 0 0 0 6px #1c1c1e, 0 0 0 7px #2a2a2e;
+    position: relative;
+    zoom: 0.77;
+  }
+  .phone-label {
+    text-align: center; font-size: 10px; font-weight: 700;
+    color: rgba(255,179,64,0.6); letter-spacing: 1px;
+    text-transform: uppercase; margin-bottom: 10px;
+  }
+  .phone-sub {
+    text-align: center; font-size: 10px; color: rgba(255,255,255,0.25);
+    margin-bottom: 14px; line-height: 1.5;
+  }
+
+  /* shared styles for all phone content */
+  .topbar { display: flex; align-items: center; justify-content: space-between; padding: 28px 16px 10px; }
+  .greeting-sub { font-size: 9px; color: rgba(255,255,255,0.3); font-weight: 600; }
+  .greeting-name { font-size: 16px; font-weight: 900; }
+  .greeting-name span { background: linear-gradient(90deg,#FFD47A,#FFB340); -webkit-background-clip:text; -webkit-text-fill-color:transparent; }
+  .tr { display:flex; align-items:center; gap:6px; }
+  .av { width:32px; height:32px; border-radius:50%; background:linear-gradient(135deg,#FFD47A,#FFB340); display:flex; align-items:center; justify-content:center; font-size:13px; font-weight:800; color:#000; border:2px solid rgba(255,179,64,0.4); position:relative; }
+  .av .dot { position:absolute; bottom:0; right:0; width:8px; height:8px; border-radius:50%; background:#00D4AA; border:1.5px solid #07091A; }
+  .nb { width:32px; height:32px; border-radius:50%; background:rgba(255,179,64,0.07); border:1px solid rgba(255,179,64,0.18); display:flex; align-items:center; justify-content:center; font-size:14px; position:relative; }
+  .nb .badge { position:absolute; top:-2px; right:-2px; width:14px; height:14px; background:#ef4444; border-radius:50%; font-size:7px; font-weight:700; display:flex; align-items:center; justify-content:center; border:1.5px solid #07091A; }
+
+  /* glance */
+  .glance { margin:0 12px 10px; background:linear-gradient(135deg,#1a0e00,#0d0d1e 50%,#001a10); border:1px solid rgba(255,179,64,0.2); border-radius:18px; padding:14px; position:relative; overflow:hidden; }
+  .glance::after { content:''; position:absolute; top:-40px; right:-40px; width:120px; height:120px; background:radial-gradient(circle,rgba(255,179,64,0.12),transparent 65%); }
+  .g-title { font-size:8px; font-weight:700; color:rgba(255,179,64,0.6); letter-spacing:1.5px; text-transform:uppercase; margin-bottom:10px; }
+  .g-metrics { display:flex; }
+  .gm { flex:1; text-align:center; border-right:1px solid rgba(255,255,255,0.06); padding:0 4px; }
+  .gm:last-child { border-right:none; }
+  .gm-n { font-size:20px; font-weight:900; line-height:1; }
+  .gm-n.gold { background:linear-gradient(90deg,#FFD47A,#FFB340); -webkit-background-clip:text; -webkit-text-fill-color:transparent; }
+  .gm-n.green { color:#00D4AA; }
+  .gm-n.blue { color:#60a5fa; }
+  .gm-l { font-size:7.5px; color:rgba(255,255,255,0.3); margin-top:3px; font-weight:600; line-height:1.3; }
+  .rev { margin-top:10px; padding-top:10px; border-top:1px solid rgba(255,255,255,0.06); display:flex; align-items:center; justify-content:space-between; }
+  .rev-lbl { font-size:9px; color:rgba(255,255,255,0.35); }
+  .rev-sub { font-size:7.5px; color:rgba(0,212,170,0.45); margin-top:1px; }
+  .pbar { height:3px; background:rgba(255,255,255,0.06); border-radius:2px; margin-top:4px; width:90px; overflow:hidden; }
+  .pfill { height:100%; background:linear-gradient(90deg,#00D4AA,#00ffcc); width:62%; }
+  .rev-val { font-size:14px; font-weight:900; color:#00D4AA; text-align:right; }
+  .rev-pct { font-size:7.5px; color:rgba(0,212,170,0.5); text-align:right; }
+
+  /* avail */
+  .avail { margin:0 12px 10px; background:rgba(255,255,255,0.03); border:1px solid rgba(255,255,255,0.07); border-radius:14px; padding:10px 12px; display:flex; align-items:center; justify-content:space-between; }
+  .av-l { display:flex; align-items:center; gap:8px; }
+  .av-icon { font-size:16px; }
+  .av-title { font-size:11px; font-weight:700; }
+  .av-sub { font-size:8.5px; color:rgba(255,255,255,0.35); margin-top:1px; }
+  .toggle { width:42px; height:22px; border-radius:11px; background:linear-gradient(90deg,#00D4AA,#00a88a); display:flex; align-items:center; padding:2px; cursor:pointer; box-shadow:0 0 10px rgba(0,212,170,0.3); }
+  .toggle-k { width:18px; height:18px; border-radius:50%; background:#fff; margin-left:auto; }
+
+  /* tab bar */
+  .tabs { padding:0 12px 0; overflow-x:auto; scrollbar-width:none; }
+  .tabs::-webkit-scrollbar { display:none; }
+  .tab-row { display:flex; gap:5px; width:max-content; padding-bottom:8px; }
+  .tab { display:flex; align-items:center; gap:4px; padding:7px 11px; border-radius:11px; font-size:9px; font-weight:700; cursor:pointer; white-space:nowrap; border:1px solid transparent; }
+  .tab.active { background:linear-gradient(135deg,#FFD47A,#FFB340); color:#000; box-shadow:0 3px 12px rgba(255,179,64,0.3); }
+  .tab:not(.active) { background:rgba(255,255,255,0.04); color:rgba(255,255,255,0.4); border-color:rgba(255,255,255,0.07); }
+  .tbadge { min-width:14px; height:14px; border-radius:7px; font-size:7px; font-weight:800; padding:0 3px; display:flex; align-items:center; justify-content:center; }
+  .tab.active .tbadge { background:rgba(0,0,0,0.2); color:#000; }
+  .tab:not(.active) .tbadge { background:rgba(255,179,64,0.2); color:#FFB340; }
+  .tbadge.blue { background:rgba(96,165,250,0.2)!important; color:#60a5fa!important; }
+  .tbadge.green { background:rgba(0,212,170,0.2)!important; color:#00D4AA!important; }
+  .tbadge.red { background:rgba(239,68,68,0.2)!important; color:#f87171!important; }
+
+  /* scroll dots */
+  .sdots { display:flex; justify-content:center; gap:3px; padding:0 0 8px; }
+  .sdot { width:4px; height:4px; border-radius:50%; background:rgba(255,255,255,0.12); }
+  .sdot.a { background:#FFB340; width:12px; border-radius:3px; }
+
+  /* content area */
+  .content { padding:0 12px; }
+  .s-label { display:flex; align-items:center; justify-content:space-between; margin-bottom:8px; }
+  .s-title { font-size:11px; font-weight:800; }
+  .s-count { font-size:8.5px; color:#FFB340; background:rgba(255,179,64,0.12); padding:3px 8px; border-radius:7px; font-weight:700; }
+
+  /* request card */
+  .rcard { display:flex; gap:10px; align-items:stretch; background:rgba(255,255,255,0.03); border:1px solid rgba(255,255,255,0.06); border-radius:14px; padding:11px 10px 11px 12px; margin-bottom:7px; position:relative; overflow:hidden; }
+  .rcard.gold { border-color:rgba(255,179,64,0.3); background:rgba(255,179,64,0.03); }
+  .rcard.gold::before { content:''; position:absolute; left:0; top:0; bottom:0; width:2.5px; background:linear-gradient(180deg,#FFD47A,#FFB340); }
+  .rcard.blueb::before { content:''; position:absolute; left:0; top:0; bottom:0; width:2.5px; background:linear-gradient(180deg,#93c5fd,#3b82f6); }
+  .rl { display:flex; flex-direction:column; align-items:center; justify-content:center; flex-shrink:0; width:32px; }
+  .remi { font-size:20px; }
+  .rag { font-size:7px; color:rgba(255,255,255,0.25); text-align:center; margin-top:3px; line-height:1.2; }
+  .rb { flex:1; min-width:0; }
+  .rbadges { display:flex; gap:4px; margin-bottom:4px; flex-wrap:wrap; }
+  .rb2 { font-size:7px; font-weight:800; letter-spacing:0.5px; padding:2px 6px; border-radius:5px; }
+  .rb2.new { background:rgba(255,179,64,0.15); color:#FFB340; }
+  .rb2.urg { background:rgba(239,68,68,0.15); color:#f87171; }
+  .rb2.evt { background:rgba(124,58,237,0.15); color:#a78bfa; }
+  .rb2.msg { background:rgba(96,165,250,0.15); color:#60a5fa; }
+  .rdesc { font-size:11px; color:rgba(255,255,255,0.85); line-height:1.4; font-style:italic; margin-bottom:4px; }
+  .rfooter { display:flex; align-items:center; gap:5px; }
+  .rchip { font-size:8.5px; color:rgba(255,255,255,0.35); }
+  .rprice { font-size:10px; font-weight:800; color:#00D4AA; margin-left:auto; }
+  .rcta { flex-shrink:0; align-self:center; background:linear-gradient(135deg,#FFD47A,#FFB340); border:none; border-radius:10px; padding:8px 10px; font-size:9.5px; font-weight:800; color:#000; cursor:pointer; font-family:inherit; white-space:nowrap; }
+  .rcta.blue-c { background:rgba(96,165,250,0.15); color:#60a5fa; border:1px solid rgba(96,165,250,0.25); }
+
+  /* mini cv tab content */
+  .cv-section { margin-bottom:12px; }
+  .cv-label { font-size:8px; font-weight:700; color:rgba(255,179,64,0.6); letter-spacing:1px; text-transform:uppercase; margin-bottom:6px; }
+  .cv-bio { font-size:11px; color:rgba(255,255,255,0.7); line-height:1.6; background:rgba(255,255,255,0.03); border:1px solid rgba(255,255,255,0.07); border-radius:12px; padding:10px 12px; }
+  .cv-skill-row { display:flex; flex-wrap:wrap; gap:5px; }
+  .cv-skill { font-size:9px; font-weight:700; padding:4px 10px; border-radius:8px; background:rgba(255,179,64,0.1); color:#FFB340; border:1px solid rgba(255,179,64,0.2); }
+  .cv-exp { background:rgba(255,255,255,0.03); border:1px solid rgba(255,255,255,0.07); border-radius:12px; padding:10px 12px; margin-bottom:6px; }
+  .cv-exp-title { font-size:11px; font-weight:700; }
+  .cv-exp-sub { font-size:9px; color:rgba(255,255,255,0.4); margin-top:2px; }
+  .edit-btn { display:flex; align-items:center; justify-content:center; gap:5px; background:rgba(255,179,64,0.08); border:1px solid rgba(255,179,64,0.2); border-radius:10px; padding:8px; font-size:10px; font-weight:700; color:rgba(255,179,64,0.8); cursor:pointer; width:100%; margin-top:6px; }
+
+  /* portfolio tab */
+  .port-grid { display:grid; grid-template-columns:1fr 1fr; gap:6px; margin-bottom:8px; }
+  .port-card { aspect-ratio:1; border-radius:12px; overflow:hidden; position:relative; background:rgba(255,255,255,0.05); border:1px solid rgba(255,255,255,0.08); }
+  .port-emoji { position:absolute; inset:0; display:flex; align-items:center; justify-content:center; font-size:36px; }
+  .port-overlay { position:absolute; bottom:0; left:0; right:0; padding:6px 8px; background:linear-gradient(transparent,rgba(0,0,0,0.7)); font-size:8px; color:rgba(255,255,255,0.7); font-weight:600; }
+  .add-port { aspect-ratio:1; border-radius:12px; border:1.5px dashed rgba(255,179,64,0.3); display:flex; flex-direction:column; align-items:center; justify-content:center; gap:4px; cursor:pointer; }
+  .add-port span { font-size:22px; }
+  .add-port p { font-size:8px; color:rgba(255,179,64,0.5); font-weight:700; }
+
+  /* bookings tab */
+  .booking-card { background:rgba(255,255,255,0.03); border:1px solid rgba(255,255,255,0.07); border-radius:14px; padding:11px 12px; margin-bottom:7px; }
+  .bk-header { display:flex; align-items:center; justify-content:space-between; margin-bottom:6px; }
+  .bk-status { font-size:8px; font-weight:800; padding:3px 8px; border-radius:6px; }
+  .bk-status.accepted { background:rgba(0,212,170,0.15); color:#00D4AA; }
+  .bk-status.pending { background:rgba(255,179,64,0.15); color:#FFB340; }
+  .bk-date { font-size:8.5px; color:rgba(255,255,255,0.35); }
+  .bk-name { font-size:12px; font-weight:700; margin-bottom:3px; }
+  .bk-desc { font-size:10px; color:rgba(255,255,255,0.5); }
+  .bk-footer { display:flex; align-items:center; gap:6px; margin-top:8px; }
+  .bk-price { font-size:13px; font-weight:900; color:#00D4AA; }
+  .bk-actions { display:flex; gap:5px; margin-left:auto; }
+  .bk-btn { font-size:9px; font-weight:700; padding:5px 10px; border-radius:8px; border:none; cursor:pointer; font-family:inherit; }
+  .bk-btn.acc { background:rgba(0,212,170,0.15); color:#00D4AA; border:1px solid rgba(0,212,170,0.25); }
+  .bk-btn.rej { background:rgba(239,68,68,0.1); color:#f87171; border:1px solid rgba(239,68,68,0.2); }
+  .bk-btn.chat { background:linear-gradient(135deg,#FFD47A,#FFB340); color:#000; }
+
+  /* bottom nav */
+  .bnav { margin:8px 10px 12px; background:linear-gradient(180deg,#222,#141414); border-radius:22px; padding:8px 4px; display:flex; justify-content:space-around; align-items:center; box-shadow:0 8px 24px rgba(0,0,0,0.5); border:1px solid rgba(255,255,255,0.06); }
+  .ni { display:flex; flex-direction:column; align-items:center; gap:2px; cursor:pointer; padding:4px 10px; border-radius:14px; position:relative; }
+  .ni.a { background:rgba(255,179,64,0.12); }
+  .ni-icon { font-size:16px; }
+  .ni-lbl { font-size:7.5px; font-weight:700; }
+  .ni.a .ni-lbl { color:#FFB340; }
+  .ni:not(.a) .ni-lbl { color:rgba(255,255,255,0.22); }
+  .ni .nbadge { position:absolute; top:0; right:4px; width:13px; height:13px; background:#ef4444; border-radius:50%; font-size:7px; font-weight:700; display:flex; align-items:center; justify-content:center; border:1.5px solid #07091A; }
+</style>
+</head>
+<body>
+
+<h1>GorealAI — Pro Home · Design 2 "Command Center" · Όλες οι καρτέλες</h1>
+
+<div class="phones">
+
+  <!-- ══ PHONE 1: Tab = Αιτήματα ══ -->
+  <div>
+    <div class="phone-label">Καρτέλα: 📋 Αιτήματα</div>
+    <div class="phone-sub">Κεντρική οθόνη — Stats + Toggle<br>+ Scrollable tabs</div>
+    <div class="phone">
+      <div class="topbar">
+        <div><div class="greeting-sub">Καλημέρα 👋</div><div class="greeting-name"><span>Νίκος</span></div></div>
+        <div class="tr">
+          <div class="nb">🔔<span class="badge">3</span></div>
+          <div class="av">Ν<div class="dot"></div></div>
+        </div>
+      </div>
+      <div class="glance">
+        <div class="g-title">📊 Σήμερα</div>
+        <div class="g-metrics">
+          <div class="gm"><div class="gm-n gold">5</div><div class="gm-l">Νέα<br>Αιτήματα</div></div>
+          <div class="gm"><div class="gm-n blue">2</div><div class="gm-l">Νέα<br>Μηνύματα</div></div>
+          <div class="gm"><div class="gm-n" style="color:#fff">4.9</div><div class="gm-l">⭐ Rating</div></div>
+          <div class="gm"><div class="gm-n" style="color:#fff">124</div><div class="gm-l">Ολοκλ.</div></div>
+        </div>
+        <div class="rev">
+          <div><div class="rev-lbl">Έσοδα Μαΐου</div><div class="rev-sub">στόχος €3.000</div><div class="pbar"><div class="pfill"></div></div></div>
+          <div><div class="rev-val">€1.840</div><div class="rev-pct">62% στόχου</div></div>
+        </div>
+      </div>
+      <div class="avail">
+        <div class="av-l"><span class="av-icon">⚡</span><div><div class="av-title">Διαθέσιμος</div><div class="av-sub">5 ενεργά αιτήματα</div></div></div>
+        <div class="toggle"><div class="toggle-k"></div></div>
+      </div>
+      <!-- TABS -->
+      <div class="tabs">
+        <div class="tab-row">
+          <div class="tab active">📋 Αιτήματα <span class="tbadge">5</span></div>
+          <div class="tab">💬 Μηνύματα <span class="tbadge blue">2</span></div>
+          <div class="tab">👤 Mini CV</div>
+          <div class="tab">🖼️ Portfolio</div>
+          <div class="tab">✅ Αποδεκτά <span class="tbadge green">8</span></div>
+          <div class="tab">❌ Απορριφθέντα <span class="tbadge red">2</span></div>
+          <div class="tab">📅 Bookings <span class="tbadge green">3</span></div>
+        </div>
+      </div>
+      <div class="sdots"><div class="sdot a"></div><div class="sdot"></div><div class="sdot"></div><div class="sdot"></div><div class="sdot"></div></div>
+      <div class="content">
+        <div class="s-label"><span class="s-title">Αιτήματα για εσένα</span><span class="s-count">5 νέα</span></div>
+        <div class="rcard gold">
+          <div class="rl"><div class="remi">🔧</div><div class="rag">3 λεπτά</div></div>
+          <div class="rb">
+            <div class="rbadges"><span class="rb2 new">ΝΕΟ</span><span class="rb2 urg">⚡ ΕΠΕΙΓΟΝ</span></div>
+            <div class="rdesc">"Βλάβη καλοριφέρ, άμεση επισκευή"</div>
+            <div class="rfooter"><span class="rchip">📍 Κολωνάκι</span><span class="rprice">€80–120</span></div>
+          </div>
+          <button class="rcta">Προσφορά</button>
+        </div>
+        <div class="rcard gold">
+          <div class="rl"><div class="remi">🚿</div><div class="rag">11 λεπτά</div></div>
+          <div class="rb">
+            <div class="rbadges"><span class="rb2 new">ΝΕΟ</span></div>
+            <div class="rdesc">"Αλλαγή βρύσης κουζίνας"</div>
+            <div class="rfooter"><span class="rchip">📍 Χαλάνδρι</span><span class="rprice">€50–80</span></div>
+          </div>
+          <button class="rcta">Προσφορά</button>
+        </div>
+        <div class="rcard blueb">
+          <div class="rl"><div class="remi">💬</div><div class="rag">18 λεπτά</div></div>
+          <div class="rb">
+            <div class="rbadges"><span class="rb2 msg">ΜΗΝΥΜΑ</span></div>
+            <div class="rdesc">"Θα έρθετε αύριο πρωί;"</div>
+            <div class="rfooter"><span class="rchip">Μαρία Π.</span></div>
+          </div>
+          <button class="rcta blue-c">Απάντηση</button>
+        </div>
+      </div>
+      <div class="bnav">
+        <div class="ni a"><span class="ni-icon">🏠</span><span class="ni-lbl">Αρχική</span></div>
+        <div class="ni" style="position:relative"><span class="ni-icon">📋</span><span class="ni-lbl">Αιτήματα</span><span class="nbadge">5</span></div>
+        <div class="ni" style="position:relative"><span class="ni-icon">💬</span><span class="ni-lbl">Μηνύματα</span><span class="nbadge" style="background:#3b82f6">2</span></div>
+        <div class="ni"><span class="ni-icon">👤</span><span class="ni-lbl">Προφίλ</span></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══ PHONE 2: Tab = Mini CV + Portfolio ══ -->
+  <div>
+    <div class="phone-label">Καρτέλα: 👤 Mini CV</div>
+    <div class="phone-sub">Βιογραφικό, skills & εμπειρία<br>Inline edit με ένα tap</div>
+    <div class="phone">
+      <div class="topbar">
+        <div><div class="greeting-sub">Καλημέρα 👋</div><div class="greeting-name"><span>Νίκος</span></div></div>
+        <div class="tr">
+          <div class="nb">🔔<span class="badge">3</span></div>
+          <div class="av">Ν<div class="dot"></div></div>
+        </div>
+      </div>
+      <div class="glance">
+        <div class="g-title">📊 Σήμερα</div>
+        <div class="g-metrics">
+          <div class="gm"><div class="gm-n gold">5</div><div class="gm-l">Νέα<br>Αιτήματα</div></div>
+          <div class="gm"><div class="gm-n blue">2</div><div class="gm-l">Νέα<br>Μηνύματα</div></div>
+          <div class="gm"><div class="gm-n" style="color:#fff">4.9</div><div class="gm-l">⭐ Rating</div></div>
+          <div class="gm"><div class="gm-n" style="color:#fff">124</div><div class="gm-l">Ολοκλ.</div></div>
+        </div>
+        <div class="rev">
+          <div><div class="rev-lbl">Έσοδα Μαΐου</div><div class="rev-sub">στόχος €3.000</div><div class="pbar"><div class="pfill"></div></div></div>
+          <div><div class="rev-val">€1.840</div><div class="rev-pct">62% στόχου</div></div>
+        </div>
+      </div>
+      <div class="avail">
+        <div class="av-l"><span class="av-icon">⚡</span><div><div class="av-title">Διαθέσιμος</div><div class="av-sub">5 ενεργά αιτήματα</div></div></div>
+        <div class="toggle"><div class="toggle-k"></div></div>
+      </div>
+      <div class="tabs">
+        <div class="tab-row">
+          <div class="tab">📋 Αιτήματα <span class="tbadge">5</span></div>
+          <div class="tab">💬 Μηνύματα <span class="tbadge blue">2</span></div>
+          <div class="tab active">👤 Mini CV</div>
+          <div class="tab">🖼️ Portfolio</div>
+          <div class="tab">✅ Αποδεκτά <span class="tbadge green">8</span></div>
+          <div class="tab">❌ Απορριφθέντα <span class="tbadge red">2</span></div>
+          <div class="tab">📅 Bookings <span class="tbadge green">3</span></div>
+        </div>
+      </div>
+      <div class="sdots"><div class="sdot"></div><div class="sdot"></div><div class="sdot a"></div><div class="sdot"></div><div class="sdot"></div></div>
+      <div class="content">
+        <div class="cv-section">
+          <div class="cv-label">🧾 Βιογραφικό</div>
+          <div class="cv-bio">Υδραυλικός με 12 χρόνια εμπειρία σε κατοικίες & εμπορικούς χώρους. Γρήγορος, αξιόπιστος, εγγύηση εργασίας.</div>
+        </div>
+        <div class="cv-section">
+          <div class="cv-label">🛠️ Ειδικότητες</div>
+          <div class="cv-skill-row">
+            <span class="cv-skill">Θέρμανση</span>
+            <span class="cv-skill">Αποχέτευση</span>
+            <span class="cv-skill">Boiler</span>
+            <span class="cv-skill">Κλιματισμός</span>
+            <span class="cv-skill">Solar</span>
+          </div>
+        </div>
+        <div class="cv-section">
+          <div class="cv-label">💼 Εμπειρία</div>
+          <div class="cv-exp">
+            <div class="cv-exp-title">Αυτόνομος Επαγγελματίας</div>
+            <div class="cv-exp-sub">2016 – σήμερα · Αθήνα</div>
+          </div>
+          <div class="cv-exp">
+            <div class="cv-exp-title">Εταιρεία ΑΛΦΑ Υδραυλικά</div>
+            <div class="cv-exp-sub">2012 – 2016 · Πειραιάς</div>
+          </div>
+        </div>
+        <div class="edit-btn">✏️ Επεξεργασία Προφίλ</div>
+      </div>
+      <div class="bnav">
+        <div class="ni a"><span class="ni-icon">🏠</span><span class="ni-lbl">Αρχική</span></div>
+        <div class="ni" style="position:relative"><span class="ni-icon">📋</span><span class="ni-lbl">Αιτήματα</span><span class="nbadge">5</span></div>
+        <div class="ni"><span class="ni-icon">💬</span><span class="ni-lbl">Μηνύματα</span></div>
+        <div class="ni"><span class="ni-icon">👤</span><span class="ni-lbl">Προφίλ</span></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══ PHONE 3: Tab = Portfolio ══ -->
+  <div>
+    <div class="phone-label">Καρτέλα: 🖼️ Portfolio</div>
+    <div class="phone-sub">Grid φωτογραφιών εργασιών<br>+ Bookings με αποδοχή/απόρριψη</div>
+    <div class="phone">
+      <div class="topbar">
+        <div><div class="greeting-sub">Καλημέρα 👋</div><div class="greeting-name"><span>Νίκος</span></div></div>
+        <div class="tr">
+          <div class="nb">🔔<span class="badge">3</span></div>
+          <div class="av">Ν<div class="dot"></div></div>
+        </div>
+      </div>
+      <div class="glance">
+        <div class="g-title">📊 Σήμερα</div>
+        <div class="g-metrics">
+          <div class="gm"><div class="gm-n gold">5</div><div class="gm-l">Νέα<br>Αιτήματα</div></div>
+          <div class="gm"><div class="gm-n blue">2</div><div class="gm-l">Νέα<br>Μηνύματα</div></div>
+          <div class="gm"><div class="gm-n" style="color:#fff">4.9</div><div class="gm-l">⭐ Rating</div></div>
+          <div class="gm"><div class="gm-n" style="color:#fff">124</div><div class="gm-l">Ολοκλ.</div></div>
+        </div>
+        <div class="rev">
+          <div><div class="rev-lbl">Έσοδα Μαΐου</div><div class="rev-sub">στόχος €3.000</div><div class="pbar"><div class="pfill"></div></div></div>
+          <div><div class="rev-val">€1.840</div><div class="rev-pct">62% στόχου</div></div>
+        </div>
+      </div>
+      <div class="avail">
+        <div class="av-l"><span class="av-icon">⚡</span><div><div class="av-title">Διαθέσιμος</div><div class="av-sub">5 ενεργά αιτήματα</div></div></div>
+        <div class="toggle"><div class="toggle-k"></div></div>
+      </div>
+      <div class="tabs">
+        <div class="tab-row">
+          <div class="tab">📋 Αιτήματα <span class="tbadge">5</span></div>
+          <div class="tab">💬 Μηνύματα <span class="tbadge blue">2</span></div>
+          <div class="tab">👤 Mini CV</div>
+          <div class="tab active">🖼️ Portfolio</div>
+          <div class="tab">✅ Αποδεκτά <span class="tbadge green">8</span></div>
+          <div class="tab">❌ Απορριφθέντα <span class="tbadge red">2</span></div>
+          <div class="tab">📅 Bookings <span class="tbadge green">3</span></div>
+        </div>
+      </div>
+      <div class="sdots"><div class="sdot"></div><div class="sdot"></div><div class="sdot"></div><div class="sdot a"></div><div class="sdot"></div></div>
+      <div class="content">
+        <div class="s-label"><span class="s-title">Οι εργασίες μου</span><span class="s-count">6 φωτό</span></div>
+        <div class="port-grid">
+          <div class="port-card"><div class="port-emoji">🚿</div><div class="port-overlay">Μπάνιο renovation</div></div>
+          <div class="port-card"><div class="port-emoji">🔧</div><div class="port-overlay">Επισκευή boiler</div></div>
+          <div class="port-card"><div class="port-emoji">🏗️</div><div class="port-overlay">Νέα εγκατάσταση</div></div>
+          <div class="port-card"><div class="port-emoji">❄️</div><div class="port-overlay">Κλιματισμός</div></div>
+          <div class="port-card"><div class="port-emoji">☀️</div><div class="port-overlay">Solar water heater</div></div>
+          <div class="add-port"><span>➕</span><p>Πρόσθεσε φωτό</p></div>
+        </div>
+      </div>
+      <div class="bnav">
+        <div class="ni a"><span class="ni-icon">🏠</span><span class="ni-lbl">Αρχική</span></div>
+        <div class="ni" style="position:relative"><span class="ni-icon">📋</span><span class="ni-lbl">Αιτήματα</span><span class="nbadge">5</span></div>
+        <div class="ni"><span class="ni-icon">💬</span><span class="ni-lbl">Μηνύματα</span></div>
+        <div class="ni"><span class="ni-icon">👤</span><span class="ni-lbl">Προφίλ</span></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══ PHONE 4: Tab = Bookings ══ -->
+  <div>
+    <div class="phone-label">Καρτέλα: 📅 Bookings</div>
+    <div class="phone-sub">Αποδεκτά · Απορριφθέντα · Bookings<br>με κουμπιά αποδοχής/chat</div>
+    <div class="phone">
+      <div class="topbar">
+        <div><div class="greeting-sub">Καλημέρα 👋</div><div class="greeting-name"><span>Νίκος</span></div></div>
+        <div class="tr">
+          <div class="nb">🔔<span class="badge">3</span></div>
+          <div class="av">Ν<div class="dot"></div></div>
+        </div>
+      </div>
+      <div class="glance">
+        <div class="g-title">📊 Σήμερα</div>
+        <div class="g-metrics">
+          <div class="gm"><div class="gm-n gold">5</div><div class="gm-l">Νέα<br>Αιτήματα</div></div>
+          <div class="gm"><div class="gm-n blue">2</div><div class="gm-l">Νέα<br>Μηνύματα</div></div>
+          <div class="gm"><div class="gm-n" style="color:#fff">4.9</div><div class="gm-l">⭐ Rating</div></div>
+          <div class="gm"><div class="gm-n" style="color:#fff">124</div><div class="gm-l">Ολοκλ.</div></div>
+        </div>
+        <div class="rev">
+          <div><div class="rev-lbl">Έσοδα Μαΐου</div><div class="rev-sub">στόχος €3.000</div><div class="pbar"><div class="pfill"></div></div></div>
+          <div><div class="rev-val">€1.840</div><div class="rev-pct">62% στόχου</div></div>
+        </div>
+      </div>
+      <div class="avail">
+        <div class="av-l"><span class="av-icon">⚡</span><div><div class="av-title">Διαθέσιμος</div><div class="av-sub">5 ενεργά αιτήματα</div></div></div>
+        <div class="toggle"><div class="toggle-k"></div></div>
+      </div>
+      <div class="tabs">
+        <div class="tab-row">
+          <div class="tab">📋 Αιτήματα <span class="tbadge">5</span></div>
+          <div class="tab">💬 Μηνύματα <span class="tbadge blue">2</span></div>
+          <div class="tab">👤 Mini CV</div>
+          <div class="tab">🖼️ Portfolio</div>
+          <div class="tab">✅ Αποδεκτά <span class="tbadge green">8</span></div>
+          <div class="tab">❌ Απορριφθέντα <span class="tbadge red">2</span></div>
+          <div class="tab active">📅 Bookings <span class="tbadge green">3</span></div>
+        </div>
+      </div>
+      <div class="sdots"><div class="sdot"></div><div class="sdot"></div><div class="sdot"></div><div class="sdot"></div><div class="sdot a"></div></div>
+      <div class="content">
+        <div class="s-label"><span class="s-title">Εκκρεμή Bookings</span><span class="s-count">3 νέα</span></div>
+        <div class="booking-card">
+          <div class="bk-header">
+            <span class="bk-status pending">⏳ Αναμονή</span>
+            <span class="bk-date">Παρ 17 Μαΐου · 10:00</span>
+          </div>
+          <div class="bk-name">Γιώργος Σταματίου</div>
+          <div class="bk-desc">Επισκευή boiler · Γλυφάδα</div>
+          <div class="bk-footer">
+            <span class="bk-price">€95</span>
+            <div class="bk-actions">
+              <button class="bk-btn acc">✓ Αποδοχή</button>
+              <button class="bk-btn rej">✗ Άρνηση</button>
+            </div>
+          </div>
+        </div>
+        <div class="booking-card">
+          <div class="bk-header">
+            <span class="bk-status accepted">✅ Αποδεκτό</span>
+            <span class="bk-date">Σαβ 18 Μαΐου · 09:00</span>
+          </div>
+          <div class="bk-name">Μαρία Παπαδάκη</div>
+          <div class="bk-desc">Αλλαγή βρύσης · Κολωνάκι</div>
+          <div class="bk-footer">
+            <span class="bk-price">€60</span>
+            <div class="bk-actions">
+              <button class="bk-btn chat">💬 Chat</button>
+            </div>
+          </div>
+        </div>
+        <div class="booking-card">
+          <div class="bk-header">
+            <span class="bk-status pending">⏳ Αναμονή</span>
+            <span class="bk-date">Δευ 20 Μαΐου · 11:00</span>
+          </div>
+          <div class="bk-name">Κώστας Νικολάου</div>
+          <div class="bk-desc">Θέρμανση — νέα εγκατάσταση</div>
+          <div class="bk-footer">
+            <span class="bk-price">€380</span>
+            <div class="bk-actions">
+              <button class="bk-btn acc">✓ Αποδοχή</button>
+              <button class="bk-btn rej">✗ Άρνηση</button>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="bnav">
+        <div class="ni a"><span class="ni-icon">🏠</span><span class="ni-lbl">Αρχική</span></div>
+        <div class="ni" style="position:relative"><span class="ni-icon">📋</span><span class="ni-lbl">Αιτήματα</span><span class="nbadge">5</span></div>
+        <div class="ni"><span class="ni-icon">💬</span><span class="ni-lbl">Μηνύματα</span></div>
+        <div class="ni"><span class="ni-icon">👤</span><span class="ni-lbl">Προφίλ</span></div>
+      </div>
+    </div>
+  </div>
+
+</div>
+</body>
+</html>

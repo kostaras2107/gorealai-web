@@ -1,0 +1,512 @@
+<!DOCTYPE html>
+<html lang="el">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>GorealAI — Promo Poster</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=Cinzel:wght@700;900&display=swap');
+
+*{box-sizing:border-box;margin:0;padding:0;}
+
+body{
+  background:#111;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  min-height:100vh;gap:0;padding:0;
+  font-family:'Inter',sans-serif;
+  overflow-x:hidden;
+}
+
+/* ── Mobile scale wrapper ── */
+.scale-wrap{
+  width:100vw;
+  display:flex;
+  align-items:flex-start;
+  justify-content:center;
+}
+.scale-wrap .poster{
+  transform-origin: top center;
+}
+
+/* ══════════════════════════════════════
+   POSTER  (1080 × 1350 — Instagram 4:5)
+══════════════════════════════════════ */
+.poster{
+  width:1080px;
+  height:1350px;
+  position:relative;
+  overflow:hidden;
+  border-radius:0;
+
+  /* Deep dark background */
+  background:#080808;
+}
+
+/* ── Ambient glow layers ── */
+.poster::before{
+  content:'';position:absolute;inset:0;pointer-events:none;
+  background:
+    radial-gradient(ellipse 800px 600px at 50% 15%, rgba(201,160,60,.13) 0%, transparent 70%),
+    radial-gradient(ellipse 600px 400px at 80% 85%, rgba(201,160,60,.08) 0%, transparent 60%),
+    radial-gradient(ellipse 400px 300px at 10% 70%, rgba(201,160,60,.05) 0%, transparent 55%);
+}
+
+/* ── Subtle dot grid ── */
+.poster::after{
+  content:'';position:absolute;inset:0;pointer-events:none;
+  background-image:radial-gradient(circle, rgba(201,160,60,.07) 1px, transparent 1px);
+  background-size:36px 36px;
+  opacity:.6;
+}
+
+/* ── Top accent line ── */
+.top-line{
+  position:absolute;top:0;left:0;right:0;height:4px;
+  background:linear-gradient(90deg, transparent 0%, #c9a03c 30%, #e8c96a 50%, #c9a03c 70%, transparent 100%);
+}
+
+/* ── "BETA" pill top-right ── */
+.beta-pill{
+  position:absolute;top:44px;right:52px;
+  background:rgba(201,160,60,.12);border:1px solid rgba(201,160,60,.35);
+  border-radius:50px;padding:8px 20px;
+  font-size:13px;font-weight:700;letter-spacing:.14em;color:#e8c96a;
+  text-transform:uppercase;
+}
+
+/* ── Flag + label top-left ── */
+.flag-lbl{
+  position:absolute;top:44px;left:52px;
+  display:flex;align-items:center;gap:10px;
+  font-size:13px;font-weight:600;letter-spacing:.1em;color:rgba(255,255,255,.35);
+  text-transform:uppercase;
+}
+.flag-lbl span{font-size:20px;}
+
+/* ══ HERO SECTION ══ */
+.hero{
+  position:absolute;top:110px;left:0;right:0;
+  display:flex;flex-direction:column;align-items:center;gap:0;
+}
+
+/* Big G logo */
+.g-logo{
+  width:180px;height:180px;
+  background:#000;
+  border-radius:40px;
+  display:flex;align-items:center;justify-content:center;
+  border:2px solid rgba(201,160,60,.35);
+  box-shadow:
+    0 0 0 1px rgba(201,160,60,.1),
+    0 0 60px rgba(201,160,60,.35),
+    0 0 120px rgba(201,160,60,.18),
+    0 0 200px rgba(201,160,60,.08),
+    inset 0 1px 0 rgba(255,255,255,.05);
+  position:relative;
+}
+.g-logo svg{width:148px;height:148px;}
+
+/* Glow ring around logo */
+.g-ring{
+  position:absolute;
+  width:230px;height:230px;
+  border-radius:50%;
+  border:1px solid rgba(201,160,60,.12);
+  top:50%;left:50%;transform:translate(-50%,-50%);
+  pointer-events:none;
+}
+.g-ring2{
+  position:absolute;
+  width:290px;height:290px;
+  border-radius:50%;
+  border:1px solid rgba(201,160,60,.06);
+  top:50%;left:50%;transform:translate(-50%,-50%);
+  pointer-events:none;
+}
+
+.brand{
+  margin-top:36px;
+  font-family:'Cinzel',serif;
+  font-size:72px;font-weight:900;letter-spacing:.18em;
+  background:linear-gradient(180deg,#f0d878 0%,#e8c96a 30%,#c9a03c 65%,#9a7020 100%);
+  -webkit-background-clip:text;-webkit-text-fill-color:transparent;
+  line-height:1;
+}
+
+.tagline{
+  margin-top:14px;
+  font-size:18px;font-weight:500;letter-spacing:.28em;
+  color:rgba(201,160,60,.45);text-transform:uppercase;
+}
+
+/* ══ DIVIDER ══ */
+.divider{
+  position:absolute;top:530px;left:80px;right:80px;height:1px;
+  background:linear-gradient(90deg,transparent,rgba(201,160,60,.25),rgba(201,160,60,.5),rgba(201,160,60,.25),transparent);
+}
+
+/* ══ HEADLINE ══ */
+.headline-wrap{
+  position:absolute;top:560px;left:0;right:0;
+  display:flex;flex-direction:column;align-items:center;gap:16px;
+  padding:0 80px;
+  text-align:center;
+}
+.hl1{
+  font-size:54px;font-weight:900;color:#fff;line-height:1.15;
+  letter-spacing:-.01em;
+}
+.hl1 em{
+  font-style:normal;
+  background:linear-gradient(135deg,#e8c96a,#c9a03c);
+  -webkit-background-clip:text;-webkit-text-fill-color:transparent;
+}
+.hl2{
+  font-size:22px;font-weight:400;color:rgba(255,255,255,.45);
+  line-height:1.55;letter-spacing:.01em;
+}
+
+/* ══ PROFESSIONS MARQUEE ══ */
+.prof-section{
+  position:absolute;top:820px;left:0;right:0;
+  display:flex;flex-direction:column;gap:10px;
+  overflow:hidden;
+}
+.marquee-wrap{
+  width:100%;overflow:hidden;
+  -webkit-mask:linear-gradient(90deg,transparent 0%,#000 8%,#000 92%,transparent 100%);
+  mask:linear-gradient(90deg,transparent 0%,#000 8%,#000 92%,transparent 100%);
+}
+.marquee-track{
+  display:inline-flex;gap:10px;white-space:nowrap;
+  animation:marqueeL 22s linear infinite;
+}
+.marquee-track.reverse{
+  animation:marqueeR 26s linear infinite;
+}
+@keyframes marqueeL{
+  from{transform:translateX(0);}
+  to{transform:translateX(-50%);}
+}
+@keyframes marqueeR{
+  from{transform:translateX(-50%);}
+  to{transform:translateX(0);}
+}
+.ptag{
+  display:inline-flex;align-items:center;
+  background:rgba(201,160,60,.07);
+  border:1px solid rgba(201,160,60,.18);
+  border-radius:50px;
+  padding:11px 22px;
+  font-size:15px;font-weight:600;color:rgba(255,255,255,.7);
+  letter-spacing:.02em;white-space:nowrap;
+  flex-shrink:0;
+}
+
+/* ══ STATS ROW ══ */
+.stats{
+  position:absolute;top:990px;left:80px;right:80px;
+  display:flex;gap:0;
+  border:1px solid rgba(201,160,60,.15);
+  border-radius:24px;
+  overflow:hidden;
+  background:rgba(255,255,255,.02);
+}
+.stat{
+  flex:1;
+  padding:28px 20px;
+  display:flex;flex-direction:column;align-items:center;gap:6px;
+  border-right:1px solid rgba(201,160,60,.1);
+}
+.stat:last-child{border-right:none;}
+.sn{font-size:36px;font-weight:900;color:#e8c96a;line-height:1;}
+.sl{font-size:13px;font-weight:500;color:rgba(255,255,255,.35);letter-spacing:.05em;text-align:center;line-height:1.4;}
+
+/* ══ CTA BUTTON ══ */
+.cta-wrap{
+  position:absolute;top:1160px;left:0;right:0;
+  display:flex;flex-direction:column;align-items:center;gap:20px;
+}
+
+.cta-btn{
+  display:flex;align-items:center;gap:16px;
+  background:linear-gradient(135deg,#d4a832 0%,#e8c96a 45%,#c9a03c 100%);
+  border-radius:20px;
+  padding:26px 56px;
+  text-decoration:none;
+  box-shadow:
+    0 0 40px rgba(201,160,60,.35),
+    0 8px 32px rgba(0,0,0,.5),
+    inset 0 1px 0 rgba(255,255,255,.25);
+  cursor:pointer;
+  transition:transform .15s ease, box-shadow .15s ease;
+}
+.cta-btn:hover{
+  transform:translateY(-3px) scale(1.02);
+  box-shadow:0 0 60px rgba(201,160,60,.5), 0 12px 40px rgba(0,0,0,.6), inset 0 1px 0 rgba(255,255,255,.25);
+}
+.cta-btn:active{transform:translateY(0) scale(.99);}
+
+.cta-icon{font-size:30px;}
+.cta-text{display:flex;flex-direction:column;gap:2px;}
+.cta-main{font-size:22px;font-weight:800;color:#000;letter-spacing:.01em;}
+.cta-url{font-size:15px;font-weight:600;color:rgba(0,0,0,.55);letter-spacing:.04em;}
+
+/* ── small "Δωρεάν" note ── */
+.free-note{
+  font-size:14px;font-weight:500;color:rgba(255,255,255,.25);
+  letter-spacing:.06em;text-transform:uppercase;
+}
+
+/* ══ QR + social ══ */
+.bottom-row{
+  position:absolute;bottom:44px;left:80px;right:80px;
+  display:flex;align-items:center;justify-content:space-between;
+}
+.qr-wrap{
+  display:flex;align-items:center;gap:16px;
+}
+.qr-box{
+  background:#fff;padding:8px;border-radius:10px;
+  box-shadow:0 4px 20px rgba(0,0,0,.5);
+}
+.qr-box img{width:72px;height:72px;display:block;}
+.qr-lbl{
+  font-size:12px;color:rgba(255,255,255,.3);line-height:1.6;
+  letter-spacing:.04em;
+}
+.qr-lbl strong{color:rgba(255,255,255,.55);display:block;font-size:13px;margin-bottom:2px;}
+
+.social-wrap{
+  display:flex;flex-direction:column;align-items:flex-end;gap:10px;
+}
+.soc-row{
+  display:flex;align-items:center;gap:8px;
+  font-size:14px;color:rgba(255,255,255,.35);
+}
+.soc-ico{font-size:18px;}
+
+/* ══ PRINT / CONTROLS ══ */
+.controls{
+  display:flex;gap:16px;align-items:center;
+}
+.ctrl-btn{
+  background:rgba(201,160,60,.12);border:1px solid rgba(201,160,60,.3);
+  border-radius:12px;padding:14px 28px;
+  font-family:'Inter',sans-serif;font-size:15px;font-weight:600;color:#e8c96a;
+  cursor:pointer;letter-spacing:.04em;transition:background .2s;
+}
+.ctrl-btn:hover{background:rgba(201,160,60,.2);}
+.note{font-size:13px;color:#333;letter-spacing:.05em;}
+
+@media print{
+  body{background:#fff;padding:0;gap:0;min-height:auto;justify-content:flex-start;}
+  .controls,.note{display:none;}
+  .poster{border-radius:0;}
+}
+</style>
+</head>
+<body>
+
+<!-- ═══════════════ POSTER ═══════════════ -->
+<div class="scale-wrap" id="scaleWrap">
+<div class="poster" id="poster">
+
+  <div class="top-line"></div>
+
+  <div class="flag-lbl"><span>🇬🇷</span> Made in Greece</div>
+
+  <!-- HERO -->
+  <div class="hero">
+    <div style="position:relative;display:inline-flex;">
+      <div class="g-ring"></div>
+      <div class="g-ring2"></div>
+      <div class="g-logo">
+        <svg viewBox="0 0 120 120" xmlns="http://www.w3.org/2000/svg">
+          <defs>
+            <linearGradient id="gl" x1="0%" y1="0%" x2="0%" y2="100%">
+              <stop offset="0%"   stop-color="#f0d878"/>
+              <stop offset="40%"  stop-color="#e8c96a"/>
+              <stop offset="75%"  stop-color="#c9a03c"/>
+              <stop offset="100%" stop-color="#9a7020"/>
+            </linearGradient>
+          </defs>
+          <text x="62" y="93" font-family="Arial Black,Impact,sans-serif"
+                font-size="96" font-weight="900" fill="url(#gl)" text-anchor="middle">G</text>
+        </svg>
+      </div>
+    </div>
+    <div class="brand">GOREALAI</div>
+    <div class="tagline">Real Pros &nbsp;·&nbsp; AI Speed</div>
+  </div>
+
+  <div class="divider"></div>
+
+  <!-- HEADLINE -->
+  <div class="headline-wrap">
+    <div class="hl1">Βρες τον <em>κατάλληλο</em><br>επαγγελματία<br>κοντά σου</div>
+    <div class="hl2">Δεκάδες ειδικότητες σε μία πλατφόρμα —<br>στείλε αίτημα και λάβε προσφορές σε λίγα λεπτά.</div>
+  </div>
+
+  <!-- PROFESSIONS MARQUEE -->
+  <div class="prof-section">
+    <!-- Row 1: Τεχνικά + Σπίτι -->
+    <div class="marquee-wrap">
+      <div class="marquee-track">
+        <span class="ptag">🔧 Υδραυλικά</span>
+        <span class="ptag">⚡ Ηλεκτρολόγοι</span>
+        <span class="ptag">❄️ Κλιματισμός</span>
+        <span class="ptag">🏗️ Ανακαινίσεις</span>
+        <span class="ptag">🎨 Βαφή & Διακόσμηση</span>
+        <span class="ptag">🔨 Ξυλουργικά</span>
+        <span class="ptag">🪟 Κουφώματα & Τζάμια</span>
+        <span class="ptag">🔒 Κλειδαριές</span>
+        <span class="ptag">🌿 Κήπος</span>
+        <span class="ptag">🧹 Καθαρισμός</span>
+        <span class="ptag">📦 Μετακομίσεις</span>
+        <span class="ptag">🏠 Μονώσεις & Τέντες</span>
+        <!-- repeat -->
+        <span class="ptag">🔧 Υδραυλικά</span>
+        <span class="ptag">⚡ Ηλεκτρολόγοι</span>
+        <span class="ptag">❄️ Κλιματισμός</span>
+        <span class="ptag">🏗️ Ανακαινίσεις</span>
+        <span class="ptag">🎨 Βαφή & Διακόσμηση</span>
+        <span class="ptag">🔨 Ξυλουργικά</span>
+        <span class="ptag">🪟 Κουφώματα & Τζάμια</span>
+        <span class="ptag">🔒 Κλειδαριές</span>
+        <span class="ptag">🌿 Κήπος</span>
+        <span class="ptag">🧹 Καθαρισμός</span>
+        <span class="ptag">📦 Μετακομίσεις</span>
+        <span class="ptag">🏠 Μονώσεις & Τέντες</span>
+      </div>
+    </div>
+    <!-- Row 2: Υγεία + Εκπαίδευση + Φροντίδα (reverse) -->
+    <div class="marquee-wrap">
+      <div class="marquee-track reverse">
+        <span class="ptag">🏥 Παθολόγος</span>
+        <span class="ptag">🦷 Οδοντίατρος</span>
+        <span class="ptag">💪 Φυσιοθεραπεία</span>
+        <span class="ptag">🧠 Ψυχολόγος</span>
+        <span class="ptag">🥗 Διατροφολόγος</span>
+        <span class="ptag">👶 Baby Sitter</span>
+        <span class="ptag">📐 Μαθηματικά</span>
+        <span class="ptag">🌍 Ξένες Γλώσσες</span>
+        <span class="ptag">✏️ Φιλολογία</span>
+        <span class="ptag">🏋️ Personal Trainer</span>
+        <span class="ptag">🚗 Αυτοκίνητο</span>
+        <span class="ptag">🛗 Ανελκυστήρες</span>
+        <!-- repeat -->
+        <span class="ptag">🏥 Παθολόγος</span>
+        <span class="ptag">🦷 Οδοντίατρος</span>
+        <span class="ptag">💪 Φυσιοθεραπεία</span>
+        <span class="ptag">🧠 Ψυχολόγος</span>
+        <span class="ptag">🥗 Διατροφολόγος</span>
+        <span class="ptag">👶 Baby Sitter</span>
+        <span class="ptag">📐 Μαθηματικά</span>
+        <span class="ptag">🌍 Ξένες Γλώσσες</span>
+        <span class="ptag">✏️ Φιλολογία</span>
+        <span class="ptag">🏋️ Personal Trainer</span>
+        <span class="ptag">🚗 Αυτοκίνητο</span>
+        <span class="ptag">🛗 Ανελκυστήρες</span>
+      </div>
+    </div>
+    <!-- Row 3: Ψηφιακά + Εκδηλώσεις + Ομορφιά + Νομικά -->
+    <div class="marquee-wrap">
+      <div class="marquee-track">
+        <span class="ptag">💻 Web & Software</span>
+        <span class="ptag">🖥️ Τεχνικός Υπολογιστών</span>
+        <span class="ptag">🎨 Γραφιστική</span>
+        <span class="ptag">📸 Φωτογραφία & Βίντεο</span>
+        <span class="ptag">🎉 Βαφτίσεις & Γάμοι</span>
+        <span class="ptag">💅 Νύχια & Αισθητική</span>
+        <span class="ptag">🖋️ Tattoo & Piercing</span>
+        <span class="ptag">⚖️ Νομικές Υπηρεσίες</span>
+        <span class="ptag">📊 Λογιστές</span>
+        <span class="ptag">🏛️ Αρχιτέκτονες</span>
+        <span class="ptag">⚒️ Σιδηρουργεία</span>
+        <span class="ptag">👶 Παιδίατρος</span>
+        <!-- repeat -->
+        <span class="ptag">💻 Web & Software</span>
+        <span class="ptag">🖥️ Τεχνικός Υπολογιστών</span>
+        <span class="ptag">🎨 Γραφιστική</span>
+        <span class="ptag">📸 Φωτογραφία & Βίντεο</span>
+        <span class="ptag">🎉 Βαφτίσεις & Γάμοι</span>
+        <span class="ptag">💅 Νύχια & Αισθητική</span>
+        <span class="ptag">🖋️ Tattoo & Piercing</span>
+        <span class="ptag">⚖️ Νομικές Υπηρεσίες</span>
+        <span class="ptag">📊 Λογιστές</span>
+        <span class="ptag">🏛️ Αρχιτέκτονες</span>
+        <span class="ptag">⚒️ Σιδηρουργεία</span>
+        <span class="ptag">👶 Παιδίατρος</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- STATS -->
+  <div class="stats">
+    <div class="stat">
+      <div class="sn">100%</div>
+      <div class="sl">Ελληνική<br>πλατφόρμα</div>
+    </div>
+    <div class="stat">
+      <div class="sn">Δωρεάν</div>
+      <div class="sl">Εγγραφή &<br>χρήση</div>
+    </div>
+    <div class="stat">
+      <div class="sn">AI</div>
+      <div class="sl">Έξυπνη<br>αντιστοίχηση</div>
+    </div>
+    <div class="stat">
+      <div class="sn">24/7</div>
+      <div class="sl">Αιτήματα<br>ανά πάσα ώρα</div>
+    </div>
+  </div>
+
+  <!-- CTA -->
+  <div class="cta-wrap">
+    <a class="cta-btn" href="https://gorealai.web.app/app/" target="_blank">
+      <span class="cta-icon">📱</span>
+      <div class="cta-text">
+        <span class="cta-main">Μπες στην εφαρμογή τώρα</span>
+        <span class="cta-url">gorealai.web.app/app</span>
+      </div>
+    </a>
+    <div class="free-note">✦ &nbsp; Δωρεάν εγγραφή — χωρίς κάρτα &nbsp; ✦</div>
+  </div>
+
+  <!-- BOTTOM ROW -->
+  <div class="bottom-row">
+    <div class="qr-wrap">
+      <div class="qr-box">
+        <img src="https://api.qrserver.com/v1/create-qr-code/?size=72x72&data=https://gorealai.web.app/app/&color=1a1000&bgcolor=ffffff&margin=0" alt="QR">
+      </div>
+      <div class="qr-lbl">
+        <strong>Σκάναρε & Μπες</strong>
+        Ή πάτα το κουμπί παραπάνω
+      </div>
+    </div>
+    <div class="social-wrap">
+      <div class="soc-row"><span class="soc-ico">📲</span> @gorealai7</div>
+      <div class="soc-row"><span class="soc-ico">✉️</span> info@gorealai.gr</div>
+    </div>
+  </div>
+
+</div><!-- /poster -->
+</div><!-- /scale-wrap -->
+
+<script>
+// ── Auto-scale poster to fit screen ──
+function scalePoster(){
+  const poster = document.getElementById('poster');
+  const vw = window.innerWidth;
+  const scale = Math.min(1, vw / 1080);
+  poster.style.transform = `scale(${scale})`;
+  // adjust wrap height so no gap
+  document.getElementById('scaleWrap').style.height = (1350 * scale) + 'px';
+}
+scalePoster();
+window.addEventListener('resize', scalePoster);
+</script>
+
+</body>
+</html>

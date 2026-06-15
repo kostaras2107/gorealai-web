@@ -1,55 +1,114 @@
 <!DOCTYPE html>
 <html lang="el">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Privacy Policy – GorealAI</title>
-
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0"/>
+  <title>Πολιτική Απορρήτου — GorealAI</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com"/>
+  <link href="https://fonts.googleapis.com/css2?family=Raleway:wght@400;600;700;800&display=swap" rel="stylesheet"/>
   <style>
-    body {
-      font-family: Arial, sans-serif;
-      background: #0b0b0f;
-      color: #ffffff;
-      padding: 40px;
-      max-width: 800px;
-      margin: auto;
-      line-height: 1.6;
-    }
-
-    h1 {
-      color: #7c5cff;
-    }
-
-    a {
-      color: #7c5cff;
-    }
+    :root{--bg:#080600;--gold:#C9A84C;--gold-light:#FFD47A;--text:rgba(255,255,255,0.85);--muted:rgba(255,255,255,0.45);}
+    *{margin:0;padding:0;box-sizing:border-box;}
+    body{background:var(--bg);color:var(--text);font-family:'Raleway',sans-serif;line-height:1.75;}
+    nav{position:sticky;top:0;background:rgba(8,6,0,0.95);backdrop-filter:blur(12px);border-bottom:1px solid rgba(201,168,76,0.15);padding:14px 24px;display:flex;align-items:center;justify-content:space-between;z-index:100;}
+    .logo{font-size:17px;font-weight:800;letter-spacing:3px;background:linear-gradient(135deg,var(--gold-light),var(--gold));-webkit-background-clip:text;-webkit-text-fill-color:transparent;}
+    .back{color:var(--gold);text-decoration:none;font-size:13px;font-weight:600;border:1px solid rgba(201,168,76,0.3);padding:6px 14px;border-radius:8px;transition:.2s;}
+    .back:hover{background:rgba(201,168,76,0.1);}
+    .container{max-width:760px;margin:0 auto;padding:48px 24px 80px;}
+    h1{font-size:clamp(26px,5vw,38px);font-weight:800;color:#fff;margin-bottom:8px;}
+    .date{color:var(--muted);font-size:12px;margin-bottom:48px;border-left:3px solid var(--gold);padding-left:10px;}
+    h2{font-size:17px;font-weight:700;color:var(--gold);margin:40px 0 12px;display:flex;align-items:center;gap:8px;}
+    p{color:var(--text);font-size:14px;margin-bottom:12px;}
+    ul{padding-left:20px;margin-bottom:12px;}
+    li{font-size:14px;color:var(--text);margin-bottom:8px;}
+    a{color:var(--gold);text-decoration:none;}
+    a:hover{text-decoration:underline;}
+    .divider{height:1px;background:linear-gradient(90deg,rgba(201,168,76,0.2),transparent);margin:8px 0;}
+    .highlight{background:rgba(201,168,76,0.07);border:1px solid rgba(201,168,76,0.15);border-radius:12px;padding:16px 20px;margin-top:12px;}
   </style>
 </head>
 <body>
+<nav>
+  <span class="logo">GOREALAI</span>
+  <a href="/" class="back">← Αρχική</a>
+</nav>
+<div class="container">
+  <h1>Πολιτική Απορρήτου</h1>
+  <p class="date">Τελευταία ενημέρωση: Μάιος 2026</p>
 
-<h1>Privacy Policy – GorealAI</h1>
+  <p>Η <strong>GorealAI</strong> σέβεται πλήρως την ιδιωτικότητά σας. Αυτή η Πολιτική Απορρήτου εξηγεί ποια δεδομένα συλλέγουμε, γιατί, και πώς τα προστατεύουμε, όταν χρησιμοποιείτε την εφαρμογή GorealAI και τον ιστότοπο <a href="https://gorealai.web.app">gorealai.web.app</a>.</p>
 
-<p>
-Η εφαρμογή <strong>GorealAI</strong> δεν συλλέγει προσωπικά δεδομένα χωρίς τη συγκατάθεσή σας.
-</p>
+  <h2>1. Δεδομένα που συλλέγουμε</h2>
+  <ul>
+    <li><strong>Στοιχεία λογαριασμού:</strong> email, όνομα, αριθμός τηλεφώνου κατά την εγγραφή.</li>
+    <li><strong>Δεδομένα αιτημάτων:</strong> περιγραφή εργασίας, φωτογραφίες που ανεβάζετε.</li>
+    <li><strong>Τοποθεσία:</strong> χρησιμοποιούμε την τοποθεσία της συσκευής σας (GPS) αποκλειστικά για να εμφανίζουμε επαγγελματίες κοντά σας. Δεν αποθηκεύουμε μόνιμα την τοποθεσία σας και δεν την κοινοποιούμε σε τρίτους.</li>
+    <li><strong>Δεδομένα επαγγελματιών:</strong> ειδικότητα, portfolio, βιογραφικό, φωτογραφία προφίλ.</li>
+    <li><strong>Μηνύματα chat:</strong> αποθηκεύονται κρυπτογραφημένα στο Google Cloud Firestore (EU servers).</li>
+    <li><strong>FCM token:</strong> αναγνωριστικό συσκευής για αποστολή push ειδοποιήσεων.</li>
+    <li><strong>Αναλυτικά χρήσης:</strong> ανώνυμα δεδομένα πλοήγησης μέσω Firebase Analytics.</li>
+    <li><strong>Crash reports:</strong> αυτόματα αναφορές σφαλμάτων μέσω Firebase Crashlytics.</li>
+  </ul>
 
-<p>
-Ενδέχεται να χρησιμοποιηθούν ανώνυμα δεδομένα χρήσης για:
-</p>
+  <div class="divider"></div>
 
-<ul>
-  <li>βελτίωση της εμπειρίας χρήστη</li>
-  <li>στατιστική ανάλυση</li>
-  <li>affiliate συνδέσμους προς τρίτες υπηρεσίες</li>
-</ul>
+  <h2>2. Πώς χρησιμοποιούμε τα δεδομένα</h2>
+  <ul>
+    <li>Σύνδεση χρηστών με κατάλληλους επαγγελματίες μέσω AI αντιστοίχισης.</li>
+    <li>Αποστολή ειδοποιήσεων για νέες προσφορές, αποδοχή/απόρριψη κρατήσεων.</li>
+    <li>Βελτίωση της εφαρμογής βάσει ανώνυμης συμπεριφοράς χρηστών.</li>
+    <li>Αντιμετώπιση τεχνικών σφαλμάτων και εξασφάλιση ασφάλειας.</li>
+  </ul>
 
-<p>
-Η χρήση της εφαρμογής συνεπάγεται αποδοχή της παρούσας πολιτικής απορρήτου.
-</p>
+  <div class="divider"></div>
 
-<p>
-Επικοινωνία: <a href="mailto:info@gorealai.com">info@gorealai.com</a>
-</p>
+  <h2>3. Κοινοποίηση δεδομένων σε τρίτους</h2>
+  <p>Δεν πουλάμε ποτέ τα δεδομένα σας. Κοινοποιούμε μόνο:</p>
+  <ul>
+    <li><strong>Επαγγελματίες:</strong> το όνομα και τηλέφωνό σας όταν επιλέξετε επαγγελματία.</li>
+    <li><strong>Google Firebase:</strong> αποθήκευση δεδομένων, αυθεντικοποίηση, push notifications.</li>
+    <li><strong>Stripe:</strong> επεξεργασία πληρωμών — δεν αποθηκεύουμε στοιχεία κάρτας.</li>
+    <li><strong>Render.com:</strong> φιλοξενία backend AI υπηρεσιών.</li>
+  </ul>
 
+  <div class="divider"></div>
+
+  <h2>4. Ασφάλεια δεδομένων</h2>
+  <div class="highlight">
+    <p>Τα δεδομένα αποθηκεύονται στο <strong>Google Cloud Firestore</strong> (EU region) με κανόνες πρόσβασης (Security Rules) που εξασφαλίζουν ότι ο καθένας βλέπει μόνο τα δικά του δεδομένα. Οι πληρωμές γίνονται αποκλειστικά μέσω <strong>Stripe PCI-DSS Level 1</strong>.</p>
+  </div>
+
+  <div class="divider"></div>
+
+  <h2>5. Τα δικαιώματά σας (GDPR)</h2>
+  <ul>
+    <li><strong>Πρόσβαση:</strong> βλέπετε όλα τα δεδομένα σας μέσα από την εφαρμογή.</li>
+    <li><strong>Διόρθωση:</strong> επεξεργασία στοιχείων από τις Ρυθμίσεις Προφίλ.</li>
+    <li><strong>Διαγραφή:</strong> μπορείτε να διαγράψετε πλήρως τον λογαριασμό σας απευθείας από το <strong>Προφίλ → Διαγραφή λογαριασμού</strong> μέσα στην εφαρμογή. Εναλλακτικά, στείλτε email στο <a href="mailto:info@gorealai.gr">info@gorealai.gr</a>.</li>
+    <li><strong>Φορητότητα:</strong> ζητήστε εξαγωγή των δεδομένων σας σε JSON μορφή.</li>
+  </ul>
+
+  <div class="divider"></div>
+
+  <h2>6. Cookies</h2>
+  <p>Χρησιμοποιούμε μόνο απαραίτητα session cookies για την αυθεντικοποίηση μέσω Firebase Auth. Δεν χρησιμοποιούμε cookies διαφημίσεων ή tracking τρίτων.</p>
+
+  <div class="divider"></div>
+
+  <h2>7. Παιδιά κάτω των 16</h2>
+  <p>Η υπηρεσία δεν απευθύνεται σε ανήλικους κάτω των 16 ετών. Δεν συλλέγουμε εν γνώσει μας δεδομένα ανηλίκων.</p>
+
+  <div class="divider"></div>
+
+  <h2>8. Αλλαγές Πολιτικής</h2>
+  <p>Σε περίπτωση ουσιαστικών αλλαγών, θα σας ενημερώνουμε μέσω email ή in-app ειδοποίησης τουλάχιστον 7 ημέρες πριν την εφαρμογή τους.</p>
+
+  <div class="divider"></div>
+
+  <h2>9. Επικοινωνία</h2>
+  <p>Για οποιαδήποτε ερώτηση σχετικά με τα δεδομένα σας ή για άσκηση των δικαιωμάτων σας (GDPR):<br/>
+  📧 <a href="mailto:info@gorealai.gr">info@gorealai.gr</a><br/>
+  🌐 <a href="https://gorealai.web.app">gorealai.web.app</a></p>
+</div>
 </body>
 </html>

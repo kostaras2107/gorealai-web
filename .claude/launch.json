@@ -1,0 +1,23 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "mockups",
+      "runtimeExecutable": "node",
+      "runtimeArgs": ["mockups/serve.js"],
+      "port": 5500
+    },
+    {
+      "name": "gorealai-app",
+      "runtimeExecutable": "npx",
+      "runtimeArgs": ["serve", "-s", "landing", "-l", "5501"],
+      "port": 5501
+    },
+    {
+      "name": "business-cards",
+      "runtimeExecutable": "npx",
+      "runtimeArgs": ["serve", "landing", "-l", "5502"],
+      "port": 5502
+    }
+  ]
+}

@@ -1,0 +1,359 @@
+<!DOCTYPE html>
+<html lang="el">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=390, initial-scale=1.0">
+<title>Pro Home – Design 1: Dashboard</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    background: #060D1E;
+    font-family: -apple-system, 'Segoe UI', sans-serif;
+    color: #fff;
+    width: 390px;
+    min-height: 844px;
+    position: relative;
+    overflow-x: hidden;
+  }
+  .screen { width: 390px; min-height: 844px; display: flex; flex-direction: column; }
+
+  /* ── TOP BAR ── */
+  .topbar {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 52px 20px 14px;
+  }
+  .topbar-logo {
+    font-size: 11px; letter-spacing: 5px; font-weight: 800;
+    background: linear-gradient(90deg, #FFD47A, #FFB340);
+    -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+  }
+  .topbar-right { display: flex; align-items: center; gap: 10px; }
+  .online-dot {
+    display: flex; align-items: center; gap: 5px;
+    background: rgba(0,212,170,0.12); padding: 5px 10px;
+    border-radius: 10px; font-size: 9px; color: #00D4AA; font-weight: 700;
+  }
+  .online-dot span { width: 6px; height: 6px; border-radius: 50%; background: #00D4AA; display: block; }
+  .notif-btn {
+    width: 34px; height: 34px; border-radius: 50%;
+    background: rgba(255,179,64,0.06); border: 1px solid rgba(255,179,64,0.2);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 16px; position: relative; cursor: pointer;
+  }
+  .notif-badge {
+    position: absolute; top: -3px; right: -3px;
+    width: 16px; height: 16px; background: #ef4444; border-radius: 50%;
+    font-size: 8px; font-weight: 700; display: flex; align-items: center; justify-content: center;
+  }
+
+  /* ── PROFILE HERO ── */
+  .hero {
+    margin: 0 16px 16px;
+    background: linear-gradient(135deg, rgba(255,179,64,0.14) 0%, rgba(255,179,64,0.03) 100%);
+    border: 1.5px solid rgba(255,179,64,0.3);
+    border-radius: 24px;
+    padding: 20px;
+    position: relative;
+    overflow: hidden;
+  }
+  .hero::before {
+    content: '';
+    position: absolute; top: -40px; right: -40px;
+    width: 120px; height: 120px;
+    border-radius: 50%;
+    background: radial-gradient(circle, rgba(255,179,64,0.15), transparent 70%);
+  }
+  .hero-top { display: flex; align-items: center; gap: 14px; }
+  .avatar-wrap { position: relative; flex-shrink: 0; }
+  .avatar {
+    width: 64px; height: 64px; border-radius: 50%;
+    background: linear-gradient(135deg, #FFD47A, #FFB340);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 26px; font-weight: 800; color: #000;
+    border: 2.5px solid rgba(255,179,64,0.6);
+  }
+  .avatar-online {
+    position: absolute; bottom: 2px; right: 2px;
+    width: 14px; height: 14px; border-radius: 50%;
+    background: #00D4AA; border: 2px solid #060D1E;
+  }
+  .hero-info { flex: 1; }
+  .hero-name { font-size: 18px; font-weight: 800; margin-bottom: 3px; }
+  .hero-specialty {
+    font-size: 12px; color: rgba(255,179,64,0.8);
+    background: rgba(255,179,64,0.1); display: inline-block;
+    padding: 3px 10px; border-radius: 8px; font-weight: 600;
+  }
+  .hero-rating { display: flex; align-items: center; gap: 5px; margin-top: 6px; }
+  .stars { color: #FFB340; font-size: 12px; letter-spacing: 1px; }
+  .rating-val { font-size: 12px; color: rgba(255,255,255,0.5); }
+
+  /* ── STATS ROW ── */
+  .stats { display: flex; gap: 10px; margin-top: 16px; }
+  .stat-card {
+    flex: 1; background: rgba(255,255,255,0.04); border-radius: 14px;
+    padding: 12px 10px; text-align: center;
+    border: 1px solid rgba(255,255,255,0.06);
+  }
+  .stat-num { font-size: 22px; font-weight: 900; line-height: 1; }
+  .stat-num.gold { background: linear-gradient(90deg, #FFD47A, #FFB340); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+  .stat-num.green { color: #00D4AA; }
+  .stat-label { font-size: 9px; color: rgba(255,255,255,0.35); margin-top: 4px; font-weight: 600; letter-spacing: 0.5px; }
+
+  /* ── QUICK ACTIONS ── */
+  .actions { display: flex; gap: 10px; margin: 0 16px 16px; }
+  .action-btn {
+    flex: 1; border-radius: 16px; padding: 14px 10px;
+    display: flex; flex-direction: column; align-items: center; gap: 6px;
+    border: none; cursor: pointer; font-family: inherit;
+  }
+  .action-btn.primary {
+    background: linear-gradient(135deg, #FFD47A, #FFB340);
+    box-shadow: 0 4px 20px rgba(255,179,64,0.35);
+  }
+  .action-btn.secondary { background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.08); }
+  .action-icon { font-size: 22px; }
+  .action-label { font-size: 11px; font-weight: 700; }
+  .action-btn.primary .action-label { color: #000; }
+  .action-btn.secondary .action-label { color: rgba(255,255,255,0.6); }
+
+  /* ── TABS ── */
+  .tabs { display: flex; margin: 0 16px 12px; gap: 6px; background: rgba(255,255,255,0.03); border-radius: 14px; padding: 4px; }
+  .tab {
+    flex: 1; text-align: center; padding: 9px 6px;
+    border-radius: 10px; font-size: 11px; font-weight: 700; cursor: pointer;
+    transition: all .2s; color: rgba(255,255,255,0.35);
+    position: relative;
+  }
+  .tab.active {
+    background: linear-gradient(135deg, #FFD47A, #FFB340);
+    color: #000; box-shadow: 0 2px 12px rgba(255,179,64,0.3);
+  }
+  .tab .badge {
+    position: absolute; top: 4px; right: 4px;
+    width: 16px; height: 16px; background: #ef4444; border-radius: 50%;
+    font-size: 8px; display: flex; align-items: center; justify-content: center;
+    font-weight: 700; color: #fff;
+  }
+
+  /* ── REQUEST CARDS ── */
+  .content { flex: 1; padding: 0 16px; overflow-y: auto; }
+  .section-label {
+    font-size: 11px; font-weight: 700; color: rgba(255,255,255,0.3);
+    letter-spacing: 1px; text-transform: uppercase; margin-bottom: 10px;
+    display: flex; align-items: center; justify-content: space-between;
+  }
+  .urgent-badge { font-size: 9px; color: #ef4444; background: rgba(239,68,68,0.1); padding: 3px 8px; border-radius: 6px; }
+
+  .req-card {
+    background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.07);
+    border-radius: 18px; padding: 16px; margin-bottom: 10px;
+    position: relative; overflow: hidden; cursor: pointer;
+    transition: border-color .2s;
+  }
+  .req-card.new { border-color: rgba(255,179,64,0.35); }
+  .req-card.new::before {
+    content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: 3px;
+    background: linear-gradient(180deg, #FFD47A, #FFB340); border-radius: 3px 0 0 3px;
+  }
+  .req-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 8px; }
+  .req-type {
+    font-size: 9px; font-weight: 800; letter-spacing: 1px;
+    padding: 4px 9px; border-radius: 7px;
+  }
+  .req-type.new { background: rgba(255,179,64,0.15); color: #FFB340; }
+  .req-type.event { background: rgba(124,58,237,0.15); color: #a78bfa; }
+  .req-time { font-size: 10px; color: rgba(255,255,255,0.3); }
+  .req-desc {
+    font-size: 13px; color: rgba(255,255,255,0.85); margin: 10px 0 6px;
+    line-height: 1.45; font-style: italic;
+  }
+  .req-meta { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+  .req-tag {
+    font-size: 10px; color: rgba(255,255,255,0.45);
+    background: rgba(255,255,255,0.04); padding: 3px 8px; border-radius: 6px;
+  }
+  .req-budget {
+    font-size: 12px; font-weight: 800; color: #00D4AA; margin-left: auto;
+  }
+  .req-cta {
+    margin-top: 12px; width: 100%; padding: 10px;
+    background: linear-gradient(90deg, #FFD47A, #FFB340);
+    border: none; border-radius: 12px; font-size: 12px; font-weight: 800;
+    color: #000; cursor: pointer; font-family: inherit;
+  }
+
+  /* ── BOTTOM NAV ── */
+  .bottom-nav {
+    margin: 8px 16px 20px;
+    background: linear-gradient(180deg, #252525, #161616);
+    border-radius: 28px; padding: 10px 8px;
+    display: flex; justify-content: space-around; align-items: center;
+    border-top: 1px solid rgba(255,255,255,0.08);
+    box-shadow: 0 10px 30px rgba(0,0,0,0.6);
+  }
+  .nav-item {
+    display: flex; flex-direction: column; align-items: center; gap: 3px;
+    cursor: pointer; padding: 4px 12px; border-radius: 14px;
+    position: relative;
+  }
+  .nav-item.active { background: rgba(255,179,64,0.1); }
+  .nav-icon { font-size: 20px; }
+  .nav-label { font-size: 9px; font-weight: 700; }
+  .nav-item.active .nav-label { color: #FFB340; }
+  .nav-item:not(.active) .nav-label { color: rgba(255,255,255,0.25); }
+  .nav-badge {
+    position: absolute; top: 0; right: 6px;
+    width: 16px; height: 16px; background: #ef4444; border-radius: 50%;
+    font-size: 8px; font-weight: 700; display: flex; align-items: center; justify-content: center;
+  }
+</style>
+</head>
+<body>
+<div class="screen">
+
+  <!-- TOP BAR -->
+  <div class="topbar">
+    <div class="topbar-logo">GOREALAI</div>
+    <div class="topbar-right">
+      <div class="online-dot"><span></span>ONLINE</div>
+      <div class="notif-btn">🔔<span class="notif-badge">3</span></div>
+    </div>
+  </div>
+
+  <!-- HERO -->
+  <div class="hero">
+    <div class="hero-top">
+      <div class="avatar-wrap">
+        <div class="avatar">Ν</div>
+        <div class="avatar-online"></div>
+      </div>
+      <div class="hero-info">
+        <div class="hero-name">Νίκος Παπαδόπουλος</div>
+        <div class="hero-specialty">🔧 Υδραυλικός</div>
+        <div class="hero-rating">
+          <span class="stars">★★★★★</span>
+          <span class="rating-val">4.9 · 47 αξιολογήσεις</span>
+        </div>
+      </div>
+    </div>
+    <div class="stats">
+      <div class="stat-card">
+        <div class="stat-num gold">5</div>
+        <div class="stat-label">Νέα Αιτήματα</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-num" style="color:#fff">124</div>
+        <div class="stat-label">Ολοκληρωμένα</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-num green">€1.840</div>
+        <div class="stat-label">Αυτόν τον μήνα</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- QUICK ACTIONS -->
+  <div class="actions">
+    <button class="action-btn primary">
+      <span class="action-icon">📋</span>
+      <span class="action-label">Νέα Αιτήματα</span>
+    </button>
+    <button class="action-btn secondary">
+      <span class="action-icon">💬</span>
+      <span class="action-label">Μηνύματα</span>
+    </button>
+    <button class="action-btn secondary">
+      <span class="action-icon">👤</span>
+      <span class="action-label">Προφίλ μου</span>
+    </button>
+    <button class="action-btn secondary">
+      <span class="action-icon">📊</span>
+      <span class="action-label">Στατιστικά</span>
+    </button>
+  </div>
+
+  <!-- TABS -->
+  <div class="tabs">
+    <div class="tab active">📋 Αιτήματα<span class="badge">5</span></div>
+    <div class="tab">💬 Μηνύματα<span class="badge" style="background:#3b82f6">2</span></div>
+    <div class="tab">👤 Προφίλ</div>
+  </div>
+
+  <!-- CONTENT -->
+  <div class="content">
+    <div class="section-label">
+      ΕΝΕΡΓΑ ΑΙΤΗΜΑΤΑ
+      <span class="urgent-badge">2 επείγοντα</span>
+    </div>
+
+    <!-- Card 1 -->
+    <div class="req-card new">
+      <div class="req-header">
+        <span class="req-type new">🆕 ΝΕΟ</span>
+        <span class="req-time">πριν 3 λεπτά</span>
+      </div>
+      <div class="req-desc">"Βλάβη στον καλοριφέρ, χρειάζεται άμεση επισκευή"</div>
+      <div class="req-meta">
+        <span class="req-tag">📍 Κολωνάκι</span>
+        <span class="req-tag">⚡ Επείγον</span>
+        <span class="req-budget">~€80–120</span>
+      </div>
+      <button class="req-cta">Κάνε Προσφορά →</button>
+    </div>
+
+    <!-- Card 2 -->
+    <div class="req-card new">
+      <div class="req-header">
+        <span class="req-type new">🆕 ΝΕΟ</span>
+        <span class="req-time">πριν 11 λεπτά</span>
+      </div>
+      <div class="req-desc">"Αλλαγή βρύσης κουζίνας και σιφόν μπάνιου"</div>
+      <div class="req-meta">
+        <span class="req-tag">📍 Χαλάνδρι</span>
+        <span class="req-tag">🕐 Αύριο</span>
+        <span class="req-budget">~€50–80</span>
+      </div>
+      <button class="req-cta">Κάνε Προσφορά →</button>
+    </div>
+
+    <!-- Card 3 -->
+    <div class="req-card">
+      <div class="req-header">
+        <span class="req-type event">🎉 EVENT</span>
+        <span class="req-time">πριν 28 λεπτά</span>
+      </div>
+      <div class="req-desc">"Γαμήλια δεξίωση – εγκατάσταση συστήματος νερού"</div>
+      <div class="req-meta">
+        <span class="req-tag">📍 Γλυφάδα</span>
+        <span class="req-tag">📅 15 Ιουν</span>
+        <span class="req-budget">~€300+</span>
+      </div>
+      <button class="req-cta">Κάνε Προσφορά →</button>
+    </div>
+  </div>
+
+  <!-- BOTTOM NAV -->
+  <div class="bottom-nav">
+    <div class="nav-item active">
+      <span class="nav-icon">🏠</span>
+      <span class="nav-label">Αρχική</span>
+    </div>
+    <div class="nav-item" style="position:relative">
+      <span class="nav-icon">📋</span>
+      <span class="nav-label">Αιτήματα</span>
+      <span class="nav-badge">5</span>
+    </div>
+    <div class="nav-item">
+      <span class="nav-icon">💬</span>
+      <span class="nav-label">Μηνύματα</span>
+    </div>
+    <div class="nav-item">
+      <span class="nav-icon">👤</span>
+      <span class="nav-label">Προφίλ</span>
+    </div>
+  </div>
+
+</div>
+</body>
+</html>
