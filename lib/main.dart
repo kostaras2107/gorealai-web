@@ -1590,7 +1590,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
             activeRequestId: _activeRequests.isNotEmpty ? _activeRequests.first['id'] as String? : null,
             unreadMessages: 0,
             onHome: () => setState(() => _navIndex = 0),
-            onFab: _activeRequests.isEmpty ? _openEventOrganizer : _openMyOffers,
+            onFab: _openEventOrganizer,
             onMessages: () {
               setState(() => _navIndex = 4);
               Navigator.push(
@@ -1687,11 +1687,20 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
         // ΠΩΣ ΛΕΙΤΟΥΡΓΕΙ
         Padding(
           padding: const EdgeInsets.fromLTRB(20, 0, 20, 12),
-          child: Text('Πώς λειτουργεί;',
-              style: TextStyle(
-                  color: _g(0.8),
-                  fontSize: 16,
-                  fontWeight: FontWeight.w700)),
+          child: Row(children: [
+            Container(width: 3, height: 20,
+                decoration: BoxDecoration(
+                    color: kGold,
+                    borderRadius: BorderRadius.circular(2),
+                    boxShadow: [BoxShadow(color: kGold.withValues(alpha: 0.6), blurRadius: 6)])),
+            const SizedBox(width: 10),
+            Text('Πώς λειτουργεί;',
+                style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 16,
+                    fontWeight: FontWeight.w700,
+                    letterSpacing: 0.3)),
+          ]),
         ),
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 20),
@@ -1724,11 +1733,20 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
         // ΚΑΤΗΓΟΡΙΕΣ
         Padding(
           padding: const EdgeInsets.fromLTRB(20, 0, 20, 12),
-          child: Text('Δημοφιλείς υπηρεσίες',
-              style: TextStyle(
-                  color: _g(0.8),
-                  fontSize: 16,
-                  fontWeight: FontWeight.w700)),
+          child: Row(children: [
+            Container(width: 3, height: 20,
+                decoration: BoxDecoration(
+                    color: kGold,
+                    borderRadius: BorderRadius.circular(2),
+                    boxShadow: [BoxShadow(color: kGold.withValues(alpha: 0.6), blurRadius: 6)])),
+            const SizedBox(width: 10),
+            const Text('Δημοφιλείς υπηρεσίες',
+                style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 16,
+                    fontWeight: FontWeight.w700,
+                    letterSpacing: 0.3)),
+          ]),
         ),
         SizedBox(
           height: 90,
@@ -1739,7 +1757,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
               {'emoji': '⚡', 'label': 'Ηλεκτρολόγος', 'profession': 'Ηλεκτρολόγος'},
               {'emoji': '🔧', 'label': 'Υδραυλικός', 'profession': 'Υδραυλικός'},
               {'emoji': '❄️', 'label': 'Κλιματισμός', 'profession': 'Συντήρηση Κλιματιστικών'},
-              {'emoji': '🎨', 'label': 'Βαφές', 'profession': 'Ελαιοχρωματιστής'},
+              {'emoji': '🎨', 'label': 'Ελαιοχρωματιστής', 'profession': 'Ελαιοχρωματιστής'},
               {'emoji': '🌿', 'label': 'Κηπουρός', 'profession': 'Κηπουρός'},
               {'emoji': '🧹', 'label': 'Καθαρισμός', 'profession': 'Καθαρίστρια'},
               {'emoji': '🏗️', 'label': 'Ανακαίνιση', 'profession': 'Συνεργείο Ανακαίνισης'},
@@ -1752,7 +1770,26 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                         margin: const EdgeInsets.only(right: 10),
                         decoration: BoxDecoration(
                             borderRadius: BorderRadius.circular(16),
-                            color: _g(0.04)),
+                            gradient: LinearGradient(
+                              begin: Alignment.topLeft,
+                              end: Alignment.bottomRight,
+                              colors: [
+                                kGold.withValues(alpha: 0.08),
+                                const Color(0xFF0A0A18),
+                              ],
+                            ),
+                            border: Border.all(
+                                color: kGold.withValues(alpha: 0.18), width: 1),
+                            boxShadow: [
+                              BoxShadow(
+                                  color: kGold.withValues(alpha: 0.12),
+                                  blurRadius: 14,
+                                  offset: const Offset(0, 4)),
+                              BoxShadow(
+                                  color: Colors.black.withValues(alpha: 0.5),
+                                  blurRadius: 8,
+                                  offset: const Offset(0, 2)),
+                            ]),
                         child: Column(
                             mainAxisAlignment: MainAxisAlignment.center,
                             children: [
@@ -1763,9 +1800,9 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                                   textAlign: TextAlign.center,
                                   style: TextStyle(
                                       fontSize: 9,
-                                      color:
-                                          _g(0.6),
-                                      fontWeight: FontWeight.w500)),
+                                      color: _g(0.75),
+                                      fontWeight: FontWeight.w600,
+                                      letterSpacing: 0.2)),
                             ]),
                       ),
                     ))
@@ -1779,21 +1816,28 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
         Padding(
           padding: const EdgeInsets.fromLTRB(20, 0, 20, 12),
           child: Row(children: [
-            Text('Επαγγελματίες κοντά σου',
-                style: TextStyle(color: _g(0.8), fontSize: 16, fontWeight: FontWeight.w700)),
-            const SizedBox(width: 8),
+            Container(width: 3, height: 20,
+                decoration: BoxDecoration(
+                    color: kGold,
+                    borderRadius: BorderRadius.circular(2),
+                    boxShadow: [BoxShadow(color: kGold.withValues(alpha: 0.6), blurRadius: 6)])),
+            const SizedBox(width: 10),
+            const Text('Επαγγελματίες κοντά σου',
+                style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.w700, letterSpacing: 0.3)),
+            const Spacer(),
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
               decoration: BoxDecoration(
                 borderRadius: BorderRadius.circular(8),
                 color: kGreen.withValues(alpha: 0.12),
-                border: Border.all(color: kGreen.withValues(alpha: 0.3)),
+                border: Border.all(color: kGreen.withValues(alpha: 0.4)),
+                boxShadow: [BoxShadow(color: kGreen.withValues(alpha: 0.15), blurRadius: 8)],
               ),
               child: Row(mainAxisSize: MainAxisSize.min, children: [
                 Container(width: 5, height: 5,
                     decoration: const BoxDecoration(shape: BoxShape.circle, color: kGreen)),
                 const SizedBox(width: 4),
-                const Text('LIVE', style: TextStyle(color: kGreen, fontSize: 9, fontWeight: FontWeight.w700)),
+                const Text('LIVE', style: TextStyle(color: kGreen, fontSize: 9, fontWeight: FontWeight.w800, letterSpacing: 1)),
               ]),
             ),
           ]),
@@ -1806,13 +1850,22 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
         Padding(
           padding: const EdgeInsets.fromLTRB(20, 0, 20, 12),
           child: Row(children: [
-            Container(width: 7, height: 7,
-                decoration: const BoxDecoration(shape: BoxShape.circle, color: kGreen)),
-            const SizedBox(width: 8),
-            Text('Live Activity',
+            Container(width: 3, height: 20,
+                decoration: BoxDecoration(
+                    color: kGreen,
+                    borderRadius: BorderRadius.circular(2),
+                    boxShadow: [BoxShadow(color: kGreen.withValues(alpha: 0.7), blurRadius: 6)])),
+            const SizedBox(width: 10),
+            const Text('Live Activity',
                 style: TextStyle(
-                    color: _g(0.8),
-                    fontSize: 16, fontWeight: FontWeight.w700)),
+                    color: Colors.white,
+                    fontSize: 16, fontWeight: FontWeight.w700, letterSpacing: 0.3)),
+            const SizedBox(width: 8),
+            Container(width: 7, height: 7,
+                decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: kGreen,
+                    boxShadow: [BoxShadow(color: kGreen.withValues(alpha: 0.8), blurRadius: 6)])),
           ]),
         ),
         _LiveActivityFeed(),
@@ -1919,10 +1972,17 @@ class _EmptyHeroCard extends StatelessWidget {
       padding: const EdgeInsets.all(22),
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(24),
-        gradient: LinearGradient(begin: Alignment.topLeft, end: Alignment.bottomRight,
-            colors: [kGold.withValues(alpha: 0.15), kGold.withValues(alpha: 0.03)]),
-        border: Border.all(color: kGold.withValues(alpha: 0.4), width: 1.5),
-        boxShadow: [BoxShadow(color: kGold.withValues(alpha: 0.1), blurRadius: 30)],
+        gradient: LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [kGold.withValues(alpha: 0.18), const Color(0xFF0A0A1A), kGold.withValues(alpha: 0.04)],
+            stops: const [0.0, 0.5, 1.0]),
+        border: Border.all(color: kGold.withValues(alpha: 0.45), width: 1.5),
+        boxShadow: [
+          BoxShadow(color: kGold.withValues(alpha: 0.22), blurRadius: 40, offset: const Offset(0, 6)),
+          BoxShadow(color: kGold.withValues(alpha: 0.08), blurRadius: 80),
+          BoxShadow(color: Colors.black.withValues(alpha: 0.5), blurRadius: 16, offset: const Offset(0, 4)),
+        ],
       ),
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         Row(children: [
@@ -2223,9 +2283,24 @@ class _HowItWorksStep extends StatelessWidget {
         padding: const EdgeInsets.all(14),
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(16),
-          color: active
-              ? kGold.withValues(alpha: 0.06)
-              : _g(0.03),
+          gradient: active
+              ? LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  colors: [kGold.withValues(alpha: 0.10), kGold.withValues(alpha: 0.03)])
+              : LinearGradient(
+                  colors: [_g(0.04), _g(0.02)],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight),
+          border: Border.all(
+              color: active ? kGold.withValues(alpha: 0.35) : _g(0.07),
+              width: 1),
+          boxShadow: active
+              ? [
+                  BoxShadow(color: kGold.withValues(alpha: 0.18), blurRadius: 20, offset: const Offset(0, 4)),
+                  BoxShadow(color: Colors.black.withValues(alpha: 0.4), blurRadius: 8),
+                ]
+              : [BoxShadow(color: Colors.black.withValues(alpha: 0.3), blurRadius: 6)],
         ),
         child: Row(children: [
           Container(
@@ -2233,9 +2308,16 @@ class _HowItWorksStep extends StatelessWidget {
             height: 44,
             decoration: BoxDecoration(
               borderRadius: BorderRadius.circular(12),
-              color: active
-                  ? kGold.withValues(alpha: 0.15)
-                  : _g(0.05),
+              gradient: active
+                  ? LinearGradient(colors: [kGold.withValues(alpha: 0.25), kGold.withValues(alpha: 0.10)])
+                  : null,
+              color: active ? null : _g(0.06),
+              border: Border.all(
+                  color: active ? kGold.withValues(alpha: 0.5) : _g(0.1),
+                  width: 1),
+              boxShadow: active
+                  ? [BoxShadow(color: kGold.withValues(alpha: 0.3), blurRadius: 8)]
+                  : null,
             ),
             child:
                 Center(child: Text(emoji, style: const TextStyle(fontSize: 22))),
@@ -2433,11 +2515,16 @@ class _BottomNav extends StatelessWidget {
           padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 10),
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(28),
-            color: const Color(0xFF141414),
-            border: Border.all(color: Colors.white.withValues(alpha: 0.06)),
+            gradient: LinearGradient(
+              begin: Alignment.topCenter,
+              end: Alignment.bottomCenter,
+              colors: [const Color(0xFF1A1A2E), const Color(0xFF0F0F1A)],
+            ),
+            border: Border.all(color: kGold.withValues(alpha: 0.14), width: 1),
             boxShadow: [
-              BoxShadow(color: Colors.black.withValues(alpha: 0.55), blurRadius: 24),
-              BoxShadow(color: kGold.withValues(alpha: 0.04), blurRadius: 12),
+              BoxShadow(color: Colors.black.withValues(alpha: 0.7), blurRadius: 32, offset: const Offset(0, 8)),
+              BoxShadow(color: kGold.withValues(alpha: 0.10), blurRadius: 20, offset: const Offset(0, -2)),
+              BoxShadow(color: kGold.withValues(alpha: 0.05), blurRadius: 40),
             ],
           ),
           child: Row(
@@ -2471,61 +2558,40 @@ class _BottomNav extends StatelessWidget {
                     ),
                 ]),
 
-                // ── G FAB — smart button ──
+                // ── G FAB — always Events (Γάμος/Βάφτιση/Πάρτι) ──
                 GestureDetector(
                   onTap: onFab,
                   child: Stack(clipBehavior: Clip.none, children: [
-                    if (hasActiveRequest)
-                      Positioned.fill(child: TweenAnimationBuilder<double>(
-                        tween: Tween(begin: 0.9, end: 1.15),
-                        duration: const Duration(milliseconds: 900),
-                        curve: Curves.easeInOut,
-                        builder: (_, v, __) => Transform.scale(
-                          scale: v,
-                          child: Container(decoration: BoxDecoration(
-                            shape: BoxShape.circle,
-                            border: Border.all(
-                                color: kGold.withValues(alpha: 0.4 * (1.15 - v) * 6),
-                                width: 2),
-                          )),
-                        ),
-                        onEnd: () {},
-                      )),
+                    Positioned.fill(child: TweenAnimationBuilder<double>(
+                      tween: Tween(begin: 0.9, end: 1.12),
+                      duration: const Duration(milliseconds: 1200),
+                      curve: Curves.easeInOut,
+                      builder: (_, v, __) => Transform.scale(
+                        scale: v,
+                        child: Container(decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          border: Border.all(
+                              color: kGold.withValues(alpha: 0.35 * (1.12 - v) * 7),
+                              width: 2),
+                        )),
+                      ),
+                      onEnd: () {},
+                    )),
                     Container(
                       width: 64, height: 64,
                       decoration: BoxDecoration(
                         shape: BoxShape.circle,
-                        gradient: hasActiveRequest
-                            ? const LinearGradient(colors: [kGreen, Color(0xFF2AA060)])
-                            : const RadialGradient(colors: [kGoldLight, kGold, kGoldDark]),
-                        border: Border.all(
-                            color: hasActiveRequest
-                                ? kGreen.withValues(alpha: 0.9)
-                                : kGold.withValues(alpha: 0.9),
-                            width: 2),
+                        gradient: const RadialGradient(colors: [kGoldLight, kGold, kGoldDark]),
+                        border: Border.all(color: kGold.withValues(alpha: 0.9), width: 2),
                         boxShadow: [BoxShadow(
-                            color: (hasActiveRequest ? kGreen : kGold).withValues(alpha: 0.5),
-                            blurRadius: 16, spreadRadius: 1)],
+                            color: kGold.withValues(alpha: 0.55),
+                            blurRadius: 18, spreadRadius: 1)],
                       ),
-                      child: Center(child: hasActiveRequest
-                          ? const Icon(Icons.local_offer_rounded,
-                              color: Colors.white, size: 28)
-                          : const Text('G', style: TextStyle(
-                              fontFamily: 'Raleway', fontSize: 30,
-                              fontWeight: FontWeight.bold,
-                              color: Colors.black, height: 1))),
+                      child: const Center(child: Text('G', style: TextStyle(
+                          fontFamily: 'Raleway', fontSize: 30,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.black, height: 1))),
                     ),
-                    if (hasActiveRequest)
-                      Positioned(top: -4, right: -4,
-                        child: Container(
-                          width: 18, height: 18,
-                          decoration: const BoxDecoration(
-                              color: Colors.red, shape: BoxShape.circle),
-                          child: Center(child: Text('!',
-                              style: TextStyle(color: _gw,
-                                  fontSize: 11, fontWeight: FontWeight.bold))),
-                        ),
-                      ),
                   ]),
                 ),
 
@@ -9352,7 +9418,7 @@ class _NearbyProsSectionState extends State<_NearbyProsSection> {
         if (!snap.hasData) return const SizedBox(height: 260);
         if (docs.isEmpty) return const SizedBox(height: 260);
         return SizedBox(
-          height: 260,
+          height: 210,
           child: PageView.builder(
             controller: _pageCtrl,
             itemCount: 9999,
@@ -9381,66 +9447,60 @@ class _NearbyProsSectionState extends State<_NearbyProsSection> {
                     margin: const EdgeInsets.fromLTRB(6, 4, 6, 8),
                     decoration: BoxDecoration(
                       borderRadius: BorderRadius.circular(18),
-                      color: const Color(0xFF0D0A04),
                       border: Border.all(color: isActive ? kGold.withValues(alpha: 0.4) : kGold.withValues(alpha: 0.12)),
                       boxShadow: [BoxShadow(color: kGold.withValues(alpha: isActive ? 0.1 : 0.03), blurRadius: 16)],
                     ),
-                    child: Column(children: [
-                      // Φωτογραφία (πάνω μέρος κάρτας)
-                      Expanded(
-                        child: ClipRRect(
-                          borderRadius: const BorderRadius.vertical(top: Radius.circular(18)),
-                          child: Stack(fit: StackFit.expand, children: [
-                            if (photoUrl != null && photoUrl.isNotEmpty)
-                              Image.network(photoUrl, fit: BoxFit.cover,
-                                  errorBuilder: (_, __, ___) => _proInitialsBox(initials))
-                            else
-                              _proInitialsBox(initials),
-                            if (isNew)
-                              Positioned(top: 8, right: 8,
-                                child: Container(
-                                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
-                                  decoration: BoxDecoration(
-                                    borderRadius: BorderRadius.circular(6),
-                                    color: Colors.black.withValues(alpha: 0.65),
-                                    border: Border.all(color: kGold.withValues(alpha: 0.4)),
-                                  ),
-                                  child: const Text('Νέος', style: TextStyle(color: kGold, fontSize: 8, fontWeight: FontWeight.w700)),
-                                ),
-                              ),
-                            Positioned.fill(child: DecoratedBox(
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(17),
+                      child: Stack(fit: StackFit.expand, children: [
+                        // Εικόνα που καλύπτει ΟΛΗ την κάρτα
+                        if (photoUrl != null && photoUrl.isNotEmpty)
+                          Image.network(photoUrl, fit: BoxFit.cover,
+                              errorBuilder: (_, __, ___) => _proInitialsBox(initials))
+                        else
+                          _proInitialsBox(initials),
+                        // Gradient overlay κάτω για κείμενο
+                        Positioned.fill(child: DecoratedBox(
+                          decoration: BoxDecoration(
+                            gradient: LinearGradient(
+                              begin: Alignment.topCenter, end: Alignment.bottomCenter,
+                              colors: [Colors.transparent, Colors.black.withValues(alpha: 0.85)],
+                              stops: const [0.45, 1.0],
+                            ),
+                          ),
+                        )),
+                        // "Νέος" badge πάνω δεξιά
+                        if (isNew)
+                          Positioned(top: 8, right: 8,
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
                               decoration: BoxDecoration(
-                                gradient: LinearGradient(
-                                  begin: Alignment.topCenter, end: Alignment.bottomCenter,
-                                  colors: [Colors.transparent, Colors.black.withValues(alpha: 0.35)],
-                                  stops: const [0.6, 1.0],
-                                ),
+                                borderRadius: BorderRadius.circular(6),
+                                color: Colors.black.withValues(alpha: 0.65),
+                                border: Border.all(color: kGold.withValues(alpha: 0.4)),
                               ),
-                            )),
+                              child: const Text('Νέος', style: TextStyle(color: kGold, fontSize: 8, fontWeight: FontWeight.w700)),
+                            ),
+                          ),
+                        // Κείμενο κάτω
+                        Positioned(left: 10, right: 10, bottom: 10,
+                          child: Column(crossAxisAlignment: CrossAxisAlignment.start, mainAxisSize: MainAxisSize.min, children: [
+                            Text(name, maxLines: 1, overflow: TextOverflow.ellipsis,
+                                style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.w700)),
+                            if (specialty.isNotEmpty)
+                              Text(specialty, maxLines: 1, overflow: TextOverflow.ellipsis,
+                                  style: TextStyle(color: _g(0.6), fontSize: 10)),
+                            const SizedBox(height: 4),
+                            Row(children: [
+                              Text(rating > 0 ? '⭐ ${rating.toStringAsFixed(1)}' : '⭐ Νέος',
+                                  style: const TextStyle(color: kGold, fontSize: 10, fontWeight: FontWeight.w600)),
+                              const Spacer(),
+                              Text('~30λ', style: TextStyle(color: _g(0.5), fontSize: 9)),
+                            ]),
                           ]),
                         ),
-                      ),
-                      // Info (κάτω μέρος)
-                      Padding(
-                        padding: const EdgeInsets.fromLTRB(10, 7, 10, 8),
-                        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                          Text(name, maxLines: 1, overflow: TextOverflow.ellipsis,
-                              style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.w700)),
-                          if (specialty.isNotEmpty) ...[
-                            const SizedBox(height: 1),
-                            Text(specialty, maxLines: 1, overflow: TextOverflow.ellipsis,
-                                style: TextStyle(color: _g(0.4), fontSize: 10)),
-                          ],
-                          const SizedBox(height: 5),
-                          Row(children: [
-                            Text(rating > 0 ? '⭐ ${rating.toStringAsFixed(1)}' : '⭐ Νέος',
-                                style: const TextStyle(color: kGold, fontSize: 10, fontWeight: FontWeight.w600)),
-                            const Spacer(),
-                            Text('~30λ', style: TextStyle(color: _g(0.3), fontSize: 9)),
-                          ]),
-                        ]),
-                      ),
-                    ]),
+                      ]),
+                    ),
                   ),
                 ),
               );
