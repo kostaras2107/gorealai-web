@@ -11372,57 +11372,20 @@ class _ChatScreenState extends State<ChatScreen> {
     } catch (_) {}
   }
 
-  Future<void> _pickImage() async {
-    final source = await showModalBottomSheet<ImageSource>(
-      context: context,
-      backgroundColor: Colors.transparent,
-      builder: (ctx) => Container(
-        padding: const EdgeInsets.all(20),
-        decoration: const BoxDecoration(
-          color: Color(0xFF111111),
-          borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-        ),
-        child: Column(mainAxisSize: MainAxisSize.min, children: [
-          Container(width: 36, height: 4,
-              decoration: BoxDecoration(color: _g(0.2), borderRadius: BorderRadius.circular(2))),
-          const SizedBox(height: 16),
-          const Text('Επιλογή φωτογραφίας', style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.w700)),
-          const SizedBox(height: 16),
-          GestureDetector(
-            onTap: () => Navigator.pop(ctx, ImageSource.camera),
-            child: Container(
-              padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 20),
-              margin: const EdgeInsets.only(bottom: 10),
-              decoration: BoxDecoration(borderRadius: BorderRadius.circular(14),
-                  color: kGold.withValues(alpha: 0.1), border: Border.all(color: kGold.withValues(alpha: 0.3))),
-              child: const Row(children: [
-                Icon(Icons.camera_alt_rounded, color: kGold, size: 22),
-                SizedBox(width: 12),
-                Text('Τράβα φωτογραφία', style: TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.w600)),
-              ]),
-            ),
-          ),
-          GestureDetector(
-            onTap: () => Navigator.pop(ctx, ImageSource.gallery),
-            child: Container(
-              padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 20),
-              decoration: BoxDecoration(borderRadius: BorderRadius.circular(14),
-                  color: _g(0.06), border: Border.all(color: _g(0.1))),
-              child: const Row(children: [
-                Icon(Icons.photo_library_outlined, color: Colors.white70, size: 22),
-                SizedBox(width: 12),
-                Text('Άνοιξε γκαλερί', style: TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.w600)),
-              ]),
-            ),
-          ),
-          const SizedBox(height: 8),
-        ]),
-      ),
-    );
-    if (source == null) return;
+  Future<void> _pickImageGallery() async {
     try {
       final picker = ImagePicker();
-      final xf = await picker.pickImage(source: source, imageQuality: 75);
+      final xf = await picker.pickImage(source: ImageSource.gallery, imageQuality: 75);
+      if (xf == null) return;
+      final bytes = await xf.readAsBytes();
+      if (mounted) setState(() => _selectedImages.add(bytes));
+    } catch (_) {}
+  }
+
+  Future<void> _takePhoto() async {
+    try {
+      final picker = ImagePicker();
+      final xf = await picker.pickImage(source: ImageSource.camera, imageQuality: 75);
       if (xf == null) return;
       final bytes = await xf.readAsBytes();
       if (mounted) setState(() => _selectedImages.add(bytes));
@@ -11430,63 +11393,38 @@ class _ChatScreenState extends State<ChatScreen> {
   }
 
   Future<void> _pickVideo() async {
-    final source = await showModalBottomSheet<ImageSource>(
-      context: context,
-      backgroundColor: Colors.transparent,
-      builder: (ctx) => Container(
-        padding: const EdgeInsets.all(20),
-        decoration: const BoxDecoration(
-          color: Color(0xFF111111),
-          borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-        ),
-        child: Column(mainAxisSize: MainAxisSize.min, children: [
-          Container(width: 36, height: 4,
-              decoration: BoxDecoration(color: _g(0.2), borderRadius: BorderRadius.circular(2))),
-          const SizedBox(height: 16),
-          const Text('Επιλογή βίντεο (max 20\")', style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.w700)),
-          const SizedBox(height: 16),
-          GestureDetector(
-            onTap: () => Navigator.pop(ctx, ImageSource.camera),
-            child: Container(
-              padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 20),
-              margin: const EdgeInsets.only(bottom: 10),
-              decoration: BoxDecoration(borderRadius: BorderRadius.circular(14),
-                  color: kGold.withValues(alpha: 0.1), border: Border.all(color: kGold.withValues(alpha: 0.3))),
-              child: const Row(children: [
-                Icon(Icons.videocam_rounded, color: kGold, size: 22),
-                SizedBox(width: 12),
-                Text('Τράβα βίντεο', style: TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.w600)),
-              ]),
-            ),
-          ),
-          GestureDetector(
-            onTap: () => Navigator.pop(ctx, ImageSource.gallery),
-            child: Container(
-              padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 20),
-              decoration: BoxDecoration(borderRadius: BorderRadius.circular(14),
-                  color: _g(0.06), border: Border.all(color: _g(0.1))),
-              child: const Row(children: [
-                Icon(Icons.video_library_outlined, color: Colors.white70, size: 22),
-                SizedBox(width: 12),
-                Text('Άνοιξε γκαλερί', style: TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.w600)),
-              ]),
-            ),
-          ),
-          const SizedBox(height: 8),
-        ]),
-      ),
-    );
-    if (source == null) return;
     try {
       final picker = ImagePicker();
       final xf = await picker.pickVideo(
-        source: source,
+        source: ImageSource.gallery,
         maxDuration: const Duration(seconds: 20),
       );
       if (xf == null || !mounted) return;
       setState(() => _selectedVideo = xf);
     } catch (_) {}
   }
+
+  Future<void> _recordVideo() async {
+    try {
+      final picker = ImagePicker();
+      final xf = await picker.pickVideo(
+        source: ImageSource.camera,
+        maxDuration: const Duration(seconds: 20),
+      );
+      if (xf == null || !mounted) return;
+      setState(() => _selectedVideo = xf);
+    } catch (_) {}
+  }
+
+  Widget _chatMediaBtn(IconData icon, bool active) => Container(
+    width: 34, height: 34,
+    decoration: BoxDecoration(
+      shape: BoxShape.circle,
+      color: active ? kGold.withValues(alpha: 0.18) : _g(0.07),
+      border: Border.all(color: active ? kGold : kGold.withValues(alpha: 0.22)),
+    ),
+    child: Icon(icon, color: active ? kGold : kGold.withValues(alpha: 0.65), size: 17),
+  );
 
   void _openImageFullscreen(BuildContext context, String url) {
     Navigator.push(context, PageRouteBuilder(
@@ -11520,16 +11458,25 @@ class _ChatScreenState extends State<ChatScreen> {
       final List<String> videoUrls = [];
       if (_selectedVideo != null) {
         try {
-          final bytes = await _selectedVideo!.readAsBytes();
+          final path = _selectedVideo!.path;
+          Uint8List bytes;
+          if (path.startsWith('blob:') || path.startsWith('http')) {
+            final resp = await http.get(Uri.parse(path));
+            bytes = resp.bodyBytes;
+          } else {
+            bytes = await _selectedVideo!.readAsBytes();
+          }
           if (bytes.lengthInBytes > 50 * 1024 * 1024) {
             if (mounted) ScaffoldMessenger.of(context).showSnackBar(
               const SnackBar(content: Text('Το βίντεο είναι πολύ μεγάλο (max 50MB)')));
             setState(() { _selectedVideo = null; _sending = false; });
             return;
           }
+          final ext = path.contains('.') ? path.split('.').last.split('?').first : 'mp4';
+          final ct = ext == 'webm' ? 'video/webm' : 'video/mp4';
           final ref = FirebaseStorage.instance.ref(
-              'chat_media/${widget.chatId}/${DateTime.now().millisecondsSinceEpoch}_vid.mp4');
-          await ref.putData(bytes, SettableMetadata(contentType: 'video/mp4'));
+              'chat_media/${widget.chatId}/${DateTime.now().millisecondsSinceEpoch}_vid.$ext');
+          await ref.putData(bytes, SettableMetadata(contentType: ct));
           videoUrls.add(await ref.getDownloadURL());
         } catch (e) {
           if (mounted) ScaffoldMessenger.of(context).showSnackBar(
@@ -11775,23 +11722,25 @@ class _ChatScreenState extends State<ChatScreen> {
             Padding(
               padding: const EdgeInsets.fromLTRB(12, 8, 12, 10),
               child: Row(children: [
+                // 1. Gallery photo
                 GestureDetector(
-                  onTap: _pickImage,
-                  child: Container(width: 38, height: 38,
-                    decoration: BoxDecoration(shape: BoxShape.circle, color: _g(0.08),
-                        border: Border.all(color: kGold.withValues(alpha: 0.25))),
-                    child: const Icon(Icons.photo_outlined, color: kGold, size: 20)),
-                ),
-                const SizedBox(width: 6),
+                  onTap: _pickImageGallery,
+                  child: _chatMediaBtn(Icons.photo_library_outlined, false)),
+                const SizedBox(width: 4),
+                // 2. Camera photo
                 GestureDetector(
-                  onTap: _selectedVideo == null ? _pickVideo : null,
-                  child: Container(width: 38, height: 38,
-                    decoration: BoxDecoration(shape: BoxShape.circle,
-                        color: _selectedVideo != null ? kGold.withValues(alpha: 0.15) : _g(0.08),
-                        border: Border.all(color: _selectedVideo != null ? kGold : kGold.withValues(alpha: 0.25))),
-                    child: Icon(Icons.videocam_outlined,
-                        color: _selectedVideo != null ? kGold : kGold.withValues(alpha: 0.6), size: 20)),
-                ),
+                  onTap: _takePhoto,
+                  child: _chatMediaBtn(Icons.camera_alt_outlined, false)),
+                const SizedBox(width: 4),
+                // 3. Gallery video
+                GestureDetector(
+                  onTap: _selectedVideo == null ? _pickVideo : () => setState(() => _selectedVideo = null),
+                  child: _chatMediaBtn(Icons.video_library_outlined, _selectedVideo != null)),
+                const SizedBox(width: 4),
+                // 4. Camera video
+                GestureDetector(
+                  onTap: _selectedVideo == null ? _recordVideo : null,
+                  child: _chatMediaBtn(Icons.videocam_rounded, false)),
                 const SizedBox(width: 8),
                 Expanded(
                   child: Container(
