@@ -2563,16 +2563,16 @@ class _BottomNav extends StatelessWidget {
           padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 10),
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(28),
-            gradient: LinearGradient(
-              begin: Alignment.topCenter,
-              end: Alignment.bottomCenter,
-              colors: [const Color(0xFF1A1A2E), const Color(0xFF0F0F1A)],
+            gradient: const LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [Color(0xFF2A2A2A), Color(0xFF161616)],
             ),
-            border: Border.all(color: kGold.withValues(alpha: 0.14), width: 1),
+            border: Border.all(color: Colors.white.withValues(alpha: 0.07), width: 1),
             boxShadow: [
-              BoxShadow(color: Colors.black.withValues(alpha: 0.7), blurRadius: 32, offset: const Offset(0, 8)),
-              BoxShadow(color: kGold.withValues(alpha: 0.10), blurRadius: 20, offset: const Offset(0, -2)),
-              BoxShadow(color: kGold.withValues(alpha: 0.05), blurRadius: 40),
+              BoxShadow(color: Colors.black.withValues(alpha: 0.85), blurRadius: 40, offset: const Offset(0, 10)),
+              BoxShadow(color: Colors.white.withValues(alpha: 0.03), blurRadius: 1, offset: const Offset(0, -1)),
+              BoxShadow(color: kGold.withValues(alpha: 0.06), blurRadius: 30, offset: const Offset(0, -4)),
             ],
           ),
           child: Row(
@@ -2654,15 +2654,19 @@ class _BottomNav extends StatelessWidget {
                     decoration: BoxDecoration(
                       shape: BoxShape.circle,
                       color: navIndex == 3
-                          ? kGold.withValues(alpha: 0.2)
-                          : kGold.withValues(alpha: 0.08),
-                      border: Border.all(color: kGold,
-                          width: navIndex == 3 ? 1.5 : 0.5),
+                          ? Colors.white.withValues(alpha: 0.12)
+                          : Colors.white.withValues(alpha: 0.05),
+                      border: Border.all(
+                        color: navIndex == 3 ? Colors.white.withValues(alpha: 0.5) : Colors.white.withValues(alpha: 0.12),
+                        width: navIndex == 3 ? 1.5 : 1,
+                      ),
+                      boxShadow: navIndex == 3 ? [BoxShadow(color: Colors.white.withValues(alpha: 0.1), blurRadius: 8)] : null,
                     ),
                     child: Center(child: Text(
                         userName?.isNotEmpty == true
                             ? userName![0].toUpperCase() : 'G',
-                        style: const TextStyle(color: kGold,
+                        style: TextStyle(
+                            color: navIndex == 3 ? Colors.white : const Color(0xFF8E8E93),
                             fontSize: 16, fontWeight: FontWeight.bold))),
                   ),
                 ),
@@ -9636,38 +9640,32 @@ class _HNavItem extends StatelessWidget {
   Widget build(BuildContext context) => GestureDetector(
         onTap: onTap,
         child: Container(
-          padding:
-              const EdgeInsets.symmetric(horizontal: 18, vertical: 8),
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
           decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(18),
-              color:
-                  active ? kGold.withValues(alpha: 0.12) : Colors.transparent),
+            borderRadius: BorderRadius.circular(16),
+            color: active ? Colors.white.withValues(alpha: 0.09) : Colors.transparent,
+            border: active ? Border.all(color: Colors.white.withValues(alpha: 0.1)) : null,
+          ),
           child: Column(mainAxisSize: MainAxisSize.min, children: [
             Icon(icon,
-                color:
-                    active ? kGold : _g(0.3),
+                color: active ? Colors.white : const Color(0xFF6E6E73),
                 size: 22),
             const SizedBox(height: 3),
             Text(label,
                 style: TextStyle(
                     fontFamily: 'Raleway',
                     fontSize: 9,
-                    color: active ? kGold : _g(0.3),
-                    fontWeight: active
-                        ? FontWeight.w600
-                        : FontWeight.w400)),
+                    color: active ? Colors.white : const Color(0xFF6E6E73),
+                    fontWeight: active ? FontWeight.w700 : FontWeight.w400)),
             if (active) ...[
               const SizedBox(height: 3),
               Container(
-                  width: 4,
-                  height: 4,
-                  decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      color: kGold,
-                      boxShadow: [
-                        BoxShadow(
-                            color: kGold.withValues(alpha: 0.8), blurRadius: 6)
-                      ])),
+                width: 4, height: 4,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: kGold,
+                  boxShadow: [BoxShadow(color: kGold.withValues(alpha: 0.9), blurRadius: 6)],
+                )),
             ],
           ]),
         ),
