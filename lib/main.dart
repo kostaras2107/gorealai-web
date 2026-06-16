@@ -4774,16 +4774,17 @@ class _RequestScreenState extends State<RequestScreen>
       child: Column(mainAxisSize: MainAxisSize.min, children: [
         Container(
           width: 64, height: 64,
+          alignment: Alignment.center,
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(18),
-            color: kGold.withValues(alpha: 0.1),
-            border: Border.all(color: kGold.withValues(alpha: 0.3)),
+            color: kGold.withValues(alpha: 0.12),
+            border: Border.all(color: kGold.withValues(alpha: 0.4)),
           ),
-          child: Icon(icon, color: kGold, size: 28),
+          child: Icon(icon, color: kGold, size: 30),
         ),
         const SizedBox(height: 8),
         Text(label, textAlign: TextAlign.center,
-            style: TextStyle(color: _g(0.7), fontSize: 10, height: 1.3)),
+            style: const TextStyle(color: Colors.white70, fontSize: 10, height: 1.3)),
       ]),
     );
   }
@@ -11453,11 +11454,24 @@ class _ChatScreenState extends State<ChatScreen> {
   final List<Uint8List> _selectedImages = [];
   XFile? _selectedVideo;
 
+  // Audio recording
+  final _audioRec = AudioRecorder();
+  bool _chatAudioRecording = false;
+  bool _chatAudioUploading = false;
+  Timer? _chatAudioTimer;
+  Duration _chatAudioDur = Duration.zero;
+
   @override
   void initState() { super.initState(); _markAsRead(); }
 
   @override
-  void dispose() { _msgCtrl.dispose(); _scrollCtrl.dispose(); super.dispose(); }
+  void dispose() {
+    _msgCtrl.dispose();
+    _scrollCtrl.dispose();
+    _chatAudioTimer?.cancel();
+    _audioRec.dispose();
+    super.dispose();
+  }
 
   Future<void> _markAsRead() async {
     try {
@@ -11511,6 +11525,51 @@ class _ChatScreenState extends State<ChatScreen> {
     } catch (_) {}
   }
 
+  Future<void> _startChatAudio() async {
+    final hasPermission = await _audioRec.hasPermission();
+    if (!hasPermission) return;
+    await _audioRec.start(const RecordConfig(), path: '');
+    setState(() { _chatAudioRecording = true; _chatAudioDur = Duration.zero; });
+    _chatAudioTimer = Timer.periodic(const Duration(seconds: 1), (_) {
+      if (mounted) setState(() => _chatAudioDur += const Duration(seconds: 1));
+    });
+  }
+
+  Future<void> _stopChatAudio() async {
+    _chatAudioTimer?.cancel();
+    final path = await _audioRec.stop();
+    setState(() { _chatAudioRecording = false; _chatAudioUploading = true; });
+    if (path == null) { setState(() => _chatAudioUploading = false); return; }
+    try {
+      Uint8List bytes;
+      if (path.startsWith('blob:') || path.startsWith('http')) {
+        final resp = await http.get(Uri.parse(path));
+        bytes = resp.bodyBytes;
+      } else {
+        bytes = await XFile(path).readAsBytes();
+      }
+      final ext = path.contains('.') ? path.split('.').last.split('?').first : 'webm';
+      final ref = FirebaseStorage.instance.ref(
+          'chat_media/${widget.chatId}/${DateTime.now().millisecondsSinceEpoch}_audio.$ext');
+      await ref.putData(bytes, SettableMetadata(contentType: 'audio/$ext'));
+      final url = await ref.getDownloadURL();
+      final uid = FirebaseAuth.instance.currentUser?.uid ?? '';
+      await FirebaseFirestore.instance.collection('chats').doc(widget.chatId)
+          .collection('messages').add({
+        'text': '',
+        'senderId': uid,
+        'senderName': widget.currentUserName,
+        'timestamp': FieldValue.serverTimestamp(),
+        'audioUrl': url,
+      });
+      final unreadField = widget.isPro ? 'unreadUser' : 'unreadPro';
+      await FirebaseFirestore.instance.collection('chats').doc(widget.chatId)
+          .set({'lastMessage': '🎤 Ηχητικό μήνυμα', 'lastTimestamp': FieldValue.serverTimestamp(), unreadField: FieldValue.increment(1)},
+              SetOptions(merge: true));
+    } catch (_) {}
+    if (mounted) setState(() => _chatAudioUploading = false);
+  }
+
   Future<void> _showChatMediaPicker() async {
     await showModalBottomSheet(
       context: context,
@@ -11529,10 +11588,10 @@ class _ChatScreenState extends State<ChatScreen> {
               color: Colors.white, fontSize: 16, fontWeight: FontWeight.w700)),
           const SizedBox(height: 20),
           Row(mainAxisAlignment: MainAxisAlignment.spaceEvenly, children: [
-            _chatPickerOption(Icons.camera_alt_rounded, 'Κάμερα\nΦωτογραφία', () async {
+            _chatPickerOption(Icons.camera_alt_rounded, 'Κάμερα\nΦωτο', () async {
               Navigator.pop(ctx); await _takePhoto();
             }),
-            _chatPickerOption(Icons.photo_library_rounded, 'Βιβλιοθήκη\nΦωτογραφιών', () async {
+            _chatPickerOption(Icons.photo_library_rounded, 'Βιβλιοθήκη\nΦωτο', () async {
               Navigator.pop(ctx); await _pickImageGallery();
             }),
             _chatPickerOption(Icons.videocam_rounded, 'Κάμερα\nΒίντεο', () async {
@@ -11540,6 +11599,10 @@ class _ChatScreenState extends State<ChatScreen> {
             }),
             _chatPickerOption(Icons.video_library_rounded, 'Βιβλιοθήκη\nΒίντεο', () async {
               Navigator.pop(ctx); await _pickVideo();
+            }),
+            _chatPickerOption(Icons.mic_rounded, 'Ηχο-\nγράφηση', () async {
+              Navigator.pop(ctx);
+              await _startChatAudio();
             }),
           ]),
         ]),
@@ -11552,17 +11615,18 @@ class _ChatScreenState extends State<ChatScreen> {
       onTap: onTap,
       child: Column(mainAxisSize: MainAxisSize.min, children: [
         Container(
-          width: 64, height: 64,
+          width: 58, height: 58,
+          alignment: Alignment.center,
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(18),
-            color: kGold.withValues(alpha: 0.1),
-            border: Border.all(color: kGold.withValues(alpha: 0.3)),
+            color: kGold.withValues(alpha: 0.12),
+            border: Border.all(color: kGold.withValues(alpha: 0.4)),
           ),
-          child: Icon(icon, color: kGold, size: 28),
+          child: Icon(icon, color: kGold, size: 26),
         ),
-        const SizedBox(height: 8),
+        const SizedBox(height: 6),
         Text(label, textAlign: TextAlign.center,
-            style: TextStyle(color: _g(0.7), fontSize: 10, height: 1.3)),
+            style: const TextStyle(color: Colors.white70, fontSize: 9, height: 1.3)),
       ]),
     );
   }
@@ -11870,15 +11934,52 @@ class _ChatScreenState extends State<ChatScreen> {
                         ])),
                   ]),
               ),
+            if (_chatAudioRecording || _chatAudioUploading)
+              Container(
+                margin: const EdgeInsets.fromLTRB(12, 6, 12, 0),
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(12),
+                  color: Colors.red.withValues(alpha: 0.1),
+                  border: Border.all(color: Colors.red.withValues(alpha: 0.4)),
+                ),
+                child: Row(children: [
+                  if (_chatAudioRecording) ...[
+                    Container(width: 8, height: 8,
+                        decoration: const BoxDecoration(shape: BoxShape.circle, color: Colors.red)),
+                    const SizedBox(width: 8),
+                    Text('${_chatAudioDur.inMinutes.toString().padLeft(2,'0')}:${(_chatAudioDur.inSeconds%60).toString().padLeft(2,'0')}',
+                        style: const TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.w600)),
+                    const SizedBox(width: 8),
+                    const Text('Ηχογράφηση...', style: TextStyle(color: Colors.white60, fontSize: 12)),
+                    const Spacer(),
+                    GestureDetector(
+                      onTap: _stopChatAudio,
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(8), color: Colors.red),
+                        child: const Text('Αποστολή', style: TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.w700)),
+                      ),
+                    ),
+                  ] else ...[
+                    const SizedBox(width: 4),
+                    const SizedBox(width: 14, height: 14, child: CircularProgressIndicator(strokeWidth: 2, color: kGold)),
+                    const SizedBox(width: 10),
+                    const Text('Αποστολή ηχητικού...', style: TextStyle(color: Colors.white60, fontSize: 12)),
+                  ],
+                ]),
+              ),
             Padding(
               padding: const EdgeInsets.fromLTRB(12, 8, 12, 10),
               child: Row(children: [
-                // 1 attachment button → bottom sheet με 4 επιλογές
+                // 1 attachment button → bottom sheet με 5 επιλογές
                 GestureDetector(
                   onTap: _showChatMediaPicker,
                   child: Stack(clipBehavior: Clip.none, children: [
                     Container(
                       width: 38, height: 38,
+                      alignment: Alignment.center,
                       decoration: BoxDecoration(
                         shape: BoxShape.circle,
                         color: (_selectedImages.isNotEmpty || _selectedVideo != null)
