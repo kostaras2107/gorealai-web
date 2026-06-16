@@ -4732,6 +4732,62 @@ class _RequestScreenState extends State<RequestScreen>
     setState(() => _listening = false);
   }
 
+  Future<void> _showMediaPicker() async {
+    await showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) => Container(
+        padding: const EdgeInsets.fromLTRB(20, 16, 20, 32),
+        decoration: const BoxDecoration(
+          color: Color(0xFF111118),
+          borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+        ),
+        child: Column(mainAxisSize: MainAxisSize.min, children: [
+          Container(width: 36, height: 4,
+              decoration: BoxDecoration(color: _g(0.2), borderRadius: BorderRadius.circular(2))),
+          const SizedBox(height: 20),
+          const Text('Προσθήκη μέσου', style: TextStyle(
+              color: Colors.white, fontSize: 16, fontWeight: FontWeight.w700)),
+          const SizedBox(height: 20),
+          Row(mainAxisAlignment: MainAxisAlignment.spaceEvenly, children: [
+            _mediaPickerOption(ctx, Icons.camera_alt_rounded, 'Κάμερα\nΦωτογραφία', () async {
+              Navigator.pop(ctx); await _takeSinglePhoto();
+            }),
+            _mediaPickerOption(ctx, Icons.photo_library_rounded, 'Βιβλιοθήκη\nΦωτογραφιών', () async {
+              Navigator.pop(ctx); await _pickImage();
+            }),
+            _mediaPickerOption(ctx, Icons.videocam_rounded, 'Κάμερα\nΒίντεο', () async {
+              Navigator.pop(ctx); await _captureVideo();
+            }),
+            _mediaPickerOption(ctx, Icons.video_library_rounded, 'Βιβλιοθήκη\nΒίντεο', () async {
+              Navigator.pop(ctx); await _pickVideoGallery();
+            }),
+          ]),
+        ]),
+      ),
+    );
+  }
+
+  Widget _mediaPickerOption(BuildContext ctx, IconData icon, String label, VoidCallback onTap) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Column(mainAxisSize: MainAxisSize.min, children: [
+        Container(
+          width: 64, height: 64,
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(18),
+            color: kGold.withValues(alpha: 0.1),
+            border: Border.all(color: kGold.withValues(alpha: 0.3)),
+          ),
+          child: Icon(icon, color: kGold, size: 28),
+        ),
+        const SizedBox(height: 8),
+        Text(label, textAlign: TextAlign.center,
+            style: TextStyle(color: _g(0.7), fontSize: 10, height: 1.3)),
+      ]),
+    );
+  }
+
   Widget _reqMediaBtn(IconData icon, Color color) => Container(
     width: 42, height: 42,
     decoration: BoxDecoration(
@@ -5268,39 +5324,39 @@ Future<void> _notifyProsDirectly(
                             ),
                           ),
                           const SizedBox(width: 6),
-                          // 1. GALLERY PHOTO
+                          // MEDIA ATTACH BUTTON (1 button → bottom sheet με 4 επιλογές)
                           GestureDetector(
-                            onTap: _images.length < 3 ? _pickImage : null,
+                            onTap: _showMediaPicker,
                             child: Stack(children: [
-                              _reqMediaBtn(Icons.photo_library_outlined, _images.isNotEmpty ? kGreen : kGold),
-                              if (_images.isNotEmpty) Positioned(
-                                top: 2, right: 2,
-                                child: Container(
-                                  width: 15, height: 15,
-                                  decoration: const BoxDecoration(color: kGreen, shape: BoxShape.circle),
-                                  child: Center(child: Text('${_images.length}',
-                                      style: TextStyle(color: _gw, fontSize: 8, fontWeight: FontWeight.w700))),
+                              AnimatedContainer(
+                                duration: const Duration(milliseconds: 200),
+                                width: 46, height: 46,
+                                decoration: BoxDecoration(
+                                  borderRadius: BorderRadius.circular(14),
+                                  color: (_images.isNotEmpty || _video != null)
+                                      ? kGold.withValues(alpha: 0.15)
+                                      : _g(0.08),
+                                  border: Border.all(
+                                    color: (_images.isNotEmpty || _video != null)
+                                        ? kGold
+                                        : kGold.withValues(alpha: 0.3)),
                                 ),
+                                child: Center(child: Icon(
+                                  Icons.attach_file_rounded,
+                                  color: (_images.isNotEmpty || _video != null) ? kGold : kGold.withValues(alpha: 0.7),
+                                  size: 22,
+                                )),
                               ),
+                              if (_images.isNotEmpty || _video != null)
+                                Positioned(top: 2, right: 2,
+                                  child: Container(
+                                    width: 16, height: 16,
+                                    decoration: const BoxDecoration(color: kGold, shape: BoxShape.circle),
+                                    child: Center(child: Text(
+                                      '${_images.length + (_video != null ? 1 : 0)}',
+                                      style: const TextStyle(color: Colors.black, fontSize: 9, fontWeight: FontWeight.w800))),
+                                  )),
                             ]),
-                          ),
-                          const SizedBox(width: 5),
-                          // 2. CAMERA PHOTO
-                          GestureDetector(
-                            onTap: _images.length < 3 ? _takeSinglePhoto : null,
-                            child: _reqMediaBtn(Icons.camera_alt_outlined, kGold),
-                          ),
-                          const SizedBox(width: 5),
-                          // 3. GALLERY VIDEO
-                          GestureDetector(
-                            onTap: _video == null ? _pickVideoGallery : () => setState(() => _video = null),
-                            child: _reqMediaBtn(Icons.video_library_outlined, _video != null ? kGreen : kGold),
-                          ),
-                          const SizedBox(width: 5),
-                          // 4. CAMERA VIDEO
-                          GestureDetector(
-                            onTap: _video == null ? _captureVideo : null,
-                            child: _reqMediaBtn(Icons.videocam_rounded, _video != null ? kGreen : kGold),
                           ),
                           const SizedBox(width: 8),
                           // SEND BUTTON
@@ -11455,6 +11511,62 @@ class _ChatScreenState extends State<ChatScreen> {
     } catch (_) {}
   }
 
+  Future<void> _showChatMediaPicker() async {
+    await showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) => Container(
+        padding: const EdgeInsets.fromLTRB(20, 16, 20, 32),
+        decoration: const BoxDecoration(
+          color: Color(0xFF111118),
+          borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+        ),
+        child: Column(mainAxisSize: MainAxisSize.min, children: [
+          Container(width: 36, height: 4,
+              decoration: BoxDecoration(color: _g(0.2), borderRadius: BorderRadius.circular(2))),
+          const SizedBox(height: 20),
+          const Text('Προσθήκη μέσου', style: TextStyle(
+              color: Colors.white, fontSize: 16, fontWeight: FontWeight.w700)),
+          const SizedBox(height: 20),
+          Row(mainAxisAlignment: MainAxisAlignment.spaceEvenly, children: [
+            _chatPickerOption(Icons.camera_alt_rounded, 'Κάμερα\nΦωτογραφία', () async {
+              Navigator.pop(ctx); await _takePhoto();
+            }),
+            _chatPickerOption(Icons.photo_library_rounded, 'Βιβλιοθήκη\nΦωτογραφιών', () async {
+              Navigator.pop(ctx); await _pickImageGallery();
+            }),
+            _chatPickerOption(Icons.videocam_rounded, 'Κάμερα\nΒίντεο', () async {
+              Navigator.pop(ctx); await _recordVideo();
+            }),
+            _chatPickerOption(Icons.video_library_rounded, 'Βιβλιοθήκη\nΒίντεο', () async {
+              Navigator.pop(ctx); await _pickVideo();
+            }),
+          ]),
+        ]),
+      ),
+    );
+  }
+
+  Widget _chatPickerOption(IconData icon, String label, VoidCallback onTap) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Column(mainAxisSize: MainAxisSize.min, children: [
+        Container(
+          width: 64, height: 64,
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(18),
+            color: kGold.withValues(alpha: 0.1),
+            border: Border.all(color: kGold.withValues(alpha: 0.3)),
+          ),
+          child: Icon(icon, color: kGold, size: 28),
+        ),
+        const SizedBox(height: 8),
+        Text(label, textAlign: TextAlign.center,
+            style: TextStyle(color: _g(0.7), fontSize: 10, height: 1.3)),
+      ]),
+    );
+  }
+
   Widget _chatMediaBtn(IconData icon, bool active) => Container(
     width: 34, height: 34,
     decoration: BoxDecoration(
@@ -11761,25 +11873,36 @@ class _ChatScreenState extends State<ChatScreen> {
             Padding(
               padding: const EdgeInsets.fromLTRB(12, 8, 12, 10),
               child: Row(children: [
-                // 1. Gallery photo
+                // 1 attachment button → bottom sheet με 4 επιλογές
                 GestureDetector(
-                  onTap: _pickImageGallery,
-                  child: _chatMediaBtn(Icons.photo_library_outlined, false)),
-                const SizedBox(width: 4),
-                // 2. Camera photo
-                GestureDetector(
-                  onTap: _takePhoto,
-                  child: _chatMediaBtn(Icons.camera_alt_outlined, false)),
-                const SizedBox(width: 4),
-                // 3. Gallery video
-                GestureDetector(
-                  onTap: _selectedVideo == null ? _pickVideo : () => setState(() => _selectedVideo = null),
-                  child: _chatMediaBtn(Icons.video_library_outlined, _selectedVideo != null)),
-                const SizedBox(width: 4),
-                // 4. Camera video
-                GestureDetector(
-                  onTap: _selectedVideo == null ? _recordVideo : null,
-                  child: _chatMediaBtn(Icons.videocam_rounded, false)),
+                  onTap: _showChatMediaPicker,
+                  child: Stack(clipBehavior: Clip.none, children: [
+                    Container(
+                      width: 38, height: 38,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        color: (_selectedImages.isNotEmpty || _selectedVideo != null)
+                            ? kGold.withValues(alpha: 0.15) : _g(0.08),
+                        border: Border.all(
+                          color: (_selectedImages.isNotEmpty || _selectedVideo != null)
+                              ? kGold : kGold.withValues(alpha: 0.25)),
+                      ),
+                      child: Icon(Icons.attach_file_rounded,
+                          color: (_selectedImages.isNotEmpty || _selectedVideo != null)
+                              ? kGold : kGold.withValues(alpha: 0.65),
+                          size: 20),
+                    ),
+                    if (_selectedImages.isNotEmpty || _selectedVideo != null)
+                      Positioned(top: -4, right: -4,
+                        child: Container(
+                          width: 16, height: 16,
+                          decoration: const BoxDecoration(color: kGold, shape: BoxShape.circle),
+                          child: Center(child: Text(
+                            '${_selectedImages.length + (_selectedVideo != null ? 1 : 0)}',
+                            style: const TextStyle(color: Colors.black, fontSize: 9, fontWeight: FontWeight.w800))),
+                        )),
+                  ]),
+                ),
                 const SizedBox(width: 8),
                 Expanded(
                   child: Container(
