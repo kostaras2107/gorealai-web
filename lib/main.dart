@@ -5432,6 +5432,35 @@ Future<void> _notifyProsDirectly(
                     ),
                   ],
 
+                  // ══ VIDEO THUMBNAIL ══
+                  if (_video != null) ...[
+                    const SizedBox(height: 10),
+                    Stack(children: [
+                      Container(
+                        width: 60, height: 60,
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(10),
+                          color: kGold.withValues(alpha: 0.12),
+                          border: Border.all(color: kGold.withValues(alpha: 0.5)),
+                        ),
+                        child: const Column(mainAxisAlignment: MainAxisAlignment.center, children: [
+                          Icon(Icons.videocam_rounded, color: kGold, size: 26),
+                          SizedBox(height: 2),
+                          Text('Βίντεο', style: TextStyle(color: kGold, fontSize: 8, fontWeight: FontWeight.w600)),
+                        ]),
+                      ),
+                      Positioned(top: 0, right: 0,
+                        child: GestureDetector(
+                          onTap: () => setState(() => _video = null),
+                          child: Container(
+                            width: 16, height: 16,
+                            decoration: const BoxDecoration(color: Colors.red, shape: BoxShape.circle),
+                            child: const Icon(Icons.close, color: Colors.white, size: 10),
+                          ),
+                        )),
+                    ]),
+                  ],
+
                   // ══ CRITERIA ══
                   const SizedBox(height: 14),
                   Row(children: [
@@ -11539,7 +11568,7 @@ class _ChatScreenState extends State<ChatScreen> {
     _chatAudioTimer?.cancel();
     final path = await _audioRec.stop();
     setState(() { _chatAudioRecording = false; _chatAudioUploading = true; });
-    if (path == null) { setState(() => _chatAudioUploading = false); return; }
+    if (path == null || path.isEmpty) { setState(() => _chatAudioUploading = false); return; }
     try {
       Uint8List bytes;
       if (path.startsWith('blob:') || path.startsWith('http')) {
@@ -11548,10 +11577,13 @@ class _ChatScreenState extends State<ChatScreen> {
       } else {
         bytes = await XFile(path).readAsBytes();
       }
-      final ext = path.contains('.') ? path.split('.').last.split('?').first : 'webm';
+      // blob URLs don't have a file extension — default to webm on web
+      final ext = path.startsWith('blob:') ? 'webm' :
+          (path.contains('.') ? path.split('.').last.split('?').first : 'webm');
+      final ct = ext == 'webm' ? 'audio/webm' : 'audio/m4a';
       final ref = FirebaseStorage.instance.ref(
           'chat_media/${widget.chatId}/${DateTime.now().millisecondsSinceEpoch}_audio.$ext');
-      await ref.putData(bytes, SettableMetadata(contentType: 'audio/$ext'));
+      await ref.putData(bytes, SettableMetadata(contentType: ct));
       final url = await ref.getDownloadURL();
       final uid = FirebaseAuth.instance.currentUser?.uid ?? '';
       await FirebaseFirestore.instance.collection('chats').doc(widget.chatId)
@@ -11566,7 +11598,9 @@ class _ChatScreenState extends State<ChatScreen> {
       await FirebaseFirestore.instance.collection('chats').doc(widget.chatId)
           .set({'lastMessage': '🎤 Ηχητικό μήνυμα', 'lastTimestamp': FieldValue.serverTimestamp(), unreadField: FieldValue.increment(1)},
               SetOptions(merge: true));
-    } catch (_) {}
+    } catch (e) {
+      // ignore
+    }
     if (mounted) setState(() => _chatAudioUploading = false);
   }
 
