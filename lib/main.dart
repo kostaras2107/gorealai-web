@@ -2847,7 +2847,7 @@ class _ProfessionalHomeScreenState extends State<ProfessionalHomeScreen> {
     final uid = FirebaseAuth.instance.currentUser?.uid;
     if (uid != null) {
       await FirebaseFirestore.instance.collection('professionals').doc(uid).set(
-          {'isAvailable': val}, SetOptions(merge: true));
+          {'isAvailable': val, 'is_active': val}, SetOptions(merge: true));
       await FirebaseFirestore.instance.collection('users').doc(uid).set(
           {'isAvailable': val}, SetOptions(merge: true));
     }
