@@ -11586,18 +11586,23 @@ class _ChatScreenState extends State<ChatScreen> {
       await ref.putData(bytes, SettableMetadata(contentType: ct));
       final url = await ref.getDownloadURL();
       final uid = FirebaseAuth.instance.currentUser?.uid ?? '';
-      await FirebaseFirestore.instance.collection('chats').doc(widget.chatId)
-          .collection('messages').add({
-        'text': '',
-        'senderId': uid,
-        'senderName': widget.currentUserName,
-        'timestamp': FieldValue.serverTimestamp(),
+      final chatRef = FirebaseFirestore.instance.collection('chats').doc(widget.chatId);
+      await chatRef.collection('messages').add({
+        'text': '', 'photoUrls': [], 'videoUrls': [],
         'audioUrl': url,
+        'senderId': widget.currentUserId,
+        'senderName': widget.currentUserName,
+        'createdAt': FieldValue.serverTimestamp(),
       });
       final unreadField = widget.isPro ? 'unreadUser' : 'unreadPro';
-      await FirebaseFirestore.instance.collection('chats').doc(widget.chatId)
-          .set({'lastMessage': '🎤 Ηχητικό μήνυμα', 'lastTimestamp': FieldValue.serverTimestamp(), unreadField: FieldValue.increment(1)},
-              SetOptions(merge: true));
+      final chatParts = widget.chatId.split('_');
+      await chatRef.set({
+        'lastMessage': '🎤 Ηχητικό μήνυμα', 'lastMessageAt': FieldValue.serverTimestamp(),
+        unreadField: FieldValue.increment(1),
+        widget.isPro ? 'unreadPro' : 'unreadUser': 0,
+        if (chatParts.isNotEmpty) 'userId': chatParts[0],
+        if (chatParts.length > 1) 'proId': chatParts[1],
+      }, SetOptions(merge: true));
     } catch (e) {
       // ignore
     }
@@ -11818,7 +11823,8 @@ class _ChatScreenState extends State<ChatScreen> {
                 padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
                 itemCount: msgs.length,
                 itemBuilder: (_, i) {
-                  final d = msgs[i].data() as Map<String, dynamic>;
+                  final doc = msgs[i];
+                  final d = doc.data() as Map<String, dynamic>;
                   final isMine = d['senderId'] == widget.currentUserId;
                   final text = d['text'] as String? ?? '';
                   final ts = d['createdAt'] as Timestamp?;
@@ -11827,8 +11833,27 @@ class _ChatScreenState extends State<ChatScreen> {
                       : '';
                   final photoUrls = List<String>.from(d['photoUrls'] ?? []);
                   final videoUrls = List<String>.from(d['videoUrls'] ?? []);
-                  final hasMedia = photoUrls.isNotEmpty || videoUrls.isNotEmpty;
-                  return Padding(
+                  final audioUrl = d['audioUrl'] as String? ?? '';
+                  final hasMedia = photoUrls.isNotEmpty || videoUrls.isNotEmpty || audioUrl.isNotEmpty;
+                  return GestureDetector(
+                    onLongPress: isMine ? () async {
+                      final confirmed = await showDialog<bool>(
+                        context: context,
+                        builder: (ctx) => AlertDialog(
+                          backgroundColor: const Color(0xFF1A1A2E),
+                          title: const Text('Διαγραφή μηνύματος', style: TextStyle(color: Colors.white, fontSize: 16)),
+                          content: const Text('Να διαγραφεί αυτό το μήνυμα;', style: TextStyle(color: Colors.white70)),
+                          actions: [
+                            TextButton(onPressed: () => Navigator.pop(ctx, false), child: Text('Άκυρο', style: TextStyle(color: _g(0.5)))),
+                            TextButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Διαγραφή', style: TextStyle(color: Colors.red))),
+                          ],
+                        ),
+                      );
+                      if (confirmed == true) {
+                        await doc.reference.delete();
+                      }
+                    } : null,
+                    child: Padding(
                     padding: const EdgeInsets.only(bottom: 8),
                     child: Row(
                       mainAxisAlignment: isMine ? MainAxisAlignment.end : MainAxisAlignment.start,
@@ -11903,6 +11928,10 @@ class _ChatScreenState extends State<ChatScreen> {
                                   )),
                                   if (text.isNotEmpty) const SizedBox(height: 6),
                                 ],
+                                if (audioUrl.isNotEmpty) ...[
+                                  _AudioPlayWidget(url: audioUrl),
+                                  if (text.isNotEmpty) const SizedBox(height: 6),
+                                ],
                                 if (text.isNotEmpty)
                                   Text(text, style: TextStyle(
                                       color: isMine ? Colors.black : _gw, fontSize: 13, height: 1.4)),
@@ -11915,7 +11944,7 @@ class _ChatScreenState extends State<ChatScreen> {
                         ),
                       ],
                     ),
-                  );
+                  ));
                 },
               );
             },
