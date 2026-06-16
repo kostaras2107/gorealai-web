@@ -4750,16 +4750,16 @@ class _RequestScreenState extends State<RequestScreen>
               color: Colors.white, fontSize: 16, fontWeight: FontWeight.w700)),
           const SizedBox(height: 20),
           Row(mainAxisAlignment: MainAxisAlignment.spaceEvenly, children: [
-            _mediaPickerOption(ctx, Icons.camera_alt_rounded, 'Κάμερα\nΦωτογραφία', () async {
+            _mediaPickerOption(ctx, Icons.photo_camera, 'Κάμερα\nΦωτογραφία', () async {
               Navigator.pop(ctx); await _takeSinglePhoto();
             }),
-            _mediaPickerOption(ctx, Icons.photo_library_rounded, 'Βιβλιοθήκη\nΦωτογραφιών', () async {
+            _mediaPickerOption(ctx, Icons.collections, 'Βιβλιοθήκη\nΦωτογραφιών', () async {
               Navigator.pop(ctx); await _pickImage();
             }),
             _mediaPickerOption(ctx, Icons.videocam_rounded, 'Κάμερα\nΒίντεο', () async {
               Navigator.pop(ctx); await _captureVideo();
             }),
-            _mediaPickerOption(ctx, Icons.video_library_rounded, 'Βιβλιοθήκη\nΒίντεο', () async {
+            _mediaPickerOption(ctx, Icons.movie, 'Βιβλιοθήκη\nΒίντεο', () async {
               Navigator.pop(ctx); await _pickVideoGallery();
             }),
           ]),
@@ -5343,7 +5343,7 @@ Future<void> _notifyProsDirectly(
                                         : kGold.withValues(alpha: 0.3)),
                                 ),
                                 child: Center(child: Icon(
-                                  Icons.attach_file_rounded,
+                                  Icons.add_circle_outline,
                                   color: (_images.isNotEmpty || _video != null) ? kGold : kGold.withValues(alpha: 0.7),
                                   size: 22,
                                 )),
@@ -11588,16 +11588,16 @@ class _ChatScreenState extends State<ChatScreen> {
               color: Colors.white, fontSize: 16, fontWeight: FontWeight.w700)),
           const SizedBox(height: 20),
           Row(mainAxisAlignment: MainAxisAlignment.spaceEvenly, children: [
-            _chatPickerOption(Icons.camera_alt_rounded, 'Κάμερα\nΦωτο', () async {
+            _chatPickerOption(Icons.photo_camera, 'Κάμερα\nΦωτο', () async {
               Navigator.pop(ctx); await _takePhoto();
             }),
-            _chatPickerOption(Icons.photo_library_rounded, 'Βιβλιοθήκη\nΦωτο', () async {
+            _chatPickerOption(Icons.collections, 'Βιβλιοθήκη\nΦωτο', () async {
               Navigator.pop(ctx); await _pickImageGallery();
             }),
             _chatPickerOption(Icons.videocam_rounded, 'Κάμερα\nΒίντεο', () async {
               Navigator.pop(ctx); await _recordVideo();
             }),
-            _chatPickerOption(Icons.video_library_rounded, 'Βιβλιοθήκη\nΒίντεο', () async {
+            _chatPickerOption(Icons.movie, 'Βιβλιοθήκη\nΒίντεο', () async {
               Navigator.pop(ctx); await _pickVideo();
             }),
             _chatPickerOption(Icons.mic_rounded, 'Ηχο-\nγράφηση', () async {
@@ -11988,7 +11988,7 @@ class _ChatScreenState extends State<ChatScreen> {
                           color: (_selectedImages.isNotEmpty || _selectedVideo != null)
                               ? kGold : kGold.withValues(alpha: 0.25)),
                       ),
-                      child: Icon(Icons.attach_file_rounded,
+                      child: Icon(Icons.add_circle_outline,
                           color: (_selectedImages.isNotEmpty || _selectedVideo != null)
                               ? kGold : kGold.withValues(alpha: 0.65),
                           size: 20),
