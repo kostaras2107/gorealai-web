@@ -9640,23 +9640,20 @@ class _HNavItem extends StatelessWidget {
   Widget build(BuildContext context) => GestureDetector(
         onTap: onTap,
         child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+          padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 8),
           decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(16),
-            color: active ? Colors.white.withValues(alpha: 0.09) : Colors.transparent,
-            border: active ? Border.all(color: Colors.white.withValues(alpha: 0.1)) : null,
+            borderRadius: BorderRadius.circular(18),
+            color: active ? kGold.withValues(alpha: 0.12) : Colors.transparent,
           ),
           child: Column(mainAxisSize: MainAxisSize.min, children: [
-            Icon(icon,
-                color: active ? Colors.white : const Color(0xFF6E6E73),
-                size: 22),
+            Icon(icon, color: active ? kGold : _g(0.3), size: 22),
             const SizedBox(height: 3),
             Text(label,
                 style: TextStyle(
                     fontFamily: 'Raleway',
                     fontSize: 9,
-                    color: active ? Colors.white : const Color(0xFF6E6E73),
-                    fontWeight: active ? FontWeight.w700 : FontWeight.w400)),
+                    color: active ? kGold : _g(0.3),
+                    fontWeight: active ? FontWeight.w600 : FontWeight.w400)),
             if (active) ...[
               const SizedBox(height: 3),
               Container(
@@ -9664,7 +9661,7 @@ class _HNavItem extends StatelessWidget {
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
                   color: kGold,
-                  boxShadow: [BoxShadow(color: kGold.withValues(alpha: 0.9), blurRadius: 6)],
+                  boxShadow: [BoxShadow(color: kGold.withValues(alpha: 0.8), blurRadius: 6)],
                 )),
             ],
           ]),
@@ -11585,25 +11582,45 @@ class _MessagesScreenState extends State<MessagesScreen> {
                       transitionDuration: const Duration(milliseconds: 300),
                     )),
                     child: Container(
-                      margin: const EdgeInsets.only(bottom: 14),
-                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 13),
+                      margin: const EdgeInsets.only(bottom: 12),
                       decoration: BoxDecoration(
                         borderRadius: BorderRadius.circular(20),
-                        color: unread > 0 ? const Color(0xFF1A1400) : const Color(0xFF0F1628),
+                        gradient: LinearGradient(
+                          begin: Alignment.topLeft, end: Alignment.bottomRight,
+                          colors: unread > 0
+                              ? [kGold.withValues(alpha: 0.10), const Color(0xFF0D0D00)]
+                              : [kGold.withValues(alpha: 0.05), const Color(0xFF0A0A18)],
+                        ),
                         border: Border.all(
-                          color: unread > 0 ? kGold.withValues(alpha: 0.5) : Colors.white.withValues(alpha: 0.06),
+                          color: unread > 0 ? kGold.withValues(alpha: 0.45) : kGold.withValues(alpha: 0.14),
                           width: unread > 0 ? 1.5 : 1,
                         ),
-                        boxShadow: [BoxShadow(
-                          color: unread > 0 ? kGold.withValues(alpha: 0.18) : Colors.black.withValues(alpha: 0.35),
-                          blurRadius: unread > 0 ? 20 : 12, offset: const Offset(0, 6),
-                        )],
+                        boxShadow: [
+                          BoxShadow(
+                            color: unread > 0 ? kGold.withValues(alpha: 0.14) : Colors.black.withValues(alpha: 0.4),
+                            blurRadius: unread > 0 ? 22 : 10, offset: const Offset(0, 5),
+                          ),
+                          BoxShadow(color: Colors.black.withValues(alpha: 0.3), blurRadius: 6, offset: const Offset(0, 2)),
+                        ],
                       ),
+                      child: Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 13),
                       child: Row(children: [
-                        Container(width: 54, height: 54,
-                          decoration: BoxDecoration(shape: BoxShape.circle,
-                              color: kGold.withValues(alpha: unread > 0 ? 0.2 : 0.08),
-                              border: Border.all(color: unread > 0 ? kGold.withValues(alpha: 0.8) : kGold.withValues(alpha: 0.25))),
+                        // Avatar με glow αν unread
+                        Container(
+                          width: 54, height: 54,
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            gradient: RadialGradient(colors: [
+                              kGold.withValues(alpha: unread > 0 ? 0.25 : 0.1),
+                              kGold.withValues(alpha: 0.03),
+                            ]),
+                            border: Border.all(
+                              color: unread > 0 ? kGold.withValues(alpha: 0.8) : kGold.withValues(alpha: 0.25),
+                              width: unread > 0 ? 2 : 1,
+                            ),
+                            boxShadow: unread > 0 ? [BoxShadow(color: kGold.withValues(alpha: 0.3), blurRadius: 12)] : null,
+                          ),
                           child: ClipOval(child: proPhotoUrl != null && proPhotoUrl.isNotEmpty
                               ? Image.network(proPhotoUrl, fit: BoxFit.cover,
                                   errorBuilder: (_, __, ___) => Center(child: Text(
@@ -11617,32 +11634,35 @@ class _MessagesScreenState extends State<MessagesScreen> {
                           Row(children: [
                             Expanded(child: Text(proName, maxLines: 1, overflow: TextOverflow.ellipsis,
                                 style: TextStyle(color: Colors.white, fontSize: 15,
-                                    fontWeight: unread > 0 ? FontWeight.w800 : FontWeight.w600))),
+                                    fontWeight: unread > 0 ? FontWeight.w800 : FontWeight.w600,
+                                    letterSpacing: 0.2))),
                             if (timeStr.isNotEmpty)
                               Text(timeStr, style: TextStyle(
-                                  color: unread > 0 ? kGold : Colors.white.withValues(alpha: 0.3),
-                                  fontSize: 10, fontWeight: unread > 0 ? FontWeight.w700 : FontWeight.w500)),
+                                  color: unread > 0 ? kGold : Colors.white.withValues(alpha: 0.25),
+                                  fontSize: 10, fontWeight: unread > 0 ? FontWeight.w700 : FontWeight.w400)),
                           ]),
-                          const SizedBox(height: 5),
+                          const SizedBox(height: 6),
                           Row(children: [
                             Expanded(child: Text(lastMsg.isNotEmpty ? lastMsg : 'Ξεκίνα τη συνομιλία...',
                                 maxLines: 1, overflow: TextOverflow.ellipsis,
                                 style: TextStyle(
-                                    color: unread > 0 ? Colors.white.withValues(alpha: 0.75) : Colors.white.withValues(alpha: 0.3),
-                                    fontSize: 13, fontWeight: unread > 0 ? FontWeight.w500 : FontWeight.w400))),
+                                    color: unread > 0 ? Colors.white.withValues(alpha: 0.7) : Colors.white.withValues(alpha: 0.28),
+                                    fontSize: 12, fontWeight: unread > 0 ? FontWeight.w500 : FontWeight.w400))),
                             if (unread > 0)
                               Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                width: 22, height: 22,
                                 decoration: BoxDecoration(
-                                  borderRadius: BorderRadius.circular(10),
+                                  shape: BoxShape.circle,
                                   gradient: const LinearGradient(colors: [kGoldLight, kGold]),
+                                  boxShadow: [BoxShadow(color: kGold.withValues(alpha: 0.5), blurRadius: 8)],
                                 ),
-                                child: Text('$unread', style: const TextStyle(
-                                    color: Colors.black, fontSize: 11, fontWeight: FontWeight.w900)),
+                                child: Center(child: Text('$unread', style: const TextStyle(
+                                    color: Colors.black, fontSize: 10, fontWeight: FontWeight.w900))),
                               ),
                           ]),
                         ])),
                       ]),
+                      ),
                     ),
                   ),
                 );
