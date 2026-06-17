@@ -7454,12 +7454,24 @@ class _HistoryProCardState extends State<_HistoryProCard> {
   late TextEditingController _commentCtrl;
   bool _expanded = false;
   bool _saving = false;
+  String? _photoUrl;
 
   @override
   void initState() {
     super.initState();
     _rating = (widget.data['myRating'] as int?) ?? 0;
     _commentCtrl = TextEditingController(text: widget.data['myComment'] as String? ?? '');
+    _loadPhoto();
+  }
+
+  Future<void> _loadPhoto() async {
+    final proId = widget.data['professionalId'] as String? ?? '';
+    if (proId.isEmpty) return;
+    try {
+      final doc = await FirebaseFirestore.instance.collection('professionals').doc(proId).get();
+      final url = (doc.data() as Map?)?['profilePhotoUrl'] as String?;
+      if (url != null && url.isNotEmpty && mounted) setState(() => _photoUrl = url);
+    } catch (_) {}
   }
 
   @override
@@ -7527,7 +7539,13 @@ class _HistoryProCardState extends State<_HistoryProCard> {
                 color: kGold.withValues(alpha: 0.12),
                 border: Border.all(color: kGold.withValues(alpha: 0.25)),
               ),
-              child: Center(child: Text(widget.emoji, style: const TextStyle(fontSize: 24))),
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(13),
+                child: _photoUrl != null
+                    ? Image.network(_photoUrl!, fit: BoxFit.cover,
+                        errorBuilder: (_, __, ___) => Center(child: Text(widget.emoji, style: const TextStyle(fontSize: 24))))
+                    : Center(child: Text(widget.emoji, style: const TextStyle(fontSize: 24))),
+              ),
             ),
             const SizedBox(width: 12),
             Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
@@ -11536,7 +11554,7 @@ class _MessagesScreenState extends State<MessagesScreen> {
                 final d = doc.data() as Map<String, dynamic>;
                 final chatId = doc.id;
                 final proName = d['proName'] as String? ?? 'Επαγγελματίας';
-                final proPhotoUrl = d['proPhotoUrl'] as String?;
+                final proId2 = d['proId'] as String? ?? '';
                 final lastMsg = d['lastMessage'] as String? ?? '';
                 final ts = d['lastMessageAt'] as Timestamp?;
                 final unread = (d['unreadUser'] as int?) ?? 0;
@@ -11621,11 +11639,21 @@ class _MessagesScreenState extends State<MessagesScreen> {
                             ),
                             boxShadow: unread > 0 ? [BoxShadow(color: kGold.withValues(alpha: 0.3), blurRadius: 12)] : null,
                           ),
-                          child: ClipOval(child: proPhotoUrl != null && proPhotoUrl.isNotEmpty
-                              ? Image.network(proPhotoUrl, fit: BoxFit.cover,
-                                  errorBuilder: (_, __, ___) => Center(child: Text(
-                                      proName.isNotEmpty ? proName[0].toUpperCase() : '?',
-                                      style: const TextStyle(color: kGold, fontSize: 21, fontWeight: FontWeight.w900))))
+                          child: ClipOval(child: proId2.isNotEmpty
+                              ? FutureBuilder<DocumentSnapshot>(
+                                  future: FirebaseFirestore.instance.collection('professionals').doc(proId2).get(),
+                                  builder: (_, snap) {
+                                    final snapMap = snap.hasData ? snap.data!.data() as Map? : null;
+                                    final photoUrl = snapMap != null ? snapMap['profilePhotoUrl'] as String? : null;
+                                    if (photoUrl != null && photoUrl.isNotEmpty) {
+                                      return Image.network(photoUrl, fit: BoxFit.cover,
+                                          errorBuilder: (_, __, ___) => Center(child: Text(
+                                              proName.isNotEmpty ? proName[0].toUpperCase() : '?',
+                                              style: const TextStyle(color: kGold, fontSize: 21, fontWeight: FontWeight.w900))));
+                                    }
+                                    return Center(child: Text(proName.isNotEmpty ? proName[0].toUpperCase() : '?',
+                                        style: const TextStyle(color: kGold, fontSize: 21, fontWeight: FontWeight.w900)));
+                                  })
                               : Center(child: Text(proName.isNotEmpty ? proName[0].toUpperCase() : '?',
                                   style: const TextStyle(color: kGold, fontSize: 21, fontWeight: FontWeight.w900)))),
                         ),
