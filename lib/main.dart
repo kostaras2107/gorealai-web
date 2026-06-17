@@ -2665,8 +2665,8 @@ class _BottomNav extends StatelessWidget {
                     child: Center(child: Text(
                         userName?.isNotEmpty == true
                             ? userName![0].toUpperCase() : 'G',
-                        style: TextStyle(
-                            color: navIndex == 3 ? Colors.white : const Color(0xFF8E8E93),
+                        style: const TextStyle(
+                            color: kGold,
                             fontSize: 16, fontWeight: FontWeight.bold))),
                   ),
                 ),
