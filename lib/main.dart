@@ -33,7 +33,6 @@ const Color kBg = Color(0xFF060D1E);
 const Color kGreen = Color(0xFF00D4AA);
 
 /// Reads a blob: URL using the browser's native XHR (works on Flutter web).
-/// Falls back to XFile.readAsBytes() for non-blob paths.
 Future<Uint8List> _readFileBytes(String path) async {
   if (path.startsWith('blob:') || path.startsWith('http')) {
     final req = await html.HttpRequest.request(path, responseType: 'arraybuffer');
@@ -1570,6 +1569,8 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   String? _userId;
   bool _isPro = false;
   int _navIndex = 0;
+  String _proSpecialty = '';
+  List<String> _proAreas = [];
   // Ενεργά αιτήματα (για το G button — μέχρι 2)
   List<Map<String, dynamic>> _activeRequests = []; // list of {id, status, desc, criteria, expiresAt}
 
@@ -1687,10 +1688,21 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
         .doc(u.uid)
         .get();
     if (!mounted) return;
+    final data = doc.data() ?? {};
+    final isPro = (data['role'] ?? '') == 'professional';
+    String specialty = '';
+    List<String> areas = [];
+    if (isPro) {
+      specialty = (data['specialty'] as String? ?? '').toLowerCase();
+      final rawAreas = data['areas'];
+      areas = rawAreas is List ? List<String>.from(rawAreas.map((e) => e.toString().toLowerCase())) : [];
+    }
     setState(() {
-      _userName = doc.data()?['name'] ?? u.email ?? 'User';
+      _userName = data['name'] ?? u.email ?? 'User';
       _userId = u.uid;
-      _isPro = (doc.data()?['role'] ?? '') == 'professional';
+      _isPro = isPro;
+      _proSpecialty = specialty;
+      _proAreas = areas;
     });
   }
 
@@ -1949,7 +1961,21 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                                 .snapshots(),
                             builder: (context, snapReq) {
                           final reqCount = snapReq.hasData
-                              ? snapReq.data!.docs.where((d) => !respondedIds.contains(d.id)).length
+                              ? snapReq.data!.docs.where((d) {
+                                  if (respondedIds.contains(d.id)) return false;
+                                  final data = d.data() as Map<String, dynamic>;
+                                  if (_proSpecialty.isNotEmpty) {
+                                    final reqProf = (data['profession'] as String? ?? '').toLowerCase();
+                                    if (reqProf.isNotEmpty && !_proSpecialty.contains(reqProf) && !reqProf.contains(_proSpecialty)) return false;
+                                  }
+                                  if (_proAreas.isNotEmpty) {
+                                    final reqLoc = (data['location'] as String? ?? '').toLowerCase();
+                                    if (reqLoc.isNotEmpty && reqLoc != 'κοντά μου') {
+                                      if (!_proAreas.any((a) => a.contains(reqLoc) || reqLoc.contains(a))) return false;
+                                    }
+                                  }
+                                  return true;
+                                }).length
                               : 0;
                           return StreamBuilder<QuerySnapshot>(
                             stream: _userId != null
@@ -3641,8 +3667,24 @@ class _ProfessionalHomeScreenState extends State<ProfessionalHomeScreen> {
           .limit(20)
           .snapshots(),
       builder: (_, snapReq) {
+        final proSpecialty = _specialty.toLowerCase();
+        final proAreas = _areas.map((a) => a.toLowerCase()).toList();
         final reqCount = snapReq.hasData
-            ? snapReq.data!.docs.where((d) => !_submittedIds.contains(d.id) && !offeredIds.contains(d.id)).length
+            ? snapReq.data!.docs.where((d) {
+                if (_submittedIds.contains(d.id) || offeredIds.contains(d.id)) return false;
+                final data = d.data() as Map<String, dynamic>;
+                if (proSpecialty.isNotEmpty) {
+                  final reqProf = (data['profession'] as String? ?? '').toLowerCase();
+                  if (reqProf.isNotEmpty && !proSpecialty.contains(reqProf) && !reqProf.contains(proSpecialty)) return false;
+                }
+                if (proAreas.isNotEmpty) {
+                  final reqLoc = (data['location'] as String? ?? '').toLowerCase();
+                  if (reqLoc.isNotEmpty && reqLoc != 'κοντά μου') {
+                    if (!proAreas.any((a) => a.contains(reqLoc) || reqLoc.contains(a))) return false;
+                  }
+                }
+                return true;
+              }).length
             : 0;
         return StreamBuilder<QuerySnapshot>(
           stream: _proId != null
@@ -4630,10 +4672,26 @@ class _ProfessionalHomeScreenState extends State<ProfessionalHomeScreen> {
         if (!snap.hasData) {
           return const Center(child: CircularProgressIndicator(color: kGold));
         }
+        final proSpecialty = _specialty.toLowerCase();
+        final proAreas = _areas.map((a) => a.toLowerCase()).toList();
         final docs = snap.data!.docs
             .where((d) => !_submittedIds.contains(d.id))
+            .where((d) {
+              final data = d.data() as Map<String, dynamic>;
+              // Filter by profession
+              final reqProfession = (data['profession'] as String? ?? '').toLowerCase();
+              if (proSpecialty.isNotEmpty && reqProfession.isNotEmpty) {
+                if (!proSpecialty.contains(reqProfession) && !reqProfession.contains(proSpecialty)) return false;
+              }
+              // Filter by location
+              final reqLocation = (data['location'] as String? ?? '').toLowerCase();
+              if (proAreas.isNotEmpty && reqLocation.isNotEmpty && reqLocation != 'κοντά μου') {
+                final matches = proAreas.any((a) => a.contains(reqLocation) || reqLocation.contains(a));
+                if (!matches) return false;
+              }
+              return true;
+            })
             .toList();
-        // Note: offeredIds from Firestore also filters these via _submittedIds after setState
         if (docs.isEmpty) {
           return Center(child: Column(mainAxisSize: MainAxisSize.min, children: [
             Container(
@@ -4768,6 +4826,41 @@ class _ProfessionalHomeScreenState extends State<ProfessionalHomeScreen> {
                       _RequestImageGallery(requestData: d, requestId: requestId),
                     ],
 
+                    // Video
+                    if ((d['videoUrl'] as String?)?.isNotEmpty == true) ...[
+                      const SizedBox(height: 10),
+                      GestureDetector(
+                        onTap: () => launchUrl(Uri.parse(d['videoUrl'] as String), mode: LaunchMode.externalApplication),
+                        child: Container(
+                          width: double.infinity,
+                          padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 14),
+                          decoration: BoxDecoration(
+                            borderRadius: BorderRadius.circular(12),
+                            color: Colors.black,
+                            border: Border.all(color: kGold.withValues(alpha: 0.3)),
+                          ),
+                          child: Row(children: [
+                            Container(
+                              width: 40, height: 40,
+                              decoration: BoxDecoration(
+                                shape: BoxShape.circle,
+                                color: kGold.withValues(alpha: 0.15),
+                                border: Border.all(color: kGold.withValues(alpha: 0.4)),
+                              ),
+                              child: const Icon(Icons.play_arrow_rounded, color: kGold, size: 24),
+                            ),
+                            const SizedBox(width: 12),
+                            const Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                              Text('🎥 Βίντεο από τον πελάτη', style: TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.w600)),
+                              SizedBox(height: 2),
+                              Text('Πάτα για αναπαραγωγή', style: TextStyle(color: Color(0xFF888888), fontSize: 11)),
+                            ])),
+                            Icon(Icons.open_in_new_rounded, color: kGold.withValues(alpha: 0.6), size: 16),
+                          ]),
+                        ),
+                      ),
+                    ],
+
                     // User's audio message
                     if ((d['audioUrl'] as String?)?.isNotEmpty == true) ...[
                       const SizedBox(height: 8),
@@ -4834,6 +4927,8 @@ class _ProfessionalHomeScreenState extends State<ProfessionalHomeScreen> {
     final priceCtrl = TextEditingController();
     final msgCtrl = TextEditingController();
     String available = 'Αύριο';
+    bool priceAfterVisit = false;
+    DateTime? customDate;
     String? offerAudioUrl;
     bool offerRecording = false;
     bool offerUploading = false;
@@ -4863,53 +4958,136 @@ class _ProfessionalHomeScreenState extends State<ProfessionalHomeScreen> {
                   style: TextStyle(fontSize: 11, color: _g(0.4))),
               const SizedBox(height: 20),
               // Τιμή
-              TextField(
-                controller: priceCtrl,
-                keyboardType: TextInputType.number,
-                style: TextStyle(color: _gw, fontSize: 22,
-                    fontWeight: FontWeight.w800),
-                textAlign: TextAlign.center,
-                decoration: InputDecoration(
-                  hintText: '0',
-                  hintStyle: TextStyle(color: _g(0.2), fontSize: 22),
-                  suffixText: '€',
-                  suffixStyle: const TextStyle(color: kGold, fontSize: 18),
-                  filled: true, fillColor: _g(0.05),
-                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(14),
-                      borderSide: BorderSide(color: kGold.withValues(alpha: 0.3))),
-                  enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(14),
-                      borderSide: BorderSide(color: kGold.withValues(alpha: 0.3))),
-                  focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(14),
-                      borderSide: const BorderSide(color: kGold)),
-                  labelText: 'Τιμή σου',
-                  labelStyle: const TextStyle(color: kGold, fontSize: 12),
+              AnimatedOpacity(
+                opacity: priceAfterVisit ? 0.35 : 1.0,
+                duration: const Duration(milliseconds: 200),
+                child: IgnorePointer(
+                  ignoring: priceAfterVisit,
+                  child: TextField(
+                    controller: priceCtrl,
+                    keyboardType: TextInputType.number,
+                    style: TextStyle(color: _gw, fontSize: 22, fontWeight: FontWeight.w800),
+                    textAlign: TextAlign.center,
+                    decoration: InputDecoration(
+                      hintText: priceAfterVisit ? '—' : '0',
+                      hintStyle: TextStyle(color: _g(0.2), fontSize: 22),
+                      suffixText: priceAfterVisit ? '' : '€',
+                      suffixStyle: const TextStyle(color: kGold, fontSize: 18),
+                      filled: true, fillColor: _g(0.05),
+                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(14),
+                          borderSide: BorderSide(color: kGold.withValues(alpha: 0.3))),
+                      enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(14),
+                          borderSide: BorderSide(color: kGold.withValues(alpha: 0.3))),
+                      focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(14),
+                          borderSide: const BorderSide(color: kGold)),
+                      labelText: 'Τιμή σου',
+                      labelStyle: const TextStyle(color: kGold, fontSize: 12),
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 10),
+              // Toggle: τιμή μετά από αυτοψία
+              GestureDetector(
+                onTap: () => setS(() {
+                  priceAfterVisit = !priceAfterVisit;
+                  if (priceAfterVisit) priceCtrl.clear();
+                }),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(14),
+                    color: priceAfterVisit ? kGold.withValues(alpha: 0.1) : _g(0.04),
+                    border: Border.all(color: priceAfterVisit ? kGold.withValues(alpha: 0.5) : kGold.withValues(alpha: 0.15)),
+                  ),
+                  child: Row(children: [
+                    Switch(
+                      value: priceAfterVisit,
+                      onChanged: (v) => setS(() {
+                        priceAfterVisit = v;
+                        if (v) priceCtrl.clear();
+                      }),
+                      activeColor: kGold,
+                      activeTrackColor: kGold.withValues(alpha: 0.3),
+                      inactiveThumbColor: Colors.white38,
+                      inactiveTrackColor: Colors.white12,
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                      const Text('Θα δώσω τιμή μετά από αυτοψία',
+                          style: TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.w700)),
+                      const SizedBox(height: 2),
+                      Text('Η προσφορά θα σταλεί χωρίς συγκεκριμένη τιμή',
+                          style: TextStyle(color: _g(0.4), fontSize: 10)),
+                    ])),
+                  ]),
                 ),
               ),
               const SizedBox(height: 12),
               // Διαθεσιμότητα
-              Row(children: [
-                Text('Διαθέσιμος: ', style: TextStyle(
-                    fontSize: 12, color: _g(0.5))),
-                const SizedBox(width: 8),
-                ...['Σήμερα', 'Αύριο', 'Μεθαύριο'].map((a) =>
+              Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                Text('Διαθέσιμος:', style: TextStyle(fontSize: 12, color: _g(0.5))),
+                const SizedBox(height: 8),
+                Wrap(spacing: 8, runSpacing: 8, children: [
+                  ...['Σήμερα', 'Αύριο'].map((a) =>
+                    GestureDetector(
+                      onTap: () => setS(() { available = a; customDate = null; }),
+                      child: AnimatedContainer(
+                        duration: const Duration(milliseconds: 150),
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                        decoration: BoxDecoration(
+                            borderRadius: BorderRadius.circular(10),
+                            color: available == a ? kGold.withValues(alpha: 0.2) : _g(0.05),
+                            border: Border.all(color: available == a ? kGold : kGold.withValues(alpha: 0.15))),
+                        child: Text(a, style: TextStyle(fontSize: 12,
+                            color: available == a ? kGold : _g(0.4))),
+                      ),
+                    )
+                  ),
+                  // Ημερομηνία picker
                   GestureDetector(
-                    onTap: () => setS(() => available = a),
+                    onTap: () async {
+                      final picked = await showDatePicker(
+                        context: ctx,
+                        initialDate: DateTime.now().add(const Duration(days: 2)),
+                        firstDate: DateTime.now().add(const Duration(days: 1)),
+                        lastDate: DateTime.now().add(const Duration(days: 60)),
+                        builder: (c, child) => Theme(
+                          data: Theme.of(c).copyWith(
+                            colorScheme: const ColorScheme.dark(primary: kGold, surface: Color(0xFF1A1500)),
+                          ),
+                          child: child!,
+                        ),
+                      );
+                      if (picked != null) {
+                        setS(() {
+                          customDate = picked;
+                          available = '${picked.day}/${picked.month}/${picked.year}';
+                        });
+                      }
+                    },
                     child: AnimatedContainer(
                       duration: const Duration(milliseconds: 150),
-                      margin: const EdgeInsets.only(right: 6),
-                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                       decoration: BoxDecoration(
                           borderRadius: BorderRadius.circular(10),
-                          color: available == a
-                              ? kGold.withValues(alpha: 0.2) : _g(0.05),
-                          border: Border.all(
-                              color: available == a ? kGold : Colors.transparent)),
-                      child: Text(a, style: TextStyle(
-                          fontSize: 11,
-                          color: available == a ? kGold : _g(0.4))),
+                          color: customDate != null ? kGold.withValues(alpha: 0.2) : _g(0.05),
+                          border: Border.all(color: customDate != null ? kGold : kGold.withValues(alpha: 0.15))),
+                      child: Row(mainAxisSize: MainAxisSize.min, children: [
+                        Icon(Icons.calendar_today_rounded, size: 12,
+                            color: customDate != null ? kGold : _g(0.4)),
+                        const SizedBox(width: 5),
+                        Text(
+                          customDate != null
+                              ? '${customDate!.day}/${customDate!.month}/${customDate!.year}'
+                              : 'Ημερομηνία',
+                          style: TextStyle(fontSize: 12,
+                              color: customDate != null ? kGold : _g(0.4)),
+                        ),
+                      ]),
                     ),
-                  )
-                ),
+                  ),
+                ]),
               ]),
               const SizedBox(height: 12),
               // Μήνυμα
@@ -5039,16 +5217,16 @@ class _ProfessionalHomeScreenState extends State<ProfessionalHomeScreen> {
                 const SizedBox(width: 12),
                 Expanded(child: GestureDetector(
                   onTap: () async {
-                    final price = double.tryParse(priceCtrl.text.trim()) ?? 0;
-                    if (price <= 0) {
+                    final price = priceAfterVisit ? 0.0 : (double.tryParse(priceCtrl.text.trim()) ?? 0);
+                    if (!priceAfterVisit && price <= 0) {
                       ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(content: Text('Βάλε τιμή!')));
+                          const SnackBar(content: Text('Βάλε τιμή ή επίλεξε "Τιμή μετά από αυτοψία"!')));
                       return;
                     }
                     offerTimer?.cancel();
                     offerRec.dispose();
                     Navigator.pop(ctx);
-                    await _submitOffer(requestId, requestData, price, msgCtrl.text.trim(), available, audioUrl: offerAudioUrl);
+                    await _submitOffer(requestId, requestData, price, msgCtrl.text.trim(), available, audioUrl: offerAudioUrl, priceAfterVisit: priceAfterVisit);
                   },
                   child: Container(
                     padding: const EdgeInsets.symmetric(vertical: 12),
@@ -5072,11 +5250,8 @@ class _ProfessionalHomeScreenState extends State<ProfessionalHomeScreen> {
 // στο _ProfessionalHomeScreenState
 
 Future<void> _submitOffer(String requestId, Map<String, dynamic> requestData,
-    double price, String message, String available, {String? audioUrl}) async {
+    double price, String message, String available, {String? audioUrl, bool priceAfterVisit = false}) async {
   try {
-    // ΜΗΝ γράφεις στη Firestore εδώ — το server το κάνει
-    // Μόνο το server endpoint είναι υπεύθυνο για αποθήκευση
-
     final response = await http.post(
       Uri.parse('$kBackendUrl/submit-offer'),
       headers: {'Content-Type': 'application/json'},
@@ -5085,6 +5260,7 @@ Future<void> _submitOffer(String requestId, Map<String, dynamic> requestData,
         'professionalId': _proId ?? '',
         'professionalName': _proName ?? '',
         'price': price,
+        'priceAfterVisit': priceAfterVisit,
         'message': message,
         'availableFrom': available,
         'rating': 4.8,
@@ -5105,18 +5281,16 @@ Future<void> _submitOffer(String requestId, Map<String, dynamic> requestData,
         );
       }
     } else {
-      // Server απέτυχε — fallback μόνο τότε
-      await _submitOfferFallback(requestId, price, message, available, audioUrl: audioUrl);
+      await _submitOfferFallback(requestId, price, message, available, audioUrl: audioUrl, priceAfterVisit: priceAfterVisit);
     }
   } catch (e) {
-    // Network error — fallback στη Firestore
-    await _submitOfferFallback(requestId, price, message, available, audioUrl: audioUrl);
+    await _submitOfferFallback(requestId, price, message, available, audioUrl: audioUrl, priceAfterVisit: priceAfterVisit);
   }
 }
 
 // Fallback μόνο αν το server δεν απαντά
 Future<void> _submitOfferFallback(String requestId, double price,
-    String message, String available, {String? audioUrl}) async {
+    String message, String available, {String? audioUrl, bool priceAfterVisit = false}) async {
   try {
     // Έλεγξε αν υπάρχει ήδη προσφορά από τον ίδιο επαγγελματία
     final existing = await FirebaseFirestore.instance
@@ -5140,6 +5314,7 @@ Future<void> _submitOfferFallback(String requestId, double price,
       'professionalId': _proId ?? '',
       'professionalName': _proName ?? '',
       'price': price,
+      'priceAfterVisit': priceAfterVisit,
       'message': message,
       'availableFrom': available,
       'rating': 4.8,
@@ -5710,6 +5885,7 @@ class _RequestScreenState extends State<RequestScreen>
   XFile? _video;
   final _picker = ImagePicker();
   bool _sending = false;
+  bool _videoUploading = false;
   bool _showTip = false;
   String? _selectedProfession;
   String? _selectedLocation;
@@ -5781,20 +5957,24 @@ class _RequestScreenState extends State<RequestScreen>
           const Text('Προσθήκη μέσου', style: TextStyle(
               color: Colors.white, fontSize: 16, fontWeight: FontWeight.w700)),
           const SizedBox(height: 20),
-          Row(mainAxisAlignment: MainAxisAlignment.spaceEvenly, children: [
-            _mediaPickerOption(ctx, Icons.photo_camera, 'Κάμερα\nΦωτογραφία', () async {
-              Navigator.pop(ctx); await _takeSinglePhoto();
-            }),
-            _mediaPickerOption(ctx, Icons.collections, 'Βιβλιοθήκη\nΦωτογραφιών', () async {
-              Navigator.pop(ctx); await _pickImage();
-            }),
-            _mediaPickerOption(ctx, Icons.videocam_rounded, 'Κάμερα\nΒίντεο', () async {
-              Navigator.pop(ctx); await _captureVideo();
-            }),
-            _mediaPickerOption(ctx, Icons.movie, 'Βιβλιοθήκη\nΒίντεο', () async {
-              Navigator.pop(ctx); await _pickVideoGallery();
-            }),
-          ]),
+          Wrap(
+            spacing: 12, runSpacing: 16,
+            alignment: WrapAlignment.spaceEvenly,
+            children: [
+              _mediaPickerOption(ctx, Icons.photo_camera, 'Κάμερα\nΦωτογραφία', () async {
+                Navigator.pop(ctx); await _takeSinglePhoto();
+              }),
+              _mediaPickerOption(ctx, Icons.collections, 'Γκαλερί\nΦωτογραφιών', () async {
+                Navigator.pop(ctx); await _pickImage();
+              }),
+              _mediaPickerOption(ctx, Icons.videocam_rounded, 'Κάμερα\nΒίντεο', () async {
+                Navigator.pop(ctx); await _captureVideo();
+              }),
+              _mediaPickerOption(ctx, Icons.video_library_rounded, 'Γκαλερί\nΒίντεο', () async {
+                Navigator.pop(ctx); await _pickVideoGallery();
+              }),
+            ],
+          ),
         ]),
       ),
     );
@@ -5923,7 +6103,18 @@ class _RequestScreenState extends State<RequestScreen>
   bool _submitLock = false;  // Guard κατά double submit
 
   Future<void> _submit() async {
-    if (_submitLock) return;  // Αποφυγή double tap
+    if (_submitLock) return;
+    // Υποχρεωτικά πεδία
+    if (_selectedProfession == null || _selectedProfession!.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('⚠️ Επίλεξε επάγγελμα!'), backgroundColor: Colors.orange));
+      return;
+    }
+    if (_selectedLocation == null || _selectedLocation!.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('⚠️ Επίλεξε περιοχή!'), backgroundColor: Colors.orange));
+      return;
+    }
     _submitLock = true;
     // Έλεγξε αν υπάρχουν ήδη 2 ενεργά αιτήματα
     final user = FirebaseAuth.instance.currentUser;
@@ -5981,23 +6172,35 @@ class _RequestScreenState extends State<RequestScreen>
 
         // Upload βίντεο στο Storage αν υπάρχει
         if (_video != null) {
+          if (mounted) setState(() => _videoUploading = true);
+          if (mounted) ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('⏳ Ανέβασμα βίντεο... παρακαλώ περίμενε'), duration: Duration(seconds: 30)));
           try {
             final path = _video!.path;
-            final vbytes = await _readFileBytes(path);
-            // blob: URLs (Flutter web) don't have a real extension — default to webm
             final ext = path.startsWith('blob:') ? 'webm'
                 : (path.contains('.') ? path.split('.').last.split('?').first.toLowerCase() : 'webm');
             final ct = ext == 'webm' ? 'video/webm' : 'video/mp4';
-            final vref = FirebaseStorage.instance.ref(
-                'requests/videos/${docRef.id}_vid.$ext');
-            await vref.putData(vbytes, SettableMetadata(contentType: ct));
+            final vref = FirebaseStorage.instance.ref('requests/videos/${docRef.id}_vid.$ext');
+            if (path.startsWith('blob:')) {
+              // Fetch blob URL → native browser Blob (stays in JS memory, not Dart heap)
+              final req = await html.HttpRequest.request(path, responseType: 'blob');
+              await vref.putBlob(req.response, SettableMetadata(contentType: ct));
+            } else {
+              await vref.putData(await _readFileBytes(path), SettableMetadata(contentType: ct));
+            }
             final vurl = await vref.getDownloadURL();
             await FirebaseFirestore.instance
                 .collection('requests').doc(docRef.id)
                 .update({'videoUrl': vurl, 'hasVideo': true});
+            if (mounted) ScaffoldMessenger.of(context).hideCurrentSnackBar();
           } catch (e) {
-            if (mounted) ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(content: Text('Σφάλμα βίντεο: $e'), backgroundColor: Colors.red));
+            if (mounted) {
+              ScaffoldMessenger.of(context).hideCurrentSnackBar();
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(content: Text('Σφάλμα βίντεο: $e'), backgroundColor: Colors.red));
+            }
+          } finally {
+            if (mounted) setState(() => _videoUploading = false);
           }
         }
 
@@ -7651,6 +7854,7 @@ class _OfferCard extends StatelessWidget {
   String get _emoji => (offer['emoji'] ?? '🔧').toString();
   String get _specialty => (offer['specialty'] ?? offer['message'] ?? '').toString();
   double get _price => (offer['price'] is num) ? (offer['price'] as num).toDouble() : 0.0;
+  bool get _priceAfterVisit => offer['priceAfterVisit'] == true;
   double get _rating => (offer['rating'] is num) ? (offer['rating'] as num).toDouble() : 4.8;
   String get _available => (offer['available'] ?? offer['availableFrom'] ?? 'Σύντομα').toString();
   int get _rank => (offer['rank'] is num) ? (offer['rank'] as num).toInt() : 1;
@@ -7741,19 +7945,32 @@ class _OfferCard extends StatelessWidget {
               const SizedBox(height: 14),
 
               Row(crossAxisAlignment: CrossAxisAlignment.end, children: [
-                Text('${_price.toInt()}€',
-                    style: TextStyle(
-                        fontFamily: 'Raleway',
-                        fontSize: isBest ? 32 : 26,
-                        fontWeight: FontWeight.w900,
-                        color: isBest ? kGold : kGold.withValues(alpha: 0.7))),
-                const SizedBox(width: 8),
-                Padding(
-                    padding: const EdgeInsets.only(bottom: 4),
-                    child: Text((_specialty.isNotEmpty ? _specialty : 'Διαθέσιμος $_available'),
+                _priceAfterVisit
+                    ? Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(10),
+                          color: kGold.withValues(alpha: 0.1),
+                          border: Border.all(color: kGold.withValues(alpha: 0.35)),
+                        ),
+                        child: const Text('💬 Τιμή μετά από αυτοψία',
+                            style: TextStyle(color: kGold, fontSize: 12, fontWeight: FontWeight.w700)),
+                      )
+                    : Text('${_price.toInt()}€',
                         style: TextStyle(
-                            fontSize: 10,
-                            color: _g(0.35)))),
+                            fontFamily: 'Raleway',
+                            fontSize: isBest ? 32 : 26,
+                            fontWeight: FontWeight.w900,
+                            color: isBest ? kGold : kGold.withValues(alpha: 0.7))),
+                if (!_priceAfterVisit) ...[
+                  const SizedBox(width: 8),
+                  Padding(
+                      padding: const EdgeInsets.only(bottom: 4),
+                      child: Text((_specialty.isNotEmpty ? _specialty : 'Διαθέσιμος $_available'),
+                          style: TextStyle(
+                              fontSize: 10,
+                              color: _g(0.35)))),
+                ],
               ]),
 
               const SizedBox(height: 10),
@@ -8517,15 +8734,22 @@ class _HistoryProCardState extends State<_HistoryProCard> {
     if (mounted) setState(() { _saving = false; _expanded = false; });
   }
 
-  void _openChat(BuildContext context) {
+  Future<void> _openChat(BuildContext context) async {
     final proId = widget.data['professionalId'] as String? ?? '';
     if (proId.isEmpty) return;
     final chatId = '${widget.userId}_$proId';
+    String userName = '';
+    try {
+      final userDoc = await FirebaseFirestore.instance.collection('users').doc(widget.userId).get();
+      userName = (userDoc.data()?['displayName'] as String? ?? '').trim();
+      if (userName.isEmpty) userName = (userDoc.data()?['name'] as String? ?? '').trim();
+    } catch (_) {}
+    if (!mounted) return;
     Navigator.push(context, PageRouteBuilder(
       pageBuilder: (_, __, ___) => ChatScreen(
         chatId: chatId,
         currentUserId: widget.userId,
-        currentUserName: '',
+        currentUserName: userName.isNotEmpty ? userName : 'Χρήστης',
         otherName: widget.proName,
         isPro: false,
       ),
@@ -13232,8 +13456,8 @@ class _MessagesScreenState extends State<MessagesScreen> {
                     onTap: () => Navigator.push(context, PageRouteBuilder(
                       pageBuilder: (_, __, ___) => ChatScreen(
                         chatId: chatId, currentUserId: widget.userId,
-                        currentUserName: widget.isPro ? (d['proName'] as String? ?? 'Επαγγελματίας') : (d['userName'] as String? ?? 'Χρήστης'),
-                        otherName: widget.isPro ? (d['userName'] as String? ?? 'Χρήστης') : proName,
+                        currentUserName: widget.isPro ? ((d['proName'] as String?)?.isNotEmpty == true ? d['proName'] : 'Επαγγελματίας') : ((d['userName'] as String?)?.isNotEmpty == true ? d['userName'] : 'Χρήστης'),
+                        otherName: widget.isPro ? ((d['userName'] as String?)?.isNotEmpty == true ? d['userName'] : 'Χρήστης') : proName,
                         isPro: widget.isPro,
                       ),
                       transitionsBuilder: (_, a, __, c) => FadeTransition(opacity: a, child: c),
