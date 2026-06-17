@@ -9312,6 +9312,10 @@ class ProfileScreen extends StatefulWidget {
 
 class _ProfileScreenState extends State<ProfileScreen> {
   String? _name, _email, _city;
+  String _role = 'user';
+  String _specialty = '';
+  bool _isPremium = false;
+  DateTime? _premiumUntil;
   bool _loading = true, _biometricOn = true;
   final _nameCtrl = TextEditingController();
   final _cityCtrl = TextEditingController();
@@ -9345,10 +9349,17 @@ class _ProfileScreenState extends State<ProfileScreen> {
         .get();
     final prefs = await SharedPreferences.getInstance();
     if (!mounted) return;
+    final data = doc.data() ?? {};
+    final premiumUntilTs = data['premiumUntil'] as Timestamp?;
+    final premiumUntil = premiumUntilTs?.toDate();
     setState(() {
-      _name = doc.data()?['name'] ?? user.displayName ?? '';
-      _city = doc.data()?['city'] ?? '';
+      _name = data['name'] ?? user.displayName ?? '';
+      _city = data['city'] ?? '';
       _email = user.email ?? '';
+      _role = data['role'] ?? 'user';
+      _specialty = data['specialty'] ?? '';
+      _isPremium = data['isPremium'] == true && (premiumUntil == null || premiumUntil.isAfter(DateTime.now()));
+      _premiumUntil = premiumUntil;
       _nameCtrl.text = _name ?? '';
       _cityCtrl.text = _city ?? '';
       _biometricOn = prefs.getBool('biometric_enabled') ?? true;
@@ -9410,6 +9421,210 @@ class _ProfileScreenState extends State<ProfileScreen> {
               inactiveTrackColor: Colors.white12),
         ]),
       );
+
+  double get _subscriptionPrice {
+    final s = _specialty.toLowerCase();
+    if (s.contains('συνεργείο') || s.contains('γάμο') || s.contains('βάφτιση') || s.contains('πάρτ')) return 59.99;
+    return 19.99;
+  }
+
+  Widget _buildSubscriptionCard() {
+    if (_isPremium) {
+      final until = _premiumUntil != null
+          ? '${_premiumUntil!.day}/${_premiumUntil!.month}/${_premiumUntil!.year}'
+          : '';
+      return Container(
+        width: double.infinity,
+        padding: const EdgeInsets.all(18),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(18),
+          gradient: LinearGradient(
+            colors: [kGold.withValues(alpha: 0.12), kGold.withValues(alpha: 0.04)],
+            begin: Alignment.topLeft, end: Alignment.bottomRight,
+          ),
+          border: Border.all(color: kGold.withValues(alpha: 0.35)),
+        ),
+        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Row(children: [
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(8),
+                gradient: const LinearGradient(colors: [kGoldLight, kGold]),
+              ),
+              child: const Text('✅ PREMIUM ΕΝΕΡΓΟ', style: TextStyle(color: Colors.black, fontSize: 10, fontWeight: FontWeight.w800)),
+            ),
+          ]),
+          if (until.isNotEmpty) ...[
+            const SizedBox(height: 8),
+            Text('Λήγει: $until', style: TextStyle(color: _g(0.45), fontSize: 12)),
+          ],
+          const SizedBox(height: 12),
+          _buildPremiumFeatures(),
+        ]),
+      );
+    }
+
+    final price = _subscriptionPrice;
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(18),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(18),
+        gradient: LinearGradient(
+          colors: [const Color(0xFF1A1200), const Color(0xFF0D0900)],
+          begin: Alignment.topLeft, end: Alignment.bottomRight,
+        ),
+        border: Border.all(color: kGold.withValues(alpha: 0.3)),
+        boxShadow: [BoxShadow(color: kGold.withValues(alpha: 0.08), blurRadius: 20)],
+      ),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Row(children: [
+          const Text('🚀', style: TextStyle(fontSize: 20)),
+          const SizedBox(width: 8),
+          const Expanded(
+            child: Text('Αναβάθμιση σε Premium',
+                style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.w800, fontFamily: 'Raleway')),
+          ),
+        ]),
+        const SizedBox(height: 8),
+        _buildPremiumFeatures(),
+        const SizedBox(height: 16),
+        Row(crossAxisAlignment: CrossAxisAlignment.end, children: [
+          Text('${price.toStringAsFixed(2).replaceAll('.', ',')}€',
+              style: const TextStyle(color: kGold, fontSize: 28, fontWeight: FontWeight.w900, fontFamily: 'Raleway')),
+          const SizedBox(width: 4),
+          Padding(
+            padding: const EdgeInsets.only(bottom: 4),
+            child: Text('/μήνα', style: TextStyle(color: _g(0.4), fontSize: 12)),
+          ),
+        ]),
+        const SizedBox(height: 14),
+        GestureDetector(
+          onTap: () => _showSubscribeDialog(price),
+          child: Container(
+            width: double.infinity,
+            padding: const EdgeInsets.symmetric(vertical: 14),
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(14),
+              gradient: const LinearGradient(colors: [kGoldLight, kGold]),
+              boxShadow: [BoxShadow(color: kGold.withValues(alpha: 0.35), blurRadius: 12, offset: const Offset(0, 4))],
+            ),
+            child: const Center(
+              child: Text('💳 Εγγραφή τώρα',
+                  style: TextStyle(color: Colors.black, fontSize: 14, fontWeight: FontWeight.w800)),
+            ),
+          ),
+        ),
+        const SizedBox(height: 8),
+        Center(child: Text('Ακύρωση οποτεδήποτε · Χωρίς δέσμευση',
+            style: TextStyle(color: _g(0.3), fontSize: 10))),
+      ]),
+    );
+  }
+
+  Widget _buildPremiumFeatures() => Column(
+    crossAxisAlignment: CrossAxisAlignment.start,
+    children: [
+      _premiumFeature('📋', 'Απεριόριστα αιτήματα ανά μήνα'),
+      _premiumFeature('🤖', 'Προτεραιότητα στο AI matching'),
+      _premiumFeature('🏆', 'Badge "Επαληθευμένος Επαγγελματίας"'),
+      _premiumFeature('📊', 'Αναλυτικά στατιστικά & insights'),
+      _premiumFeature('🚫', 'Χωρίς διαφημίσεις'),
+    ],
+  );
+
+  Widget _premiumFeature(String emoji, String text) => Padding(
+    padding: const EdgeInsets.only(bottom: 6),
+    child: Row(children: [
+      Text(emoji, style: const TextStyle(fontSize: 13)),
+      const SizedBox(width: 8),
+      Text(text, style: TextStyle(color: _g(0.65), fontSize: 12)),
+    ]),
+  );
+
+  void _showSubscribeDialog(double price) {
+    showDialog(
+      context: context,
+      builder: (ctx) => Dialog(
+        backgroundColor: Colors.transparent,
+        child: Container(
+          padding: const EdgeInsets.all(24),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(24),
+            color: const Color(0xFF0A0800),
+            border: Border.all(color: kGold.withValues(alpha: 0.25)),
+          ),
+          child: Column(mainAxisSize: MainAxisSize.min, children: [
+            const Text('💳 Ολοκλήρωση Συνδρομής',
+                style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.w800, fontFamily: 'Raleway')),
+            const SizedBox(height: 6),
+            Text('${price.toStringAsFixed(2).replaceAll('.', ',')}€ / μήνα',
+                style: const TextStyle(color: kGold, fontSize: 22, fontWeight: FontWeight.w900, fontFamily: 'Raleway')),
+            const SizedBox(height: 16),
+            Container(
+              padding: const EdgeInsets.all(14),
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(14),
+                color: _g(0.05),
+                border: Border.all(color: _g(0.1)),
+              ),
+              child: Column(children: [
+                Text('Τραπεζική Κατάθεση', style: TextStyle(color: _g(0.6), fontSize: 11, letterSpacing: 1)),
+                const SizedBox(height: 8),
+                _bankRow('Τράπεζα', 'Alpha Bank'),
+                _bankRow('IBAN', 'GR00 0000 0000 0000 0000 0000 000'),
+                _bankRow('Δικαιούχος', 'GOREALAI IKE'),
+                _bankRow('Αιτιολογία', FirebaseAuth.instance.currentUser?.uid?.substring(0, 8) ?? ''),
+              ]),
+            ),
+            const SizedBox(height: 12),
+            Text('Μετά την κατάθεση στείλε απόδειξη στο: info@gorealai.gr\nΗ συνδρομή ενεργοποιείται εντός 24ωρών.',
+                textAlign: TextAlign.center,
+                style: TextStyle(color: _g(0.45), fontSize: 11, height: 1.6)),
+            const SizedBox(height: 16),
+            Row(children: [
+              Expanded(
+                child: GestureDetector(
+                  onTap: () {
+                    Navigator.pop(ctx);
+                    launchUrl(Uri.parse('mailto:info@gorealai.gr?subject=Συνδρομή Premium&body=ID: ${FirebaseAuth.instance.currentUser?.uid ?? ''}'),
+                        mode: LaunchMode.externalApplication);
+                  },
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(12),
+                      gradient: const LinearGradient(colors: [kGoldLight, kGold]),
+                    ),
+                    child: const Center(child: Text('📧 Αποστολή email',
+                        style: TextStyle(color: Colors.black, fontSize: 13, fontWeight: FontWeight.w700))),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 10),
+              GestureDetector(
+                onTap: () => Navigator.pop(ctx),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
+                  decoration: BoxDecoration(borderRadius: BorderRadius.circular(12), color: _g(0.05)),
+                  child: Text('Κλείσιμο', style: TextStyle(color: _g(0.5), fontSize: 13)),
+                ),
+              ),
+            ]),
+          ]),
+        ),
+      ),
+    );
+  }
+
+  Widget _bankRow(String label, String value) => Padding(
+    padding: const EdgeInsets.symmetric(vertical: 3),
+    child: Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
+      Text(label, style: TextStyle(color: _g(0.4), fontSize: 11)),
+      Text(value, style: const TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.w600)),
+    ]),
+  );
 
   void _showEditDialog() {
     _nameCtrl.text = _name ?? '';
@@ -9665,8 +9880,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   const SizedBox(height: 20),
                   _sectionHeader('ΘΕΜΑ'),
                   _ThemeSelector(),
-                  const SizedBox(height: 20),
 
+                  if (_role == 'professional') ...[
+                    const SizedBox(height: 20),
+                    _sectionHeader('ΣΥΝΔΡΟΜΗ'),
+                    _buildSubscriptionCard(),
+                  ],
+
+                  const SizedBox(height: 20),
                   _sectionHeader('ΣΧΕΤΙΚΑ'),
                   const _ProfileRow(
                       icon: Icons.info_outline,
