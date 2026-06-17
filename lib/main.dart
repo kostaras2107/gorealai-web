@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:typed_data';
 import 'dart:convert';
 import 'dart:math';
+import 'dart:html' as html;
 import 'package:image_picker/image_picker.dart';
 import 'dart:ui';
 import 'package:flutter/material.dart';
@@ -30,6 +31,16 @@ const Color kGoldLight = Color(0xFFFFD47A);
 const Color kGoldDark = Color(0xFFCC8800);
 const Color kBg = Color(0xFF060D1E);
 const Color kGreen = Color(0xFF00D4AA);
+
+/// Reads a blob: URL using the browser's native XHR (works on Flutter web).
+/// Falls back to XFile.readAsBytes() for non-blob paths.
+Future<Uint8List> _readFileBytes(String path) async {
+  if (path.startsWith('blob:') || path.startsWith('http')) {
+    final req = await html.HttpRequest.request(path, responseType: 'arraybuffer');
+    return (req.response as ByteBuffer).asUint8List();
+  }
+  return XFile(path).readAsBytes();
+}
 
 // ═══════════════════════════════════════
 // FCM PUSH NOTIFICATION SERVICE
@@ -289,6 +300,58 @@ class AppTheme {
 Color _g(double alpha) => appThemeNotifier.value.adaptive(alpha);
 // Replaces Colors.white as text/icon color
 Color get _gw => appThemeNotifier.value.text;
+
+// ── Greek vocative + first-name only ────────────────────
+const Map<String, String> _vocativeDict = {
+  // -ης endings
+  'γιαννης': 'Γιάννη', 'αντωνης': 'Αντώνη', 'βασιλης': 'Βασίλη',
+  'μιχαλης': 'Μιχάλη', 'παναγιωτης': 'Παναγιώτη', 'δημητρης': 'Δημήτρη',
+  'θανασης': 'Θανάση', 'σωτηρης': 'Σωτήρη', 'λευτερης': 'Λευτέρη',
+  'σταθης': 'Στάθη', 'μανωλης': 'Μανώλη', 'παντελης': 'Παντελή',
+  'αγγελης': 'Αγγελή', 'κωστης': 'Κώστη', 'ορεστης': 'Ορέστη',
+  'γρηγορης': 'Γρηγόρη', 'φωτης': 'Φώτη', 'αλεξης': 'Αλέξη',
+  'μακης': 'Μάκη', 'αριστειδης': 'Αριστείδη', 'σωκρατης': 'Σωκράτη',
+  'θεμιστοκλης': 'Θεμιστοκλή', 'αριστοτελης': 'Αριστοτέλη',
+  'ανεστης': 'Ανέστη', 'βαγγελης': 'Βαγγέλη', 'γιωργης': 'Γιώργη',
+  'θοδωρης': 'Θοδώρη', 'σακης': 'Σάκη', 'τακης': 'Τάκη',
+  'κωστακης': 'Κωστάκη', 'μπαμπης': 'Μπάμπη',
+  // -ος endings (formal -ε)
+  'αγγελος': 'Άγγελε', 'κωνσταντινος': 'Κωνσταντίνε', 'σταυρος': 'Σταύρε',
+  'θεοδωρος': 'Θεόδωρε', 'θοδωρος': 'Θόδωρε', 'χρηστος': 'Χρήστε',
+  'στεφανος': 'Στέφανε', 'πετρος': 'Πέτρε', 'σπυρος': 'Σπύρε',
+  'αποστολος': 'Απόστολε', 'γρηγοριος': 'Γρηγόριε', 'αλεξανδρος': 'Αλέξανδρε',
+  'ευαγγελος': 'Ευάγγελε', 'χαραλαμπος': 'Χαράλαμπε', 'λαζαρος': 'Λάζαρε',
+  'τηλεμαχος': 'Τηλέμαχε', 'αντωνιος': 'Αντώνιε', 'βασιλειος': 'Βασίλειε',
+  'λαμπρος': 'Λάμπρε', 'νικηφορος': 'Νικηφόρε',
+  // -ος endings (informal -ο)
+  'γεωργος': 'Γεώργο', 'νικος': 'Νίκο', 'τασος': 'Τάσο',
+  'κυριακος': 'Κυριάκο', 'γιωργος': 'Γιώργο',
+  // -ας / -εας endings → -α
+  'κωστας': 'Κώστα', 'ανδρεας': 'Ανδρέα', 'αχιλλεας': 'Αχιλλέα',
+  'ζαχαριας': 'Ζαχαρία', 'θωμας': 'Θωμά', 'οδυσσεας': 'Οδυσσέα',
+  'ηλιας': 'Ηλία',
+  // -αος endings → -αε
+  'νικολαος': 'Νικόλαε',
+};
+
+String _toVocative(String? fullName) {
+  if (fullName == null || fullName.isEmpty) return '';
+  // First name only
+  final first = fullName.trim().split(RegExp(r'\s+')).first;
+  // Normalize for lookup
+  final key = first.toLowerCase()
+      .replaceAll('ά', 'α').replaceAll('έ', 'ε').replaceAll('ή', 'η')
+      .replaceAll('ί', 'ι').replaceAll('ό', 'ο').replaceAll('ύ', 'υ')
+      .replaceAll('ώ', 'ω').replaceAll('ϊ', 'ι').replaceAll('ϋ', 'υ')
+      .replaceAll('ΐ', 'ι').replaceAll('ΰ', 'υ');
+  if (_vocativeDict.containsKey(key)) return _vocativeDict[key]!;
+  // Algorithmic fallback
+  if (first.endsWith('ης') || first.endsWith('ής')) return first.substring(0, first.length - 2) + 'η';
+  if (first.endsWith('ος') || first.endsWith('ός')) return first.substring(0, first.length - 2) + 'ε';
+  if (first.endsWith('ας') || first.endsWith('άς')) return first.substring(0, first.length - 1);
+  if (first.endsWith('ς')) return first.substring(0, first.length - 1);
+  return first;
+}
 
 final ValueNotifier<AppTheme> appThemeNotifier =
     ValueNotifier<AppTheme>(AppTheme.themes['obsidian']!);
@@ -1510,10 +1573,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   // Ενεργά αιτήματα (για το G button — μέχρι 2)
   List<Map<String, dynamic>> _activeRequests = []; // list of {id, status, desc, criteria, expiresAt}
 
-  String _vocative(String? n) {
-    if (n == null || n.isEmpty) return '';
-    return n.endsWith('ς') ? n.substring(0, n.length - 1) : n;
-  }
+  String _vocative(String? n) => _toVocative(n);
 
   @override
   void initState() {
@@ -1869,7 +1929,18 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                               unread += ((data['unreadPro'] as int?) ?? 0);
                             }
                           }
-                          // Also count active requests the pro hasn't responded to
+                          // Count active requests the pro hasn't responded to
+                          return StreamBuilder<QuerySnapshot>(
+                            stream: _userId != null
+                                ? FirebaseFirestore.instance
+                                    .collection('offers')
+                                    .where('professionalId', isEqualTo: _userId)
+                                    .snapshots()
+                                : const Stream.empty(),
+                            builder: (context, snapOffers) {
+                          final respondedIds = snapOffers.hasData
+                              ? snapOffers.data!.docs.map((d) => (d.data() as Map)['requestId'] as String? ?? '').toSet()
+                              : <String>{};
                           return StreamBuilder<QuerySnapshot>(
                             stream: FirebaseFirestore.instance
                                 .collection('requests')
@@ -1877,8 +1948,20 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                                 .limit(20)
                                 .snapshots(),
                             builder: (context, snapReq) {
-                          final reqCount = snapReq.hasData ? snapReq.data!.docs.length : 0;
-                          final total = unread + reqCount;
+                          final reqCount = snapReq.hasData
+                              ? snapReq.data!.docs.where((d) => !respondedIds.contains(d.id)).length
+                              : 0;
+                          return StreamBuilder<QuerySnapshot>(
+                            stream: _userId != null
+                                ? FirebaseFirestore.instance
+                                    .collection('bookings')
+                                    .where('professionalId', isEqualTo: _userId)
+                                    .where('status', isEqualTo: 'pending')
+                                    .snapshots()
+                                : const Stream.empty(),
+                            builder: (context, snapBook) {
+                          final bookCount = snapBook.hasData ? snapBook.data!.docs.length : 0;
+                          final total = unread + reqCount + bookCount;
                           return GestureDetector(
                             onTap: () => Navigator.push(context, PageRouteBuilder(
                               transitionDuration: const Duration(milliseconds: 350),
@@ -1921,6 +2004,10 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                                   ),
                                 ),
                             ]),
+                          );
+                        },
+                          );
+                        },
                           );
                         },
                           );
@@ -2360,11 +2447,14 @@ class _EmptyHeroCard extends StatelessWidget {
               ])),
         ]),
         const SizedBox(height: 18),
-        const Text('Οι επαγγελματίες ανταγωνίζονται για σένα.',
+        const Text('Γνωρίζεις την ανάγκη σου;',
             style: TextStyle(fontFamily: 'Raleway', fontSize: 28,
                 fontWeight: FontWeight.w800, color: Colors.white, height: 1.2)),
         const SizedBox(height: 8),
-        Text('Στείλε αίτημα → το AI ειδοποιεί επαγγελματίες → παίρνεις τις 3 καλύτερες προσφορές σε 15 λεπτά.',
+        Text('Περίγραψέ την και οι επαγγελματίες θα ανταγωνιστούν για σένα.',
+            style: TextStyle(fontSize: 13, color: _g(0.7), fontWeight: FontWeight.w600, height: 1.4)),
+        const SizedBox(height: 6),
+        Text('Στείλε αίτημα → το AI ειδοποιεί επαγγελματίες ή συνεργεία → παίρνεις τις 3 καλύτερες προσφορές σε 15 λεπτά.',
             style: TextStyle(fontSize: 12, color: _g(0.5), height: 1.5)),
         const SizedBox(height: 20),
         Container(
@@ -2525,10 +2615,9 @@ class _ActiveRequestHeroCardState extends State<_ActiveRequestHeroCard> {
 
           const SizedBox(height: 16),
 
-          if (!isCompleted) ...[
+          if (!isCompleted && secs > 0) ...[
             // ── COUNTDOWN HERO ──
             Row(children: [
-              // Ring progress mini
               SizedBox(width: 70, height: 70,
                 child: Stack(alignment: Alignment.center, children: [
                   SizedBox(width: 70, height: 70,
@@ -2537,37 +2626,51 @@ class _ActiveRequestHeroCardState extends State<_ActiveRequestHeroCard> {
                     Text(_fmt(secs), style: const TextStyle(
                         fontFamily: 'Raleway', fontSize: 14,
                         fontWeight: FontWeight.w800, color: kGold, letterSpacing: 1)),
-                    Text('λεπτά', style: TextStyle(
-                        fontSize: 7, color: _g(0.4))),
+                    Text('λεπτά', style: TextStyle(fontSize: 7, color: _g(0.4))),
                   ]),
                 ]),
               ),
               const SizedBox(width: 16),
-              Expanded(child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start, children: [
-                // Stat rows
+              Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                 _StatRow(icon: '🟢', label: '${_prosNotified > 0 ? _prosNotified : "??"} επαγγελματίες ειδοποιήθηκαν'),
                 const SizedBox(height: 6),
-                _StatRow(icon: '🔥', label: '$_offersCount προσφορές μέχρι τώρα',
-                    highlight: _offersCount > 0),
+                _StatRow(icon: '🔥', label: '$_offersCount προσφορές μέχρι τώρα', highlight: _offersCount > 0),
                 const SizedBox(height: 6),
                 _StatRow(icon: '🤖', label: 'AI αναλύει & κατατάσσει'),
               ])),
             ]),
           ] else ...[
-            // Completed state
-            Row(children: [
-              const Text('🏆', style: TextStyle(fontSize: 36)),
-              const SizedBox(width: 16),
-              Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                Text('Οι προσφορές σου είναι έτοιμες!',
-                    style: TextStyle(color: _gw, fontSize: 15,
-                        fontWeight: FontWeight.w700)),
-                const SizedBox(height: 4),
-                Text('$_offersCount προσφορές · Πάτα για να δεις τις 3 καλύτερες',
-                    style: TextStyle(color: kGold.withValues(alpha: 0.8), fontSize: 12)),
-              ])),
-            ]),
+            // ── COUNTDOWN DONE or COMPLETED — show congratulations ──
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(16),
+                gradient: LinearGradient(colors: [kGold.withValues(alpha: 0.15), kGold.withValues(alpha: 0.05)]),
+                border: Border.all(color: kGold.withValues(alpha: 0.4)),
+              ),
+              child: Row(children: [
+                Container(
+                  width: 52, height: 52,
+                  decoration: BoxDecoration(shape: BoxShape.circle,
+                      color: kGold.withValues(alpha: 0.15), border: Border.all(color: kGold.withValues(alpha: 0.4))),
+                  child: const Center(child: Text('🎉', style: TextStyle(fontSize: 26))),
+                ),
+                const SizedBox(width: 14),
+                Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                  const Text('Συγχαρητήρια!', style: TextStyle(color: kGold, fontSize: 13, fontWeight: FontWeight.w900, fontFamily: 'Raleway')),
+                  const SizedBox(height: 3),
+                  Text(
+                    _offersCount > 0
+                        ? 'Βρέθηκ${_offersCount == 1 ? 'ε' : 'αν'} $_offersCount επαγγελματί${_offersCount == 1 ? 'ας' : 'ες'}!'
+                        : 'Το αίτημά σου ολοκληρώθηκε!',
+                    style: TextStyle(color: _gw, fontSize: 14, fontWeight: FontWeight.w800),
+                  ),
+                  const SizedBox(height: 3),
+                  Text('Πάτα για να δεις τις προσφορές', style: TextStyle(color: _g(0.5), fontSize: 11)),
+                ])),
+                Icon(Icons.arrow_forward_ios_rounded, color: kGold.withValues(alpha: 0.6), size: 16),
+              ]),
+            ),
           ],
 
           const SizedBox(height: 16),
@@ -2578,19 +2681,18 @@ class _ActiveRequestHeroCardState extends State<_ActiveRequestHeroCard> {
             padding: const EdgeInsets.symmetric(vertical: 13),
             decoration: BoxDecoration(
               borderRadius: BorderRadius.circular(16),
-              gradient: isCompleted
+              gradient: (isCompleted || secs == 0)
                   ? const LinearGradient(colors: [kGoldLight, kGold])
                   : LinearGradient(colors: [kGreen, const Color(0xFF2AA060)]),
               boxShadow: [BoxShadow(
-                  color: (isCompleted ? kGold : kGreen).withValues(alpha: 0.35),
+                  color: ((isCompleted || secs == 0) ? kGold : kGreen).withValues(alpha: 0.35),
                   blurRadius: 16)],
             ),
             child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [
-              Text(isCompleted ? '🏆' : '⏱', style: const TextStyle(fontSize: 16)),
+              Text((isCompleted || secs == 0) ? '🏆' : '⏱', style: const TextStyle(fontSize: 16)),
               const SizedBox(width: 8),
-              Text(isCompleted ? 'Δες τις 3 καλύτερες προσφορές' : 'Παρακολούθησε ζωντανά',
-                  style: TextStyle(color: _gw, fontSize: 13,
-                      fontWeight: FontWeight.w800)),
+              Text((isCompleted || secs == 0) ? 'Δες τις προσφορές' : 'Παρακολούθησε ζωντανά',
+                  style: TextStyle(color: _gw, fontSize: 13, fontWeight: FontWeight.w800)),
             ]),
           ),
 
@@ -3376,7 +3478,7 @@ class _ProfessionalHomeScreenState extends State<ProfessionalHomeScreen> {
                   const Text('Καλημέρα ', style: TextStyle(color: Colors.white70, fontSize: 13)),
                   const Text('🌅', style: TextStyle(fontSize: 13)),
                 ]),
-                Text(_proName ?? '', style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.w800, height: 1.2)),
+                Text(_toVocative(_proName), style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.w800, height: 1.2)),
               ])),
               GestureDetector(
                 onTap: () => Navigator.push(context, PageRouteBuilder(
@@ -3525,6 +3627,14 @@ class _ProfessionalHomeScreenState extends State<ProfessionalHomeScreen> {
 
   Widget _buildGrid() {
     return StreamBuilder<QuerySnapshot>(
+      stream: _proId != null
+          ? FirebaseFirestore.instance.collection('offers').where('professionalId', isEqualTo: _proId).snapshots()
+          : const Stream.empty(),
+      builder: (_, snapOffers) {
+        final offeredIds = snapOffers.hasData
+            ? snapOffers.data!.docs.map((d) => (d.data() as Map)['requestId'] as String? ?? '').toSet()
+            : <String>{};
+        return StreamBuilder<QuerySnapshot>(
       stream: FirebaseFirestore.instance
           .collection('requests')
           .where('status', isEqualTo: 'active')
@@ -3532,7 +3642,7 @@ class _ProfessionalHomeScreenState extends State<ProfessionalHomeScreen> {
           .snapshots(),
       builder: (_, snapReq) {
         final reqCount = snapReq.hasData
-            ? snapReq.data!.docs.where((d) => !_submittedIds.contains(d.id)).length
+            ? snapReq.data!.docs.where((d) => !_submittedIds.contains(d.id) && !offeredIds.contains(d.id)).length
             : 0;
         return StreamBuilder<QuerySnapshot>(
           stream: _proId != null
@@ -3573,7 +3683,7 @@ class _ProfessionalHomeScreenState extends State<ProfessionalHomeScreen> {
                         _buildNavCard('messages', '💬', 'Μηνύματα', 'Εξυπηρέτηση πελατών',
                             badge: unreadMsg,
                             customOnTap: () => Navigator.push(context, MaterialPageRoute(
-                                builder: (_) => MessagesScreen(userId: _proId ?? '')))),
+                                builder: (_) => MessagesScreen(userId: _proId ?? '', isPro: true)))),
                         _buildNavCard('minicv', '👤', 'Mini CV', 'Βιογραφικό & ειδικότητες'),
                         _buildNavCard('portfolio', '📸', 'Portfolio', 'Φωτογραφίες έργων'),
                         _buildNavCard('bookings', '📅', 'Bookings', 'Προπληρωμένα ραντεβού', badge: bookCount),
@@ -3587,6 +3697,8 @@ class _ProfessionalHomeScreenState extends State<ProfessionalHomeScreen> {
               },
             );
           },
+        );
+      },
         );
       },
     );
@@ -4521,6 +4633,7 @@ class _ProfessionalHomeScreenState extends State<ProfessionalHomeScreen> {
         final docs = snap.data!.docs
             .where((d) => !_submittedIds.contains(d.id))
             .toList();
+        // Note: offeredIds from Firestore also filters these via _submittedIds after setState
         if (docs.isEmpty) {
           return Center(child: Column(mainAxisSize: MainAxisSize.min, children: [
             Container(
@@ -4838,14 +4951,9 @@ class _ProfessionalHomeScreenState extends State<ProfessionalHomeScreen> {
                           try {
                             final uid = FirebaseAuth.instance.currentUser?.uid ?? 'anon';
                             final ts = DateTime.now().millisecondsSinceEpoch;
-                            Uint8List bytes;
-                            if (path.startsWith('blob:')) {
-                              final resp = await http.get(Uri.parse(path));
-                              bytes = resp.bodyBytes;
-                            } else {
-                              bytes = await XFile(path).readAsBytes();
-                            }
-                            final ext = path.contains('.') ? path.split('.').last.split('?').first : 'm4a';
+                            final Uint8List bytes = await _readFileBytes(path);
+                            final ext = path.startsWith('blob:') ? 'webm'
+                                : (path.contains('.') ? path.split('.').last.split('?').first : 'webm');
                             final ct = ext == 'webm' ? 'audio/webm' : 'audio/m4a';
                             final ref = FirebaseStorage.instance.ref('offers/audio/${uid}_$ts.$ext');
                             await ref.putData(bytes, SettableMetadata(contentType: ct));
@@ -5772,14 +5880,9 @@ class _RequestScreenState extends State<RequestScreen>
     try {
       final uid = FirebaseAuth.instance.currentUser?.uid ?? 'anon';
       final ts = DateTime.now().millisecondsSinceEpoch;
-      Uint8List bytes;
-      if (path.startsWith('blob:')) {
-        final resp = await http.get(Uri.parse(path));
-        bytes = resp.bodyBytes;
-      } else {
-        bytes = await XFile(path).readAsBytes();
-      }
-      final ext = path.contains('.') ? path.split('.').last.split('?').first : 'm4a';
+      final Uint8List bytes = await _readFileBytes(path);
+      final ext = path.startsWith('blob:') ? 'webm'
+          : (path.contains('.') ? path.split('.').last.split('?').first : 'webm');
       final ct = ext == 'webm' ? 'audio/webm' : 'audio/m4a';
       final ref = FirebaseStorage.instance.ref('requests/audio/${uid}_$ts.$ext');
       await ref.putData(bytes, SettableMetadata(contentType: ct));
@@ -5880,14 +5983,10 @@ class _RequestScreenState extends State<RequestScreen>
         if (_video != null) {
           try {
             final path = _video!.path;
-            Uint8List vbytes;
-            if (path.startsWith('blob:') || path.startsWith('http')) {
-              final resp = await http.get(Uri.parse(path));
-              vbytes = resp.bodyBytes;
-            } else {
-              vbytes = await _video!.readAsBytes();
-            }
-            final ext = path.contains('.') ? path.split('.').last.split('?').first : 'mp4';
+            final vbytes = await _readFileBytes(path);
+            // blob: URLs (Flutter web) don't have a real extension — default to webm
+            final ext = path.startsWith('blob:') ? 'webm'
+                : (path.contains('.') ? path.split('.').last.split('?').first.toLowerCase() : 'webm');
             final ct = ext == 'webm' ? 'video/webm' : 'video/mp4';
             final vref = FirebaseStorage.instance.ref(
                 'requests/videos/${docRef.id}_vid.$ext');
@@ -5896,7 +5995,10 @@ class _RequestScreenState extends State<RequestScreen>
             await FirebaseFirestore.instance
                 .collection('requests').doc(docRef.id)
                 .update({'videoUrl': vurl, 'hasVideo': true});
-          } catch (_) {}
+          } catch (e) {
+            if (mounted) ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(content: Text('Σφάλμα βίντεο: $e'), backgroundColor: Colors.red));
+          }
         }
 
         await http
@@ -7199,13 +7301,14 @@ class _OffersScreenState extends State<OffersScreen>
       final snap = await FirebaseFirestore.instance
           .collection('offers')
           .where('requestId', isEqualTo: widget.requestId)
-          .orderBy('price')
-          .limit(3)
+          .limit(10)
           .get();
       if (snap.docs.isNotEmpty) {
         if (mounted) {
           setState(() {
-            _offers = snap.docs.map((d) => d.data()).toList();
+            final sorted = snap.docs.map((d) => d.data()).toList()
+              ..sort((a, b) => ((a['price'] ?? 0) as num).compareTo((b['price'] ?? 0) as num));
+            _offers = sorted.take(3).toList();
             _loading = false;
           });
           return;
@@ -10961,23 +11064,25 @@ class _ProPublicProfileScreenState extends State<_ProPublicProfileScreen> {
   Map<String, dynamic> _data = {};
   bool _loading = true;
   int _portfolioIndex = 0;
+  List<Map<String, dynamic>> _reviews = [];
+  List<Map<String, dynamic>> _projects = [];
 
   @override
   void initState() {
     super.initState();
     _data = Map.from(widget.proData);
-    _fetchFullProfile();
+    _fetchAll();
   }
 
-  Future<void> _fetchFullProfile() async {
+  Future<void> _fetchAll() async {
     try {
-      final results = await Future.wait([
-        FirebaseFirestore.instance.collection('users').doc(widget.proId).get(),
-        FirebaseFirestore.instance.collection('professionals').doc(widget.proId).get(),
-      ]);
-      final d = results[0].data() ?? {};
-      final dp = results[1].data() ?? {};
-      final merged = {..._data, ...d, ...dp};
+      final usersSnap = await FirebaseFirestore.instance.collection('users').doc(widget.proId).get();
+      final prosSnap = await FirebaseFirestore.instance.collection('professionals').doc(widget.proId).get();
+      final reviewsSnap = await FirebaseFirestore.instance.collection('reviews').where('proId', isEqualTo: widget.proId).limit(20).get();
+      final d = usersSnap.data() ?? {};
+      final dp = prosSnap.data() ?? {};
+      final merged = <String, dynamic>{..._data, ...d, ...dp};
+
       // Normalize portfolioProjects
       List<Map<String, dynamic>> projects = [];
       final raw = merged['portfolioProjects'];
@@ -10993,19 +11098,30 @@ class _ProPublicProfileScreenState extends State<_ProPublicProfileScreen> {
           }
         }
       }
-      // Migrate legacy orphan photos
       if (projects.isEmpty) {
         final legacy = <String>[];
         for (final key in ['portfolioPhotos', 'photos']) {
           final v = merged[key];
           if (v is List) legacy.addAll(v.whereType<String>());
         }
-        if (legacy.isNotEmpty) {
-          projects.add({'id': 'legacy', 'title': 'Portfolio', 'photos': legacy});
-        }
+        if (legacy.isNotEmpty) projects.add({'id': 'legacy', 'title': 'Portfolio', 'photos': legacy});
       }
-      merged['_portfolioProjects'] = projects;
-      if (mounted) setState(() { _data = merged; _loading = false; });
+
+      // Reviews — sort client-side (no composite index needed)
+      final reviews = reviewsSnap.docs.map((r) => r.data() as Map<String, dynamic>).toList()
+        ..sort((a, b) {
+          final ta = a['timestamp'];
+          final tb = b['timestamp'];
+          if (ta is Timestamp && tb is Timestamp) return tb.compareTo(ta);
+          return 0;
+        });
+
+      if (mounted) setState(() {
+        _data = merged;
+        _projects = projects;
+        _reviews = reviews;
+        _loading = false;
+      });
     } catch (_) {
       if (mounted) setState(() => _loading = false);
     }
@@ -11014,46 +11130,71 @@ class _ProPublicProfileScreenState extends State<_ProPublicProfileScreen> {
   @override
   Widget build(BuildContext context) {
     final name = _data['name'] as String? ?? 'Επαγγελματίας';
-    final rating = ((_data['rating'] as num?)?.toDouble() ?? 0.0);
-    final jobs = ((_data['completedJobs'] as num?)?.toInt() ?? 0);
-    final photoUrl = _data['photoUrl'] as String?;
+    final photoUrl = _data['profilePhotoUrl'] as String? ?? _data['photoUrl'] as String?;
     final bio = _data['bio'] as String? ?? '';
     final initials = name.isNotEmpty ? name[0].toUpperCase() : 'P';
     final specialties = List<String>.from((_data['specialties'] as List?)?.whereType<String>() ?? []);
     final specialty = _data['specialty'] as String? ?? '';
     if (specialty.isNotEmpty && !specialties.contains(specialty)) specialties.insert(0, specialty);
     final subSpecialties = List<String>.from((_data['subSpecialties'] as List?)?.whereType<String>() ?? []);
-    final areas = List<String>.from((_data['areas'] as List?)?.whereType<String>() ?? []);
     final companyName = _data['companyName'] as String? ?? '';
     final googleRating = (_data['googleRating'] as num?)?.toDouble();
     final googleRatingCount = (_data['googleRatingCount'] as num?)?.toInt() ?? 0;
     final yearsExperience = (_data['yearsExperience'] as num?)?.toInt() ?? 0;
+    final jobs = ((_data['completedJobs'] as num?)?.toInt() ?? 0);
     final instagram = _data['instagram'] as String? ?? '';
     final tiktok = _data['tiktok'] as String? ?? '';
-    final projects = (_data['_portfolioProjects'] as List<Map<String, dynamic>>?) ?? [];
+    final hasSocial = instagram.isNotEmpty || tiktok.isNotEmpty;
+
+    // Gorealai rating
+    double gorealaiRating = 0;
+    if (_reviews.isNotEmpty) {
+      gorealaiRating = _reviews.fold<double>(0, (s, r) => s + ((r['rating'] as num?)?.toDouble() ?? 0)) / _reviews.length;
+    }
 
     return Scaffold(
       backgroundColor: kBg,
       body: SafeArea(
         child: Column(children: [
-          // Top bar
+          // ── Top bar ──
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 14, 16, 0),
-            child: Row(children: [
-              GestureDetector(
-                onTap: () => Navigator.pop(context),
-                child: Container(width: 38, height: 38,
-                    decoration: BoxDecoration(shape: BoxShape.circle, color: _g(0.06),
-                        border: Border.all(color: _g(0.1))),
-                    child: Icon(Icons.arrow_back_ios_new, color: _gw, size: 16)),
+            child: Stack(alignment: Alignment.center, children: [
+              // Back button left
+              Align(
+                alignment: Alignment.centerLeft,
+                child: GestureDetector(
+                  onTap: () => Navigator.pop(context),
+                  child: Container(width: 40, height: 40,
+                      decoration: BoxDecoration(shape: BoxShape.circle, color: _g(0.06), border: Border.all(color: _g(0.1))),
+                      child: Icon(Icons.arrow_back_ios_new, color: _gw, size: 16)),
+                ),
               ),
-              const Spacer(),
+              // Centered logo — always full width, never clipped
               ShaderMask(
                 shaderCallback: (b) => const LinearGradient(colors: [kGoldLight, kGold]).createShader(b),
-                child: const Text('GOREALAI', style: TextStyle(fontFamily: 'Raleway', fontSize: 12, letterSpacing: 4, color: Colors.white)),
+                child: const Text('GOREALAI', style: TextStyle(fontFamily: 'Raleway', fontSize: 13, letterSpacing: 5, color: Colors.white, fontWeight: FontWeight.w800)),
               ),
-              const Spacer(),
-              const SizedBox(width: 38),
+              // Profile photo right
+              Align(
+                alignment: Alignment.centerRight,
+                child: Builder(builder: (_) {
+                  final pUrl = _data['profilePhotoUrl'] as String? ?? _data['photoUrl'] as String?;
+                  final nm = _data['name'] as String? ?? 'P';
+                  return Container(
+                    width: 40, height: 40,
+                    decoration: BoxDecoration(shape: BoxShape.circle, border: Border.all(color: kGold.withValues(alpha: 0.5), width: 1.5)),
+                    child: ClipOval(
+                      child: pUrl != null
+                          ? Image.network(pUrl, fit: BoxFit.cover,
+                              errorBuilder: (_, __, ___) => Container(color: kGold.withValues(alpha: 0.12),
+                                  child: Center(child: Text(nm[0].toUpperCase(), style: const TextStyle(color: kGold, fontSize: 15, fontWeight: FontWeight.bold)))))
+                          : Container(color: kGold.withValues(alpha: 0.12),
+                              child: Center(child: Text(nm[0].toUpperCase(), style: const TextStyle(color: kGold, fontSize: 15, fontWeight: FontWeight.bold)))),
+                    ),
+                  );
+                }),
+              ),
             ]),
           ),
           if (_loading)
@@ -11061,197 +11202,409 @@ class _ProPublicProfileScreenState extends State<_ProPublicProfileScreen> {
           else
             Expanded(
               child: SingleChildScrollView(
-                padding: const EdgeInsets.fromLTRB(20, 24, 20, 40),
                 child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                  // ── Hero ──
-                  Center(child: Column(children: [
-                    Container(
-                      width: 100, height: 100,
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        border: Border.all(color: kGold, width: 2),
-                        boxShadow: [BoxShadow(color: kGold.withValues(alpha: 0.3), blurRadius: 20)],
-                      ),
-                      child: ClipOval(
-                        child: photoUrl != null
-                            ? Image.network(photoUrl, fit: BoxFit.cover,
-                                errorBuilder: (_, __, ___) => _proInitialsBox(initials))
-                            : _proInitialsBox(initials),
+
+                  // ══════════════════════════════════════
+                  // HERO SECTION — gradient cover
+                  // ══════════════════════════════════════
+                  Container(
+                    width: double.infinity,
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        begin: Alignment.topCenter,
+                        end: Alignment.bottomCenter,
+                        colors: [kGold.withValues(alpha: 0.08), kBg],
                       ),
                     ),
-                    const SizedBox(height: 14),
-                    Text(name, style: const TextStyle(color: Colors.white, fontSize: 22, fontWeight: FontWeight.w800, fontFamily: 'Raleway')),
-                    if (specialties.isNotEmpty) ...[
-                      const SizedBox(height: 6),
-                      Text(specialties.take(2).join(' · '), style: TextStyle(color: _g(0.5), fontSize: 13)),
-                    ],
-                    const SizedBox(height: 16),
-                    Row(mainAxisAlignment: MainAxisAlignment.center, children: [
-                      _proStatBox('⭐', rating > 0 ? rating.toStringAsFixed(1) : '-', 'Βαθμ.'),
-                      const SizedBox(width: 12),
-                      _proStatBox('🏆', '$jobs', 'Δουλειές'),
-                      if (yearsExperience > 0) ...[
-                        const SizedBox(width: 12),
-                        _proStatBox('📅', '${yearsExperience}χρ', 'Εμπειρία'),
+                    padding: const EdgeInsets.fromLTRB(20, 28, 20, 28),
+                    child: Column(children: [
+                      // Avatar with gold ring
+                      Stack(alignment: Alignment.bottomRight, children: [
+                        Container(
+                          width: 96, height: 96,
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            gradient: LinearGradient(colors: [kGoldLight.withValues(alpha: 0.6), kGoldDark.withValues(alpha: 0.6)]),
+                            boxShadow: [BoxShadow(color: kGold.withValues(alpha: 0.4), blurRadius: 24, spreadRadius: 2)],
+                          ),
+                          padding: const EdgeInsets.all(2.5),
+                          child: ClipOval(
+                            child: photoUrl != null
+                                ? Image.network(photoUrl, fit: BoxFit.cover,
+                                    errorBuilder: (_, __, ___) => _initialsBox(initials))
+                                : _initialsBox(initials),
+                          ),
+                        ),
+                        if (yearsExperience > 0)
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
+                            decoration: BoxDecoration(
+                              borderRadius: BorderRadius.circular(10),
+                              gradient: const LinearGradient(colors: [kGoldLight, kGold]),
+                            ),
+                            child: Text('${yearsExperience}χρ', style: const TextStyle(color: Colors.black, fontSize: 9, fontWeight: FontWeight.w900)),
+                          ),
+                      ]),
+                      const SizedBox(height: 14),
+                      Text(name, textAlign: TextAlign.center,
+                          style: const TextStyle(color: Colors.white, fontSize: 22, fontWeight: FontWeight.w900, fontFamily: 'Raleway', letterSpacing: 0.3)),
+                      if (specialties.isNotEmpty) ...[
+                        const SizedBox(height: 6),
+                        Text(specialties.take(3).join('  ·  '),
+                            textAlign: TextAlign.center,
+                            style: TextStyle(color: kGold.withValues(alpha: 0.85), fontSize: 12, fontWeight: FontWeight.w600, letterSpacing: 0.5)),
+                      ],
+                      const SizedBox(height: 20),
+                      // Stat row
+                      Row(mainAxisAlignment: MainAxisAlignment.center, children: [
+                        _statPill(gorealaiRating > 0 ? gorealaiRating.toStringAsFixed(1) : '-', '★ Gorealai'),
+                        _statDivider(),
+                        _statPill('$jobs', 'Δουλειές'),
+                        if (googleRating != null && googleRating > 0) ...[
+                          _statDivider(),
+                          _statPill(googleRating.toStringAsFixed(1), '★ Google'),
+                        ],
+                      ]),
+
+                      // ── Social buttons (top, only if has social) ──
+                      if (hasSocial) ...[
+                        const SizedBox(height: 20),
+                        Row(mainAxisAlignment: MainAxisAlignment.center, children: [
+                          if (instagram.isNotEmpty)
+                            _socialButton('Instagram', '@$instagram', const Color(0xFFE1306C), Icons.camera_alt_outlined,
+                                () => launchUrl(Uri.parse('https://instagram.com/$instagram'), mode: LaunchMode.externalApplication)),
+                          if (instagram.isNotEmpty && tiktok.isNotEmpty) const SizedBox(width: 10),
+                          if (tiktok.isNotEmpty)
+                            _socialButton('TikTok', '@$tiktok', const Color(0xFF69C9D0), Icons.music_note_outlined,
+                                () => launchUrl(Uri.parse('https://tiktok.com/@$tiktok'), mode: LaunchMode.externalApplication)),
+                        ]),
                       ],
                     ]),
-                  ])),
-                  const SizedBox(height: 28),
+                  ),
 
-                  // ── Bio ──
-                  if (bio.isNotEmpty) ...[
-                    _sectionLabel('Βιογραφικό'),
-                    const SizedBox(height: 10),
-                    Container(
-                      width: double.infinity,
-                      padding: const EdgeInsets.all(16),
-                      decoration: BoxDecoration(
-                        borderRadius: BorderRadius.circular(16),
-                        color: _g(0.04),
-                        border: Border.all(color: _g(0.08)),
-                      ),
-                      child: Text(bio, style: TextStyle(color: _g(0.75), fontSize: 13, height: 1.6)),
-                    ),
-                    const SizedBox(height: 24),
-                  ],
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(18, 0, 18, 40),
+                    child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
 
-                  // ── Specialties / Professions ──
-                  if (specialties.isNotEmpty) ...[
-                    _sectionLabel('Επαγγέλματα'),
-                    const SizedBox(height: 10),
-                    Wrap(spacing: 8, runSpacing: 8, children: specialties.map((s) => _goldChip(s)).toList()),
-                    const SizedBox(height: 24),
-                  ],
-
-                  // ── Sub-specialties ──
-                  if (subSpecialties.isNotEmpty) ...[
-                    _sectionLabel('Ειδικότητες'),
-                    const SizedBox(height: 10),
-                    Wrap(spacing: 8, runSpacing: 8, children: subSpecialties.map((s) => _dimChip(s)).toList()),
-                    const SizedBox(height: 24),
-                  ],
-
-                  // ── Service areas ──
-                  if (areas.isNotEmpty) ...[
-                    _sectionLabel('Περιοχές Εξυπηρέτησης'),
-                    const SizedBox(height: 10),
-                    Wrap(spacing: 8, runSpacing: 8, children: areas.map((a) => _dimChip(a)).toList()),
-                    const SizedBox(height: 24),
-                  ],
-
-                  // ── Google Reviews ──
-                  if (companyName.isNotEmpty || (googleRating != null && googleRating > 0)) ...[
-                    _sectionLabel('Google Reviews'),
-                    const SizedBox(height: 10),
-                    Container(
-                      padding: const EdgeInsets.all(16),
-                      decoration: BoxDecoration(
-                        borderRadius: BorderRadius.circular(16),
-                        color: _g(0.04),
-                        border: Border.all(color: _g(0.08)),
-                      ),
-                      child: Row(children: [
-                        Container(
-                          width: 44, height: 44,
-                          decoration: BoxDecoration(shape: BoxShape.circle, color: kGold.withValues(alpha: 0.12),
-                              border: Border.all(color: kGold.withValues(alpha: 0.3))),
-                          child: const Center(child: Text('G', style: TextStyle(color: kGold, fontSize: 22, fontWeight: FontWeight.w900, fontFamily: 'Raleway'))),
+                      // ══════════════════════════════════════
+                      // MINI CV
+                      // ══════════════════════════════════════
+                      _sectionHeader('MINI CV'),
+                      Container(
+                        width: double.infinity,
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(20),
+                          color: _g(0.03),
+                          border: Border.all(color: _g(0.07)),
                         ),
-                        const SizedBox(width: 14),
-                        Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                          if (companyName.isNotEmpty)
-                            Text(companyName, style: const TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.w700)),
-                          if (googleRating != null && googleRating > 0) ...[
-                            const SizedBox(height: 4),
-                            Row(children: [
-                              ...List.generate(5, (i) {
-                                final full = i < googleRating.floor();
-                                final half = !full && i < googleRating;
-                                return Icon(
-                                  full ? Icons.star : (half ? Icons.star_half : Icons.star_border),
-                                  color: const Color(0xFFFBBC05), size: 16,
-                                );
-                              }),
-                              const SizedBox(width: 6),
-                              Text(googleRating.toStringAsFixed(1),
-                                  style: const TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.w700)),
-                              if (googleRatingCount > 0) ...[
-                                const SizedBox(width: 4),
-                                Text('($googleRatingCount κριτικές)', style: TextStyle(color: _g(0.45), fontSize: 11)),
-                              ],
-                            ]),
+                        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                          // Bio
+                          if (bio.isNotEmpty)
+                            Padding(
+                              padding: const EdgeInsets.fromLTRB(18, 18, 18, 0),
+                              child: Text(bio, style: TextStyle(color: _g(0.75), fontSize: 13.5, height: 1.65)),
+                            ),
+                          // Divider
+                          if (bio.isNotEmpty && (specialties.isNotEmpty || subSpecialties.isNotEmpty))
+                            Padding(
+                              padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
+                              child: Container(height: 1, color: _g(0.07)),
+                            )
+                          else if (bio.isNotEmpty)
+                            const SizedBox(height: 18),
+                          // Specialties
+                          if (specialties.isNotEmpty) ...[
+                            Padding(
+                              padding: const EdgeInsets.fromLTRB(18, 0, 18, 0),
+                              child: _miniCvLabel('Επάγγελμα'),
+                            ),
+                            const SizedBox(height: 8),
+                            Padding(
+                              padding: const EdgeInsets.fromLTRB(18, 0, 18, 0),
+                              child: Wrap(spacing: 7, runSpacing: 7,
+                                  children: specialties.map((s) => _goldChip(s)).toList()),
+                            ),
                           ],
-                        ])),
-                      ]),
-                    ),
-                    const SizedBox(height: 24),
-                  ],
+                          // Sub-specialties
+                          if (subSpecialties.isNotEmpty) ...[
+                            const SizedBox(height: 14),
+                            Padding(
+                              padding: const EdgeInsets.fromLTRB(18, 0, 18, 0),
+                              child: _miniCvLabel('Ειδικότητες'),
+                            ),
+                            const SizedBox(height: 8),
+                            Padding(
+                              padding: const EdgeInsets.fromLTRB(18, 0, 18, 0),
+                              child: Wrap(spacing: 7, runSpacing: 7,
+                                  children: subSpecialties.map((s) => _dimChip(s)).toList()),
+                            ),
+                          ],
+                          const SizedBox(height: 18),
+                        ]),
+                      ),
+                      const SizedBox(height: 24),
 
-                  // ── Portfolio ──
-                  if (projects.isNotEmpty) ...[
-                    _sectionLabel('Portfolio'),
-                    const SizedBox(height: 12),
-                    // Tab row for projects
-                    if (projects.length > 1)
-                      SizedBox(
-                        height: 36,
-                        child: ListView.separated(
-                          scrollDirection: Axis.horizontal,
-                          itemCount: projects.length,
-                          separatorBuilder: (_, __) => const SizedBox(width: 8),
-                          itemBuilder: (_, i) {
-                            final selected = i == _portfolioIndex;
-                            return GestureDetector(
-                              onTap: () => setState(() => _portfolioIndex = i),
-                              child: AnimatedContainer(
-                                duration: const Duration(milliseconds: 200),
-                                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-                                decoration: BoxDecoration(
-                                  borderRadius: BorderRadius.circular(20),
-                                  color: selected ? kGold.withValues(alpha: 0.15) : _g(0.04),
-                                  border: Border.all(color: selected ? kGold : _g(0.1)),
+                      // ══════════════════════════════════════
+                      // GOREALAI REVIEWS
+                      // ══════════════════════════════════════
+                      _sectionHeader('ΑΞΙΟΛΟΓΗΣΕΙΣ GOREALAI'),
+                      Container(
+                        width: double.infinity,
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(20),
+                          color: _g(0.03),
+                          border: Border.all(color: _g(0.07)),
+                        ),
+                        child: _reviews.isEmpty
+                            ? Padding(
+                                padding: const EdgeInsets.symmetric(vertical: 30),
+                                child: Column(children: [
+                                  Icon(Icons.star_outline_rounded, color: kGold.withValues(alpha: 0.4), size: 38),
+                                  const SizedBox(height: 10),
+                                  Text('Δεν υπάρχουν αξιολογήσεις ακόμα', style: TextStyle(color: _g(0.35), fontSize: 13)),
+                                ]),
+                              )
+                            : Column(children: [
+                                // Summary bar
+                                Container(
+                                  padding: const EdgeInsets.all(18),
+                                  decoration: BoxDecoration(
+                                    borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+                                    color: kGold.withValues(alpha: 0.06),
+                                  ),
+                                  child: Row(children: [
+                                    Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                                      ShaderMask(
+                                        shaderCallback: (b) => const LinearGradient(colors: [kGoldLight, kGold]).createShader(b),
+                                        child: Text(gorealaiRating.toStringAsFixed(1),
+                                            style: const TextStyle(color: Colors.white, fontSize: 42, fontWeight: FontWeight.w900, fontFamily: 'Raleway')),
+                                      ),
+                                      Row(children: List.generate(5, (i) => Icon(
+                                        i < gorealaiRating.floor() ? Icons.star_rounded
+                                            : (i < gorealaiRating ? Icons.star_half_rounded : Icons.star_outline_rounded),
+                                        color: kGold, size: 18,
+                                      ))),
+                                      const SizedBox(height: 4),
+                                      Text('${_reviews.length} κριτικές', style: TextStyle(color: _g(0.4), fontSize: 11)),
+                                    ]),
+                                    const SizedBox(width: 20),
+                                    Expanded(child: Column(children: List.generate(5, (idx) {
+                                      final star = 5 - idx;
+                                      final count = _reviews.where((r) => ((r['rating'] as num?)?.toDouble() ?? 0).round() == star).length;
+                                      final frac = _reviews.isEmpty ? 0.0 : count / _reviews.length;
+                                      return Padding(
+                                        padding: const EdgeInsets.symmetric(vertical: 2),
+                                        child: Row(children: [
+                                          Text('$star', style: TextStyle(color: _g(0.5), fontSize: 10)),
+                                          const SizedBox(width: 6),
+                                          Expanded(child: ClipRRect(
+                                            borderRadius: BorderRadius.circular(4),
+                                            child: LinearProgressIndicator(
+                                              value: frac, minHeight: 5,
+                                              backgroundColor: _g(0.08),
+                                              valueColor: const AlwaysStoppedAnimation(kGold),
+                                            ),
+                                          )),
+                                          const SizedBox(width: 6),
+                                          Text('$count', style: TextStyle(color: _g(0.4), fontSize: 10)),
+                                        ]),
+                                      );
+                                    }))),
+                                  ]),
                                 ),
-                                child: Text(projects[i]['title'] as String? ?? '',
-                                    style: TextStyle(color: selected ? kGold : _g(0.55), fontSize: 12, fontWeight: selected ? FontWeight.w700 : FontWeight.w400)),
-                              ),
-                            );
-                          },
+                                // Review list
+                                ..._reviews.take(5).map((r) {
+                                  final rName = r['userName'] as String? ?? 'Χρήστης';
+                                  final rRating = (r['rating'] as num?)?.toDouble() ?? 0;
+                                  final rComment = r['comment'] as String? ?? '';
+                                  final ts = r['timestamp'];
+                                  String dateStr = '';
+                                  if (ts is Timestamp) {
+                                    final dt = ts.toDate();
+                                    dateStr = '${dt.day}/${dt.month}/${dt.year}';
+                                  }
+                                  return Container(
+                                    padding: const EdgeInsets.fromLTRB(18, 14, 18, 14),
+                                    decoration: BoxDecoration(border: Border(top: BorderSide(color: _g(0.07)))),
+                                    child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                                      Row(children: [
+                                        Container(
+                                          width: 34, height: 34,
+                                          decoration: BoxDecoration(shape: BoxShape.circle, color: kGold.withValues(alpha: 0.12),
+                                              border: Border.all(color: kGold.withValues(alpha: 0.25))),
+                                          child: Center(child: Text(rName.isNotEmpty ? rName[0].toUpperCase() : 'X',
+                                              style: const TextStyle(color: kGold, fontSize: 14, fontWeight: FontWeight.w700))),
+                                        ),
+                                        const SizedBox(width: 10),
+                                        Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                                          Text(rName, style: const TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.w700)),
+                                          if (dateStr.isNotEmpty)
+                                            Text(dateStr, style: TextStyle(color: _g(0.35), fontSize: 10)),
+                                        ])),
+                                        Row(children: List.generate(5, (i) => Icon(
+                                          i < rRating.floor() ? Icons.star_rounded : (i < rRating ? Icons.star_half_rounded : Icons.star_outline_rounded),
+                                          color: kGold, size: 13,
+                                        ))),
+                                      ]),
+                                      if (rComment.isNotEmpty) ...[
+                                        const SizedBox(height: 8),
+                                        Text(rComment, style: TextStyle(color: _g(0.65), fontSize: 13, height: 1.5)),
+                                      ],
+                                    ]),
+                                  );
+                                }),
+                              ]),
+                      ),
+                      const SizedBox(height: 24),
+
+                      // ══════════════════════════════════════
+                      // GOOGLE REVIEWS
+                      // ══════════════════════════════════════
+                      _sectionHeader('ΑΞΙΟΛΟΓΗΣΕΙΣ GOOGLE'),
+                      Container(
+                        width: double.infinity,
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(20),
+                          color: _g(0.03),
+                          border: Border.all(color: _g(0.07)),
+                        ),
+                        child: (companyName.isEmpty && (googleRating == null || googleRating == 0))
+                            ? Padding(
+                                padding: const EdgeInsets.symmetric(vertical: 30),
+                                child: Column(children: [
+                                  Text('G', style: TextStyle(color: _g(0.15), fontSize: 42, fontWeight: FontWeight.w900, fontFamily: 'Raleway')),
+                                  const SizedBox(height: 8),
+                                  Text('Δεν έχει συνδεθεί Google Business', style: TextStyle(color: _g(0.35), fontSize: 13)),
+                                ]),
+                              )
+                            : GestureDetector(
+                                onTap: () {
+                                  final placeId = _data['googlePlaceId'] as String? ?? '';
+                                  final url = placeId.isNotEmpty
+                                      ? 'https://www.google.com/maps/search/?api=1&query=${Uri.encodeComponent(companyName)}&query_place_id=$placeId'
+                                      : (companyName.isNotEmpty ? 'https://www.google.com/search?q=${Uri.encodeComponent(companyName + ' αξιολογήσεις')}' : null);
+                                  if (url != null) launchUrl(Uri.parse(url), mode: LaunchMode.externalApplication);
+                                },
+                                child: Padding(
+                                padding: const EdgeInsets.all(20),
+                                child: Row(crossAxisAlignment: CrossAxisAlignment.center, children: [
+                                  // Google G
+                                  Container(
+                                    width: 52, height: 52,
+                                    decoration: BoxDecoration(
+                                      shape: BoxShape.circle,
+                                      color: const Color(0xFF4285F4).withValues(alpha: 0.1),
+                                      border: Border.all(color: const Color(0xFF4285F4).withValues(alpha: 0.3)),
+                                    ),
+                                    child: Center(child: Text('G',
+                                        style: TextStyle(fontFamily: 'Raleway', fontSize: 26, fontWeight: FontWeight.w900,
+                                            foreground: Paint()..shader = const LinearGradient(colors: [Color(0xFF4285F4), Color(0xFF34A853), Color(0xFFFBBC05), Color(0xFFEA4335)]).createShader(const Rect.fromLTWH(0, 0, 52, 52))))),
+                                  ),
+                                  const SizedBox(width: 16),
+                                  Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                                    if (companyName.isNotEmpty)
+                                      Text(companyName, style: const TextStyle(color: Colors.white, fontSize: 15, fontWeight: FontWeight.w800)),
+                                    const SizedBox(height: 6),
+                                    if (googleRating != null && googleRating > 0) ...[
+                                      Row(children: [
+                                        ShaderMask(
+                                          shaderCallback: (b) => const LinearGradient(colors: [kGoldLight, kGold]).createShader(b),
+                                          child: Text(googleRating.toStringAsFixed(1),
+                                              style: const TextStyle(color: Colors.white, fontSize: 28, fontWeight: FontWeight.w900, fontFamily: 'Raleway')),
+                                        ),
+                                        const SizedBox(width: 10),
+                                        Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                                          Row(children: List.generate(5, (i) => Icon(
+                                            i < googleRating.floor() ? Icons.star_rounded : (i < googleRating ? Icons.star_half_rounded : Icons.star_outline_rounded),
+                                            color: const Color(0xFFFBBC05), size: 16,
+                                          ))),
+                                          if (googleRatingCount > 0) ...[
+                                            const SizedBox(height: 3),
+                                            Text('$googleRatingCount κριτικές', style: TextStyle(color: _g(0.4), fontSize: 11)),
+                                          ],
+                                        ]),
+                                      ]),
+                                    ] else
+                                      Text('Δεν υπάρχουν αξιολογήσεις', style: TextStyle(color: _g(0.35), fontSize: 12)),
+                                  ])),
+                                ]),
+                              )),
+                      ),
+                      const SizedBox(height: 24),
+
+                      // ══════════════════════════════════════
+                      // PORTFOLIO
+                      // ══════════════════════════════════════
+                      if (_projects.isNotEmpty) ...[
+                        _sectionHeader('PORTFOLIO'),
+                        // Project tabs
+                        if (_projects.length > 1) ...[
+                          SizedBox(
+                            height: 38,
+                            child: ListView.separated(
+                              scrollDirection: Axis.horizontal,
+                              itemCount: _projects.length,
+                              separatorBuilder: (_, __) => const SizedBox(width: 8),
+                              itemBuilder: (_, i) {
+                                final sel = i == _portfolioIndex;
+                                return GestureDetector(
+                                  onTap: () => setState(() => _portfolioIndex = i),
+                                  child: AnimatedContainer(
+                                    duration: const Duration(milliseconds: 180),
+                                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 9),
+                                    decoration: BoxDecoration(
+                                      borderRadius: BorderRadius.circular(22),
+                                      color: sel ? kGold.withValues(alpha: 0.15) : _g(0.04),
+                                      border: Border.all(color: sel ? kGold : _g(0.09), width: sel ? 1.5 : 1),
+                                    ),
+                                    child: Text(_projects[i]['title'] as String? ?? '',
+                                        style: TextStyle(color: sel ? kGold : _g(0.5), fontSize: 12, fontWeight: sel ? FontWeight.w700 : FontWeight.w500)),
+                                  ),
+                                );
+                              },
+                            ),
+                          ),
+                          const SizedBox(height: 14),
+                        ],
+                        _buildPublicAlbum(_projects[_portfolioIndex.clamp(0, _projects.length - 1)]),
+                        const SizedBox(height: 24),
+                      ],
+
+                                      // ── CTA ──
+                      GestureDetector(
+                        onTap: () async {
+                          final user = FirebaseAuth.instance.currentUser;
+                          if (user == null) return;
+                          final userDoc = await FirebaseFirestore.instance.collection('users').doc(user.uid).get();
+                          final userName = userDoc.data()?['name'] as String? ?? 'Χρήστης';
+                          final proName = _data['name'] as String? ?? 'Επαγγελματίας';
+                          final chatId = '${user.uid}_${widget.proId}';
+                          if (!mounted) return;
+                          Navigator.push(context, PageRouteBuilder(
+                            pageBuilder: (_, __, ___) => ChatScreen(
+                              chatId: chatId, currentUserId: user.uid,
+                              currentUserName: userName, otherName: proName, isPro: false,
+                            ),
+                            transitionsBuilder: (_, a, __, c) => FadeTransition(opacity: a, child: c),
+                            transitionDuration: const Duration(milliseconds: 300),
+                          ));
+                        },
+                        child: Container(
+                          width: double.infinity, height: 56,
+                          decoration: BoxDecoration(
+                            borderRadius: BorderRadius.circular(18),
+                            gradient: const LinearGradient(colors: [kGoldLight, kGold, kGoldDark]),
+                            boxShadow: [BoxShadow(color: kGold.withValues(alpha: 0.4), blurRadius: 20, offset: const Offset(0, 8))],
+                          ),
+                          child: const Row(mainAxisAlignment: MainAxisAlignment.center, children: [
+                            Icon(Icons.chat_bubble_outline_rounded, color: Colors.black, size: 18),
+                            SizedBox(width: 8),
+                            Text('Επικοινώνησε με τον Επαγγελματία',
+                                style: TextStyle(color: Colors.black, fontSize: 14, fontWeight: FontWeight.w900, letterSpacing: 0.3)),
+                          ]),
                         ),
                       ),
-                    const SizedBox(height: 14),
-                    _buildPublicPortfolioAlbum(projects[_portfolioIndex.clamp(0, projects.length - 1)]),
-                    const SizedBox(height: 24),
-                  ],
-
-                  // ── Social ──
-                  if (instagram.isNotEmpty || tiktok.isNotEmpty) ...[
-                    _sectionLabel('Social Media'),
-                    const SizedBox(height: 10),
-                    Row(children: [
-                      if (instagram.isNotEmpty)
-                        _socialBadge('Instagram', instagram, const Color(0xFFE1306C),
-                            () => launchUrl(Uri.parse('https://instagram.com/$instagram'), mode: LaunchMode.externalApplication)),
-                      if (instagram.isNotEmpty && tiktok.isNotEmpty) const SizedBox(width: 10),
-                      if (tiktok.isNotEmpty)
-                        _socialBadge('TikTok', tiktok, const Color(0xFF69C9D0),
-                            () => launchUrl(Uri.parse('https://tiktok.com/@$tiktok'), mode: LaunchMode.externalApplication)),
                     ]),
-                    const SizedBox(height: 24),
-                  ],
-
-                  // ── CTA ──
-                  GestureDetector(
-                    onTap: () => Navigator.pop(context),
-                    child: Container(
-                      width: double.infinity, padding: const EdgeInsets.symmetric(vertical: 16),
-                      decoration: BoxDecoration(
-                        borderRadius: BorderRadius.circular(16),
-                        gradient: const LinearGradient(colors: [kGoldLight, kGold]),
-                        boxShadow: [BoxShadow(color: kGold.withValues(alpha: 0.35), blurRadius: 16, offset: const Offset(0, 6))],
-                      ),
-                      child: const Center(child: Text('Στείλε αίτημα',
-                          style: TextStyle(color: Colors.black, fontSize: 15, fontWeight: FontWeight.w800, letterSpacing: 0.5))),
-                    ),
                   ),
                 ]),
               ),
@@ -11261,91 +11614,104 @@ class _ProPublicProfileScreenState extends State<_ProPublicProfileScreen> {
     );
   }
 
-  Widget _buildPublicPortfolioAlbum(Map<String, dynamic> project) {
+  Widget _buildPublicAlbum(Map<String, dynamic> project) {
     final photos = project['photos'] as List<String>? ?? [];
     if (photos.isEmpty) {
       return Container(
         height: 120,
-        decoration: BoxDecoration(borderRadius: BorderRadius.circular(16), color: _g(0.04), border: Border.all(color: _g(0.08))),
+        decoration: BoxDecoration(borderRadius: BorderRadius.circular(18), color: _g(0.03), border: Border.all(color: _g(0.07))),
         child: Center(child: Text('Δεν υπάρχουν φωτογραφίες', style: TextStyle(color: _g(0.3), fontSize: 13))),
       );
     }
     return SizedBox(
-      height: 200,
+      height: 220,
       child: ListView.separated(
         scrollDirection: Axis.horizontal,
         itemCount: photos.length,
         separatorBuilder: (_, __) => const SizedBox(width: 10),
         itemBuilder: (_, i) => GestureDetector(
-          onTap: () => _showPhotoViewer(photos, i),
+          onTap: () => _showViewer(photos, i),
           child: ClipRRect(
             borderRadius: BorderRadius.circular(14),
-            child: Image.network(photos[i], width: 180, height: 200, fit: BoxFit.cover,
-                errorBuilder: (_, __, ___) => Container(width: 180, height: 200,
-                    color: _g(0.06), child: Icon(Icons.broken_image, color: _g(0.2)))),
+            child: Image.network(photos[i], width: 180, height: 220, fit: BoxFit.cover,
+                errorBuilder: (_, __, ___) => Container(width: 180, color: _g(0.06), child: Icon(Icons.broken_image, color: _g(0.2)))),
           ),
         ),
       ),
     );
   }
 
-  void _showPhotoViewer(List<String> photos, int startIndex) {
-    showDialog(
-      context: context,
-      barrierColor: Colors.black87,
-      builder: (_) => _PhotoViewerDialog(photos: photos, initialIndex: startIndex),
-    );
-  }
-
-  Widget _proInitialsBox(String initials) => Container(
-    color: kGold.withValues(alpha: 0.1),
-    child: Center(child: Text(initials, style: const TextStyle(color: kGold, fontSize: 40, fontWeight: FontWeight.bold))),
+  void _showViewer(List<String> photos, int i) => showDialog(
+    context: context, barrierColor: Colors.black87,
+    builder: (_) => _PhotoViewerDialog(photos: photos, initialIndex: i),
   );
 
-  Widget _proStatBox(String emoji, String value, String label) => Container(
-    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-    decoration: BoxDecoration(borderRadius: BorderRadius.circular(14), color: _g(0.04), border: Border.all(color: _g(0.08))),
-    child: Column(children: [
-      Text(emoji, style: const TextStyle(fontSize: 18)),
-      const SizedBox(height: 4),
-      Text(value, style: const TextStyle(color: Colors.white, fontSize: 15, fontWeight: FontWeight.w800)),
-      Text(label, style: TextStyle(color: _g(0.4), fontSize: 10)),
+  Widget _initialsBox(String i) => Container(
+    color: kGold.withValues(alpha: 0.1),
+    child: Center(child: Text(i, style: const TextStyle(color: kGold, fontSize: 38, fontWeight: FontWeight.bold))),
+  );
+
+  Widget _statPill(String value, String label) => Column(children: [
+    ShaderMask(
+      shaderCallback: (b) => const LinearGradient(colors: [kGoldLight, kGold]).createShader(b),
+      child: Text(value, style: const TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.w900, fontFamily: 'Raleway')),
+    ),
+    const SizedBox(height: 2),
+    Text(label, style: TextStyle(color: _g(0.4), fontSize: 10, fontWeight: FontWeight.w500)),
+  ]);
+
+  Widget _statDivider() => Container(
+    height: 28, width: 1, margin: const EdgeInsets.symmetric(horizontal: 18),
+    color: _g(0.1),
+  );
+
+  Widget _sectionHeader(String text) => Padding(
+    padding: const EdgeInsets.only(bottom: 12),
+    child: Row(children: [
+      ShaderMask(
+        shaderCallback: (b) => const LinearGradient(colors: [kGoldLight, kGold]).createShader(b),
+        child: Container(width: 3, height: 14, decoration: BoxDecoration(borderRadius: BorderRadius.circular(2), color: Colors.white)),
+      ),
+      const SizedBox(width: 10),
+      Text(text, style: const TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.w800, letterSpacing: 1.8)),
     ]),
   );
 
-  Widget _sectionLabel(String text) => Row(children: [
-    Container(width: 3, height: 16, decoration: BoxDecoration(borderRadius: BorderRadius.circular(2), gradient: const LinearGradient(colors: [kGoldLight, kGold], begin: Alignment.topCenter, end: Alignment.bottomCenter))),
-    const SizedBox(width: 10),
-    Text(text, style: const TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.w700, letterSpacing: 0.3)),
-  ]);
+  Widget _miniCvLabel(String text) => Text(text,
+      style: TextStyle(color: _g(0.4), fontSize: 10, fontWeight: FontWeight.w700, letterSpacing: 1));
 
   Widget _goldChip(String label) => Container(
     padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-    decoration: BoxDecoration(borderRadius: BorderRadius.circular(20), color: kGold.withValues(alpha: 0.12), border: Border.all(color: kGold.withValues(alpha: 0.4))),
+    decoration: BoxDecoration(borderRadius: BorderRadius.circular(20), color: kGold.withValues(alpha: 0.12), border: Border.all(color: kGold.withValues(alpha: 0.35))),
     child: Text(label, style: const TextStyle(color: kGold, fontSize: 12, fontWeight: FontWeight.w600)),
   );
 
   Widget _dimChip(String label) => Container(
-    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-    decoration: BoxDecoration(borderRadius: BorderRadius.circular(20), color: _g(0.05), border: Border.all(color: _g(0.1))),
-    child: Text(label, style: TextStyle(color: _g(0.7), fontSize: 12)),
+    padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 5),
+    decoration: BoxDecoration(borderRadius: BorderRadius.circular(20), color: _g(0.05), border: Border.all(color: _g(0.09))),
+    child: Text(label, style: TextStyle(color: _g(0.65), fontSize: 11)),
   );
 
-  Widget _socialBadge(String platform, String handle, Color color, VoidCallback onTap) => GestureDetector(
-    onTap: onTap,
-    child: Container(
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-      decoration: BoxDecoration(borderRadius: BorderRadius.circular(14), color: color.withValues(alpha: 0.1), border: Border.all(color: color.withValues(alpha: 0.35))),
-      child: Row(mainAxisSize: MainAxisSize.min, children: [
-        Icon(Icons.open_in_new, color: color, size: 16),
-        const SizedBox(width: 6),
-        Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Text(platform, style: TextStyle(color: color, fontSize: 10, fontWeight: FontWeight.w700)),
-          Text('@$handle', style: TextStyle(color: color.withValues(alpha: 0.8), fontSize: 12)),
-        ]),
-      ]),
-    ),
-  );
+  Widget _socialButton(String platform, String handle, Color color, IconData icon, VoidCallback onTap) =>
+      GestureDetector(
+        onTap: onTap,
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(14),
+            color: color.withValues(alpha: 0.1),
+            border: Border.all(color: color.withValues(alpha: 0.35)),
+          ),
+          child: Row(mainAxisSize: MainAxisSize.min, children: [
+            Icon(icon, color: color, size: 17),
+            const SizedBox(width: 7),
+            Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Text(platform, style: TextStyle(color: color, fontSize: 9, fontWeight: FontWeight.w800, letterSpacing: 0.5)),
+              Text(handle, style: TextStyle(color: color.withValues(alpha: 0.9), fontSize: 12, fontWeight: FontWeight.w600)),
+            ]),
+          ]),
+        ),
+      );
 }
 
 class _PhotoViewerDialog extends StatefulWidget {
@@ -12682,7 +13048,8 @@ class _DirectRequestScreenState extends State<DirectRequestScreen> {
 // ══════════════════════════════════════════════════════
 class MessagesScreen extends StatefulWidget {
   final String userId;
-  const MessagesScreen({super.key, required this.userId});
+  final bool isPro;
+  const MessagesScreen({super.key, required this.userId, this.isPro = false});
   @override
   State<MessagesScreen> createState() => _MessagesScreenState();
 }
@@ -12789,7 +13156,7 @@ class _MessagesScreenState extends State<MessagesScreen> {
         Expanded(child: StreamBuilder<QuerySnapshot>(
           stream: FirebaseFirestore.instance
               .collection('chats')
-              .where('userId', isEqualTo: widget.userId)
+              .where(widget.isPro ? 'proId' : 'userId', isEqualTo: widget.userId)
               .snapshots(),
           builder: (context, snap) {
             if (!snap.hasData) return const Center(child: CircularProgressIndicator(color: kGold));
@@ -12824,10 +13191,12 @@ class _MessagesScreenState extends State<MessagesScreen> {
                 final d = doc.data() as Map<String, dynamic>;
                 final chatId = doc.id;
                 final proName = d['proName'] as String? ?? 'Επαγγελματίας';
+                final userName2 = d['userName'] as String? ?? 'Χρήστης';
+                final displayName = widget.isPro ? userName2 : proName;
                 final proId2 = d['proId'] as String? ?? '';
                 final lastMsg = d['lastMessage'] as String? ?? '';
                 final ts = d['lastMessageAt'] as Timestamp?;
-                final unread = (d['unreadUser'] as int?) ?? 0;
+                final unread = (d[widget.isPro ? 'unreadPro' : 'unreadUser'] as int?) ?? 0;
                 String timeStr = '';
                 if (ts != null) {
                   final now = DateTime.now();
@@ -12863,8 +13232,9 @@ class _MessagesScreenState extends State<MessagesScreen> {
                     onTap: () => Navigator.push(context, PageRouteBuilder(
                       pageBuilder: (_, __, ___) => ChatScreen(
                         chatId: chatId, currentUserId: widget.userId,
-                        currentUserName: d['userName'] as String? ?? 'Χρήστης',
-                        otherName: proName, isPro: false,
+                        currentUserName: widget.isPro ? (d['proName'] as String? ?? 'Επαγγελματίας') : (d['userName'] as String? ?? 'Χρήστης'),
+                        otherName: widget.isPro ? (d['userName'] as String? ?? 'Χρήστης') : proName,
+                        isPro: widget.isPro,
                       ),
                       transitionsBuilder: (_, a, __, c) => FadeTransition(opacity: a, child: c),
                       transitionDuration: const Duration(milliseconds: 300),
@@ -12909,7 +13279,7 @@ class _MessagesScreenState extends State<MessagesScreen> {
                             ),
                             boxShadow: unread > 0 ? [BoxShadow(color: kGold.withValues(alpha: 0.3), blurRadius: 12)] : null,
                           ),
-                          child: ClipOval(child: proId2.isNotEmpty
+                          child: ClipOval(child: (!widget.isPro && proId2.isNotEmpty)
                               ? FutureBuilder<DocumentSnapshot>(
                                   future: FirebaseFirestore.instance.collection('professionals').doc(proId2).get(),
                                   builder: (_, snap) {
@@ -12918,19 +13288,19 @@ class _MessagesScreenState extends State<MessagesScreen> {
                                     if (photoUrl != null && photoUrl.isNotEmpty) {
                                       return Image.network(photoUrl, fit: BoxFit.cover,
                                           errorBuilder: (_, __, ___) => Center(child: Text(
-                                              proName.isNotEmpty ? proName[0].toUpperCase() : '?',
+                                              displayName.isNotEmpty ? displayName[0].toUpperCase() : '?',
                                               style: const TextStyle(color: kGold, fontSize: 21, fontWeight: FontWeight.w900))));
                                     }
-                                    return Center(child: Text(proName.isNotEmpty ? proName[0].toUpperCase() : '?',
+                                    return Center(child: Text(displayName.isNotEmpty ? displayName[0].toUpperCase() : '?',
                                         style: const TextStyle(color: kGold, fontSize: 21, fontWeight: FontWeight.w900)));
                                   })
-                              : Center(child: Text(proName.isNotEmpty ? proName[0].toUpperCase() : '?',
+                              : Center(child: Text(displayName.isNotEmpty ? displayName[0].toUpperCase() : '?',
                                   style: const TextStyle(color: kGold, fontSize: 21, fontWeight: FontWeight.w900)))),
                         ),
                         const SizedBox(width: 14),
                         Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                           Row(children: [
-                            Expanded(child: Text(proName, maxLines: 1, overflow: TextOverflow.ellipsis,
+                            Expanded(child: Text(displayName, maxLines: 1, overflow: TextOverflow.ellipsis,
                                 style: TextStyle(color: Colors.white, fontSize: 15,
                                     fontWeight: unread > 0 ? FontWeight.w800 : FontWeight.w600,
                                     letterSpacing: 0.2))),
@@ -13084,13 +13454,7 @@ class _ChatScreenState extends State<ChatScreen> {
     setState(() { _chatAudioRecording = false; _chatAudioUploading = true; });
     if (path == null || path.isEmpty) { setState(() => _chatAudioUploading = false); return; }
     try {
-      Uint8List bytes;
-      if (path.startsWith('blob:') || path.startsWith('http')) {
-        final resp = await http.get(Uri.parse(path));
-        bytes = resp.bodyBytes;
-      } else {
-        bytes = await XFile(path).readAsBytes();
-      }
+      final Uint8List bytes = await _readFileBytes(path);
       // blob URLs don't have a file extension — default to webm on web
       final ext = path.startsWith('blob:') ? 'webm' :
           (path.contains('.') ? path.split('.').last.split('?').first : 'webm');
@@ -13116,6 +13480,8 @@ class _ChatScreenState extends State<ChatScreen> {
         widget.isPro ? 'unreadPro' : 'unreadUser': 0,
         if (chatParts.isNotEmpty) 'userId': chatParts[0],
         if (chatParts.length > 1) 'proId': chatParts[1],
+        'userName': widget.isPro ? widget.otherName : widget.currentUserName,
+        'proName': widget.isPro ? widget.currentUserName : widget.otherName,
       }, SetOptions(merge: true));
     } catch (e) {
       // ignore
@@ -13227,20 +13593,15 @@ class _ChatScreenState extends State<ChatScreen> {
       if (_selectedVideo != null) {
         try {
           final path = _selectedVideo!.path;
-          Uint8List bytes;
-          if (path.startsWith('blob:') || path.startsWith('http')) {
-            final resp = await http.get(Uri.parse(path));
-            bytes = resp.bodyBytes;
-          } else {
-            bytes = await _selectedVideo!.readAsBytes();
-          }
+          final Uint8List bytes = await _readFileBytes(path);
           if (bytes.lengthInBytes > 50 * 1024 * 1024) {
             if (mounted) ScaffoldMessenger.of(context).showSnackBar(
               const SnackBar(content: Text('Το βίντεο είναι πολύ μεγάλο (max 50MB)')));
             setState(() { _selectedVideo = null; _sending = false; });
             return;
           }
-          final ext = path.contains('.') ? path.split('.').last.split('?').first : 'mp4';
+          final ext = path.startsWith('blob:') ? 'webm'
+              : (path.contains('.') ? path.split('.').last.split('?').first.toLowerCase() : 'webm');
           final ct = ext == 'webm' ? 'video/webm' : 'video/mp4';
           final ref = FirebaseStorage.instance.ref(
               'chat_media/${widget.chatId}/${DateTime.now().millisecondsSinceEpoch}_vid.$ext');
@@ -13269,6 +13630,9 @@ class _ChatScreenState extends State<ChatScreen> {
         widget.isPro ? 'unreadPro' : 'unreadUser': 0,
         if (chatParts.isNotEmpty) 'userId': chatParts[0],
         if (chatParts.length > 1) 'proId': chatParts[1],
+        // Always persist names so both sides see the correct name
+        'userName': widget.isPro ? widget.otherName : widget.currentUserName,
+        'proName': widget.isPro ? widget.currentUserName : widget.otherName,
       }, SetOptions(merge: true));
 
       if (mounted) setState(() { _selectedImages.clear(); _selectedVideo = null; _sending = false; });
