@@ -287,6 +287,78 @@ app.post('/new-offer', rateLimit(20, 60_000), async (req, res) => {
   res.json({ success: true, results });
 });
 
+// ── Welcome email on registration ────────────────────────────────────
+// POST /welcome-email
+// Body: { email, name, role }
+app.post('/welcome-email', rateLimit(5, 60_000), async (req, res) => {
+  const { email, name, role } = req.body;
+  if (!email || !name) return res.status(400).json({ error: 'email and name required' });
+  if (!process.env.SENDGRID_API_KEY) return res.json({ success: false, reason: 'sendgrid not configured' });
+
+  const isPro = role === 'professional';
+  const subject = isPro
+    ? `🎉 Καλώς ήρθες στο GorealAI, ${name.split(' ')[0]}!`
+    : `🎉 Καλώς ήρθες στο GorealAI, ${name.split(' ')[0]}!`;
+
+  const html = isPro ? `
+    <div style="font-family:Arial,sans-serif;max-width:520px;margin:0 auto;background:#0A0800;color:#fff;border-radius:20px;padding:36px;border:1px solid rgba(201,168,76,0.3)">
+      <div style="text-align:center;margin-bottom:28px">
+        <h1 style="color:#FFD47A;font-size:28px;margin:0;font-style:italic">${name.split(' ')[0]},</h1>
+        <p style="color:#C9A84C;font-size:16px;margin:8px 0 0">καλώς ήρθες στο GorealAI!</p>
+      </div>
+      <p style="color:rgba(255,255,255,0.75);line-height:1.7;font-size:14px">Ο λογαριασμός σου ως <strong style="color:#FFD47A">Επαγγελματία</strong> είναι έτοιμος. Από τώρα μπορείς να λαμβάνεις αιτήματα από πελάτες κοντά σου και να στέλνεις τις προσφορές σου.</p>
+      <div style="background:rgba(201,168,76,0.08);border:1px solid rgba(201,168,76,0.2);border-radius:14px;padding:20px;margin:24px 0">
+        <p style="color:#FFD47A;font-size:13px;font-weight:700;margin:0 0 12px">Τι μπορείς να κάνεις:</p>
+        <p style="color:rgba(255,255,255,0.65);font-size:13px;line-height:1.8;margin:0">
+          📋 Λαμβάνεις αιτήματα που ταιριάζουν με την ειδικότητά σου<br>
+          💼 Στέλνεις προσφορές με τιμή & διαθεσιμότητα<br>
+          💬 Επικοινωνείς απευθείας με τους πελάτες<br>
+          📅 Διαχειρίζεσαι τα bookings σου
+        </p>
+      </div>
+      <div style="text-align:center;margin-top:28px">
+        <a href="https://gorealai.web.app/app" style="display:inline-block;padding:14px 32px;background:linear-gradient(135deg,#FFD47A,#C9A84C);color:#000;border-radius:12px;text-decoration:none;font-weight:800;font-size:15px">Άνοιξε την εφαρμογή →</a>
+      </div>
+      <p style="color:rgba(255,255,255,0.25);font-size:11px;margin-top:28px;text-align:center">GorealAI · gorealai.web.app · info@gorealai.gr</p>
+    </div>
+  ` : `
+    <div style="font-family:Arial,sans-serif;max-width:520px;margin:0 auto;background:#0A0800;color:#fff;border-radius:20px;padding:36px;border:1px solid rgba(201,168,76,0.3)">
+      <div style="text-align:center;margin-bottom:28px">
+        <h1 style="color:#FFD47A;font-size:28px;margin:0;font-style:italic">${name.split(' ')[0]},</h1>
+        <p style="color:#C9A84C;font-size:16px;margin:8px 0 0">καλώς ήρθες στο GorealAI!</p>
+      </div>
+      <p style="color:rgba(255,255,255,0.75);line-height:1.7;font-size:14px">Ο λογαριασμός σου είναι έτοιμος. Μπορείς τώρα να βρεις τον κατάλληλο επαγγελματία για οποιαδήποτε δουλειά, γρήγορα και εύκολα.</p>
+      <div style="background:rgba(201,168,76,0.08);border:1px solid rgba(201,168,76,0.2);border-radius:14px;padding:20px;margin:24px 0">
+        <p style="color:#FFD47A;font-size:13px;font-weight:700;margin:0 0 12px">Πώς λειτουργεί:</p>
+        <p style="color:rgba(255,255,255,0.65);font-size:13px;line-height:1.8;margin:0">
+          1️⃣ Στέλνεις το αίτημά σου (υδραυλικός, ηλεκτρολόγος κ.λπ.)<br>
+          2️⃣ Λαμβάνεις προσφορές από επαγγελματίες κοντά σου<br>
+          3️⃣ Επιλέγεις την καλύτερη προσφορά<br>
+          4️⃣ Επικοινωνείς απευθείας μέσω της εφαρμογής
+        </p>
+      </div>
+      <div style="text-align:center;margin-top:28px">
+        <a href="https://gorealai.web.app/app" style="display:inline-block;padding:14px 32px;background:linear-gradient(135deg,#FFD47A,#C9A84C);color:#000;border-radius:12px;text-decoration:none;font-weight:800;font-size:15px">Κάνε το πρώτο σου αίτημα →</a>
+      </div>
+      <p style="color:rgba(255,255,255,0.25);font-size:11px;margin-top:28px;text-align:center">GorealAI · gorealai.web.app · info@gorealai.gr</p>
+    </div>
+  `;
+
+  try {
+    await sgMail.send({
+      to: email,
+      from: { email: process.env.FROM_EMAIL || 'info@gorealai.gr', name: 'GorealAI' },
+      subject,
+      html,
+    });
+    console.log(`📧 Welcome email sent to ${email} (${role})`);
+    res.json({ success: true });
+  } catch (e) {
+    console.error('Welcome email error:', e.message);
+    res.status(500).json({ error: e.message });
+  }
+});
+
 // ── Notify pros of new request ───────────────────────────────────────
 // POST /notify-new-request
 // Body: { fcmToken, proName, userName, description, profession }

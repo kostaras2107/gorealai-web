@@ -676,6 +676,15 @@ class _LoginScreenState extends State<LoginScreen>
           });
         }
       }
+      // Email verification + welcome email
+      try { await cred.user!.sendEmailVerification(); } catch (_) {}
+      try {
+        await http.post(
+          Uri.parse('$kBackendUrl/welcome-email'),
+          headers: {'Content-Type': 'application/json'},
+          body: jsonEncode({'email': _email.text.trim(), 'name': fullName, 'role': _role}),
+        ).timeout(const Duration(seconds: 10));
+      } catch (_) {}
       await AuthService.saveUser(_email.text.trim());
       await AuthService.savePassword(_pass.text.trim());
       if (mounted) Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => const AuthGate()));
@@ -9487,19 +9496,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.w800, fontFamily: 'Raleway')),
           ),
         ]),
-        const SizedBox(height: 8),
-        _buildPremiumFeatures(),
+        const SizedBox(height: 12),
+        Text(
+          'Η μηνιαία συνδρομή ανέρχεται σε ${price.toStringAsFixed(2).replaceAll('.', ',')}€.',
+          style: TextStyle(color: _g(0.65), fontSize: 13, height: 1.5),
+        ),
         const SizedBox(height: 16),
-        Row(crossAxisAlignment: CrossAxisAlignment.end, children: [
-          Text('${price.toStringAsFixed(2).replaceAll('.', ',')}€',
-              style: const TextStyle(color: kGold, fontSize: 28, fontWeight: FontWeight.w900, fontFamily: 'Raleway')),
-          const SizedBox(width: 4),
-          Padding(
-            padding: const EdgeInsets.only(bottom: 4),
-            child: Text('/μήνα', style: TextStyle(color: _g(0.4), fontSize: 12)),
-          ),
-        ]),
-        const SizedBox(height: 14),
         GestureDetector(
           onTap: () => _showSubscribeDialog(price),
           child: Container(
@@ -9510,15 +9512,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
               gradient: const LinearGradient(colors: [kGoldLight, kGold]),
               boxShadow: [BoxShadow(color: kGold.withValues(alpha: 0.35), blurRadius: 12, offset: const Offset(0, 4))],
             ),
-            child: const Center(
-              child: Text('💳 Εγγραφή τώρα',
-                  style: TextStyle(color: Colors.black, fontSize: 14, fontWeight: FontWeight.w800)),
+            child: Center(
+              child: Text('Συνδρομή — ${price.toStringAsFixed(2).replaceAll('.', ',')}€/μήνα',
+                  style: const TextStyle(color: Colors.black, fontSize: 14, fontWeight: FontWeight.w800)),
             ),
           ),
         ),
-        const SizedBox(height: 8),
-        Center(child: Text('Ακύρωση οποτεδήποτε · Χωρίς δέσμευση',
-            style: TextStyle(color: _g(0.3), fontSize: 10))),
       ]),
     );
   }
