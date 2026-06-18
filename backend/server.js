@@ -369,9 +369,7 @@ app.post('/email-pros-new-request', rateLimit(30, 60_000), async (req, res) => {
 
   try {
     // Fetch all professionals (email is stored in 'professionals' collection)
-    const snapshot = await admin.firestore().collection('professionals')
-      .where('is_active', '==', true)
-      .get();
+    const snapshot = await admin.firestore().collection('professionals').get();
 
     const profLower = (profession || '').toLowerCase();
     const locLower = (location || '').toLowerCase();
