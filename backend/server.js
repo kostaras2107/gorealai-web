@@ -402,10 +402,15 @@ app.post('/email-pros-new-request', rateLimit(30, 60_000), async (req, res) => {
       const d = doc.data();
       if (!d.email) return;
 
-      // Match specialty
+      // Match specialty — check both singular and array
       if (profLower) {
         const specialty = (d.specialty || '').toLowerCase();
-        if (specialty && !specialty.includes(profLower) && !profLower.includes(specialty)) return;
+        const specialties = Array.isArray(d.specialties) ? d.specialties.map(s => s.toLowerCase()) : [];
+        const allSpecs = specialties.length > 0 ? specialties : (specialty ? [specialty] : []);
+        if (allSpecs.length > 0) {
+          const matches = allSpecs.some(s => s.includes(profLower) || profLower.includes(s));
+          if (!matches) return;
+        }
       }
 
       // Match area
