@@ -368,9 +368,9 @@ app.post('/email-pros-new-request', rateLimit(30, 60_000), async (req, res) => {
   if (!process.env.SENDGRID_API_KEY) return res.json({ success: false, reason: 'sendgrid not configured' });
 
   try {
-    // Fetch all professionals
-    const snapshot = await admin.firestore().collection('users')
-      .where('role', '==', 'professional')
+    // Fetch all professionals (email is stored in 'professionals' collection)
+    const snapshot = await admin.firestore().collection('professionals')
+      .where('is_active', '==', true)
       .get();
 
     const profLower = (profession || '').toLowerCase();
