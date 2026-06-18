@@ -359,6 +359,86 @@ app.post('/welcome-email', rateLimit(5, 60_000), async (req, res) => {
   }
 });
 
+// ── Email all matching pros for a new request ────────────────────────
+// POST /email-pros-new-request
+// Body: { profession, location, description, requestId }
+app.post('/email-pros-new-request', rateLimit(30, 60_000), async (req, res) => {
+  const { profession, location, description, requestId } = req.body;
+  if (!firebaseReady) return res.json({ success: false, reason: 'firebase not ready' });
+  if (!process.env.SENDGRID_API_KEY) return res.json({ success: false, reason: 'sendgrid not configured' });
+
+  try {
+    // Fetch all professionals
+    const snapshot = await admin.firestore().collection('users')
+      .where('role', '==', 'professional')
+      .get();
+
+    const profLower = (profession || '').toLowerCase();
+    const locLower = (location || '').toLowerCase();
+
+    const matching = [];
+    snapshot.forEach(doc => {
+      const d = doc.data();
+      if (!d.email) return;
+
+      // Match specialty
+      if (profLower) {
+        const specialty = (d.specialty || '').toLowerCase();
+        if (specialty && !specialty.includes(profLower) && !profLower.includes(specialty)) return;
+      }
+
+      // Match area
+      if (locLower && locLower !== 'κοντά μου') {
+        const areas = Array.isArray(d.areas) ? d.areas.map(a => a.toLowerCase()) : [];
+        if (areas.length > 0 && !areas.some(a => a.includes(locLower) || locLower.includes(a))) return;
+      }
+
+      matching.push({ email: d.email, name: d.displayName || d.name || 'Επαγγελματία' });
+    });
+
+    if (matching.length === 0) {
+      return res.json({ success: true, sent: 0 });
+    }
+
+    const subject = `🔔 Νέο αίτημα${profession ? ` για ${profession}` : ''}${location ? ` — ${location}` : ''}`;
+    const html = `
+      <div style="font-family:Arial,sans-serif;max-width:480px;margin:0 auto;background:#0A0800;color:#fff;border-radius:16px;padding:32px;border:1px solid rgba(201,168,76,0.3)">
+        <h1 style="color:#FFD47A;font-size:22px;margin-bottom:4px;">🔔 Νέο Αίτημα!</h1>
+        ${profession ? `<p style="color:#C9A84C;font-size:15px;margin:4px 0;font-weight:700;">${profession}</p>` : ''}
+        ${location ? `<p style="color:rgba(255,255,255,0.5);font-size:13px;margin:4px 0;">📍 ${location}</p>` : ''}
+        ${description ? `<p style="color:rgba(255,255,255,0.7);font-size:14px;margin:16px 0;line-height:1.6;border-left:3px solid rgba(201,168,76,0.4);padding-left:12px;">${description.substring(0, 200)}</p>` : ''}
+        <a href="https://gorealai.web.app/app" style="display:inline-block;margin-top:20px;padding:13px 28px;background:linear-gradient(135deg,#FFD47A,#C9A84C);color:#000;border-radius:12px;text-decoration:none;font-weight:800;font-size:14px;">Δες το αίτημα →</a>
+        <p style="color:rgba(255,255,255,0.2);font-size:11px;margin-top:24px;">GorealAI · gorealai.web.app · info@gorealai.gr</p>
+      </div>
+    `;
+
+    // Send emails in batches (SendGrid allows up to 1000 per call)
+    const emails = matching.map(p => ({
+      to: p.email,
+      from: { email: process.env.FROM_EMAIL || 'info@gorealai.gr', name: 'GorealAI' },
+      subject,
+      html,
+    }));
+
+    // Send individually to avoid one bad email blocking others
+    let sent = 0;
+    for (const msg of emails) {
+      try {
+        await sgMail.send(msg);
+        sent++;
+      } catch (e) {
+        console.error(`Email error for ${msg.to}:`, e.message);
+      }
+    }
+
+    console.log(`📧 New-request emails: ${sent}/${matching.length} sent (${profession} / ${location})`);
+    res.json({ success: true, sent, total: matching.length });
+  } catch (e) {
+    console.error('email-pros-new-request error:', e.message);
+    res.status(500).json({ error: e.message });
+  }
+});
+
 // ── Notify pros of new request ───────────────────────────────────────
 // POST /notify-new-request
 // Body: { fcmToken, proName, userName, description, profession }
