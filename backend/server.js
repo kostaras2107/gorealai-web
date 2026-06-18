@@ -4,6 +4,7 @@ const cors = require('cors');
 const admin = require('firebase-admin');
 const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY || '');
 const sgMail = require('@sendgrid/mail');
+const nodemailer = require('nodemailer');
 
 const app = express();
 
@@ -67,12 +68,44 @@ try {
   console.error('Firebase Admin init error:', e.message);
 }
 
-// ── SendGrid Init ────────────────────────────────────────────────
+// ── SendGrid Init (fallback) ─────────────────────────────────────
 if (process.env.SENDGRID_API_KEY) {
   sgMail.setApiKey(process.env.SENDGRID_API_KEY);
   console.log('✅ SendGrid initialized');
+}
+
+// ── Nodemailer / Zoho SMTP Init ──────────────────────────────────
+let zohoTransporter = null;
+if (process.env.ZOHO_USER && process.env.ZOHO_PASS) {
+  zohoTransporter = nodemailer.createTransport({
+    host: 'smtp.zoho.eu',
+    port: 465,
+    secure: true,
+    auth: { user: process.env.ZOHO_USER, pass: process.env.ZOHO_PASS },
+  });
+  console.log('✅ Zoho SMTP initialized');
 } else {
-  console.warn('⚠️  SENDGRID_API_KEY not set — emails disabled');
+  console.warn('⚠️  ZOHO_USER/ZOHO_PASS not set');
+}
+
+// Helper: send email via Zoho (primary) or SendGrid (fallback)
+async function sendEmail({ to, subject, html }) {
+  if (zohoTransporter) {
+    await zohoTransporter.sendMail({
+      from: `GorealAI <${process.env.ZOHO_USER || 'info@gorealai.gr'}>`,
+      to, subject, html,
+    });
+    return;
+  }
+  if (process.env.SENDGRID_API_KEY) {
+    await sgMail.send({
+      to,
+      from: { email: process.env.FROM_EMAIL || 'info@gorealai.gr', name: 'GorealAI' },
+      subject, html,
+    });
+    return;
+  }
+  throw new Error('No email provider configured');
 }
 
 // ── Health check ────────────────────────────────────────────────
@@ -159,15 +192,11 @@ app.post('/booking-response', rateLimit(20, 60_000), async (req, res) => {
   const isAccepted = action === 'accept';
   const results = { email: null, push: null };
 
-  // ── Send email via SendGrid ──
-  if (userEmail && process.env.SENDGRID_API_KEY) {
+  // ── Send email ──
+  if (userEmail) {
     try {
-      await sgMail.send({
+      await sendEmail({
         to: userEmail,
-        from: {
-          email: process.env.FROM_EMAIL || 'noreply@gorealai.app',
-          name: 'GorealAI',
-        },
         subject: isAccepted
           ? `✅ Ο ${proName} αποδέχτηκε το αίτημά σου!`
           : `❌ Ο ${proName} δεν είναι διαθέσιμος`,
@@ -239,11 +268,10 @@ app.post('/new-offer', rateLimit(20, 60_000), async (req, res) => {
   const { userEmail, userName, userFcmToken, proName, price, requestDesc } = req.body;
   const results = {};
 
-  if (userEmail && process.env.SENDGRID_API_KEY) {
+  if (userEmail) {
     try {
-      await sgMail.send({
+      await sendEmail({
         to: userEmail,
-        from: { email: process.env.FROM_EMAIL || 'noreply@gorealai.app', name: 'GorealAI' },
         subject: `🎯 Νέα προσφορά από ${proName} — ${price}€`,
         html: `
           <div style="font-family:Arial,sans-serif;max-width:480px;margin:0 auto;background:#0A0800;color:#fff;border-radius:16px;padding:32px;border:1px solid rgba(201,168,76,0.3)">
@@ -345,12 +373,7 @@ app.post('/welcome-email', rateLimit(5, 60_000), async (req, res) => {
   `;
 
   try {
-    await sgMail.send({
-      to: email,
-      from: { email: process.env.FROM_EMAIL || 'info@gorealai.gr', name: 'GorealAI' },
-      subject,
-      html,
-    });
+    await sendEmail({ to: email, subject, html });
     console.log(`📧 Welcome email sent to ${email} (${role})`);
     res.json({ success: true });
   } catch (e) {
@@ -365,7 +388,7 @@ app.post('/welcome-email', rateLimit(5, 60_000), async (req, res) => {
 app.post('/email-pros-new-request', rateLimit(30, 60_000), async (req, res) => {
   const { profession, location, description, requestId } = req.body;
   if (!firebaseReady) return res.json({ success: false, reason: 'firebase not ready' });
-  if (!process.env.SENDGRID_API_KEY) return res.json({ success: false, reason: 'sendgrid not configured' });
+  if (!zohoTransporter && !process.env.SENDGRID_API_KEY) return res.json({ success: false, reason: 'no email provider configured' });
 
   try {
     // Fetch all professionals (email is stored in 'professionals' collection)
@@ -410,22 +433,14 @@ app.post('/email-pros-new-request', rateLimit(30, 60_000), async (req, res) => {
       </div>
     `;
 
-    // Send emails in batches (SendGrid allows up to 1000 per call)
-    const emails = matching.map(p => ({
-      to: p.email,
-      from: { email: process.env.FROM_EMAIL || 'info@gorealai.gr', name: 'GorealAI' },
-      subject,
-      html,
-    }));
-
     // Send individually to avoid one bad email blocking others
     let sent = 0;
-    for (const msg of emails) {
+    for (const p of matching) {
       try {
-        await sgMail.send(msg);
+        await sendEmail({ to: p.email, subject, html });
         sent++;
       } catch (e) {
-        console.error(`Email error for ${msg.to}:`, e.message);
+        console.error(`Email error for ${p.email}:`, e.message);
       }
     }
 
