@@ -397,9 +397,45 @@ app.post('/email-pros-new-request', rateLimit(30, 60_000), async (req, res) => {
     const profLower = (profession || '').toLowerCase();
     const locLower = (location || '').toLowerCase();
 
-    const matching = [];
+    // Build a map: userId/docId → best data (merge auto-ID and UID-keyed docs)
+    const proMap = new Map(); // key = userId (UID) → merged data
     snapshot.forEach(doc => {
       const d = doc.data();
+      const uid = d.userId || doc.id; // auto-ID docs have userId field; UID-keyed docs use doc.id
+      if (!proMap.has(uid)) {
+        proMap.set(uid, { ...d, _docId: doc.id });
+      } else {
+        // Merge: prefer whichever has email, newer specialties from UID-keyed doc
+        const existing = proMap.get(uid);
+        proMap.set(uid, {
+          ...existing,
+          ...d,
+          email: existing.email || d.email, // keep email from whichever has it
+          specialties: (d.specialties && d.specialties.length > 0) ? d.specialties : existing.specialties,
+          areas: (d.areas && d.areas.length > 0) ? d.areas : existing.areas,
+        });
+      }
+    });
+
+    // For pros still missing email, try users collection
+    const missingEmailUids = [...proMap.entries()].filter(([, d]) => !d.email).map(([uid]) => uid);
+    if (missingEmailUids.length > 0) {
+      await Promise.all(missingEmailUids.map(async uid => {
+        try {
+          const userDoc = await admin.firestore().collection('users').doc(uid).get();
+          if (userDoc.exists) {
+            const email = userDoc.data().email;
+            if (email) {
+              const d = proMap.get(uid);
+              proMap.set(uid, { ...d, email });
+            }
+          }
+        } catch (_) {}
+      }));
+    }
+
+    const matching = [];
+    proMap.forEach((d) => {
       if (!d.email) return;
 
       // Match specialty — check both singular and array
