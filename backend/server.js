@@ -719,6 +719,58 @@ app.post('/stripe-webhook', express.raw({ type: 'application/json' }), async (re
   res.json({ received: true });
 });
 
+// ── Debug: check why a pro didn't get email ──────────────────────
+// GET /debug-pro/:uid?profession=X&location=Y
+app.get('/debug-pro/:uid', async (req, res) => {
+  const { uid } = req.params;
+  const profession = req.query.profession || '';
+  const location = req.query.location || '';
+  if (!firebaseReady) return res.json({ error: 'firebase not ready' });
+  try {
+    const profLower = profession.toLowerCase();
+    const locLower = location.toLowerCase();
+
+    // Get UID-keyed doc
+    const uidDoc = await admin.firestore().collection('professionals').doc(uid).get();
+    const uidData = uidDoc.exists ? uidDoc.data() : null;
+
+    // Get auto-ID doc (by userId field)
+    const autoSnap = await admin.firestore().collection('professionals').where('userId', '==', uid).limit(1).get();
+    const autoData = autoSnap.empty ? null : autoSnap.docs[0].data();
+
+    // Get users doc
+    const userDoc = await admin.firestore().collection('users').doc(uid).get();
+    const userData = userDoc.exists ? userDoc.data() : null;
+
+    const merged = { ...(autoData || {}), ...(uidData || {}) };
+    const email = merged.email || autoData?.email || userData?.email || null;
+    const specialties = merged.specialties || autoData?.specialties || [];
+    const specialty = merged.specialty || autoData?.specialty || '';
+    const areas = merged.areas || autoData?.areas || [];
+
+    const allSpecs = specialties.length > 0 ? specialties : (specialty ? [specialty] : []);
+    const specMatch = !profLower || allSpecs.length === 0 || allSpecs.some(s => s.toLowerCase().includes(profLower) || profLower.includes(s.toLowerCase()));
+    const areaMatch = !locLower || locLower === 'κοντά μου' || areas.length === 0 || areas.some(a => a.toLowerCase().includes(locLower) || locLower.includes(a.toLowerCase()));
+
+    res.json({
+      uid,
+      hasEmail: !!email,
+      email: email ? email.replace(/(.{2}).*(@.*)/, '$1***$2') : null,
+      specialties,
+      specialty,
+      areas,
+      specMatch,
+      areaMatch,
+      wouldReceive: !!email && specMatch && areaMatch,
+      uidDocExists: uidDoc.exists,
+      autoDocExists: !autoSnap.empty,
+      userDocExists: userDoc.exists,
+    });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
 // ── Start server ────────────────────────────────────────────────
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
