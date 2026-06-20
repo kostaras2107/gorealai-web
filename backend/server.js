@@ -476,17 +476,29 @@ app.post('/email-pros-new-request', rateLimit(30, 60_000), async (req, res) => {
 
     // Send individually to avoid one bad email blocking others
     let sent = 0;
+    const sentPros = [];
     for (const p of matching) {
       try {
         await sendEmail({ to: p.email, subject, html });
         sent++;
+        sentPros.push(p.name);
       } catch (e) {
         console.error(`Email error for ${p.email}:`, e.message);
       }
     }
 
+    // Update request doc with who was notified
+    if (requestId && sent > 0) {
+      try {
+        await admin.firestore().collection('requests').doc(requestId).update({
+          prosNotified: sent,
+          notifiedProNames: sentPros,
+        });
+      } catch (_) {}
+    }
+
     console.log(`📧 New-request emails: ${sent}/${matching.length} sent (${profession} / ${location})`);
-    res.json({ success: true, sent, total: matching.length });
+    res.json({ success: true, sent, total: matching.length, notified: sentPros });
   } catch (e) {
     console.error('email-pros-new-request error:', e.message);
     res.status(500).json({ error: e.message });
