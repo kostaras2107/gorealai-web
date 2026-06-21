@@ -505,6 +505,61 @@ app.post('/email-pros-new-request', rateLimit(30, 60_000), async (req, res) => {
   }
 });
 
+// POST /email-pro-new-message
+// Body: { proId, senderName, messagePreview }
+app.post('/email-pro-new-message', rateLimit(60, 60_000), async (req, res) => {
+  const { proId, senderName, messagePreview } = req.body;
+  if (!firebaseReady) return res.json({ success: false, reason: 'firebase not ready' });
+  if (!proId) return res.json({ success: false, reason: 'missing proId' });
+
+  try {
+    // Find pro email: check professionals collection first, then users
+    let proEmail = null;
+    let proName = 'Επαγγελματία';
+
+    const proDoc = await admin.firestore().collection('professionals').doc(proId).get();
+    if (proDoc.exists) {
+      proEmail = proDoc.data().email;
+      proName = proDoc.data().displayName || proDoc.data().name || proName;
+    }
+    if (!proEmail) {
+      // Try query by userId field
+      const q = await admin.firestore().collection('professionals').where('userId', '==', proId).limit(1).get();
+      if (!q.empty) {
+        proEmail = q.docs[0].data().email;
+        proName = q.docs[0].data().displayName || q.docs[0].data().name || proName;
+      }
+    }
+    if (!proEmail) {
+      const userDoc = await admin.firestore().collection('users').doc(proId).get();
+      if (userDoc.exists) {
+        proEmail = userDoc.data().email;
+        proName = userDoc.data().name || proName;
+      }
+    }
+
+    if (!proEmail) return res.json({ success: false, reason: 'pro email not found' });
+
+    const subject = `💬 Νέο μήνυμα από ${senderName || 'χρήστη'}`;
+    const html = `
+      <div style="font-family:Arial,sans-serif;max-width:480px;margin:0 auto;background:#0A0800;color:#fff;border-radius:16px;padding:32px;border:1px solid rgba(201,168,76,0.3)">
+        <h1 style="color:#FFD47A;font-size:22px;margin-bottom:4px;">💬 Νέο Μήνυμα!</h1>
+        <p style="color:rgba(255,255,255,0.6);font-size:13px;margin:4px 0;">Από: <strong style="color:#FFD47A">${senderName || 'Χρήστης'}</strong></p>
+        ${messagePreview ? `<p style="color:rgba(255,255,255,0.75);font-size:14px;margin:16px 0;line-height:1.6;border-left:3px solid rgba(201,168,76,0.4);padding-left:12px;">${String(messagePreview).substring(0, 200)}</p>` : ''}
+        <a href="https://gorealai.web.app/app" style="display:inline-block;margin-top:20px;padding:13px 28px;background:linear-gradient(135deg,#FFD47A,#C9A84C);color:#000;border-radius:12px;text-decoration:none;font-weight:800;font-size:14px;">Απάντησε τώρα →</a>
+        <p style="color:rgba(255,255,255,0.2);font-size:11px;margin-top:24px;">GorealAI · gorealai.web.app · info@gorealai.gr</p>
+      </div>
+    `;
+
+    await sendEmail({ to: proEmail, subject, html });
+    console.log(`📧 New-message email sent to pro ${proId} (${proEmail})`);
+    res.json({ success: true });
+  } catch (e) {
+    console.error('email-pro-new-message error:', e.message);
+    res.status(500).json({ error: e.message });
+  }
+});
+
 // ── Notify pros of new request ───────────────────────────────────────
 // POST /notify-new-request
 // Body: { fcmToken, proName, userName, description, profession }
