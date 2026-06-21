@@ -427,10 +427,12 @@ class AuthGate extends StatelessWidget {
               body: Center(child: CircularProgressIndicator(color: kGold)));
         }
         if (!snapshot.hasData) return const LoginScreen();
+        final user = snapshot.data!;
+        if (!user.emailVerified) return EmailVerificationScreen(user: user);
         return FutureBuilder<DocumentSnapshot>(
           future: FirebaseFirestore.instance
               .collection('users')
-              .doc(snapshot.data!.uid)
+              .doc(user.uid)
               .get(),
           builder: (context, userSnap) {
             if (userSnap.connectionState == ConnectionState.waiting) {
@@ -447,6 +449,115 @@ class AuthGate extends StatelessWidget {
           },
         );
       },
+    );
+  }
+}
+
+// ═══════════════════════════════════════
+// EMAIL VERIFICATION SCREEN
+// ═══════════════════════════════════════
+class EmailVerificationScreen extends StatefulWidget {
+  final User user;
+  const EmailVerificationScreen({super.key, required this.user});
+  @override
+  State<EmailVerificationScreen> createState() => _EmailVerificationScreenState();
+}
+
+class _EmailVerificationScreenState extends State<EmailVerificationScreen> {
+  bool _checking = false;
+  bool _resending = false;
+
+  Future<void> _checkVerified() async {
+    setState(() => _checking = true);
+    try {
+      await widget.user.reload();
+      final refreshed = FirebaseAuth.instance.currentUser;
+      if (refreshed != null && refreshed.emailVerified) {
+        if (mounted) Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => const AuthGate()));
+        return;
+      } else {
+        if (mounted) ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Το email δεν έχει επιβεβαιωθεί ακόμα. Έλεγξε τα εισερχόμενά σου.')));
+      }
+    } catch (e) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Σφάλμα: $e'), backgroundColor: Colors.red));
+    }
+    if (mounted) setState(() => _checking = false);
+  }
+
+  Future<void> _resend() async {
+    setState(() => _resending = true);
+    try {
+      await widget.user.sendEmailVerification();
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('✅ Στάλθηκε ξανά email επιβεβαίωσης.')));
+    } catch (e) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Σφάλμα: $e'), backgroundColor: Colors.red));
+    }
+    if (mounted) setState(() => _resending = false);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: kBg,
+      body: SafeArea(
+        child: Center(
+          child: Padding(
+            padding: const EdgeInsets.all(32),
+            child: Column(mainAxisSize: MainAxisSize.min, children: [
+              ShaderMask(
+                shaderCallback: (b) => const LinearGradient(colors: [kGoldLight, kGold]).createShader(b),
+                child: const Text('GorealAI', style: TextStyle(fontSize: 32, fontWeight: FontWeight.w700, color: Colors.white)),
+              ),
+              const SizedBox(height: 32),
+              Container(
+                padding: const EdgeInsets.all(24),
+                decoration: BoxDecoration(
+                  color: Colors.white.withValues(alpha: 0.05),
+                  borderRadius: BorderRadius.circular(24),
+                  border: Border.all(color: Colors.white12),
+                ),
+                child: Column(children: [
+                  const Icon(Icons.mark_email_unread_rounded, color: kGold, size: 52),
+                  const SizedBox(height: 16),
+                  const Text('Επιβεβαίωση email', style: TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.w700)),
+                  const SizedBox(height: 10),
+                  Text(
+                    'Στείλαμε email επιβεβαίωσης στο\n${widget.user.email}\n\nΠάτα τον σύνδεσμο στο email και μετά πάτα "Έχω επιβεβαιώσει".',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(color: Colors.white.withValues(alpha: 0.65), fontSize: 14, height: 1.6),
+                  ),
+                  const SizedBox(height: 24),
+                  SizedBox(
+                    width: double.infinity, height: 48,
+                    child: ElevatedButton(
+                      onPressed: _checking ? null : _checkVerified,
+                      style: ElevatedButton.styleFrom(backgroundColor: kGold, foregroundColor: Colors.black, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14))),
+                      child: _checking ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(color: Colors.black, strokeWidth: 2))
+                          : const Text('Έχω επιβεβαιώσει', style: TextStyle(fontWeight: FontWeight.w700)),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  TextButton(
+                    onPressed: _resending ? null : _resend,
+                    child: Text(_resending ? 'Αποστολή...' : 'Επανάληψη αποστολής email', style: const TextStyle(color: kGold, fontSize: 13)),
+                  ),
+                  const SizedBox(height: 4),
+                  TextButton(
+                    onPressed: () async {
+                      await FirebaseAuth.instance.signOut();
+                    },
+                    child: Text('Αποσύνδεση', style: TextStyle(color: Colors.white.withValues(alpha: 0.4), fontSize: 12)),
+                  ),
+                ]),
+              ),
+            ]),
+          ),
+        ),
+      ),
     );
   }
 }
@@ -706,9 +817,13 @@ class _LoginScreenState extends State<LoginScreen>
         hintStyle: TextStyle(color: _g(0.3)),
         enabledBorder: UnderlineInputBorder(borderSide: BorderSide(color: _g(0.2))),
         focusedBorder: const UnderlineInputBorder(borderSide: BorderSide(color: kGold)),
-        suffixIcon: obscure ? GestureDetector(
+        suffixIcon: obscure ? InkWell(
           onTap: onToggle,
-          child: Icon(showObs == true ? Icons.visibility_off : Icons.visibility, color: _g(0.3), size: 20),
+          borderRadius: BorderRadius.circular(20),
+          child: Padding(
+            padding: const EdgeInsets.all(12),
+            child: Icon(showObs == true ? Icons.visibility_off_rounded : Icons.visibility_rounded, color: kGold, size: 22),
+          ),
         ) : null,
       ),
     );
@@ -1580,6 +1695,8 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   int _navIndex = 0;
   String _proSpecialty = '';
   List<String> _proAreas = [];
+  String? _proPhotoUrlHome;
+  double _proAvgRatingHome = 0.0;
   // Ενεργά αιτήματα (για το G button — μέχρι 2)
   List<Map<String, dynamic>> _activeRequests = []; // list of {id, status, desc, criteria, expiresAt}
 
@@ -1701,10 +1818,18 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     final isPro = (data['role'] ?? '') == 'professional';
     String specialty = '';
     List<String> areas = [];
+    String proPhotoUrl = '';
+    double proAvgRating = 0.0;
     if (isPro) {
       specialty = (data['specialty'] as String? ?? '').toLowerCase();
       final rawAreas = data['areas'];
       areas = rawAreas is List ? List<String>.from(rawAreas.map((e) => e.toString().toLowerCase())) : [];
+      try {
+        final proDoc = await FirebaseFirestore.instance.collection('professionals').doc(u.uid).get();
+        final pd = proDoc.data() ?? {};
+        proPhotoUrl = (pd['profilePhotoUrl'] as String? ?? data['profilePhotoUrl'] as String? ?? '');
+        proAvgRating = (pd['averageRating'] as num? ?? data['averageRating'] as num? ?? 0).toDouble();
+      } catch (_) {}
     }
     setState(() {
       _userName = data['name'] ?? u.email ?? 'User';
@@ -1712,6 +1837,8 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       _isPro = isPro;
       _proSpecialty = specialty;
       _proAreas = areas;
+      _proPhotoUrlHome = proPhotoUrl.isNotEmpty ? proPhotoUrl : null;
+      _proAvgRatingHome = proAvgRating;
     });
   }
 
@@ -1983,6 +2110,9 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                                       if (!_proAreas.any((a) => a.contains(reqLoc) || reqLoc.contains(a))) return false;
                                     }
                                   }
+                                  if (data['filterWithPhoto'] == true && (_proPhotoUrlHome == null || _proPhotoUrlHome!.isEmpty)) return false;
+                                  final minRating = (data['filterMinRating'] as num? ?? 0).toDouble();
+                                  if (minRating > 0 && _proAvgRatingHome < minRating) return false;
                                   return true;
                                 }).length
                               : 0;
@@ -2193,7 +2323,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
             _HowItWorksStep(
                 num: '2',
                 emoji: '⏱️',
-                title: 'Περίμενε 15 λεπτά',
+                title: 'Περίμενε 1 ώρα',
                 subtitle: 'Οι επαγγελματίες ετοιμάζουν προσφορές',
                 active: false),
             const SizedBox(height: 10),
@@ -2489,7 +2619,7 @@ class _EmptyHeroCard extends StatelessWidget {
         Text('Περίγραψέ την και οι επαγγελματίες θα ανταγωνιστούν για σένα.',
             style: TextStyle(fontSize: 13, color: _g(0.7), fontWeight: FontWeight.w600, height: 1.4)),
         const SizedBox(height: 6),
-        Text('Στείλε αίτημα → το AI ειδοποιεί επαγγελματίες ή συνεργεία → παίρνεις τις 3 καλύτερες προσφορές σε 15 λεπτά.',
+        Text('Στείλε αίτημα → το AI ειδοποιεί επαγγελματίες ή συνεργεία → παίρνεις τις 3 καλύτερες προσφορές σε 1 ώρα.',
             style: TextStyle(fontSize: 12, color: _g(0.5), height: 1.5)),
         const SizedBox(height: 20),
         Container(
@@ -2551,7 +2681,7 @@ class _ActiveRequestHeroCardState extends State<_ActiveRequestHeroCard> {
           final diff = expDate.difference(DateTime.now()).inSeconds;
           _secondsLeft[req['id']] = diff > 0 ? diff : 0;
         } catch (_) {
-          _secondsLeft[req['id']] = 15 * 60;
+          _secondsLeft[req['id']] = 60 * 60;
         }
       } else {
         _secondsLeft[req['id']] = 0;
@@ -2572,7 +2702,7 @@ class _ActiveRequestHeroCardState extends State<_ActiveRequestHeroCard> {
       if (data != null) {
         setState(() {
           _offersCount = data['offersCount'] ?? 0;
-          _prosNotified = data['prosNotified'] ?? _offersCount + 3;
+          _prosNotified = data['prosNotified'] ?? 0;
         });
       }
     });
@@ -2594,7 +2724,7 @@ class _ActiveRequestHeroCardState extends State<_ActiveRequestHeroCard> {
   Widget build(BuildContext context) {
     final req = widget.requests.first;
     final secs = _secondsLeft[req['id']] ?? 0;
-    final totalSecs = 15 * 60;
+    final totalSecs = 60 * 60;
     final progress = secs / totalSecs;
     final isCompleted = req['status'] == 'completed';
 
@@ -2675,70 +2805,121 @@ class _ActiveRequestHeroCardState extends State<_ActiveRequestHeroCard> {
               ])),
             ]),
           ] else ...[
-            // ── COUNTDOWN DONE or COMPLETED — show congratulations ──
-            Container(
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(16),
-                gradient: LinearGradient(colors: [kGold.withValues(alpha: 0.15), kGold.withValues(alpha: 0.05)]),
-                border: Border.all(color: kGold.withValues(alpha: 0.4)),
-              ),
-              child: Row(children: [
-                Container(
-                  width: 52, height: 52,
-                  decoration: BoxDecoration(shape: BoxShape.circle,
-                      color: kGold.withValues(alpha: 0.15), border: Border.all(color: kGold.withValues(alpha: 0.4))),
-                  child: const Center(child: Text('🎉', style: TextStyle(fontSize: 26))),
+            // ── COUNTDOWN DONE or COMPLETED ──
+            if (_offersCount > 0 || isCompleted)
+              Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(16),
+                  gradient: LinearGradient(colors: [kGold.withValues(alpha: 0.15), kGold.withValues(alpha: 0.05)]),
+                  border: Border.all(color: kGold.withValues(alpha: 0.4)),
                 ),
-                const SizedBox(width: 14),
-                Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                  const Text('Συγχαρητήρια!', style: TextStyle(color: kGold, fontSize: 13, fontWeight: FontWeight.w900, fontFamily: 'Raleway')),
-                  const SizedBox(height: 3),
-                  Text(
-                    _offersCount > 0
-                        ? 'Βρέθηκ${_offersCount == 1 ? 'ε' : 'αν'} $_offersCount επαγγελματί${_offersCount == 1 ? 'ας' : 'ες'}!'
-                        : 'Το αίτημά σου ολοκληρώθηκε!',
-                    style: TextStyle(color: _gw, fontSize: 14, fontWeight: FontWeight.w800),
+                child: Row(children: [
+                  Container(
+                    width: 52, height: 52,
+                    decoration: BoxDecoration(shape: BoxShape.circle,
+                        color: kGold.withValues(alpha: 0.15), border: Border.all(color: kGold.withValues(alpha: 0.4))),
+                    child: const Center(child: Text('🎉', style: TextStyle(fontSize: 26))),
                   ),
-                  const SizedBox(height: 3),
-                  Text('Πάτα για να δεις τις προσφορές', style: TextStyle(color: _g(0.5), fontSize: 11)),
-                ])),
-                Icon(Icons.arrow_forward_ios_rounded, color: kGold.withValues(alpha: 0.6), size: 16),
-              ]),
-            ),
+                  const SizedBox(width: 14),
+                  Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                    const Text('Συγχαρητήρια!', style: TextStyle(color: kGold, fontSize: 13, fontWeight: FontWeight.w900, fontFamily: 'Raleway')),
+                    const SizedBox(height: 3),
+                    Text(
+                      'Βρέθηκ${_offersCount == 1 ? 'ε' : 'αν'} $_offersCount επαγγελματί${_offersCount == 1 ? 'ας' : 'ες'}!',
+                      style: TextStyle(color: _gw, fontSize: 14, fontWeight: FontWeight.w800),
+                    ),
+                    const SizedBox(height: 3),
+                    Text('Πάτα για να δεις τις προσφορές', style: TextStyle(color: _g(0.5), fontSize: 11)),
+                  ])),
+                  Icon(Icons.arrow_forward_ios_rounded, color: kGold.withValues(alpha: 0.6), size: 16),
+                ]),
+              )
+            else
+              Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(16),
+                  color: _g(0.05),
+                  border: Border.all(color: _g(0.12)),
+                ),
+                child: Row(children: [
+                  Container(
+                    width: 52, height: 52,
+                    decoration: BoxDecoration(shape: BoxShape.circle,
+                        color: _g(0.08), border: Border.all(color: _g(0.15))),
+                    child: const Center(child: Text('😔', style: TextStyle(fontSize: 26))),
+                  ),
+                  const SizedBox(width: 14),
+                  Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                    Text('Δυστυχώς...', style: TextStyle(color: _g(0.7), fontSize: 13, fontWeight: FontWeight.w900, fontFamily: 'Raleway')),
+                    const SizedBox(height: 3),
+                    Text('Δεν βρέθηκε κάποια προσφορά αυτή τη φορά.', style: TextStyle(color: _gw, fontSize: 13, fontWeight: FontWeight.w700)),
+                    const SizedBox(height: 3),
+                    Text('Δοκίμασε να στείλεις νέο αίτημα', style: TextStyle(color: _g(0.45), fontSize: 11)),
+                  ])),
+                ]),
+              ),
           ],
 
           const SizedBox(height: 16),
 
           // CTA Button
-          Container(
-            width: double.infinity,
-            padding: const EdgeInsets.symmetric(vertical: 13),
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(16),
-              gradient: (isCompleted || secs == 0)
-                  ? const LinearGradient(colors: [kGoldLight, kGold])
-                  : LinearGradient(colors: [kGreen, const Color(0xFF2AA060)]),
-              boxShadow: [BoxShadow(
-                  color: ((isCompleted || secs == 0) ? kGold : kGreen).withValues(alpha: 0.35),
-                  blurRadius: 16)],
-            ),
-            child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [
-              Text((isCompleted || secs == 0) ? '🏆' : '⏱', style: const TextStyle(fontSize: 16)),
-              const SizedBox(width: 8),
-              Text((isCompleted || secs == 0) ? 'Δες τις προσφορές' : 'Παρακολούθησε ζωντανά',
-                  style: TextStyle(color: _gw, fontSize: 13, fontWeight: FontWeight.w800)),
-            ]),
-          ),
-
-          if (widget.requests.length < 2) ...[
-            const SizedBox(height: 10),
+          if ((secs == 0 || isCompleted) && _offersCount == 0) ...[
+            // ── Κλείσιμο ──
             GestureDetector(
-              onTap: widget.onNewRequest,
-              child: Center(child: Text('+ Νέο αίτημα',
-                  style: TextStyle(color: _g(0.4),
-                      fontSize: 11, decoration: TextDecoration.underline))),
+              onTap: () async {
+                try {
+                  await FirebaseFirestore.instance
+                      .collection('requests')
+                      .doc(req['id'])
+                      .update({'status': 'completed', 'dismissed': true});
+                } catch (_) {}
+              },
+              child: Container(
+                width: double.infinity,
+                padding: const EdgeInsets.symmetric(vertical: 13),
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(color: _g(0.18)),
+                  color: _g(0.06),
+                ),
+                child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [
+                  Icon(Icons.close_rounded, color: _g(0.5), size: 18),
+                  const SizedBox(width: 8),
+                  Text('Κλείσιμο', style: TextStyle(color: _g(0.55), fontSize: 13, fontWeight: FontWeight.w700)),
+                ]),
+              ),
             ),
+          ] else ...[
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.symmetric(vertical: 13),
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(16),
+                gradient: (isCompleted || secs == 0)
+                    ? const LinearGradient(colors: [kGoldLight, kGold])
+                    : LinearGradient(colors: [kGreen, const Color(0xFF2AA060)]),
+                boxShadow: [BoxShadow(
+                    color: ((isCompleted || secs == 0) ? kGold : kGreen).withValues(alpha: 0.35),
+                    blurRadius: 16)],
+              ),
+              child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [
+                Text((isCompleted || secs == 0) ? '🏆' : '⏱', style: const TextStyle(fontSize: 16)),
+                const SizedBox(width: 8),
+                Text((isCompleted || secs == 0) ? 'Δες τις προσφορές' : 'Παρακολούθησε ζωντανά',
+                    style: TextStyle(color: _gw, fontSize: 13, fontWeight: FontWeight.w800)),
+              ]),
+            ),
+            if (widget.requests.length < 2) ...[
+              const SizedBox(height: 10),
+              GestureDetector(
+                onTap: widget.onNewRequest,
+                child: Center(child: Text('+ Νέο αίτημα',
+                    style: TextStyle(color: _g(0.4),
+                        fontSize: 11, decoration: TextDecoration.underline))),
+              ),
+            ],
           ],
         ]),
       ),
@@ -3246,6 +3427,7 @@ class _ProfessionalHomeScreenState extends State<ProfessionalHomeScreen> {
   double? _savedGoogleRating;
   int _savedGoogleRatingCount = 0;
   int _yearsExperience = 0;
+  double _proAverageRating = 0.0;
   // Social
   String _instagramUrl = '';
   String _tiktokUrl = '';
@@ -3362,6 +3544,7 @@ class _ProfessionalHomeScreenState extends State<ProfessionalHomeScreen> {
       _yearsExperience = (merged['yearsExperience'] as num?)?.toInt() ?? 0;
       _instagramUrl = merged['instagramUrl'] as String? ?? '';
       _tiktokUrl = merged['tiktokUrl'] as String? ?? '';
+      _proAverageRating = (merged['averageRating'] as num?)?.toDouble() ?? 0.0;
       _portfolioProjects = projects;
       _bioCtrl.text = _bio;
     });
@@ -3692,6 +3875,9 @@ class _ProfessionalHomeScreenState extends State<ProfessionalHomeScreen> {
                     if (!proAreas.any((a) => a.contains(reqLoc) || reqLoc.contains(a))) return false;
                   }
                 }
+                if (data['filterWithPhoto'] == true && (_proPhotoUrl == null || _proPhotoUrl!.isEmpty)) return false;
+                final minRating = (data['filterMinRating'] as num? ?? 0).toDouble();
+                if (minRating > 0 && _proAverageRating < minRating) return false;
                 return true;
               }).length
             : 0;
@@ -3822,7 +4008,7 @@ class _ProfessionalHomeScreenState extends State<ProfessionalHomeScreen> {
           .snapshots(),
       builder: (context, snap) {
         if (!snap.hasData) return const Center(child: CircularProgressIndicator(color: kGold));
-        final docs = snap.data!.docs;
+        final docs = snap.data!.docs.where((d) => d.data() is Map && (d.data() as Map)['hiddenByPro'] != true).toList();
         if (docs.isEmpty) {
           return Center(child: Column(mainAxisSize: MainAxisSize.min, children: [
             Icon(Icons.inbox_outlined, color: _g(0.15), size: 48),
@@ -3901,7 +4087,7 @@ class _ProfessionalHomeScreenState extends State<ProfessionalHomeScreen> {
                     if (status != 'pending') ...[
                       const SizedBox(height: 10),
                       GestureDetector(
-                        onTap: () async => FirebaseFirestore.instance.collection('bookings').doc(bookingId).delete(),
+                        onTap: () async => FirebaseFirestore.instance.collection('bookings').doc(bookingId).update({'hiddenByPro': true}),
                         child: Container(
                           width: double.infinity,
                           padding: const EdgeInsets.symmetric(vertical: 9),
@@ -4698,6 +4884,13 @@ class _ProfessionalHomeScreenState extends State<ProfessionalHomeScreen> {
                 final matches = proAreas.any((a) => a.contains(reqLocation) || reqLocation.contains(a));
                 if (!matches) return false;
               }
+              // Filter by filterWithPhoto: pro must have profile photo
+              if (data['filterWithPhoto'] == true) {
+                if (_proPhotoUrl == null || _proPhotoUrl!.isEmpty) return false;
+              }
+              // Filter by filterMinRating: pro's rating must meet minimum
+              final minRating = (data['filterMinRating'] as num? ?? 0).toDouble();
+              if (minRating > 0 && _proAverageRating < minRating) return false;
               return true;
             })
             .toList();
@@ -5372,10 +5565,10 @@ class _RequestProfessionPickerState extends State<_RequestProfessionPicker> {
     'Ηλεκτρολόγος', 'Υδραυλικός', 'Ψυκτικός', 'Ελαιοχρωματιστής',
     'Μηχανικός', 'Κτίστης', 'Ξυλουργός', 'Υαλουργός',
     'Τεχνικός Ανελκυστήρων', 'Αποφράξεις', 'Αλουμινάς', 'Πλακάς',
-    'Συντήρηση Κλιματιστικών', 'Εγκατάσταση Ηλιακών',
+    'Συντήρηση Κλιματιστικών', 'Εγκατάσταση Ηλιακών', 'Γυψοσανίδες', 'Μεταλλικές Κατασκευές', 'Γυάλισμα Μαρμάρων',
     'Παθολόγος', 'Παιδίατρος', 'Οδοντίατρος', 'Φυσιοθεραπευτής',
     'Ψυχολόγος', 'Διατροφολόγος',
-    'Καθαρίστρια', 'Κηπουρός', 'Baby Sitter', 'Μετακομίσεις',
+    'Καθαρίστρια', 'Κηπουρός', 'Baby Sitter', 'Μετακομίσεις', 'Εκπαιδευτής Σκύλων',
     'Καθηγητής Μαθηματικών', 'Καθηγητής Αγγλικών', 'Personal Trainer',
     'Web Developer', 'Γραφίστας', 'Φωτογράφος', 'Τεχνικός Υπολογιστών',
     'Μηχανικός Αυτοκινήτων', 'Λογιστής', 'Δικηγόρος', 'Αρχιτέκτονας',
@@ -6154,7 +6347,7 @@ class _RequestScreenState extends State<RequestScreen>
         'offersCount': 0,
         'createdAt': FieldValue.serverTimestamp(),
         'expiresAt': Timestamp.fromDate(
-            DateTime.now().add(const Duration(minutes: 15))),
+            DateTime.now().add(const Duration(hours: 1))),
         'imageCount': _images.length,
         'filterWithPhoto': _filterWithPhoto,
         'filterMinRating': _filterMinRating,
@@ -6235,6 +6428,18 @@ class _RequestScreenState extends State<RequestScreen>
     _selectedProfession ?? '', _selectedLocation ?? '',
     widget.userName, _images.length);
 }
+
+        // Email όλους τους ταιριαστούς επαγγελματίες (fire-and-forget)
+        http.post(
+          Uri.parse('$kBackendUrl/email-pros-new-request'),
+          headers: {'Content-Type': 'application/json'},
+          body: jsonEncode({
+            'profession': _selectedProfession ?? '',
+            'location': _selectedLocation ?? '',
+            'description': _textCtrl.text.trim(),
+            'requestId': docRef.id,
+          }),
+        ).timeout(const Duration(seconds: 60)).catchError((_) {});
 
       if (!mounted) return;
       Navigator.pushReplacement(
@@ -6777,6 +6982,8 @@ class _WaitingScreenState extends State<WaitingScreen>
   Timer? _timer;
   int _secondsLeft = 15 * 60;
   int _offersCount = 0;
+  int _prosNotified = 0;
+  List<String> _notifiedProNames = [];
 
   @override
   void initState() {
@@ -6828,7 +7035,15 @@ class _WaitingScreenState extends State<WaitingScreen>
         .snapshots()
         .listen((snap) {
       if (!mounted) return;
-      setState(() => _offersCount = snap.data()?['offersCount'] ?? 0);
+      final data = snap.data();
+      if (data != null) {
+        final names = data['notifiedProNames'];
+        setState(() {
+          _offersCount = data['offersCount'] ?? 0;
+          _prosNotified = data['prosNotified'] ?? 0;
+          _notifiedProNames = names is List ? List<String>.from(names.map((e) => e.toString())) : [];
+        });
+      }
     });
   }
 
@@ -7120,34 +7335,32 @@ class _WaitingScreenState extends State<WaitingScreen>
 
                 const SizedBox(height: 20),
                 Row(children: [
-                  const Text('Ετοιμάζουν προσφορά...',
-                      style: TextStyle(
-                          fontSize: 13,
-                          fontWeight: FontWeight.w700,
-                          color: Colors.white)),
-                  const Spacer(),
-                  const Text('Live',
-                      style: TextStyle(fontSize: 10, color: kGreen)),
+                  Expanded(child: Text(
+                    _prosNotified > 0
+                        ? 'Ειδοποίηση εστάλη σε $_prosNotified ${widget.profession.isNotEmpty ? widget.profession : "επαγγελματίες"}'
+                        : 'Αναζήτηση επαγγελματιών...',
+                    style: const TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w700,
+                        color: Colors.white),
+                  )),
+                  const SizedBox(width: 8),
+                  const Text('Live', style: TextStyle(fontSize: 10, color: kGreen)),
                   const SizedBox(width: 4),
-                  Container(
-                      width: 5,
-                      height: 5,
-                      decoration: const BoxDecoration(
-                          shape: BoxShape.circle, color: kGreen)),
+                  Container(width: 5, height: 5,
+                      decoration: const BoxDecoration(shape: BoxShape.circle, color: kGreen)),
                 ]),
                 const SizedBox(height: 10),
-                _ProWaitingCard(
-                    emoji: '🔍',
-                    name: widget.profession.isNotEmpty ? widget.profession : 'Επαγγελματίας',
-                    typing: true),
-                _ProWaitingCard(
-                    emoji: '🔍',
-                    name: widget.profession.isNotEmpty ? widget.profession : 'Επαγγελματίας',
-                    typing: true),
-                _ProWaitingCard(
-                    emoji: '🔍',
-                    name: widget.profession.isNotEmpty ? widget.profession : 'Επαγγελματίας',
-                    typing: false),
+                if (_notifiedProNames.isNotEmpty)
+                  ..._notifiedProNames.asMap().entries.map((e) => _ProWaitingCard(
+                      emoji: '🔍',
+                      name: e.value,
+                      typing: e.key < _offersCount))
+                else ...[
+                  _ProWaitingCard(emoji: '🔍',
+                      name: widget.profession.isNotEmpty ? widget.profession : 'Επαγγελματίας',
+                      typing: false),
+                ],
 
                 const SizedBox(height: 20),
                 Container(
@@ -7528,10 +7741,10 @@ class _OffersScreenState extends State<OffersScreen>
       }
     } catch (_) {}
 
-    // Demo
+    // No offers found
     if (mounted) {
       setState(() {
-        _offers = List.from(_demoOffers);
+        _offers = [];
         _loading = false;
       });
     }
@@ -7838,6 +8051,45 @@ class _OffersScreenState extends State<OffersScreen>
                               onSelect: () =>
                                   _selectOffer(e.value),
                             )),
+                        const SizedBox(height: 8),
+                        GestureDetector(
+                          onTap: () async {
+                            // Close the request so it disappears from home screen
+                            try {
+                              await FirebaseFirestore.instance
+                                  .collection('requests')
+                                  .doc(widget.requestId)
+                                  .update({'status': 'completed', 'selectedPro': null, 'dismissed': true});
+                            } catch (_) {}
+                            if (!mounted) return;
+                            Navigator.popUntil(context, (r) => r.isFirst);
+                          },
+                          child: Container(
+                            width: double.infinity,
+                            padding: const EdgeInsets.symmetric(vertical: 14),
+                            decoration: BoxDecoration(
+                              borderRadius: BorderRadius.circular(16),
+                              border: Border.all(color: _g(0.18)),
+                              gradient: LinearGradient(
+                                colors: [_g(0.09), _g(0.05)],
+                                begin: Alignment.topLeft,
+                                end: Alignment.bottomRight,
+                              ),
+                            ),
+                            child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [
+                              Icon(Icons.close_rounded, color: _g(0.5), size: 16),
+                              const SizedBox(width: 8),
+                              Text('Δεν επιλέγω κανέναν',
+                                  textAlign: TextAlign.center,
+                                  style: TextStyle(
+                                      color: _g(0.6),
+                                      fontSize: 13,
+                                      fontWeight: FontWeight.w700,
+                                      letterSpacing: 0.3)),
+                            ]),
+                          ),
+                        ),
+                        const SizedBox(height: 8),
                       ]),
                     ),
                   ),
@@ -9901,6 +10153,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       onTap: () async => launchUrl(
                           Uri.parse('https://gorealai.web.app/privacy'),
                           mode: LaunchMode.platformDefault)),
+                  _ProfileRow(
+                      icon: Icons.description_outlined,
+                      emoji: '📄',
+                      label: 'Όροι Χρήσης',
+                      value: '',
+                      onTap: () async => launchUrl(
+                          Uri.parse('https://gorealai.web.app/terms'),
+                          mode: LaunchMode.platformDefault)),
 
                   const SizedBox(height: 20),
                   _ProfileRow(
@@ -10483,7 +10743,8 @@ const List<Map<String, dynamic>> _specialtyCategories = [
       'Ηλεκτρολόγος', 'Υδραυλικός', 'Ψυκτικός', 'Ελαιοχρωματιστής',
       'Μηχανικός', 'Κτίστης', 'Ξυλουργός', 'Υαλουργός',
       'Τεχνικός Ανελκυστήρων', 'Αποφράξεις', 'Αλουμινάς', 'Πλακάς',
-      'Συντήρηση Κλιματιστικών', 'Εγκατάσταση Ηλιακών', 'Υπηρεσία Αποξήλωσης'
+      'Συντήρηση Κλιματιστικών', 'Εγκατάσταση Ηλιακών', 'Υπηρεσία Αποξήλωσης',
+      'Γυψοσανίδες', 'Μεταλλικές Κατασκευές', 'Γυάλισμα Μαρμάρων'
     ]
   },
   {
@@ -10495,7 +10756,7 @@ const List<Map<String, dynamic>> _specialtyCategories = [
   },
   {
     'category': 'Σπίτι',
-    'items': ['Καθαρίστρια', 'Κηπουρός', 'Baby Sitter', 'Μετακομίσεις']
+    'items': ['Καθαρίστρια', 'Κηπουρός', 'Baby Sitter', 'Μετακομίσεις', 'Εκπαιδευτής Σκύλων']
   },
   {
     'category': 'Εκπαίδευση',
