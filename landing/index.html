@@ -4,11 +4,11 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
-  <meta name="theme-color" content="#080600" />
+  <meta name="theme-color" content="#060504" />
   <title>GorealAI – Βρες τον καλύτερο επαγγελματία</title>
-  <meta name="description" content="Στείλε αίτημα, λάβε προσφορές σε 15 λεπτά. Ηλεκτρολόγοι, υδραυλικοί, καθαρίστριες, event planners και πολλοί άλλοι." />
+  <meta name="description" content="Στείλε αίτημα με φωτογραφία, λάβε προσφορές σε 1 ώρα. Ηλεκτρολόγοι, υδραυλικοί, καθαρίστριες, event planners και πολλοί άλλοι." />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
-  <link href="https://fonts.googleapis.com/css2?family=Raleway:wght@400;700;800;900&display=swap" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Raleway:wght@700;800;900&display=swap" rel="stylesheet" />
 
   <style>
     *, *::before, *::after { margin:0; padding:0; box-sizing:border-box; }
@@ -16,11 +16,17 @@
     :root {
       --gold: #C9A84C;
       --gold-light: #F0D080;
-      --bg: #080600;
-      --bg2: #0E0B04;
-      --green: #00C853;
+      --gold-dim: rgba(201,168,76,0.12);
+      --bg: #060504;
+      --bg2: #0D0B07;
+      --bg3: #130F08;
+      --green: #22C55E;
+      --green-dim: rgba(34,197,94,0.12);
       --text: #ffffff;
-      --muted: rgba(255,255,255,0.45);
+      --muted: rgba(255,255,255,0.42);
+      --muted2: rgba(255,255,255,0.68);
+      --border: rgba(255,255,255,0.07);
+      --gold-border: rgba(201,168,76,0.22);
     }
 
     html { scroll-behavior: smooth; }
@@ -28,118 +34,170 @@
     body {
       background: var(--bg);
       color: var(--text);
-      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
       overflow-x: hidden;
+      line-height: 1.6;
     }
 
-    /* ── NAV ── */
+    /* ANIMATED ORBS */
+    .orb-wrap {
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      z-index: 0;
+      overflow: hidden;
+    }
+    .orb {
+      position: absolute;
+      border-radius: 50%;
+      filter: blur(90px);
+      opacity: 0.32;
+      animation: drift 20s ease-in-out infinite alternate;
+    }
+    .orb1 { width: 550px; height: 550px; background: radial-gradient(circle, #8B6914, transparent); top: -180px; left: -120px; animation-duration: 24s; }
+    .orb2 { width: 420px; height: 420px; background: radial-gradient(circle, #1A3A20, transparent); top: 45%; right: -130px; animation-duration: 18s; animation-delay: -6s; }
+    .orb3 { width: 380px; height: 380px; background: radial-gradient(circle, #5A3E08, transparent); bottom: 15%; left: 15%; animation-duration: 28s; animation-delay: -14s; }
+
+    @keyframes drift {
+      0%   { transform: translate(0, 0) scale(1); }
+      50%  { transform: translate(35px, 25px) scale(1.06); }
+      100% { transform: translate(-25px, 45px) scale(0.94); }
+    }
+
+    /* SCROLL REVEAL */
+    .reveal {
+      opacity: 0;
+      transform: translateY(30px);
+      transition: opacity 0.75s cubic-bezier(0.16,1,0.3,1), transform 0.75s cubic-bezier(0.16,1,0.3,1);
+    }
+    .reveal.visible { opacity: 1; transform: none; }
+    .d1 { transition-delay: 0.1s; }
+    .d2 { transition-delay: 0.2s; }
+    .d3 { transition-delay: 0.3s; }
+    .d4 { transition-delay: 0.45s; }
+
+    /* NAV */
     nav {
       position: fixed;
       top: 0; left: 0; right: 0;
       z-index: 100;
-      padding: 16px 24px;
+      padding: 14px 32px;
       display: flex;
       align-items: center;
       justify-content: space-between;
-      background: rgba(8,6,0,0.85);
-      backdrop-filter: blur(12px);
-      -webkit-backdrop-filter: blur(12px);
-      border-bottom: 1px solid rgba(201,168,76,0.1);
+      background: rgba(6,5,4,0.75);
+      backdrop-filter: blur(24px);
+      -webkit-backdrop-filter: blur(24px);
+      border-bottom: 1px solid rgba(201,168,76,0.07);
+      transition: background 0.35s;
     }
 
     .nav-logo {
       font-family: 'Raleway', sans-serif;
       font-weight: 900;
-      font-size: 20px;
-      letter-spacing: 4px;
+      font-size: 19px;
+      letter-spacing: 5px;
       background: linear-gradient(90deg, var(--gold-light), var(--gold));
       -webkit-background-clip: text;
       -webkit-text-fill-color: transparent;
       background-clip: text;
     }
 
+    .nav-right { display: flex; align-items: center; gap: 20px; }
+
+    .nav-link {
+      font-size: 13px;
+      font-weight: 500;
+      color: var(--muted);
+      text-decoration: none;
+      transition: color 0.2s;
+    }
+    .nav-link:hover { color: #fff; }
+
     .nav-cta {
       background: linear-gradient(135deg, var(--gold-light), var(--gold));
       color: #000;
       font-weight: 800;
-      font-size: 13px;
-      padding: 10px 20px;
+      font-size: 14px;
+      padding: 11px 22px;
       border-radius: 12px;
       text-decoration: none;
+      letter-spacing: 0.3px;
       white-space: nowrap;
+      transition: opacity 0.2s, transform 0.2s;
+    }
+    .nav-cta:hover { opacity: 0.86; transform: translateY(-1px); }
+
+    @media (max-width: 600px) {
+      nav { padding: 12px 18px; }
+      .nav-link { display: none; }
+      .nav-right { gap: 0; }
     }
 
-    /* ── HERO ── */
+    /* HERO */
     .hero {
       min-height: 100vh;
       display: flex;
       flex-direction: column;
       align-items: center;
       justify-content: center;
-      padding: 100px 24px 60px;
+      padding: 115px 24px 70px;
       text-align: center;
       position: relative;
-      overflow: hidden;
+      z-index: 1;
     }
 
-    .hero::before {
-      content: '';
-      position: absolute;
-      top: -200px; left: 50%;
-      transform: translateX(-50%);
-      width: 600px; height: 600px;
-      background: radial-gradient(circle, rgba(201,168,76,0.12) 0%, transparent 70%);
-      pointer-events: none;
-    }
-
-    .hero-badge {
+    .hero-eyebrow {
       display: inline-flex;
       align-items: center;
       gap: 8px;
-      background: rgba(201,168,76,0.1);
-      border: 1px solid rgba(201,168,76,0.25);
+      background: rgba(201,168,76,0.08);
+      border: 1px solid rgba(201,168,76,0.2);
       border-radius: 100px;
-      padding: 8px 16px;
-      font-size: 12px;
+      padding: 7px 16px;
+      font-size: 11px;
       font-weight: 700;
       color: var(--gold);
-      letter-spacing: 1px;
-      margin-bottom: 28px;
+      letter-spacing: 1.5px;
+      text-transform: uppercase;
+      margin-bottom: 32px;
     }
 
-    .hero-badge .dot {
+    .live-dot {
       width: 6px; height: 6px;
       background: var(--green);
       border-radius: 50%;
-      animation: pulse 1.5s infinite;
+      animation: livepulse 1.8s infinite;
+      box-shadow: 0 0 7px rgba(34,197,94,0.7);
     }
-
-    @keyframes pulse {
-      0%, 100% { opacity: 1; transform: scale(1); }
-      50% { opacity: 0.5; transform: scale(0.8); }
+    @keyframes livepulse {
+      0%,100% { opacity:1; transform:scale(1); }
+      50%      { opacity:0.35; transform:scale(0.7); }
     }
 
     .hero h1 {
       font-family: 'Raleway', sans-serif;
-      font-size: clamp(32px, 8vw, 62px);
+      font-size: clamp(36px, 9.5vw, 72px);
       font-weight: 900;
-      line-height: 1.15;
-      margin-bottom: 20px;
+      line-height: 1.08;
+      margin-bottom: 26px;
+      letter-spacing: -1.5px;
     }
 
     .hero h1 .gold {
-      background: linear-gradient(90deg, var(--gold-light), var(--gold));
+      background: linear-gradient(90deg, var(--gold-light), var(--gold), #E8C860);
       -webkit-background-clip: text;
       -webkit-text-fill-color: transparent;
       background-clip: text;
     }
 
-    .hero p {
-      font-size: clamp(15px, 4vw, 19px);
-      color: var(--muted);
-      max-width: 540px;
-      line-height: 1.7;
-      margin-bottom: 36px;
+    .hero-sub {
+      font-size: clamp(15px, 3.5vw, 19px);
+      color: var(--muted2);
+      max-width: 560px;
+      line-height: 1.78;
+      margin-bottom: 42px;
+      font-weight: 400;
     }
 
     .hero-btns {
@@ -147,279 +205,144 @@
       flex-direction: column;
       gap: 12px;
       width: 100%;
-      max-width: 340px;
-      margin-bottom: 56px;
+      max-width: 370px;
+      margin-bottom: 64px;
     }
 
     .btn-primary {
       display: flex;
       align-items: center;
       justify-content: center;
-      gap: 10px;
+      gap: 9px;
       background: linear-gradient(135deg, var(--gold-light), var(--gold));
       color: #000;
       font-weight: 800;
       font-size: 16px;
       padding: 18px 28px;
-      border-radius: 16px;
+      border-radius: 14px;
       text-decoration: none;
-      box-shadow: 0 12px 30px rgba(201,168,76,0.3);
-      transition: transform 0.2s, box-shadow 0.2s;
+      box-shadow: 0 8px 36px rgba(201,168,76,0.3);
+      transition: transform 0.2s, box-shadow 0.2s, opacity 0.2s;
+      letter-spacing: 0.2px;
     }
-
-    .btn-primary:hover, .btn-primary:active {
-      transform: translateY(-2px);
-      box-shadow: 0 18px 40px rgba(201,168,76,0.4);
-    }
+    .btn-primary:hover { transform: translateY(-2px); box-shadow: 0 18px 48px rgba(201,168,76,0.4); opacity: 0.92; }
 
     .btn-secondary {
       display: flex;
       align-items: center;
       justify-content: center;
-      gap: 10px;
+      gap: 9px;
       background: rgba(255,255,255,0.05);
       border: 1px solid rgba(255,255,255,0.12);
       color: #fff;
-      font-weight: 700;
+      font-weight: 600;
       font-size: 15px;
       padding: 17px 28px;
-      border-radius: 16px;
+      border-radius: 14px;
       text-decoration: none;
-      transition: background 0.2s;
+      transition: background 0.2s, border-color 0.2s;
     }
+    .btn-secondary:hover { background: rgba(255,255,255,0.09); border-color: rgba(255,255,255,0.22); }
 
-    .btn-secondary:hover, .btn-secondary:active {
-      background: rgba(255,255,255,0.09);
-    }
-
-    /* ── STATS BAR ── */
-    .stats-bar {
+    /* STATS ROW */
+    .stats-row {
       display: flex;
       justify-content: center;
-      gap: 32px;
-      flex-wrap: wrap;
-      padding: 0 24px 20px;
+      max-width: 640px;
+      width: 100%;
+      border: 1px solid rgba(255,255,255,0.07);
+      border-radius: 20px;
+      overflow: hidden;
+      background: rgba(255,255,255,0.02);
+      backdrop-filter: blur(8px);
     }
 
     .stat-item {
+      flex: 1;
+      min-width: 80px;
+      padding: 22px 12px;
       text-align: center;
+      border-right: 1px solid rgba(255,255,255,0.06);
     }
+    .stat-item:last-child { border-right: none; }
 
     .stat-num {
       font-family: 'Raleway', sans-serif;
-      font-size: 28px;
+      font-size: clamp(20px, 4.5vw, 28px);
       font-weight: 900;
       background: linear-gradient(90deg, var(--gold-light), var(--gold));
       -webkit-background-clip: text;
       -webkit-text-fill-color: transparent;
       background-clip: text;
+      display: block;
     }
+    .stat-label { font-size: 10px; color: var(--muted); margin-top: 4px; font-weight: 500; line-height: 1.35; }
 
-    .stat-label {
-      font-size: 12px;
-      color: var(--muted);
-      margin-top: 2px;
-    }
-
-    /* ── PHONE MOCKUP ── */
-    .mockup-wrap {
-      width: 100%;
-      max-width: 300px;
-      margin: 0 auto 16px;
-      position: relative;
-    }
-
-    .phone-frame {
-      background: #111;
-      border-radius: 44px;
-      border: 2px solid rgba(201,168,76,0.3);
-      box-shadow:
-        0 0 0 1px rgba(0,0,0,0.5),
-        0 40px 80px rgba(0,0,0,0.7),
-        0 0 60px rgba(201,168,76,0.08);
-      overflow: hidden;
-      aspect-ratio: 9/19;
-      position: relative;
-    }
-
-    .phone-screen {
-      width: 100%;
-      height: 100%;
-      background: linear-gradient(160deg, #0E0B04 0%, #080600 100%);
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      padding: 20px 16px;
-      gap: 10px;
-    }
-
-    .phone-logo {
-      font-family: 'Raleway', sans-serif;
-      font-weight: 900;
-      font-size: 11px;
-      letter-spacing: 4px;
-      background: linear-gradient(90deg, var(--gold-light), var(--gold));
-      -webkit-background-clip: text;
-      -webkit-text-fill-color: transparent;
-      background-clip: text;
-    }
-
-    .phone-card {
-      width: 100%;
-      background: rgba(0,200,83,0.08);
-      border: 1px solid rgba(0,200,83,0.25);
-      border-radius: 16px;
-      padding: 12px;
-    }
-
-    .phone-card-label {
-      display: flex;
-      align-items: center;
-      gap: 5px;
-      font-size: 7px;
-      font-weight: 800;
-      color: var(--green);
-      letter-spacing: 1px;
-      margin-bottom: 8px;
-    }
-
-    .phone-card-label .dot {
-      width: 4px; height: 4px;
-      background: var(--green);
-      border-radius: 50%;
-    }
-
-    .phone-ring-row {
-      display: flex;
-      align-items: center;
-      gap: 10px;
-    }
-
-    .phone-ring {
-      width: 40px; height: 40px;
-      border-radius: 50%;
-      border: 3px solid rgba(201,168,76,0.2);
-      border-top-color: var(--gold);
-      border-right-color: var(--gold);
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-size: 8px;
-      font-weight: 900;
-      font-family: 'Raleway', sans-serif;
-      color: var(--gold);
-      flex-shrink: 0;
-    }
-
-    .phone-stats { flex: 1; }
-    .phone-stat-line {
-      font-size: 7px;
-      color: rgba(255,255,255,0.6);
-      margin-bottom: 3px;
-      display: flex;
-      align-items: center;
-      gap: 4px;
-    }
-
-    .phone-cta {
-      width: 100%;
-      background: linear-gradient(90deg, var(--gold-light), var(--gold));
-      border-radius: 10px;
-      padding: 8px;
-      text-align: center;
-      font-size: 8px;
-      font-weight: 800;
-      color: #000;
-      margin-top: 4px;
-    }
-
-    .phone-pros {
-      width: 100%;
-      display: flex;
-      flex-direction: column;
-      gap: 6px;
-    }
-
-    .phone-pro-card {
-      background: rgba(255,255,255,0.04);
-      border: 1px solid rgba(255,255,255,0.07);
-      border-radius: 12px;
-      padding: 10px 12px;
-      display: flex;
-      align-items: center;
-      gap: 8px;
-    }
-
-    .phone-avatar {
-      width: 28px; height: 28px;
-      border-radius: 50%;
-      background: linear-gradient(135deg, var(--gold-light), var(--gold));
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-size: 12px;
-      flex-shrink: 0;
-    }
-
-    .phone-pro-info { flex: 1; }
-    .phone-pro-name { font-size: 8px; font-weight: 700; color: #fff; }
-    .phone-pro-spec { font-size: 6px; color: var(--muted); margin-top: 2px; }
-    .phone-pro-rating { font-size: 7px; color: var(--gold); font-weight: 700; }
-
-    /* ── HOW IT WORKS ── */
+    /* SECTION BASE */
     .section {
-      padding: 72px 24px;
-      max-width: 700px;
+      padding: 90px 24px;
+      max-width: 760px;
       margin: 0 auto;
+      position: relative;
+      z-index: 1;
     }
 
     .section-label {
-      font-size: 11px;
+      font-size: 10px;
       font-weight: 800;
-      letter-spacing: 2px;
+      letter-spacing: 2.5px;
       color: var(--gold);
       text-align: center;
       margin-bottom: 12px;
+      text-transform: uppercase;
     }
 
     .section-title {
       font-family: 'Raleway', sans-serif;
-      font-size: clamp(26px, 6vw, 40px);
+      font-size: clamp(27px, 6.5vw, 44px);
       font-weight: 900;
       text-align: center;
-      line-height: 1.2;
-      margin-bottom: 48px;
+      line-height: 1.13;
+      margin-bottom: 16px;
+      letter-spacing: -0.6px;
     }
 
-    .steps {
-      display: flex;
-      flex-direction: column;
-      gap: 0;
-      position: relative;
+    .section-sub {
+      font-size: 16px;
+      color: var(--muted2);
+      text-align: center;
+      max-width: 520px;
+      margin: 0 auto 52px;
+      line-height: 1.72;
     }
 
-    .steps::before {
-      content: '';
-      position: absolute;
-      left: 27px; top: 40px; bottom: 40px;
-      width: 2px;
-      background: linear-gradient(180deg, var(--gold) 0%, transparent 100%);
-      opacity: 0.2;
+    .gold-line {
+      width: 44px; height: 2px;
+      background: linear-gradient(90deg, var(--gold-light), var(--gold));
+      margin: 18px auto 52px;
+      border-radius: 2px;
     }
+
+    /* HOW IT WORKS */
+    .steps { display: flex; flex-direction: column; gap: 4px; }
 
     .step {
       display: flex;
-      gap: 20px;
+      gap: 22px;
       align-items: flex-start;
-      padding: 20px 0;
+      padding: 28px 24px;
+      border-radius: 22px;
+      border: 1px solid transparent;
+      transition: background 0.3s, border-color 0.3s;
+      cursor: default;
     }
+    .step:hover { background: rgba(201,168,76,0.04); border-color: rgba(201,168,76,0.16); }
 
-    .step-num {
+    .step-icon {
       width: 56px; height: 56px;
-      border-radius: 50%;
+      border-radius: 18px;
       background: rgba(201,168,76,0.1);
-      border: 2px solid rgba(201,168,76,0.3);
+      border: 1px solid rgba(201,168,76,0.2);
       display: flex;
       align-items: center;
       justify-content: center;
@@ -427,465 +350,717 @@
       flex-shrink: 0;
     }
 
-    .step-body { padding-top: 6px; }
+    .step-body { flex: 1; padding-top: 4px; }
+    .step-num-label { font-size: 10px; font-weight: 700; color: var(--gold); letter-spacing: 1.5px; text-transform: uppercase; margin-bottom: 5px; }
 
     .step-title {
       font-family: 'Raleway', sans-serif;
-      font-size: 18px;
+      font-size: 20px;
       font-weight: 800;
-      margin-bottom: 6px;
+      margin-bottom: 8px;
+      letter-spacing: -0.2px;
     }
 
-    .step-desc {
-      font-size: 14px;
-      color: var(--muted);
-      line-height: 1.6;
+    .step-desc { font-size: 14px; color: var(--muted2); line-height: 1.68; }
+
+    .step-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      margin-top: 12px;
+      background: rgba(34,197,94,0.1);
+      border: 1px solid rgba(34,197,94,0.25);
+      border-radius: 100px;
+      padding: 5px 12px;
+      font-size: 11px;
+      font-weight: 700;
+      color: var(--green);
     }
 
-    /* ── FEATURES GRID ── */
-    .features {
-      padding: 0 24px 72px;
-      max-width: 700px;
+    /* PHOTO / VIDEO SHOWCASE */
+    .media-section {
+      padding: 0 24px 90px;
+      max-width: 760px;
       margin: 0 auto;
+      position: relative;
+      z-index: 1;
     }
 
-    .features-grid {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 14px;
+    .media-card {
+      background: linear-gradient(135deg, rgba(201,168,76,0.07) 0%, rgba(34,197,94,0.04) 100%);
+      border: 1px solid rgba(201,168,76,0.2);
+      border-radius: 30px;
+      overflow: hidden;
     }
 
-    @media (max-width: 380px) {
-      .features-grid { grid-template-columns: 1fr; }
+    .media-inner {
+      display: flex;
+      flex-direction: column;
     }
+
+    .media-text {
+      padding: 42px 38px 36px;
+    }
+
+    .media-tag {
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+      background: rgba(201,168,76,0.1);
+      border: 1px solid rgba(201,168,76,0.25);
+      border-radius: 100px;
+      padding: 6px 14px;
+      font-size: 10px;
+      font-weight: 800;
+      color: var(--gold);
+      letter-spacing: 1.5px;
+      text-transform: uppercase;
+      margin-bottom: 22px;
+    }
+
+    .media-text h3 {
+      font-family: 'Raleway', sans-serif;
+      font-size: clamp(22px, 5vw, 32px);
+      font-weight: 900;
+      line-height: 1.2;
+      margin-bottom: 16px;
+      letter-spacing: -0.4px;
+    }
+
+    .media-text p { font-size: 15px; color: var(--muted2); line-height: 1.74; max-width: 440px; }
+
+    .media-bullets {
+      margin-top: 24px;
+      display: flex;
+      flex-direction: column;
+      gap: 11px;
+    }
+
+    .media-bullet {
+      display: flex;
+      align-items: center;
+      gap: 11px;
+      font-size: 14px;
+      font-weight: 500;
+      color: var(--muted2);
+    }
+
+    .mbullet-check {
+      width: 22px; height: 22px;
+      border-radius: 50%;
+      background: rgba(34,197,94,0.12);
+      border: 1px solid rgba(34,197,94,0.28);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 10px;
+      color: var(--green);
+      flex-shrink: 0;
+      font-weight: 700;
+    }
+
+    /* CHAT MOCKUP */
+    .chat-mockup {
+      background: rgba(13,11,7,0.95);
+      border-top: 1px solid rgba(201,168,76,0.12);
+      padding: 24px;
+    }
+
+    .chat-header {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 18px;
+      padding-bottom: 14px;
+      border-bottom: 1px solid rgba(255,255,255,0.06);
+    }
+
+    .chat-avatar {
+      width: 36px; height: 36px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, var(--gold-light), var(--gold));
+      display: flex; align-items: center; justify-content: center;
+      font-size: 15px; flex-shrink: 0;
+    }
+
+    .chat-pro-name { font-size: 14px; font-weight: 700; margin-bottom: 2px; }
+    .chat-pro-status { font-size: 11px; color: var(--green); font-weight: 600; }
+
+    .chat-messages { display: flex; flex-direction: column; gap: 12px; }
+
+    .msg { display: flex; gap: 8px; align-items: flex-end; }
+    .msg.out { flex-direction: row-reverse; }
+
+    .msg-bubble {
+      max-width: 78%;
+      background: rgba(255,255,255,0.06);
+      border: 1px solid rgba(255,255,255,0.07);
+      border-radius: 16px 16px 16px 4px;
+      padding: 10px 14px;
+      font-size: 13px;
+      line-height: 1.5;
+      color: rgba(255,255,255,0.82);
+    }
+
+    .msg.out .msg-bubble {
+      background: linear-gradient(135deg, rgba(201,168,76,0.2), rgba(201,168,76,0.12));
+      border-color: rgba(201,168,76,0.28);
+      border-radius: 16px 16px 4px 16px;
+      color: #fff;
+    }
+
+    .msg-photo {
+      width: 100%;
+      max-width: 155px;
+      height: 95px;
+      border-radius: 11px;
+      overflow: hidden;
+      margin-bottom: 7px;
+      position: relative;
+      border: 1px solid rgba(201,168,76,0.2);
+      background: linear-gradient(135deg, #1a1200, #2d2000);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    .msg-photo-icon { font-size: 26px; }
+    .msg-photo-label { font-size: 9.5px; font-weight: 700; color: var(--gold); letter-spacing: 0.5px; }
+
+    .photo-badge {
+      position: absolute;
+      top: 5px; right: 6px;
+      background: rgba(0,0,0,0.55);
+      border-radius: 100px;
+      padding: 2px 7px;
+      font-size: 10px;
+      font-weight: 700;
+      color: var(--gold);
+    }
+
+    .msg-time { font-size: 10px; color: var(--muted); padding: 0 3px; flex-shrink: 0; }
+
+    .chat-input-bar {
+      margin-top: 16px;
+      display: flex;
+      gap: 8px;
+      align-items: center;
+      background: rgba(255,255,255,0.04);
+      border: 1px solid rgba(255,255,255,0.07);
+      border-radius: 100px;
+      padding: 10px 14px;
+    }
+
+    .chat-icons { display: flex; gap: 12px; font-size: 16px; color: var(--muted); }
+    .chat-placeholder { flex: 1; font-size: 13px; color: var(--muted); }
+    .chat-send {
+      width: 30px; height: 30px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, var(--gold-light), var(--gold));
+      display: flex; align-items: center; justify-content: center;
+      font-size: 13px; color: #000; font-weight: 800;
+    }
+
+    /* FEATURES */
+    .features {
+      padding: 0 24px 90px;
+      max-width: 760px;
+      margin: 0 auto;
+      position: relative;
+      z-index: 1;
+    }
+
+    .features-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+    @media (max-width: 400px) { .features-grid { grid-template-columns: 1fr; } }
 
     .feat-card {
-      background: rgba(255,255,255,0.03);
+      background: rgba(255,255,255,0.025);
       border: 1px solid rgba(255,255,255,0.07);
-      border-radius: 20px;
-      padding: 22px 18px;
-      transition: border-color 0.2s, background 0.2s;
+      border-radius: 24px;
+      padding: 28px 22px;
+      transition: border-color 0.25s, background 0.25s, transform 0.25s;
+      cursor: default;
     }
-
-    .feat-card:hover {
-      border-color: rgba(201,168,76,0.25);
-      background: rgba(201,168,76,0.04);
-    }
+    .feat-card:hover { border-color: rgba(201,168,76,0.28); background: rgba(201,168,76,0.04); transform: translateY(-3px); }
 
     .feat-icon {
-      font-size: 28px;
-      margin-bottom: 12px;
-      display: block;
+      width: 48px; height: 48px;
+      border-radius: 15px;
+      background: rgba(201,168,76,0.1);
+      border: 1px solid rgba(201,168,76,0.2);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 22px; margin-bottom: 18px;
     }
 
-    .feat-title {
-      font-family: 'Raleway', sans-serif;
-      font-size: 15px;
-      font-weight: 800;
-      margin-bottom: 6px;
-    }
-
-    .feat-desc {
-      font-size: 13px;
-      color: var(--muted);
-      line-height: 1.5;
-    }
+    .feat-title { font-family: 'Raleway', sans-serif; font-size: 16px; font-weight: 800; margin-bottom: 8px; }
+    .feat-desc { font-size: 13px; color: var(--muted2); line-height: 1.62; }
 
     .feat-card.wide {
       grid-column: 1 / -1;
-      display: flex;
-      gap: 16px;
-      align-items: flex-start;
+      background: linear-gradient(135deg, rgba(34,197,94,0.07), rgba(201,168,76,0.05));
+      border-color: rgba(34,197,94,0.2);
+      display: flex; gap: 20px; align-items: flex-start;
     }
+    .feat-card.wide .feat-icon { flex-shrink: 0; margin-bottom: 0; background: rgba(34,197,94,0.12); border-color: rgba(34,197,94,0.25); }
 
-    .feat-card.wide .feat-icon {
-      margin-bottom: 0;
-      flex-shrink: 0;
-    }
-
-    /* ── CATEGORIES ── */
-    .categories {
-      padding: 0 24px 72px;
-      max-width: 700px;
+    /* MARKET */
+    .market-section {
+      padding: 0 24px 90px;
+      max-width: 760px;
       margin: 0 auto;
+      position: relative;
+      z-index: 1;
+    }
+
+    .market-card {
+      background: var(--bg3);
+      border: 1px solid rgba(201,168,76,0.18);
+      border-radius: 30px;
+      padding: 48px 38px;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .market-card::before {
+      content: '';
+      position: absolute;
+      top: -100px; right: -100px;
+      width: 350px; height: 350px;
+      background: radial-gradient(circle, rgba(201,168,76,0.07) 0%, transparent 70%);
+      pointer-events: none;
+    }
+
+    .market-tag {
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+      background: rgba(201,168,76,0.08);
+      border: 1px solid rgba(201,168,76,0.2);
+      border-radius: 100px;
+      padding: 6px 14px;
+      font-size: 10px;
+      font-weight: 800;
+      color: var(--gold);
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      margin-bottom: 24px;
+    }
+
+    .market-card h3 {
+      font-family: 'Raleway', sans-serif;
+      font-size: clamp(22px, 5vw, 32px);
+      font-weight: 900;
+      line-height: 1.18;
+      margin-bottom: 18px;
+      letter-spacing: -0.4px;
+    }
+
+    .market-card p { font-size: 15px; color: var(--muted2); line-height: 1.76; margin-bottom: 36px; max-width: 540px; }
+    .market-card p strong { color: #fff; }
+
+    .market-metrics { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+    @media (max-width: 500px) { .market-metrics { grid-template-columns: 1fr 1fr; } }
+
+    .market-metric {
+      background: rgba(255,255,255,0.03);
+      border: 1px solid rgba(255,255,255,0.06);
+      border-radius: 18px;
+      padding: 20px 16px;
+      text-align: center;
+    }
+
+    .metric-val {
+      font-family: 'Raleway', sans-serif;
+      font-size: clamp(20px, 4vw, 26px);
+      font-weight: 900;
+      background: linear-gradient(90deg, var(--gold-light), var(--gold));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      display: block;
+      margin-bottom: 5px;
+    }
+
+    .metric-lbl { font-size: 11px; color: var(--muted); font-weight: 500; line-height: 1.42; }
+
+    /* CATEGORIES */
+    .categories {
+      padding: 0 24px 90px;
+      max-width: 760px;
+      margin: 0 auto;
+      position: relative;
+      z-index: 1;
     }
 
     .cats-scroll {
       display: flex;
-      gap: 12px;
+      gap: 10px;
       overflow-x: auto;
-      padding-bottom: 12px;
+      padding-bottom: 10px;
       -webkit-overflow-scrolling: touch;
       scrollbar-width: none;
     }
-
     .cats-scroll::-webkit-scrollbar { display: none; }
 
     .cat-chip {
       flex-shrink: 0;
       background: rgba(255,255,255,0.04);
-      border: 1px solid rgba(255,255,255,0.1);
+      border: 1px solid rgba(255,255,255,0.09);
       border-radius: 100px;
       padding: 10px 18px;
       font-size: 13px;
       font-weight: 600;
       white-space: nowrap;
       cursor: default;
-      transition: border-color 0.2s, background 0.2s;
+      color: var(--muted2);
+      transition: border-color 0.2s, background 0.2s, color 0.2s;
     }
+    .cat-chip:hover { border-color: rgba(201,168,76,0.4); background: rgba(201,168,76,0.06); color: #fff; }
 
-    .cat-chip:hover {
-      border-color: rgba(201,168,76,0.4);
-      background: rgba(201,168,76,0.06);
-    }
-
-    /* ── EVENTS SECTION ── */
+    /* EVENTS */
     .events-section {
-      padding: 0 24px 72px;
-      max-width: 700px;
+      padding: 0 24px 90px;
+      max-width: 760px;
       margin: 0 auto;
+      position: relative;
+      z-index: 1;
     }
 
-    .events-cards {
-      display: flex;
-      flex-direction: column;
-      gap: 14px;
-    }
+    .events-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; }
+    @media (max-width: 560px) { .events-grid { grid-template-columns: 1fr; } }
 
     .event-card {
-      background: rgba(201,168,76,0.06);
-      border: 1px solid rgba(201,168,76,0.2);
-      border-radius: 20px;
-      padding: 22px 20px;
-      display: flex;
-      align-items: center;
-      gap: 18px;
+      background: rgba(201,168,76,0.05);
+      border: 1px solid rgba(201,168,76,0.18);
+      border-radius: 24px;
+      padding: 30px 20px;
+      text-align: center;
+      transition: background 0.25s, transform 0.25s;
+      cursor: default;
     }
+    .event-card:hover { background: rgba(201,168,76,0.1); transform: translateY(-3px); }
 
-    .event-emoji { font-size: 40px; flex-shrink: 0; }
+    .event-emoji { font-size: 42px; margin-bottom: 14px; display: block; }
+    .event-title { font-family: 'Raleway', sans-serif; font-size: 18px; font-weight: 800; margin-bottom: 9px; }
+    .event-desc { font-size: 13px; color: var(--muted2); line-height: 1.55; }
 
-    .event-body {}
-    .event-title {
-      font-family: 'Raleway', sans-serif;
-      font-size: 18px;
-      font-weight: 800;
-      margin-bottom: 4px;
-    }
-
-    .event-desc {
-      font-size: 13px;
-      color: var(--muted);
-      line-height: 1.5;
-    }
-
-    /* ── TESTIMONIALS ── */
-    .testimonials {
-      padding: 0 24px 72px;
-      max-width: 700px;
+    /* FOR PROS */
+    .pro-section {
+      padding: 0 24px 90px;
+      max-width: 760px;
       margin: 0 auto;
+      position: relative;
+      z-index: 1;
     }
 
-    .review-cards {
+    .pro-card {
+      background: var(--bg3);
+      border: 1px solid rgba(255,255,255,0.07);
+      border-radius: 30px;
+      padding: 46px 38px;
       display: flex;
-      flex-direction: column;
-      gap: 14px;
+      gap: 36px;
+      align-items: center;
     }
+    @media (max-width: 600px) { .pro-card { flex-direction: column; text-align: center; } }
+
+    .pro-icon {
+      width: 80px; height: 80px;
+      border-radius: 24px;
+      background: linear-gradient(135deg, rgba(201,168,76,0.14), rgba(201,168,76,0.07));
+      border: 1px solid rgba(201,168,76,0.22);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 38px; flex-shrink: 0;
+    }
+
+    .pro-body {}
+    .pro-label { font-size: 10px; font-weight: 800; color: var(--gold); letter-spacing: 2px; text-transform: uppercase; margin-bottom: 10px; }
+    .pro-card h3 { font-family: 'Raleway', sans-serif; font-size: clamp(20px, 4vw, 26px); font-weight: 900; margin-bottom: 12px; letter-spacing: -0.3px; }
+    .pro-card p { font-size: 14px; color: var(--muted2); line-height: 1.72; margin-bottom: 22px; }
+
+    .pro-perks { display: flex; flex-wrap: wrap; gap: 8px; }
+    .pro-perk { background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.07); border-radius: 100px; padding: 6px 14px; font-size: 12px; font-weight: 600; color: var(--muted2); }
+
+    /* TESTIMONIALS */
+    .testimonials {
+      padding: 0 24px 90px;
+      max-width: 760px;
+      margin: 0 auto;
+      position: relative;
+      z-index: 1;
+    }
+
+    .review-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+    @media (max-width: 500px) { .review-grid { grid-template-columns: 1fr; } }
 
     .review-card {
-      background: rgba(255,255,255,0.03);
+      background: rgba(255,255,255,0.025);
       border: 1px solid rgba(255,255,255,0.07);
-      border-radius: 20px;
-      padding: 22px 20px;
+      border-radius: 22px;
+      padding: 26px 22px;
+      transition: border-color 0.2s;
     }
+    .review-card:hover { border-color: rgba(201,168,76,0.2); }
 
-    .review-stars { color: var(--gold); font-size: 14px; margin-bottom: 10px; }
-
-    .review-text {
-      font-size: 14px;
-      line-height: 1.7;
-      color: rgba(255,255,255,0.8);
-      margin-bottom: 14px;
-      font-style: italic;
-    }
-
-    .review-author {
-      display: flex;
-      align-items: center;
-      gap: 10px;
-    }
-
-    .review-avatar {
-      width: 36px; height: 36px;
-      border-radius: 50%;
-      background: linear-gradient(135deg, var(--gold-light), var(--gold));
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-size: 16px;
-      flex-shrink: 0;
-    }
-
+    .review-stars { color: var(--gold); font-size: 13px; margin-bottom: 12px; letter-spacing: 2px; }
+    .review-text { font-size: 13.5px; line-height: 1.74; color: rgba(255,255,255,0.78); margin-bottom: 18px; font-style: italic; }
+    .review-author { display: flex; align-items: center; gap: 10px; }
+    .review-avatar { width: 36px; height: 36px; border-radius: 50%; background: linear-gradient(135deg, var(--gold-light), var(--gold)); display: flex; align-items: center; justify-content: center; font-size: 15px; flex-shrink: 0; }
     .review-name { font-size: 13px; font-weight: 700; }
     .review-role { font-size: 11px; color: var(--muted); }
 
-    /* ── FINAL CTA ── */
-    .final-cta {
-      padding: 72px 24px;
-      text-align: center;
-      position: relative;
-      overflow: hidden;
-    }
-
-    .final-cta::before {
-      content: '';
-      position: absolute;
-      top: 50%; left: 50%;
-      transform: translate(-50%, -50%);
-      width: 400px; height: 400px;
-      background: radial-gradient(circle, rgba(201,168,76,0.1) 0%, transparent 70%);
-      pointer-events: none;
-    }
-
-    .final-cta h2 {
-      font-family: 'Raleway', sans-serif;
-      font-size: clamp(26px, 6vw, 42px);
-      font-weight: 900;
-      line-height: 1.2;
-      margin-bottom: 16px;
-    }
-
-    .final-cta p {
-      font-size: 15px;
-      color: var(--muted);
-      margin-bottom: 36px;
-      line-height: 1.6;
-    }
-
-    .final-btns {
-      display: flex;
-      flex-direction: column;
-      gap: 12px;
-      max-width: 340px;
-      margin: 0 auto;
-    }
-
-    /* ── FOOTER ── */
-    footer {
-      border-top: 1px solid rgba(255,255,255,0.06);
-      padding: 32px 24px;
-      text-align: center;
-    }
-
-    .footer-logo {
-      font-family: 'Raleway', sans-serif;
-      font-weight: 900;
-      font-size: 16px;
-      letter-spacing: 4px;
-      background: linear-gradient(90deg, var(--gold-light), var(--gold));
-      -webkit-background-clip: text;
-      -webkit-text-fill-color: transparent;
-      background-clip: text;
-      margin-bottom: 16px;
-    }
-
-    .footer-links {
-      display: flex;
-      gap: 20px;
-      justify-content: center;
-      flex-wrap: wrap;
-      margin-bottom: 16px;
-    }
-
-    .footer-links a {
-      font-size: 13px;
-      color: var(--muted);
-      text-decoration: none;
-    }
-
-    .footer-copy {
-      font-size: 12px;
-      color: rgba(255,255,255,0.2);
-    }
-
-    /* ── DIVIDER ── */
-    .divider {
-      width: 60px; height: 2px;
-      background: linear-gradient(90deg, var(--gold-light), var(--gold));
-      margin: 0 auto 48px;
-      border-radius: 2px;
-    }
-
-    /* ── TRUST BAR ── */
+    /* TRUST BAR */
     .trust-bar {
       display: flex;
       justify-content: center;
       align-items: center;
-      gap: 8px;
+      gap: 10px;
       flex-wrap: wrap;
-      padding: 0 24px 72px;
+      padding: 0 24px 80px;
+      position: relative;
+      z-index: 1;
+    }
+
+    .trust-item { display: flex; align-items: center; gap: 7px; font-size: 13px; color: var(--muted2); font-weight: 500; }
+    .trust-check { width: 20px; height: 20px; border-radius: 50%; background: rgba(34,197,94,0.12); border: 1px solid rgba(34,197,94,0.25); display: flex; align-items: center; justify-content: center; font-size: 10px; color: var(--green); font-weight: 700; flex-shrink: 0; }
+    .trust-sep { color: rgba(255,255,255,0.12); font-size: 18px; }
+
+    /* FINAL CTA */
+    .final-cta {
+      padding: 80px 24px 90px;
+      text-align: center;
+      position: relative;
+      z-index: 1;
+    }
+
+    .cta-box {
+      background: var(--bg3);
+      border: 1px solid rgba(201,168,76,0.2);
+      border-radius: 34px;
+      padding: 64px 36px;
       max-width: 600px;
       margin: 0 auto;
+      position: relative;
+      overflow: hidden;
+    }
+    .cta-box::before {
+      content: '';
+      position: absolute;
+      top: 50%; left: 50%;
+      transform: translate(-50%, -50%);
+      width: 480px; height: 480px;
+      background: radial-gradient(circle, rgba(201,168,76,0.06) 0%, transparent 70%);
+      pointer-events: none;
     }
 
-    .trust-item {
-      display: flex;
-      align-items: center;
-      gap: 6px;
-      font-size: 13px;
-      color: var(--muted);
-    }
+    .cta-box h2 { font-family: 'Raleway', sans-serif; font-size: clamp(28px, 6vw, 46px); font-weight: 900; line-height: 1.13; margin-bottom: 18px; letter-spacing: -0.6px; position: relative; }
+    .cta-box h2 .gold { background: linear-gradient(90deg, var(--gold-light), var(--gold)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
+    .cta-box p { font-size: 15px; color: var(--muted2); margin-bottom: 38px; line-height: 1.72; position: relative; }
 
-    .trust-item .check { color: var(--green); font-size: 14px; }
+    .final-btns { display: flex; flex-direction: column; gap: 12px; max-width: 380px; margin: 0 auto; position: relative; }
 
-    .trust-sep { color: rgba(255,255,255,0.15); font-size: 18px; }
+    /* FOOTER */
+    footer { border-top: 1px solid rgba(255,255,255,0.05); padding: 38px 24px; text-align: center; position: relative; z-index: 1; }
+    .footer-logo { font-family: 'Raleway', sans-serif; font-weight: 900; font-size: 16px; letter-spacing: 5px; background: linear-gradient(90deg, var(--gold-light), var(--gold)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; margin-bottom: 18px; }
+    .footer-links { display: flex; gap: 24px; justify-content: center; flex-wrap: wrap; margin-bottom: 18px; }
+    .footer-links a { font-size: 13px; color: var(--muted); text-decoration: none; font-weight: 500; transition: color 0.2s; }
+    .footer-links a:hover { color: var(--muted2); }
+    .footer-copy { font-size: 12px; color: rgba(255,255,255,0.18); }
 
-    /* ── DESKTOP ADJUSTMENTS ── */
+    /* DESKTOP */
     @media (min-width: 640px) {
-      .hero-btns { flex-direction: row; max-width: 480px; }
+      .hero-btns { flex-direction: row; max-width: 420px; }
       .hero-btns .btn-primary, .hero-btns .btn-secondary { flex: 1; }
-
-      .features-grid { grid-template-columns: 1fr 1fr; }
-
-      .final-btns { flex-direction: row; max-width: 480px; }
+      .final-btns { flex-direction: row; max-width: 420px; }
       .final-btns .btn-primary, .final-btns .btn-secondary { flex: 1; }
-
-      .mockup-wrap { max-width: 260px; }
-
-      .events-cards { flex-direction: row; }
-      .event-card { flex-direction: column; text-align: center; flex: 1; }
-      .event-emoji { margin-bottom: 4px; }
+      .media-inner { flex-direction: row; }
+      .media-text { flex: 1; }
+      .chat-mockup { flex: 0 0 290px; border-top: none; border-left: 1px solid rgba(201,168,76,0.12); }
     }
 
     @media (min-width: 768px) {
-      .hero { padding-top: 120px; }
-      .mockup-wrap { max-width: 240px; }
+      .hero { padding-top: 130px; }
     }
   </style>
 </head>
 
 <body>
 
+  <div class="orb-wrap" aria-hidden="true">
+    <div class="orb orb1"></div>
+    <div class="orb orb2"></div>
+    <div class="orb orb3"></div>
+  </div>
+
   <!-- NAV -->
   <nav>
     <span class="nav-logo">GOREALAI</span>
-    <a class="nav-cta" href="/app/">Άνοιξε δωρεάν →</a>
+    <div class="nav-right">
+      <a class="nav-link" href="#how">Πώς λειτουργεί</a>
+      <a class="nav-link" href="#market">Επενδυτές</a>
+      <a class="nav-cta" href="/app/">Άνοιξε δωρεάν →</a>
+    </div>
   </nav>
 
   <!-- HERO -->
   <section class="hero">
-    <div class="hero-badge">
-      <span class="dot"></span>
-      ΔΙΑΘΕΣΙΜΟ ΤΩΡΑ
+    <div class="hero-eyebrow reveal">
+      <span class="live-dot"></span>
+      Διαθέσιμο τώρα · Ελλάδα
     </div>
 
-    <h1>
-      Βρες τον καλύτερο<br/>
-      <span class="gold">επαγγελματία</span><br/>
-      σε 15 λεπτά
+    <h1 class="reveal d1">
+      Το μέλλον των<br/>
+      <span class="gold">επαγγελματικών<br/>υπηρεσιών</span>
     </h1>
 
-    <p>
-      Στείλε αίτημα, λάβε προσφορές αμέσως. Ηλεκτρολόγοι, υδραυλικοί, καθαρίστριες, event planners — ό,τι χρειαστείς.
+    <p class="hero-sub reveal d2">
+      Φωτογράφισε το πρόβλημά σου, στείλε αίτημα και λάβε προσφορές από επαγγελματίες κοντά σου μέσα σε 1 ώρα. Δωρεάν, χωρίς δέσμευση.
     </p>
 
-    <div class="hero-btns">
-      <a class="btn-primary" href="/app/">
-        ⚡ Ξεκίνα δωρεάν
-      </a>
-      <a class="btn-secondary" href="#how">
-        Πώς λειτουργεί
-      </a>
+    <div class="hero-btns reveal d3">
+      <a class="btn-primary" href="/app/">⚡ Ξεκίνα δωρεάν</a>
+      <a class="btn-secondary" href="#how">Πώς λειτουργεί</a>
     </div>
 
-    <!-- Phone mockup -->
-    <div class="mockup-wrap">
-      <div class="phone-frame">
-        <div class="phone-screen">
-          <div class="phone-logo">GOREALAI</div>
-
-          <!-- Active request card -->
-          <div class="phone-card">
-            <div class="phone-card-label">
-              <div class="dot"></div>
-              ΖΩΝΤΑΝΟ ΑΙΤΗΜΑ
-            </div>
-            <div class="phone-ring-row">
-              <div class="phone-ring">12:43</div>
-              <div class="phone-stats">
-                <div class="phone-stat-line">🟢 8 επαγγελματίες ειδοποιήθηκαν</div>
-                <div class="phone-stat-line">🔥 3 προσφορές μέχρι τώρα</div>
-                <div class="phone-stat-line">🤖 AI αναλύει & κατατάσσει</div>
-              </div>
-            </div>
-            <div class="phone-cta">⏱ Παρακολούθησε ζωντανά</div>
-          </div>
-
-          <!-- Nearby pros -->
-          <div class="phone-pros">
-            <div class="phone-pro-card">
-              <div class="phone-avatar">👨‍🔧</div>
-              <div class="phone-pro-info">
-                <div class="phone-pro-name">Νίκος Π. · Ηλεκτρολόγος</div>
-                <div class="phone-pro-spec">Κοντά σου · 2.3 χλμ</div>
-              </div>
-              <div class="phone-pro-rating">★ 4.9</div>
-            </div>
-            <div class="phone-pro-card">
-              <div class="phone-avatar">🧹</div>
-              <div class="phone-pro-info">
-                <div class="phone-pro-name">Μαρία Κ. · Καθαρίστρια</div>
-                <div class="phone-pro-spec">Κοντά σου · 1.1 χλμ</div>
-              </div>
-              <div class="phone-pro-rating">★ 5.0</div>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <!-- Stats -->
-    <div class="stats-bar">
+    <div class="stats-row reveal d4">
       <div class="stat-item">
-        <div class="stat-num">15'</div>
-        <div class="stat-label">Μέσος χρόνος απόκρισης</div>
+        <span class="stat-num" data-target="60">60</span>
+        <div class="stat-label">Λεπτά μέση απόκριση</div>
       </div>
       <div class="stat-item">
-        <div class="stat-num">Free</div>
-        <div class="stat-label">Δωρεάν εγγραφή</div>
+        <span class="stat-num">Free</span>
+        <div class="stat-label">Δωρεάν χρήση</div>
       </div>
       <div class="stat-item">
-        <div class="stat-num">AI</div>
+        <span class="stat-num">AI</span>
         <div class="stat-label">Έξυπνη κατάταξη</div>
+      </div>
+      <div class="stat-item">
+        <span class="stat-num" data-target="50">50</span>
+        <div class="stat-label">Κατηγορίες</div>
       </div>
     </div>
   </section>
 
   <!-- HOW IT WORKS -->
   <section class="section" id="how">
-    <div class="section-label">ΠΩΣ ΛΕΙΤΟΥΡΓΕΙ</div>
-    <h2 class="section-title">3 βήματα και τελειώσατε</h2>
-    <div class="divider"></div>
+    <div class="section-label reveal">Πώς λειτουργεί</div>
+    <h2 class="section-title reveal d1">Από το πρόβλημα<br/>στον επαγγελματία</h2>
+    <p class="section-sub reveal d2">4 βήματα — από λεπτά έως ώρες, όχι μέρες.</p>
+    <div class="gold-line reveal d2"></div>
 
     <div class="steps">
-      <div class="step">
-        <div class="step-num">📝</div>
+      <div class="step reveal">
+        <div class="step-icon">📸</div>
         <div class="step-body">
-          <div class="step-title">Περιέγραψε τι χρειάζεσαι</div>
-          <div class="step-desc">Πες μας τι δουλειά θέλεις, πού και πότε. Παίρνει μόνο 30 δευτερόλεπτα.</div>
+          <div class="step-num-label">Βήμα 01</div>
+          <div class="step-title">Περιέγραψε &amp; Φωτογράφισε</div>
+          <div class="step-desc">Πες τι χρειάζεσαι και πρόσθεσε φωτογραφίες ή βίντεο του προβλήματος. Ο επαγγελματίας βλέπει ακριβώς τι αντιμετωπίζεις — χωρίς παρεξηγήσεις, χωρίς εκπλήξεις στην τιμή.</div>
+          <div class="step-badge">📷 Φωτογραφίες &amp; 🎥 Βίντεο υποστηρίζονται</div>
         </div>
       </div>
-      <div class="step">
-        <div class="step-num">⚡</div>
+      <div class="step reveal d1">
+        <div class="step-icon">⚡</div>
         <div class="step-body">
-          <div class="step-title">Λάβε προσφορές αμέσως</div>
-          <div class="step-desc">Οι κοντινοί επαγγελματίες λαμβάνουν ειδοποίηση και στέλνουν προσφορά μέσα σε λεπτά.</div>
+          <div class="step-num-label">Βήμα 02</div>
+          <div class="step-title">Ειδοποίηση κοντινών επαγγελματιών</div>
+          <div class="step-desc">Το σύστημα ειδοποιεί αυτόματα τους κατάλληλους επαγγελματίες στην περιοχή σου. Αρχίζουν να στέλνουν προσφορές μέσα σε λεπτά.</div>
         </div>
       </div>
-      <div class="step">
-        <div class="step-num">🏆</div>
+      <div class="step reveal d2">
+        <div class="step-icon">🤖</div>
         <div class="step-body">
-          <div class="step-title">Επέλεξε τον καλύτερο</div>
-          <div class="step-desc">Το AI κατατάσσει τις προσφορές. Εσύ επιλέγεις — εντελώς δωρεάν.</div>
+          <div class="step-num-label">Βήμα 03</div>
+          <div class="step-title">AI Κατάταξη προσφορών</div>
+          <div class="step-desc">Το AI αξιολογεί τιμή, αξιολογήσεις, ταχύτητα απόκρισης και portfolio — σου παρουσιάζει τις καλύτερες επιλογές πρώτα.</div>
+        </div>
+      </div>
+      <div class="step reveal d3">
+        <div class="step-icon">🏆</div>
+        <div class="step-body">
+          <div class="step-num-label">Βήμα 04</div>
+          <div class="step-title">Επέλεξε &amp; Κλείσε ραντεβού</div>
+          <div class="step-desc">Διάλεξε τον επαγγελματία που σε εκφράζει, κλείσε ραντεβού απευθείας. Εντελώς δωρεάν.</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- PHOTO & VIDEO SHOWCASE -->
+  <section class="media-section">
+    <div class="section-label reveal" style="text-align:center;margin-bottom:12px;">Μοναδικό χαρακτηριστικό</div>
+    <h2 class="section-title reveal d1" style="margin-bottom:14px;">Δείξε το πρόβλημά σου<br/><span style="background:linear-gradient(90deg,var(--gold-light),var(--gold));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;">με μια φωτογραφία</span></h2>
+    <p class="section-sub reveal d2">Αντί να εξηγείς λεκτικά, απλώς φωτογράφισε. Ο επαγγελματίας ξέρει ακριβώς τι χρειάζεσαι πριν έρθει.</p>
+
+    <div class="media-card reveal d2">
+      <div class="media-inner">
+        <div class="media-text">
+          <div class="media-tag">📸 Photo &amp; Video Chat</div>
+          <h3>Η εικόνα αξίζει χίλιες λέξεις — και μια σωστή προσφορά</h3>
+          <p>Σε άλλες εφαρμογές εξηγείς το πρόβλημα, ο επαγγελματίας μαντεύει, και τελικά η τιμή αλλάζει όταν φτάσει. Εδώ, στέλνεις φωτογραφία και όλοι ξεκινούν με πλήρη εικόνα.</p>
+          <div class="media-bullets">
+            <div class="media-bullet"><div class="mbullet-check">✓</div><span>Φωτογραφίες &amp; βίντεο απευθείας από την chat</span></div>
+            <div class="media-bullet"><div class="mbullet-check">✓</div><span>Ο επαγγελματίας βλέπει το πρόβλημα πριν έρθει</span></div>
+            <div class="media-bullet"><div class="mbullet-check">✓</div><span>Ακριβέστερη προσφορά — χωρίς εκπλήξεις στην τιμή</span></div>
+            <div class="media-bullet"><div class="mbullet-check">✓</div><span>Γρηγορότερη εξυπηρέτηση, λιγότερη ταλαιπωρία</span></div>
+          </div>
+        </div>
+
+        <div class="chat-mockup">
+          <div class="chat-header">
+            <div class="chat-avatar">🔌</div>
+            <div>
+              <div class="chat-pro-name">Νίκος Π. — Ηλεκτρολόγος</div>
+              <div class="chat-pro-status">● Ενεργός τώρα</div>
+            </div>
+          </div>
+
+          <div class="chat-messages">
+            <div class="msg out">
+              <div class="msg-bubble">
+                <div class="msg-photo">
+                  <span class="msg-photo-icon">🔌</span>
+                  <span class="msg-photo-label">photo_problem.jpg</span>
+                  <span class="photo-badge">📷</span>
+                </div>
+                Βλέπεις; Από χθες δεν ανάβει η πρίζα
+              </div>
+              <span class="msg-time">14:22</span>
+            </div>
+
+            <div class="msg">
+              <div class="chat-avatar" style="width:28px;height:28px;font-size:12px;flex-shrink:0;">🔌</div>
+              <div class="msg-bubble">Το βλέπω! Φαίνεται διακοπτόμενη επαφή. Εκτίμηση €35–50</div>
+              <span class="msg-time">14:24</span>
+            </div>
+
+            <div class="msg out">
+              <div class="msg-bubble">
+                <div class="msg-photo" style="background:linear-gradient(135deg,#0a1a0a,#112211);">
+                  <span class="msg-photo-icon">🎥</span>
+                  <span class="msg-photo-label">video_spark.mp4</span>
+                  <span class="photo-badge">▶</span>
+                </div>
+                Βίντεο από τη σπίθα που έκανε
+              </div>
+              <span class="msg-time">14:25</span>
+            </div>
+
+            <div class="msg">
+              <div class="chat-avatar" style="width:28px;height:28px;font-size:12px;flex-shrink:0;">🔌</div>
+              <div class="msg-bubble">Σοβαρό αυτό — ερχομαι σήμερα 17:00 🔧</div>
+              <span class="msg-time">14:26</span>
+            </div>
+          </div>
+
+          <div class="chat-input-bar">
+            <div class="chat-icons"><span>📷</span><span>🎥</span></div>
+            <div class="chat-placeholder">Γράψε μήνυμα...</div>
+            <div class="chat-send">→</div>
+          </div>
         </div>
       </div>
     </div>
@@ -893,36 +1068,76 @@
 
   <!-- FEATURES -->
   <section class="features">
-    <div class="section-label" style="text-align:center; margin-bottom:12px;">ΧΑΡΑΚΤΗΡΙΣΤΙΚΑ</div>
-    <h2 class="section-title">Όλα σε μια εφαρμογή</h2>
-    <div class="divider"></div>
+    <div class="section-label reveal" style="text-align:center;margin-bottom:12px;">Χαρακτηριστικά</div>
+    <h2 class="section-title reveal d1" style="margin-bottom:14px;">Όλα σε μια εφαρμογή</h2>
+    <div class="gold-line reveal d1"></div>
 
     <div class="features-grid">
-      <div class="feat-card">
-        <span class="feat-icon">⏱</span>
-        <div class="feat-title">Countdown ζωντανά</div>
-        <div class="feat-desc">Παρακολούθα σε πραγματικό χρόνο πόσες προσφορές έρχονται.</div>
+      <div class="feat-card reveal">
+        <div class="feat-icon">📸</div>
+        <div class="feat-title">Φωτογραφίες &amp; Βίντεο</div>
+        <div class="feat-desc">Στείλε το πρόβλημά σου με εικόνα ή βίντεο στο chat. Πλήρης κατανόηση πριν την επίσκεψη.</div>
       </div>
-      <div class="feat-card">
-        <span class="feat-icon">🤖</span>
+      <div class="feat-card reveal d1">
+        <div class="feat-icon">⏱</div>
+        <div class="feat-title">Countdown Ζωντανά</div>
+        <div class="feat-desc">Παρακολούθα σε πραγματικό χρόνο πόσες προσφορές έρχονται — live, χωρίς ανανέωση.</div>
+      </div>
+      <div class="feat-card reveal d2">
+        <div class="feat-icon">🤖</div>
         <div class="feat-title">AI Κατάταξη</div>
-        <div class="feat-desc">Το AI αξιολογεί τιμή, αξιολογήσεις και ταχύτητα απόκρισης.</div>
+        <div class="feat-desc">Αξιολόγηση τιμής, ratings, ταχύτητας. Η καλύτερη επιλογή πάντα πρώτη.</div>
       </div>
-      <div class="feat-card">
-        <span class="feat-icon">📸</span>
-        <div class="feat-title">Portfolio επαγγελματία</div>
-        <div class="feat-desc">Δες δείγματα δουλειάς πριν επιλέξεις.</div>
+      <div class="feat-card reveal d3">
+        <div class="feat-icon">🖼️</div>
+        <div class="feat-title">Portfolio Επαγγελματία</div>
+        <div class="feat-desc">Δες φωτογραφίες από προηγούμενες δουλειές πριν αποφασίσεις.</div>
       </div>
-      <div class="feat-card">
-        <span class="feat-icon">📬</span>
-        <div class="feat-title">Direct Request</div>
-        <div class="feat-desc">Επικοινώνησε απευθείας με τον επαγγελματία που σε ενδιαφέρει.</div>
-      </div>
-      <div class="feat-card wide">
-        <span class="feat-icon">📅</span>
+      <div class="feat-card wide reveal d1">
+        <div class="feat-icon" style="font-size:24px;">📅</div>
         <div>
-          <div class="feat-title">Bookings & Reminders</div>
-          <div class="feat-desc">Κράτησε ραντεβού, λάβε υπενθυμίσεις και παρακολούθα όλα τα ενεργά bookings σου σε ένα μέρος.</div>
+          <div class="feat-title">Bookings &amp; Ραντεβού</div>
+          <div class="feat-desc">Κράτησε ραντεβού, λάβε υπενθυμίσεις και διαχειρίσου όλα τα bookings σου σε ένα μέρος — χωρίς τηλεφωνήματα, χωρίς ταλαιπωρία.</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- MARKET OPPORTUNITY -->
+  <section class="market-section" id="market">
+    <div class="section-label reveal" style="text-align:center;margin-bottom:12px;">Ευκαιρία Αγοράς</div>
+    <h2 class="section-title reveal d1" style="margin-bottom:36px;">Μια αγορά δισεκατομμυρίων<br/>που περιμένει ψηφιοποίηση</h2>
+
+    <div class="market-card reveal d2">
+      <div class="market-tag">📊 Για Επενδυτές</div>
+      <h3>Το Airbnb των επαγγελματικών<br/>υπηρεσιών — στην Ελλάδα πρώτα</h3>
+      <p>
+        Η αγορά των home &amp; professional services στην Ελλάδα αξίζει πάνω από <strong>€8 δισ.</strong> ετησίως — και το 90% των συναλλαγών γίνεται ακόμα με τηλεφωνήματα και στόμα-με-στόμα. Το GorealAI φέρνει τεχνολογία AI, real-time matching και photo/video chat σε έναν κλάδο που δεν έχει αλλάξει δεκαετίες. Στόχος: αναπαραγωγή του μοντέλου σε <strong>Κύπρο, Βαλκάνια και Νότια Ευρώπη</strong>.
+      </p>
+      <div class="market-metrics">
+        <div class="market-metric">
+          <span class="metric-val">€8B+</span>
+          <div class="metric-lbl">Μέγεθος αγοράς home services Ελλάδα / έτος</div>
+        </div>
+        <div class="market-metric">
+          <span class="metric-val">90%</span>
+          <div class="metric-lbl">Offline συναλλαγές — ανεκμετάλλευτη ευκαιρία</div>
+        </div>
+        <div class="market-metric">
+          <span class="metric-val">50+</span>
+          <div class="metric-lbl">Κατηγορίες υπηρεσιών ήδη στην πλατφόρμα</div>
+        </div>
+        <div class="market-metric">
+          <span class="metric-val">0%</span>
+          <div class="metric-lbl">Χρέωση χρήστη — freemium για επαγγελματίες</div>
+        </div>
+        <div class="market-metric">
+          <span class="metric-val">&lt;1h</span>
+          <div class="metric-lbl">Μέσος χρόνος από αίτημα σε πρώτη προσφορά</div>
+        </div>
+        <div class="market-metric">
+          <span class="metric-val">3x</span>
+          <div class="metric-lbl">Αγορές επέκτασης · Κύπρος · Βαλκάνια · Νότια Ευρώπη</div>
         </div>
       </div>
     </div>
@@ -930,10 +1145,9 @@
 
   <!-- CATEGORIES -->
   <section class="categories">
-    <div class="section-label" style="text-align:center; margin-bottom:12px;">ΚΑΤΗΓΟΡΙΕΣ</div>
-    <h2 class="section-title" style="margin-bottom:32px;">Βρες ειδικό για οτιδήποτε</h2>
-
-    <div class="cats-scroll">
+    <div class="section-label reveal" style="text-align:center;margin-bottom:12px;">Κατηγορίες</div>
+    <h2 class="section-title reveal d1" style="margin-bottom:32px;">Βρες ειδικό για οτιδήποτε</h2>
+    <div class="cats-scroll reveal d2">
       <div class="cat-chip">🔌 Ηλεκτρολόγος</div>
       <div class="cat-chip">🚿 Υδραυλικός</div>
       <div class="cat-chip">🧹 Καθαρίστρια</div>
@@ -943,81 +1157,99 @@
       <div class="cat-chip">🔒 Κλειδαράς</div>
       <div class="cat-chip">🪴 Κηπουρός</div>
       <div class="cat-chip">📦 Μετακόμιση</div>
+      <div class="cat-chip">💅 Nail Artist</div>
+      <div class="cat-chip">🖋️ Tattoo Artist</div>
       <div class="cat-chip">💻 Τεχνικός Η/Υ</div>
-      <div class="cat-chip">🐕 Pet sitter</div>
+      <div class="cat-chip">🐕 Pet Sitter</div>
       <div class="cat-chip">📐 Αρχιτέκτονας</div>
+      <div class="cat-chip">💈 Κομμώτης</div>
+      <div class="cat-chip">🍽️ Catering</div>
     </div>
   </section>
 
   <!-- EVENTS -->
   <section class="events-section">
-    <div class="section-label" style="text-align:center; margin-bottom:12px;">EVENT ORGANIZER</div>
-    <h2 class="section-title">Οργάνωσε την τέλεια εκδήλωση</h2>
-    <div class="divider"></div>
+    <div class="section-label reveal" style="text-align:center;margin-bottom:12px;">Event Organizer</div>
+    <h2 class="section-title reveal d1" style="margin-bottom:14px;">Οργάνωσε την τέλεια εκδήλωση</h2>
+    <p class="section-sub reveal d2" style="margin-bottom:36px;">Φωτογράφος, catering, στολισμός — όλα με ένα αίτημα.</p>
 
-    <div class="events-cards">
-      <div class="event-card">
-        <div class="event-emoji">💍</div>
-        <div class="event-body">
-          <div class="event-title">Γάμος</div>
-          <div class="event-desc">Φωτογράφος, catering, στολισμός, DJ — όλα μαζί με ένα αίτημα.</div>
-        </div>
+    <div class="events-grid">
+      <div class="event-card reveal">
+        <span class="event-emoji">💍</span>
+        <div class="event-title">Γάμος</div>
+        <div class="event-desc">Φωτογράφος, catering, DJ, στολισμός — συντονισμένα από ένα σημείο.</div>
       </div>
-      <div class="event-card">
-        <div class="event-emoji">👶</div>
-        <div class="event-body">
-          <div class="event-title">Βάφτιση</div>
-          <div class="event-desc">Βρες αίθουσα, ανθοδέτη και όλους τους επαγγελματίες που χρειάζεσαι.</div>
-        </div>
+      <div class="event-card reveal d1">
+        <span class="event-emoji">👶</span>
+        <div class="event-title">Βάφτιση</div>
+        <div class="event-desc">Αίθουσα, ανθοδέτης, γλυκά και φωτογραφία — όλα μαζί.</div>
       </div>
-      <div class="event-card">
-        <div class="event-emoji">🎉</div>
-        <div class="event-body">
-          <div class="event-title">Πάρτυ</div>
-          <div class="event-desc">Διοργάνωση, catering, μουσική — κάνε το πάρτυ αξέχαστο.</div>
+      <div class="event-card reveal d2">
+        <span class="event-emoji">🎉</span>
+        <div class="event-title">Πάρτυ</div>
+        <div class="event-desc">Διοργάνωση, μουσική, catering — κάνε το πάρτυ αξέχαστο.</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- FOR PROS -->
+  <section class="pro-section">
+    <div class="section-label reveal" style="text-align:center;margin-bottom:12px;">Για Επαγγελματίες</div>
+    <h2 class="section-title reveal d1" style="margin-bottom:36px;">Νέοι πελάτες<br/>χωρίς marketing</h2>
+
+    <div class="pro-card reveal d2">
+      <div class="pro-icon">🛠️</div>
+      <div class="pro-body">
+        <div class="pro-label">Για επαγγελματίες</div>
+        <h3>Λάβε αιτήματα, κλείσε δουλειές</h3>
+        <p>Εγγραφή δωρεάν. Λαμβάνεις ειδοποίηση όταν ένας πελάτης κοντά σου χρειάζεται τις υπηρεσίες σου. Βλέπεις φωτογραφία του προβλήματος πριν στείλεις προσφορά — ξέρεις ακριβώς τι σε περιμένει.</p>
+        <div class="pro-perks">
+          <span class="pro-perk">✓ Δωρεάν εγγραφή</span>
+          <span class="pro-perk">✓ Ειδοποιήσεις real-time</span>
+          <span class="pro-perk">✓ Portfolio φωτογραφιών</span>
+          <span class="pro-perk">✓ Ανάπτυξη αξιολογήσεων</span>
+          <span class="pro-perk">✓ Διαχείριση ραντεβού</span>
         </div>
       </div>
     </div>
   </section>
 
-  <!-- REVIEWS -->
+  <!-- TESTIMONIALS -->
   <section class="testimonials">
-    <div class="section-label" style="text-align:center; margin-bottom:12px;">ΑΞΙΟΛΟΓΗΣΕΙΣ</div>
-    <h2 class="section-title">Τι λένε οι χρήστες</h2>
-    <div class="divider"></div>
+    <div class="section-label reveal" style="text-align:center;margin-bottom:12px;">Αξιολογήσεις</div>
+    <h2 class="section-title reveal d1" style="margin-bottom:36px;">Τι λένε οι χρήστες</h2>
 
-    <div class="review-cards">
-      <div class="review-card">
+    <div class="review-grid">
+      <div class="review-card reveal">
         <div class="review-stars">★★★★★</div>
-        <div class="review-text">"Έστειλα αίτημα για ηλεκτρολόγο και σε 10 λεπτά είχα 4 προσφορές. Διάλεξα αυτόν με τις καλύτερες κριτικές και ήρθε την επόμενη μέρα!"</div>
+        <div class="review-text">"Έστειλα φωτογραφία της σπασμένης πρίζας και σε 10 λεπτά είχα 4 προσφορές. Ο ηλεκτρολόγος ήξερε ακριβώς τι να φέρει!"</div>
         <div class="review-author">
           <div class="review-avatar">👩</div>
-          <div>
-            <div class="review-name">Ελένη Π.</div>
-            <div class="review-role">Χρήστης από Αθήνα</div>
-          </div>
+          <div><div class="review-name">Ελένη Π.</div><div class="review-role">Χρήστης από Αθήνα</div></div>
         </div>
       </div>
-      <div class="review-card">
+      <div class="review-card reveal d1">
         <div class="review-stars">★★★★★</div>
-        <div class="review-text">"Ως υδραυλικός, η εφαρμογή μου έφερε 3 νέους πελάτες την πρώτη εβδομάδα. Πολύ εύκολη εγγραφή και αμέσως αρχίζουν τα αιτήματα."</div>
+        <div class="review-text">"Ως υδραυλικός, βλέπω φωτογραφία πριν κλείσω τιμή. Τέλος στις εκπλήξεις — 3 νέοι πελάτες την πρώτη εβδομάδα."</div>
         <div class="review-author">
           <div class="review-avatar">👨‍🔧</div>
-          <div>
-            <div class="review-name">Κώστας Μ.</div>
-            <div class="review-role">Επαγγελματίας · Υδραυλικός</div>
-          </div>
+          <div><div class="review-name">Κώστας Μ.</div><div class="review-role">Επαγγελματίας · Υδραυλικός</div></div>
         </div>
       </div>
-      <div class="review-card">
+      <div class="review-card reveal d2">
         <div class="review-stars">★★★★★</div>
-        <div class="review-text">"Χρησιμοποίησα το Event Organizer για τη βάφτιση της κόρης μου. Βρήκα φωτογράφο, ανθοδέτη και catering μέσα σε μια μέρα!"</div>
+        <div class="review-text">"Χρησιμοποίησα το Event Organizer για τη βάφτιση. Βρήκα φωτογράφο, ανθοδέτη και catering μέσα σε μια μέρα!"</div>
         <div class="review-author">
           <div class="review-avatar">👨</div>
-          <div>
-            <div class="review-name">Γιώργης Δ.</div>
-            <div class="review-role">Χρήστης από Θεσσαλονίκη</div>
-          </div>
+          <div><div class="review-name">Γιώργης Δ.</div><div class="review-role">Χρήστης από Θεσσαλονίκη</div></div>
+        </div>
+      </div>
+      <div class="review-card reveal d3">
+        <div class="review-stars">★★★★★</div>
+        <div class="review-text">"Βίντεο από την υγρασία στον τοίχο — ο μονωτής ήρθε με τα σωστά υλικά. Δεν χρειάστηκε δεύτερη επίσκεψη!"</div>
+        <div class="review-author">
+          <div class="review-avatar">👩‍💼</div>
+          <div><div class="review-name">Μαρία Σ.</div><div class="review-role">Χρήστης από Καβάλα</div></div>
         </div>
       </div>
     </div>
@@ -1025,20 +1257,24 @@
 
   <!-- TRUST BAR -->
   <div class="trust-bar">
-    <div class="trust-item"><span class="check">✓</span> Δωρεάν εγγραφή</div>
+    <div class="trust-item reveal"><span class="trust-check">✓</span> Δωρεάν εγγραφή</div>
     <div class="trust-sep">·</div>
-    <div class="trust-item"><span class="check">✓</span> Επαληθευμένοι επαγγελματίες</div>
+    <div class="trust-item reveal d1"><span class="trust-check">✓</span> Επαληθευμένοι επαγγελματίες</div>
     <div class="trust-sep">·</div>
-    <div class="trust-item"><span class="check">✓</span> Χωρίς δέσμευση</div>
+    <div class="trust-item reveal d2"><span class="trust-check">✓</span> Φωτογραφίες &amp; Βίντεο στο chat</div>
+    <div class="trust-sep">·</div>
+    <div class="trust-item reveal d3"><span class="trust-check">✓</span> Χωρίς δέσμευση</div>
   </div>
 
   <!-- FINAL CTA -->
   <section class="final-cta">
-    <h2>Έτοιμος να ξεκινήσεις;<br/><span style="background:linear-gradient(90deg,var(--gold-light),var(--gold));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;">Είναι δωρεάν.</span></h2>
-    <p>Εγγραφή δωρεάν. Στείλε το πρώτο σου αίτημα σε 30 δευτερόλεπτα.</p>
-    <div class="final-btns">
-      <a class="btn-primary" href="/app/">⚡ Ξεκίνα τώρα</a>
-      <a class="btn-secondary" href="/app/?signup=pro">Είμαι επαγγελματίας</a>
+    <div class="cta-box reveal">
+      <h2>Έτοιμος να ξεκινήσεις;<br/><span class="gold">Είναι δωρεάν.</span></h2>
+      <p>Εγγραφή δωρεάν. Στείλε το πρώτο σου αίτημα — με φωτογραφία — σε 30 δευτερόλεπτα.</p>
+      <div class="final-btns">
+        <a class="btn-primary" href="/app/">⚡ Ξεκίνα τώρα</a>
+        <a class="btn-secondary" href="/app/?signup=pro">Είμαι επαγγελματίας</a>
+      </div>
     </div>
   </section>
 
@@ -1052,6 +1288,53 @@
     </div>
     <div class="footer-copy">© 2026 GorealAI · Όλα τα δικαιώματα κατοχυρωμένα</div>
   </footer>
+
+  <script>
+    // Scroll reveal
+    var obs = new IntersectionObserver(function(entries) {
+      entries.forEach(function(e) {
+        if (e.isIntersecting) { e.target.classList.add('visible'); obs.unobserve(e.target); }
+      });
+    }, { threshold: 0.1, rootMargin: '0px 0px -36px 0px' });
+
+    document.querySelectorAll('.reveal').forEach(function(el) { obs.observe(el); });
+
+    // Hero reveals on load
+    setTimeout(function() {
+      document.querySelectorAll('.hero .reveal').forEach(function(el) { el.classList.add('visible'); });
+    }, 80);
+
+    // Animated counters
+    function animCount(el, to) {
+      var start = 0, dur = 1600, t0;
+      function step(ts) {
+        if (!t0) t0 = ts;
+        var p = Math.min((ts - t0) / dur, 1);
+        var ease = 1 - Math.pow(1 - p, 3);
+        el.textContent = Math.round(ease * to);
+        if (p < 1) requestAnimationFrame(step);
+      }
+      requestAnimationFrame(step);
+    }
+
+    var cObs = new IntersectionObserver(function(entries) {
+      entries.forEach(function(e) {
+        if (e.isIntersecting) {
+          var t = parseInt(e.target.dataset.target);
+          if (!isNaN(t)) animCount(e.target, t);
+          cObs.unobserve(e.target);
+        }
+      });
+    }, { threshold: 0.5 });
+
+    document.querySelectorAll('[data-target]').forEach(function(el) { cObs.observe(el); });
+
+    // Nav scroll effect
+    window.addEventListener('scroll', function() {
+      document.querySelector('nav').style.background =
+        window.scrollY > 60 ? 'rgba(6,5,4,0.96)' : 'rgba(6,5,4,0.75)';
+    }, { passive: true });
+  </script>
 
 </body>
 </html>
