@@ -213,6 +213,7 @@ Future<void> main() async {
   }
   final prefs = await SharedPreferences.getInstance();
   final savedTheme = prefs.getString('theme') ?? 'obsidian';
+  _checkConnectivity();
   runApp(GorealAiApp(initialTheme: savedTheme));
 }
 
@@ -355,6 +356,62 @@ String _toVocative(String? fullName) {
 final ValueNotifier<AppTheme> appThemeNotifier =
     ValueNotifier<AppTheme>(AppTheme.themes['obsidian']!);
 
+// ── Network status ──────────────────────────────────────────────────────
+final ValueNotifier<bool> _isOnline = ValueNotifier(true);
+
+void _checkConnectivity() {
+  Timer.periodic(const Duration(seconds: 5), (_) async {
+    try {
+      final r = await http.get(Uri.parse('https://www.google.com')).timeout(const Duration(seconds: 4));
+      _isOnline.value = r.statusCode == 200;
+    } catch (_) {
+      _isOnline.value = false;
+    }
+  });
+}
+
+class _OfflineBanner extends StatelessWidget {
+  final Widget child;
+  const _OfflineBanner({required this.child});
+  @override
+  Widget build(BuildContext context) => ValueListenableBuilder<bool>(
+    valueListenable: _isOnline,
+    builder: (_, online, __) => Column(children: [
+      if (!online) Material(
+        color: Colors.red.shade800,
+        child: const SafeArea(
+          bottom: false,
+          child: SizedBox(width: double.infinity,
+            child: Padding(padding: EdgeInsets.symmetric(vertical: 6),
+              child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [
+                Icon(Icons.wifi_off, color: Colors.white, size: 16),
+                SizedBox(width: 8),
+                Text('Δεν υπάρχει σύνδεση στο διαδίκτυο', style: TextStyle(color: Colors.white, fontSize: 13)),
+              ]),
+            ),
+          ),
+        ),
+      ),
+      Expanded(child: child),
+    ]),
+  );
+}
+
+// ── Deep link placeholder screens ────────────────────────────────────────
+class _ProDeepLinkScreen extends StatelessWidget {
+  final String proId;
+  const _ProDeepLinkScreen({required this.proId});
+  @override
+  Widget build(BuildContext context) => const AuthGate();
+}
+
+class _ChatDeepLinkScreen extends StatelessWidget {
+  final String chatId;
+  const _ChatDeepLinkScreen({required this.chatId});
+  @override
+  Widget build(BuildContext context) => const AuthGate();
+}
+
 class GorealAiApp extends StatefulWidget {
   final String initialTheme;
   const GorealAiApp({super.key, this.initialTheme = 'obsidian'});
@@ -407,7 +464,26 @@ class _GorealAiAppState extends State<GorealAiApp> {
             style: TextButton.styleFrom(foregroundColor: kGold)),
         iconTheme: const IconThemeData(color: kGold),
       ),
-      home: const SplashScreen(),
+      home: const _OfflineBanner(child: SplashScreen()),
+      onGenerateRoute: (settings) {
+        // Deep link routing για web
+        final uri = Uri.tryParse(settings.name ?? '');
+        if (uri != null) {
+          if (uri.path == '/pro') {
+            final proId = uri.queryParameters['id'];
+            if (proId != null) {
+              return MaterialPageRoute(builder: (_) => _ProDeepLinkScreen(proId: proId));
+            }
+          }
+          if (uri.path == '/chat') {
+            final chatId = uri.queryParameters['id'];
+            if (chatId != null) {
+              return MaterialPageRoute(builder: (_) => _ChatDeepLinkScreen(chatId: chatId));
+            }
+          }
+        }
+        return null;
+      },
     );
   }
 }
@@ -709,28 +785,44 @@ class _LoginScreenState extends State<LoginScreen>
     }
   }
 
+  bool _isValidEmail(String e) => RegExp(r'^[\w.+-]+@[\w-]+\.[a-zA-Z]{2,}$').hasMatch(e);
+  bool _isValidPhone(String p) => RegExp(r'^[0-9]{10}$').hasMatch(p.replaceAll(' ', ''));
+
+  void _snack(String msg, {Color? color}) => ScaffoldMessenger.of(context).showSnackBar(
+    SnackBar(content: Text(msg), backgroundColor: color ?? Colors.red));
+
   Future<void> _submitLogin() async {
+    final email = _email.text.trim();
+    final pass = _pass.text.trim();
+    if (email.isEmpty || pass.isEmpty) { _snack('Συμπλήρωσε email και κωδικό'); return; }
+    if (!_isValidEmail(email)) { _snack('Μη έγκυρο email'); return; }
     setState(() => _loading = true);
     try {
-      await FirebaseAuth.instance.signInWithEmailAndPassword(
-          email: _email.text.trim(), password: _pass.text.trim());
-      await AuthService.saveUser(_email.text.trim());
-      await AuthService.savePassword(_pass.text.trim());
+      await FirebaseAuth.instance.signInWithEmailAndPassword(email: email, password: pass);
+      await AuthService.saveUser(email);
+      await AuthService.savePassword(pass);
       if (mounted) Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => const AuthGate()));
     } catch (e) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Σφάλμα: $e')));
+      String msg = 'Σφάλμα σύνδεσης. Δοκίμασε ξανά.';
+      final err = e.toString();
+      if (err.contains('user-not-found') || err.contains('invalid-credential')) msg = 'Λάθος email ή κωδικός';
+      if (err.contains('too-many-requests')) msg = 'Πάρα πολλές προσπάθειες. Δοκίμασε αργότερα.';
+      if (mounted) _snack(msg);
     }
     if (mounted) setState(() => _loading = false);
   }
 
   Future<void> _submitRegister() async {
+    final email = _email.text.trim();
+    final phone = _phone.text.trim();
+    if (!_isValidEmail(email)) { _snack('Μη έγκυρο email'); return; }
+    if (phone.isNotEmpty && !_isValidPhone(phone)) { _snack('Το τηλέφωνο πρέπει να είναι 10 ψηφία'); return; }
+    if (_pass.text.trim().length < 6) { _snack('Ο κωδικός πρέπει να έχει τουλάχιστον 6 χαρακτήρες'); return; }
     if (_pass.text.trim() != _passConfirm.text.trim()) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Οι κωδικοί δεν ταιριάζουν')));
-      return;
+      _snack('Οι κωδικοί δεν ταιριάζουν'); return;
     }
     if (_role == 'professional' && _selectedSpecialties.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Παρακαλώ επιλέξτε ειδικότητα')));
-      return;
+      _snack('Παρακαλώ επιλέξτε ειδικότητα'); return;
     }
     setState(() => _loading = true);
     try {
@@ -929,8 +1021,62 @@ class _LoginScreenState extends State<LoginScreen>
             onPressed: () => setState(() => _screen = 'role'),
             child: Text('Δεν έχεις λογαριασμό; Sign up', style: TextStyle(color: _g(0.7))),
           ),
+          TextButton(
+            onPressed: _showForgotPasswordDialog,
+            child: Text('Ξέχασες τον κωδικό;', style: TextStyle(color: _g(0.5), fontSize: 13)),
+          ),
         ]),
       )),
+    );
+  }
+
+  void _showForgotPasswordDialog() {
+    final ctrl = TextEditingController(text: _email.text.trim());
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: const Color(0xFF111111),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20), side: BorderSide(color: kGold.withValues(alpha: 0.2))),
+        title: const Text('Επαναφορά κωδικού', style: TextStyle(color: Colors.white, fontFamily: 'Raleway')),
+        content: Column(mainAxisSize: MainAxisSize.min, children: [
+          const Text('Εισήγαγε το email σου και θα σου στείλουμε σύνδεσμο για επαναφορά κωδικού.', style: TextStyle(color: Colors.white60, fontSize: 13)),
+          const SizedBox(height: 16),
+          TextField(
+            controller: ctrl,
+            keyboardType: TextInputType.emailAddress,
+            style: const TextStyle(color: Colors.white),
+            decoration: InputDecoration(
+              labelText: 'Email',
+              labelStyle: const TextStyle(color: Colors.white54),
+              filled: true, fillColor: const Color(0xFF1A1A1A),
+              border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+            ),
+          ),
+        ]),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Άκυρο', style: TextStyle(color: Colors.white54))),
+          TextButton(
+            onPressed: () async {
+              final email = ctrl.text.trim();
+              if (email.isEmpty) return;
+              try {
+                await FirebaseAuth.instance.sendPasswordResetEmail(email: email);
+                if (ctx.mounted) {
+                  Navigator.pop(ctx);
+                  ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+                    content: Text('✅ Εστάλη email επαναφοράς κωδικού!'),
+                    backgroundColor: Color(0xFF2ECC71),
+                  ));
+                }
+              } catch (e) {
+                if (ctx.mounted) ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Δεν βρέθηκε λογαριασμός με αυτό το email.'), backgroundColor: Colors.red));
+              }
+            },
+            child: const Text('Αποστολή', style: TextStyle(color: kGold)),
+          ),
+        ],
+      ),
     );
   }
 
@@ -10702,12 +10848,83 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       }
                     },
                   ),
+                  const SizedBox(height: 12),
+                  _ProfileRow(
+                    icon: Icons.delete_forever,
+                    emoji: '⚠️',
+                    label: 'Διαγραφή λογαριασμού',
+                    value: '',
+                    iconColor: Colors.red.shade900,
+                    textColor: Colors.red.shade900,
+                    borderColor: Colors.red.withValues(alpha: 0.15),
+                    bgColor: Colors.red.withValues(alpha: 0.03),
+                    onTap: () => _showDeleteAccountDialog(),
+                  ),
                   const SizedBox(height: 40),
                 ]),
               ),
             ),
         ]),
       ),
+    );
+  }
+
+  void _showDeleteAccountDialog() {
+    final passCtrl = TextEditingController();
+    bool showPass = false;
+    showDialog(
+      context: context,
+      builder: (ctx) => StatefulBuilder(builder: (ctx, setSt) => AlertDialog(
+        backgroundColor: const Color(0xFF111111),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20), side: BorderSide(color: Colors.red.withValues(alpha: 0.3))),
+        title: const Text('Διαγραφή λογαριασμού', style: TextStyle(color: Colors.red, fontFamily: 'Raleway')),
+        content: Column(mainAxisSize: MainAxisSize.min, children: [
+          const Text('Αυτή η ενέργεια είναι μη αναστρέψιμη. Όλα τα δεδομένα σου θα διαγραφούν οριστικά.', style: TextStyle(color: Colors.white60, fontSize: 13)),
+          const SizedBox(height: 16),
+          TextField(
+            controller: passCtrl,
+            obscureText: !showPass,
+            style: const TextStyle(color: Colors.white),
+            decoration: InputDecoration(
+              labelText: 'Εισήγαγε τον κωδικό σου για επιβεβαίωση',
+              labelStyle: const TextStyle(color: Colors.white54, fontSize: 12),
+              filled: true, fillColor: const Color(0xFF1A1A1A),
+              border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+              suffixIcon: IconButton(
+                icon: Icon(showPass ? Icons.visibility_off : Icons.visibility, color: Colors.white38, size: 20),
+                onPressed: () => setSt(() => showPass = !showPass),
+              ),
+            ),
+          ),
+        ]),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Άκυρο', style: TextStyle(color: Colors.white54))),
+          TextButton(
+            onPressed: () async {
+              final user = FirebaseAuth.instance.currentUser;
+              if (user == null || _email == null) return;
+              try {
+                final cred = EmailAuthProvider.credential(email: _email!, password: passCtrl.text.trim());
+                await user.reauthenticateWithCredential(cred);
+                final uid = user.uid;
+                // Διαγραφή Firestore docs
+                final fs = FirebaseFirestore.instance;
+                await fs.collection('users').doc(uid).delete();
+                try { await fs.collection('professionals').doc(uid).delete(); } catch (_) {}
+                // Διαγραφή Auth account
+                await user.delete();
+                await AuthService.logout();
+                if (ctx.mounted) Navigator.pop(ctx);
+                if (mounted) Navigator.of(context).popUntil((r) => r.isFirst);
+              } catch (e) {
+                if (ctx.mounted) ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Λάθος κωδικός ή σφάλμα. Δοκίμασε ξανά.'), backgroundColor: Colors.red));
+              }
+            },
+            child: const Text('Διαγραφή', style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold)),
+          ),
+        ],
+      )),
     );
   }
 }
