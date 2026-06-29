@@ -334,6 +334,20 @@ const Map<String, String> _vocativeDict = {
   'νικολαος': 'Νικόλαε',
 };
 
+// Weighted average of GorealAI + Google ratings
+double _combinedRating(Map<String, dynamic> data, {List<Map<String,dynamic>>? reviews}) {
+  final googleRating = (data['googleRating'] as num?)?.toDouble() ?? 0.0;
+  final googleCount = (data['googleRatingCount'] as num?)?.toInt() ?? 0;
+  final gorealaiRating = reviews != null && reviews.isNotEmpty
+      ? reviews.fold<double>(0, (s, r) => s + ((r['rating'] as num?)?.toDouble() ?? 0)) / reviews.length
+      : (data['averageRating'] as num?)?.toDouble() ?? 0.0;
+  final gorealaiCount = (data['reviewCount'] as num?)?.toInt() ?? (reviews?.length ?? 0);
+  if (googleCount == 0 && gorealaiCount == 0) return 0.0;
+  if (googleCount == 0) return gorealaiRating;
+  if (gorealaiCount == 0) return googleRating;
+  return (gorealaiRating * gorealaiCount + googleRating * googleCount) / (gorealaiCount + googleCount);
+}
+
 String _toVocative(String? fullName) {
   if (fullName == null || fullName.isEmpty) return '';
   // First name only
@@ -864,6 +878,7 @@ class _LoginScreenState extends State<LoginScreen>
           'specialty': _selectedSpecialties.isNotEmpty ? _selectedSpecialties.first : '',
           'areas': _selectedAreas, 'is_active': true, 'userId': cred.user!.uid,
           'createdAt': FieldValue.serverTimestamp(),
+          'afm': _afm.text.trim(),
           if (selfieUrl != null) 'profilePhotoUrl': selfieUrl,
         });
         // Update referrer's count
@@ -3683,6 +3698,19 @@ class _ProfessionalHomeScreenState extends State<ProfessionalHomeScreen> {
     }
     if (!mounted) return;
     _proDocId = resolvedDocId;
+
+    // Sync afm from users → professionals if missing (for legacy accounts)
+    final afmInPro = (dp['afm'] as String? ?? '').trim();
+    if (afmInPro.isEmpty) {
+      try {
+        final ud = await FirebaseFirestore.instance.collection('users').doc(user.uid).get();
+        final afmInUser = (ud.data()?['afm'] as String? ?? '').trim();
+        if (afmInUser.isNotEmpty) {
+          await FirebaseFirestore.instance.collection('professionals').doc(resolvedDocId)
+              .set({'afm': afmInUser}, SetOptions(merge: true));
+        }
+      } catch (_) {}
+    }
 
     final results = await Future.wait([
       FirebaseFirestore.instance.collection('users').doc(user.uid).get(),
@@ -9553,16 +9581,47 @@ class _HistoryProCardState extends State<_HistoryProCard> {
 
   Future<void> _saveRating() async {
     setState(() => _saving = true);
+    final comment = _commentCtrl.text.trim();
+    final proId = widget.data['professionalId'] as String? ?? '';
     try {
       await FirebaseFirestore.instance
           .collection('users').doc(widget.userId)
           .collection('selectedProfessionals').doc(widget.docId)
-          .update({'myRating': _rating, 'myComment': _commentCtrl.text.trim(), 'rated': _rating > 0});
-      // Also update professional's rating in professionals collection
-      final proId = widget.data['professionalId'] as String? ?? '';
+          .update({'myRating': _rating, 'myComment': comment, 'rated': _rating > 0});
+
       if (proId.isNotEmpty && _rating > 0) {
-        await FirebaseFirestore.instance.collection('professionals').doc(proId)
-            .set({'lastRating': _rating, 'lastReview': _commentCtrl.text.trim()}, SetOptions(merge: true));
+        // Fetch user display name
+        String userName = 'Χρήστης';
+        try {
+          final userDoc = await FirebaseFirestore.instance.collection('users').doc(widget.userId).get();
+          final n = (userDoc.data()?['displayName'] as String? ?? (userDoc.data()?['name'] as String? ?? '')).trim();
+          if (n.isNotEmpty) userName = n;
+        } catch (_) {}
+
+        // Write to reviews collection (upsert by userId+proId to avoid duplicates)
+        final reviewRef = FirebaseFirestore.instance.collection('reviews').doc('${widget.userId}_$proId');
+        await reviewRef.set({
+          'rating': _rating,
+          'comment': comment,
+          'userId': widget.userId,
+          'userName': userName,
+          'proId': proId,
+          'proName': widget.proName,
+          'timestamp': FieldValue.serverTimestamp(),
+        });
+
+        // Update aggregated rating on professionals doc
+        final profRef = FirebaseFirestore.instance.collection('professionals').doc(proId);
+        final userRef = FirebaseFirestore.instance.collection('users').doc(proId);
+        await FirebaseFirestore.instance.runTransaction((tx) async {
+          final allReviews = await FirebaseFirestore.instance
+              .collection('reviews').where('proId', isEqualTo: proId).get();
+          final count = allReviews.docs.length;
+          final avg = count == 0 ? 0.0 : allReviews.docs.fold<double>(
+              0, (s, d) => s + ((d.data()['rating'] as num?)?.toDouble() ?? 0)) / count;
+          tx.set(profRef, {'reviewCount': count, 'averageRating': avg}, SetOptions(merge: true));
+          tx.set(userRef, {'reviewCount': count, 'averageRating': avg}, SetOptions(merge: true));
+        });
       }
     } catch (_) {}
     if (mounted) setState(() { _saving = false; _expanded = false; });
@@ -10150,6 +10209,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
   String _specialty = '';
   bool _isPremium = false;
   DateTime? _premiumUntil;
+  int _referralCount = 0;
   bool _loading = true, _biometricOn = true;
   bool _uploadingPhoto = false;
   String? _photoUrl;
@@ -10196,6 +10256,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
       _specialty = data['specialty'] ?? '';
       _isPremium = data['isPremium'] == true && (premiumUntil == null || premiumUntil.isAfter(DateTime.now()));
       _premiumUntil = premiumUntil;
+      _referralCount = (data['referralCount'] as int?) ?? 0;
       _photoUrl = data['profilePhotoUrl'] as String?;
       _nameCtrl.text = _name ?? '';
       _cityCtrl.text = _city ?? '';
@@ -10289,6 +10350,83 @@ class _ProfileScreenState extends State<ProfileScreen> {
     final s = _specialty.toLowerCase();
     if (s.contains('συνεργείο') || s.contains('γάμο') || s.contains('βάφτιση') || s.contains('πάρτ')) return 59.99;
     return 19.99;
+  }
+
+  Widget _buildReferralCard() {
+    final remaining = (5 - _referralCount).clamp(0, 5);
+    final done = _referralCount >= 5;
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(18),
+      margin: const EdgeInsets.only(bottom: 16),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(18),
+        gradient: LinearGradient(
+          colors: done
+              ? [const Color(0xFF003300), const Color(0xFF001A00)]
+              : [const Color(0xFF12100A), const Color(0xFF0A0800)],
+          begin: Alignment.topLeft, end: Alignment.bottomRight,
+        ),
+        border: Border.all(color: done ? kGreen.withValues(alpha: 0.5) : kGold.withValues(alpha: 0.25)),
+      ),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Row(children: [
+          Text(done ? '🎁' : '👥', style: const TextStyle(fontSize: 20)),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              done ? 'Κέρδισες δωρεάν συνδρομή!' : 'Δωρεάν συνδρομή με συστάσεις',
+              style: TextStyle(
+                color: done ? kGreen : Colors.white,
+                fontSize: 15, fontWeight: FontWeight.w800, fontFamily: 'Raleway',
+              ),
+            ),
+          ),
+        ]),
+        const SizedBox(height: 12),
+        if (!done) ...[
+          Text(
+            'Σύστησε $remaining ακόμα ${remaining == 1 ? 'χρήστη' : 'χρήστες'} και κερδίζεις 1 χρόνο Premium δωρεάν!',
+            style: TextStyle(color: _g(0.6), fontSize: 13, height: 1.4),
+          ),
+          const SizedBox(height: 14),
+          // Progress bar
+          ClipRRect(
+            borderRadius: BorderRadius.circular(8),
+            child: LinearProgressIndicator(
+              value: _referralCount / 5,
+              minHeight: 10,
+              backgroundColor: _g(0.1),
+              valueColor: AlwaysStoppedAnimation<Color>(kGold),
+            ),
+          ),
+          const SizedBox(height: 8),
+          Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
+            Text('$_referralCount / 5 συστάσεις', style: TextStyle(color: kGold, fontSize: 12, fontWeight: FontWeight.w600)),
+            // Dots
+            Row(children: List.generate(5, (i) => Container(
+              width: 10, height: 10,
+              margin: const EdgeInsets.only(left: 4),
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: i < _referralCount ? kGold : _g(0.15),
+                border: Border.all(color: i < _referralCount ? kGold : _g(0.2)),
+              ),
+            ))),
+          ]),
+          const SizedBox(height: 12),
+          Text(
+            '💡 Tip: Μοιράσου το τηλέφωνό σου (${FirebaseAuth.instance.currentUser?.uid != null ? "το βρίσκουν στην εγγραφή" : ""}) και ζήτα να σε συστήσουν!',
+            style: TextStyle(color: _g(0.4), fontSize: 11, height: 1.4),
+          ),
+        ] else ...[
+          Text(
+            'Έχεις κάνει $_referralCount συστάσεις! Η δωρεάν συνδρομή σου έχει ενεργοποιηθεί.',
+            style: TextStyle(color: kGreen.withValues(alpha: 0.8), fontSize: 13, height: 1.4),
+          ),
+        ],
+      ]),
+    );
   }
 
   Widget _buildSubscriptionCard() {
@@ -10803,6 +10941,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   if (_role == 'professional') ...[
                     const SizedBox(height: 20),
                     _sectionHeader('ΣΥΝΔΡΟΜΗ'),
+                    if (!_isPremium) _buildReferralCard(),
                     _buildSubscriptionCard(),
                   ],
 
@@ -12471,9 +12610,14 @@ class _NearbyProsSectionState extends State<_NearbyProsSection> {
               final name = d['name'] as String? ?? 'Επαγγελματίας';
               final specialty = d['specialty'] as String?
                   ?? d['profession'] as String? ?? '';
-              final rating = (d['rating'] as num?)?.toDouble() ?? 0.0;
+              final rating = _combinedRating(d);
               final userId = d['userId'] as String? ?? doc.id;
-              final isNew = rating < 1.0;
+              final createdAt = (d['createdAt'] as Timestamp?)?.toDate() ?? (d['created_at'] as Timestamp?)?.toDate();
+              final isNew = createdAt == null
+                  ? false
+                  : DateTime.now().difference(createdAt).inDays <= 7;
+              final afm = (d['afm'] as String? ?? '').trim();
+              final isVerified = afm.isNotEmpty;
               final initials = name.isNotEmpty ? name[0].toUpperCase() : 'P';
               final isActive = i == _page;
 
@@ -12511,17 +12655,24 @@ class _NearbyProsSectionState extends State<_NearbyProsSection> {
                             ),
                           ),
                         )),
-                        // "Νέος" badge πάνω δεξιά
-                        if (isNew)
+                        // Badge πάνω δεξιά: Verified αν έχει ΑΦΜ, αλλιώς Νέος
+                        if (isVerified || isNew)
                           Positioned(top: 8, right: 8,
                             child: Container(
                               padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
                               decoration: BoxDecoration(
                                 borderRadius: BorderRadius.circular(6),
-                                color: Colors.black.withValues(alpha: 0.65),
-                                border: Border.all(color: kGold.withValues(alpha: 0.4)),
+                                color: isVerified ? const Color(0xFF1565C0).withValues(alpha: 0.85) : Colors.black.withValues(alpha: 0.65),
+                                border: Border.all(color: isVerified ? const Color(0xFF42A5F5) : kGold.withValues(alpha: 0.4)),
                               ),
-                              child: const Text('Νέος', style: TextStyle(color: kGold, fontSize: 8, fontWeight: FontWeight.w700)),
+                              child: Row(mainAxisSize: MainAxisSize.min, children: [
+                                if (isVerified) ...[
+                                  const Icon(Icons.verified, color: Color(0xFF42A5F5), size: 9),
+                                  const SizedBox(width: 3),
+                                  const Text('Verified', style: TextStyle(color: Color(0xFF90CAF9), fontSize: 8, fontWeight: FontWeight.w700)),
+                                ] else
+                                  const Text('Νέος', style: TextStyle(color: kGold, fontSize: 8, fontWeight: FontWeight.w700)),
+                              ]),
                             ),
                           ),
                         // Κείμενο κάτω
@@ -12534,7 +12685,7 @@ class _NearbyProsSectionState extends State<_NearbyProsSection> {
                                   style: TextStyle(color: _g(0.6), fontSize: 10)),
                             const SizedBox(height: 4),
                             Row(children: [
-                              Text(rating > 0 ? '⭐ ${rating.toStringAsFixed(1)}' : '⭐ Νέος',
+                              Text(rating > 0 ? '⭐ ${rating.toStringAsFixed(1)}' : (isNew ? '⭐ Νέος' : '⭐ —'),
                                   style: const TextStyle(color: kGold, fontSize: 10, fontWeight: FontWeight.w600)),
                               const Spacer(),
                               Text('~30λ', style: TextStyle(color: _g(0.5), fontSize: 9)),
@@ -12591,6 +12742,37 @@ class _ProPublicProfileScreenState extends State<_ProPublicProfileScreen> {
       final usersSnap = await FirebaseFirestore.instance.collection('users').doc(widget.proId).get();
       final prosSnap = await FirebaseFirestore.instance.collection('professionals').doc(widget.proId).get();
       final reviewsSnap = await FirebaseFirestore.instance.collection('reviews').where('proId', isEqualTo: widget.proId).limit(20).get();
+      // Sync afm from users → professionals for legacy accounts (runs silently in background)
+      final afmInPros = ((prosSnap.data() ?? {})['afm'] as String? ?? '').trim();
+      final afmInUsers = ((usersSnap.data() ?? {})['afm'] as String? ?? '').trim();
+      if (afmInPros.isEmpty && afmInUsers.isNotEmpty) {
+        FirebaseFirestore.instance.collection('professionals').doc(widget.proId)
+            .set({'afm': afmInUsers}, SetOptions(merge: true));
+      }
+      // Migrate legacy reviews: read from professionals/{proId}/selectedProfessionals subcollection via users
+      // Since we can't collectionGroup without index, we read from the pro's own users doc
+      // which stores myRating. Instead, read legacy from professionals doc fields.
+      if (reviewsSnap.docs.isEmpty) {
+        try {
+          final prosData = prosSnap.data() ?? {};
+          final lastRating = (prosData['lastRating'] as num?)?.toInt() ?? 0;
+          final lastReview = prosData['lastReview'] as String? ?? '';
+          if (lastRating > 0) {
+            final docId = 'legacy_${widget.proId}';
+            final existing = await FirebaseFirestore.instance.collection('reviews').doc(docId).get();
+            if (!existing.exists) {
+              await FirebaseFirestore.instance.collection('reviews').doc(docId).set({
+                'rating': lastRating,
+                'comment': lastReview,
+                'userId': '',
+                'userName': 'Χρήστης',
+                'proId': widget.proId,
+                'timestamp': FieldValue.serverTimestamp(),
+              });
+            }
+          }
+        } catch (_) {}
+      }
       final d = usersSnap.data() ?? {};
       final dp = prosSnap.data() ?? {};
       final merged = <String, dynamic>{..._data, ...d, ...dp};
@@ -12619,8 +12801,12 @@ class _ProPublicProfileScreenState extends State<_ProPublicProfileScreen> {
         if (legacy.isNotEmpty) projects.add({'id': 'legacy', 'title': 'Portfolio', 'photos': legacy});
       }
 
+      // Re-fetch after potential migration
+      final reviewsSnap2 = reviewsSnap.docs.isEmpty
+          ? await FirebaseFirestore.instance.collection('reviews').where('proId', isEqualTo: widget.proId).limit(20).get()
+          : reviewsSnap;
       // Reviews — sort client-side (no composite index needed)
-      final reviews = reviewsSnap.docs.map((r) => r.data() as Map<String, dynamic>).toList()
+      final reviews = reviewsSnap2.docs.map((r) => r.data() as Map<String, dynamic>).toList()
         ..sort((a, b) {
           final ta = a['timestamp'];
           final tb = b['timestamp'];
@@ -12670,11 +12856,12 @@ class _ProPublicProfileScreenState extends State<_ProPublicProfileScreen> {
     final tiktok = tiktokRaw.isEmpty ? '' : (tiktokRaw.startsWith('http') ? _fixUrl(tiktokRaw) : 'https://www.tiktok.com/@${tiktokRaw.replaceAll('@', '')}');
     final hasSocial = instagram.isNotEmpty || tiktok.isNotEmpty;
 
-    // Gorealai rating
-    double gorealaiRating = 0;
-    if (_reviews.isNotEmpty) {
-      gorealaiRating = _reviews.fold<double>(0, (s, r) => s + ((r['rating'] as num?)?.toDouble() ?? 0)) / _reviews.length;
-    }
+    // Combined rating (weighted average GorealAI + Google)
+    final gorealaiRating = _combinedRating(_data, reviews: _reviews.cast<Map<String,dynamic>>());
+    final googleRatingForDisplay = (_data['googleRating'] as num?)?.toDouble() ?? 0.0;
+    final gorealaiOnlyRating = _reviews.isNotEmpty
+        ? _reviews.fold<double>(0, (s, r) => s + ((r['rating'] as num?)?.toDouble() ?? 0)) / _reviews.length
+        : 0.0;
 
     return Scaffold(
       backgroundColor: kBg,
@@ -12781,12 +12968,14 @@ class _ProPublicProfileScreenState extends State<_ProPublicProfileScreen> {
                       const SizedBox(height: 20),
                       // Stat row
                       Row(mainAxisAlignment: MainAxisAlignment.center, children: [
-                        _statPill(gorealaiRating > 0 ? gorealaiRating.toStringAsFixed(1) : '-', '★ Gorealai'),
+                        _statPill(gorealaiRating > 0 ? gorealaiRating.toStringAsFixed(1) : '-', '★ Βαθμολογία'),
                         _statDivider(),
                         _statPill('$jobs', 'Δουλειές'),
-                        if (googleRating != null && googleRating > 0) ...[
+                        if (gorealaiOnlyRating > 0 && googleRatingForDisplay > 0) ...[
                           _statDivider(),
-                          _statPill(googleRating.toStringAsFixed(1), '★ Google'),
+                          _statPill(gorealaiOnlyRating.toStringAsFixed(1), 'GorealAI'),
+                          _statDivider(),
+                          _statPill(googleRatingForDisplay.toStringAsFixed(1), 'Google'),
                         ],
                       ]),
 
@@ -15432,10 +15621,10 @@ class _ChatScreenState extends State<ChatScreen> {
                                         final isRead = msgTime != null && _otherLastRead != null && !_otherLastRead!.isBefore(msgTime);
                                         return Row(mainAxisSize: MainAxisSize.min, children: [
                                           Icon(Icons.done, size: 10,
-                                              color: isRead ? kGold : Colors.black.withValues(alpha: 0.35)),
+                                              color: isRead ? const Color(0xFF4FC3F7) : Colors.black.withValues(alpha: 0.4)),
                                           const SizedBox(width: 1),
                                           Icon(Icons.done, size: 10,
-                                              color: isRead ? kGold : Colors.black.withValues(alpha: 0.35)),
+                                              color: isRead ? const Color(0xFF4FC3F7) : Colors.black.withValues(alpha: 0.4)),
                                         ]);
                                       }),
                                     ],
