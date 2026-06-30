@@ -560,6 +560,45 @@ app.post('/email-pro-new-message', rateLimit(60, 60_000), async (req, res) => {
   }
 });
 
+// POST /email-user-new-message
+// Body: { userId, proName, messagePreview }
+app.post('/email-user-new-message', rateLimit(60, 60_000), async (req, res) => {
+  const { userId, proName, messagePreview } = req.body;
+  if (!firebaseReady) return res.json({ success: false, reason: 'firebase not ready' });
+  if (!userId) return res.json({ success: false, reason: 'missing userId' });
+
+  try {
+    let userEmail = null;
+    let userName = 'Χρήστη';
+
+    const userDoc = await admin.firestore().collection('users').doc(userId).get();
+    if (userDoc.exists) {
+      userEmail = userDoc.data().email;
+      userName = userDoc.data().name || userName;
+    }
+
+    if (!userEmail) return res.json({ success: false, reason: 'user email not found' });
+
+    const subject = `💬 Νέο μήνυμα από ${proName || 'επαγγελματία'}`;
+    const html = `
+      <div style="font-family:Arial,sans-serif;max-width:480px;margin:0 auto;background:#0A0800;color:#fff;border-radius:16px;padding:32px;border:1px solid rgba(201,168,76,0.3)">
+        <h1 style="color:#FFD47A;font-size:22px;margin-bottom:4px;">💬 Νέο Μήνυμα!</h1>
+        <p style="color:rgba(255,255,255,0.6);font-size:13px;margin:4px 0;">Από: <strong style="color:#FFD47A">${proName || 'Επαγγελματίας'}</strong></p>
+        ${messagePreview ? `<p style="color:rgba(255,255,255,0.75);font-size:14px;margin:16px 0;line-height:1.6;border-left:3px solid rgba(201,168,76,0.4);padding-left:12px;">${String(messagePreview).substring(0, 200)}</p>` : ''}
+        <a href="https://gorealai.web.app/app" style="display:inline-block;margin-top:20px;padding:13px 28px;background:linear-gradient(135deg,#FFD47A,#C9A84C);color:#000;border-radius:12px;text-decoration:none;font-weight:800;font-size:14px;">Απάντησε τώρα →</a>
+        <p style="color:rgba(255,255,255,0.2);font-size:11px;margin-top:24px;">GorealAI · gorealai.web.app · info@gorealai.gr</p>
+      </div>
+    `;
+
+    await sendEmail({ to: userEmail, subject, html });
+    console.log(`📧 New-message email sent to user ${userId} (${userEmail})`);
+    res.json({ success: true });
+  } catch (e) {
+    console.error('email-user-new-message error:', e.message);
+    res.status(500).json({ error: e.message });
+  }
+});
+
 // ── Notify pros of new request ───────────────────────────────────────
 // POST /notify-new-request
 // Body: { fcmToken, proName, userName, description, profession }
