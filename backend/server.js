@@ -409,7 +409,7 @@ app.post('/welcome-email', rateLimit(5, 60_000), async (req, res) => {
 // POST /email-pros-new-request
 // Body: { profession, location, description, requestId }
 app.post('/email-pros-new-request', rateLimit(30, 60_000), async (req, res) => {
-  const { profession, location, description, requestId } = req.body;
+  const { profession, location, description, requestId, filterVerifiedOnly } = req.body;
   if (!firebaseReady) return res.json({ success: false, reason: 'firebase not ready' });
   if (!zohoTransporter && !process.env.SENDGRID_API_KEY) return res.json({ success: false, reason: 'no email provider configured' });
 
@@ -477,6 +477,9 @@ app.post('/email-pros-new-request', rateLimit(30, 60_000), async (req, res) => {
         const areas = Array.isArray(d.areas) ? d.areas.map(a => a.toLowerCase()) : [];
         if (areas.length > 0 && !areas.some(a => a.includes(locLower) || locLower.includes(a))) return;
       }
+
+      // Verified-only filter
+      if (filterVerifiedOnly && !(d.afm || '').trim()) return;
 
       matching.push({ email: d.email, phone: d.phone || '', name: d.displayName || d.name || 'Επαγγελματία' });
     });
