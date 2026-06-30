@@ -455,7 +455,7 @@ app.post('/email-pros-new-request', rateLimit(30, 60_000), async (req, res) => {
         if (areas.length > 0 && !areas.some(a => a.includes(locLower) || locLower.includes(a))) return;
       }
 
-      matching.push({ email: d.email, name: d.displayName || d.name || 'Επαγγελματία' });
+      matching.push({ email: d.email, phone: d.phone || '', name: d.displayName || d.name || 'Επαγγελματία' });
     });
 
     if (matching.length === 0) {
@@ -474,7 +474,30 @@ app.post('/email-pros-new-request', rateLimit(30, 60_000), async (req, res) => {
       </div>
     `;
 
-    // Send individually to avoid one bad email blocking others
+    // Send email + SMS individually
+    const INFINIREACH_API_KEY = process.env.INFINIREACH_API_KEY || '';
+    const INFINIREACH_DEVICE_ID = process.env.INFINIREACH_DEVICE_ID || '';
+
+    async function sendSms(phone, message) {
+      if (!INFINIREACH_API_KEY || !INFINIREACH_DEVICE_ID || !phone) return;
+      // Normalize Greek number to E.164
+      let p = phone.replace(/\s+/g, '');
+      if (p.startsWith('0')) p = '+30' + p.slice(1);
+      else if (p.startsWith('6') || p.startsWith('2')) p = '+30' + p;
+      else if (!p.startsWith('+')) p = '+30' + p;
+      try {
+        const r = await fetch('https://app.infinireach.io/api/v1/messages/send', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${INFINIREACH_API_KEY}` },
+          body: JSON.stringify({ deviceId: INFINIREACH_DEVICE_ID, to: p, message }),
+        });
+        const j = await r.json();
+        console.log(`📱 SMS to ${p}:`, j.success ? 'OK' : JSON.stringify(j));
+      } catch (e) {
+        console.error(`SMS error for ${p}:`, e.message);
+      }
+    }
+
     let sent = 0;
     const sentPros = [];
     for (const p of matching) {
@@ -484,6 +507,11 @@ app.post('/email-pros-new-request', rateLimit(30, 60_000), async (req, res) => {
         sentPros.push(p.name);
       } catch (e) {
         console.error(`Email error for ${p.email}:`, e.message);
+      }
+      // Send SMS regardless of email success
+      if (p.phone) {
+        const smsText = `🔔 Νέο αίτημα GorealAI${profession ? ` για ${profession}` : ''}!\n${description ? description.substring(0, 100) : ''}\nΔες το: gorealai.web.app/app`;
+        sendSms(p.phone, smsText); // fire-and-forget
       }
     }
 
