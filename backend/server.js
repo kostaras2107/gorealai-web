@@ -88,6 +88,29 @@ if (process.env.ZOHO_USER && process.env.ZOHO_PASS) {
   console.warn('⚠️  ZOHO_USER/ZOHO_PASS not set');
 }
 
+// ── SMS via InfiniReach ──────────────────────────────────────────
+async function sendSms(phone, message) {
+  const apiKey = process.env.INFINIREACH_API_KEY;
+  const deviceId = process.env.INFINIREACH_DEVICE_ID;
+  if (!apiKey || !deviceId || !phone) return;
+  let p = phone.replace(/\s+/g, '');
+  if (p.startsWith('00')) p = '+' + p.slice(2);
+  else if (p.startsWith('0')) p = '+30' + p.slice(1);
+  else if (/^[62]/.test(p)) p = '+30' + p;
+  else if (!p.startsWith('+')) p = '+30' + p;
+  try {
+    const r = await fetch('https://app.infinireach.io/api/v1/messages/send', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiKey}` },
+      body: JSON.stringify({ deviceId, to: p, message }),
+    });
+    const j = await r.json();
+    console.log(`📱 SMS to ${p}:`, j.success ? 'OK' : JSON.stringify(j));
+  } catch (e) {
+    console.error(`SMS error for ${p}:`, e.message);
+  }
+}
+
 // Helper: send email via Zoho (primary) or SendGrid (fallback)
 async function sendEmail({ to, subject, html }) {
   if (zohoTransporter) {
@@ -475,29 +498,6 @@ app.post('/email-pros-new-request', rateLimit(30, 60_000), async (req, res) => {
     `;
 
     // Send email + SMS individually
-    const INFINIREACH_API_KEY = process.env.INFINIREACH_API_KEY || '';
-    const INFINIREACH_DEVICE_ID = process.env.INFINIREACH_DEVICE_ID || '';
-
-    async function sendSms(phone, message) {
-      if (!INFINIREACH_API_KEY || !INFINIREACH_DEVICE_ID || !phone) return;
-      // Normalize Greek number to E.164
-      let p = phone.replace(/\s+/g, '');
-      if (p.startsWith('0')) p = '+30' + p.slice(1);
-      else if (p.startsWith('6') || p.startsWith('2')) p = '+30' + p;
-      else if (!p.startsWith('+')) p = '+30' + p;
-      try {
-        const r = await fetch('https://app.infinireach.io/api/v1/messages/send', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${INFINIREACH_API_KEY}` },
-          body: JSON.stringify({ deviceId: INFINIREACH_DEVICE_ID, to: p, message }),
-        });
-        const j = await r.json();
-        console.log(`📱 SMS to ${p}:`, j.success ? 'OK' : JSON.stringify(j));
-      } catch (e) {
-        console.error(`SMS error for ${p}:`, e.message);
-      }
-    }
-
     let sent = 0;
     const sentPros = [];
     for (const p of matching) {
@@ -545,16 +545,18 @@ app.post('/email-pro-new-message', rateLimit(60, 60_000), async (req, res) => {
     let proEmail = null;
     let proName = 'Επαγγελματία';
 
+    let proPhone = null;
     const proDoc = await admin.firestore().collection('professionals').doc(proId).get();
     if (proDoc.exists) {
       proEmail = proDoc.data().email;
+      proPhone = proDoc.data().phone || null;
       proName = proDoc.data().displayName || proDoc.data().name || proName;
     }
     if (!proEmail) {
-      // Try query by userId field
       const q = await admin.firestore().collection('professionals').where('userId', '==', proId).limit(1).get();
       if (!q.empty) {
         proEmail = q.docs[0].data().email;
+        proPhone = proPhone || q.docs[0].data().phone || null;
         proName = q.docs[0].data().displayName || q.docs[0].data().name || proName;
       }
     }
@@ -562,11 +564,12 @@ app.post('/email-pro-new-message', rateLimit(60, 60_000), async (req, res) => {
       const userDoc = await admin.firestore().collection('users').doc(proId).get();
       if (userDoc.exists) {
         proEmail = userDoc.data().email;
+        proPhone = proPhone || userDoc.data().phone || null;
         proName = userDoc.data().name || proName;
       }
     }
 
-    if (!proEmail) return res.json({ success: false, reason: 'pro email not found' });
+    if (!proEmail && !proPhone) return res.json({ success: false, reason: 'pro contact not found' });
 
     const subject = `💬 Νέο μήνυμα από ${senderName || 'χρήστη'}`;
     const html = `
@@ -579,8 +582,9 @@ app.post('/email-pro-new-message', rateLimit(60, 60_000), async (req, res) => {
       </div>
     `;
 
-    await sendEmail({ to: proEmail, subject, html });
-    console.log(`📧 New-message email sent to pro ${proId} (${proEmail})`);
+    if (proEmail) await sendEmail({ to: proEmail, subject, html });
+    if (proPhone) sendSms(proPhone, `💬 Νέο μήνυμα από ${senderName || 'χρήστη'} στο GorealAI!\n${messagePreview ? messagePreview.substring(0, 100) + '\n' : ''}Απάντησε: gorealai.web.app/app`);
+    console.log(`📧📱 New-message notification to pro ${proId}`);
     res.json({ success: true });
   } catch (e) {
     console.error('email-pro-new-message error:', e.message);
@@ -599,13 +603,15 @@ app.post('/email-user-new-message', rateLimit(60, 60_000), async (req, res) => {
     let userEmail = null;
     let userName = 'Χρήστη';
 
+    let userPhone = null;
     const userDoc = await admin.firestore().collection('users').doc(userId).get();
     if (userDoc.exists) {
       userEmail = userDoc.data().email;
+      userPhone = userDoc.data().phone || null;
       userName = userDoc.data().name || userName;
     }
 
-    if (!userEmail) return res.json({ success: false, reason: 'user email not found' });
+    if (!userEmail && !userPhone) return res.json({ success: false, reason: 'user contact not found' });
 
     const subject = `💬 Νέο μήνυμα από ${proName || 'επαγγελματία'}`;
     const html = `
@@ -618,8 +624,9 @@ app.post('/email-user-new-message', rateLimit(60, 60_000), async (req, res) => {
       </div>
     `;
 
-    await sendEmail({ to: userEmail, subject, html });
-    console.log(`📧 New-message email sent to user ${userId} (${userEmail})`);
+    if (userEmail) await sendEmail({ to: userEmail, subject, html });
+    if (userPhone) sendSms(userPhone, `💬 Νέο μήνυμα από ${proName || 'επαγγελματία'} στο GorealAI!\n${messagePreview ? messagePreview.substring(0, 100) + '\n' : ''}Απάντησε: gorealai.web.app/app`);
+    console.log(`📧📱 New-message notification to user ${userId}`);
     res.json({ success: true });
   } catch (e) {
     console.error('email-user-new-message error:', e.message);
