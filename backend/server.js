@@ -344,7 +344,6 @@ app.post('/new-offer', rateLimit(20, 60_000), async (req, res) => {
 app.post('/welcome-email', rateLimit(5, 60_000), async (req, res) => {
   const { email, name, role } = req.body;
   if (!email || !name) return res.status(400).json({ error: 'email and name required' });
-  if (!process.env.SENDGRID_API_KEY) return res.json({ success: false, reason: 'sendgrid not configured' });
 
   const isPro = role === 'professional';
   const subject = isPro
