@@ -404,6 +404,37 @@ app.post('/welcome-email', rateLimit(5, 60_000), async (req, res) => {
   }
 });
 
+// ── Password reset email (via our own Zoho sender, better deliverability) ──
+// POST /forgot-password
+// Body: { email }
+app.post('/forgot-password', rateLimit(5, 60_000), async (req, res) => {
+  const { email } = req.body;
+  if (!email) return res.status(400).json({ error: 'email required' });
+  if (!firebaseReady) return res.status(503).json({ error: 'Firebase not ready' });
+
+  try {
+    const link = await admin.auth().generatePasswordResetLink(email);
+    const html = `
+      <div style="font-family:Arial,sans-serif;max-width:480px;margin:0 auto;background:#0A0800;color:#fff;border-radius:16px;padding:32px;border:1px solid rgba(201,168,76,0.3)">
+        <h1 style="color:#FFD47A;font-size:20px;margin-bottom:8px;">Επαναφορά κωδικού</h1>
+        <p style="color:rgba(255,255,255,0.75);font-size:14px;line-height:1.6;">Ζήτησες επαναφορά κωδικού για τον λογαριασμό σου στο GorealAI. Πάτα το παρακάτω κουμπί για να ορίσεις νέο κωδικό.</p>
+        <a href="${link}" style="display:inline-block;margin-top:20px;padding:13px 28px;background:linear-gradient(135deg,#FFD47A,#C9A84C);color:#000;border-radius:12px;text-decoration:none;font-weight:800;font-size:14px;">Επαναφορά Κωδικού →</a>
+        <p style="color:rgba(255,255,255,0.4);font-size:12px;margin-top:20px;">Αν δεν το ζήτησες εσύ, αγνόησε αυτό το email.</p>
+        <p style="color:rgba(255,255,255,0.2);font-size:11px;margin-top:24px;">GorealAI · gorealai.web.app · info@gorealai.gr</p>
+      </div>
+    `;
+    await sendEmail({ to: email, subject: 'Επαναφορά κωδικού στο GorealAI', html });
+    console.log(`📧 Password reset email sent to ${email}`);
+    res.json({ success: true });
+  } catch (e) {
+    console.error('forgot-password error:', e.code || e.message);
+    if (e.code === 'auth/user-not-found') {
+      return res.status(404).json({ error: 'Δεν βρέθηκε λογαριασμός με αυτό το email.' });
+    }
+    res.status(500).json({ error: e.message });
+  }
+});
+
 // ── Email all matching pros for a new request ────────────────────────
 // POST /email-pros-new-request
 // Body: { profession, location, description, requestId }
