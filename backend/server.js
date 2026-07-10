@@ -288,8 +288,17 @@ app.post('/booking-response', rateLimit(20, 60_000), async (req, res) => {
 // POST /new-offer
 // Body: { userEmail, userName, userFcmToken, proName, price, requestDesc }
 app.post('/new-offer', rateLimit(20, 60_000), async (req, res) => {
-  const { userEmail, userName, userFcmToken, proName, price, requestDesc } = req.body;
+  const { userId, userName, userFcmToken, proName, price, requestDesc } = req.body;
+  let { userEmail } = req.body;
   const results = {};
+
+  // Το email συχνά δεν υπάρχει στο Firestore users doc — πάρτο αξιόπιστα από το Auth
+  if (!userEmail && userId && firebaseReady) {
+    try {
+      const authUser = await admin.auth().getUser(userId);
+      userEmail = authUser.email || null;
+    } catch (e) { /* δεν βρέθηκε λογαριασμός Auth */ }
+  }
 
   if (userEmail) {
     try {
