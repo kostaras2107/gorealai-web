@@ -301,6 +301,13 @@ Color _g(double alpha) => appThemeNotifier.value.adaptive(alpha);
 // Replaces Colors.white as text/icon color
 Color get _gw => appThemeNotifier.value.text;
 
+// Normalizes Greek text for accent-insensitive search (strips τόνους, lowercases)
+String _foldGreek(String s) => s.toLowerCase()
+    .replaceAll('ά', 'α').replaceAll('έ', 'ε').replaceAll('ή', 'η')
+    .replaceAll('ί', 'ι').replaceAll('ό', 'ο').replaceAll('ύ', 'υ')
+    .replaceAll('ώ', 'ω').replaceAll('ϊ', 'ι').replaceAll('ϋ', 'υ')
+    .replaceAll('ΐ', 'ι').replaceAll('ΰ', 'υ');
+
 // ── Greek vocative + first-name only ────────────────────
 const Map<String, String> _vocativeDict = {
   // -ης endings
@@ -315,17 +322,19 @@ const Map<String, String> _vocativeDict = {
   'ανεστης': 'Ανέστη', 'βαγγελης': 'Βαγγέλη', 'γιωργης': 'Γιώργη',
   'θοδωρης': 'Θοδώρη', 'σακης': 'Σάκη', 'τακης': 'Τάκη',
   'κωστακης': 'Κωστάκη', 'μπαμπης': 'Μπάμπη',
-  // -ος endings (formal -ε)
-  'αγγελος': 'Άγγελε', 'κωνσταντινος': 'Κωνσταντίνε', 'σταυρος': 'Σταύρε',
-  'θεοδωρος': 'Θεόδωρε', 'θοδωρος': 'Θόδωρε', 'χρηστος': 'Χρήστε',
-  'στεφανος': 'Στέφανε', 'πετρος': 'Πέτρε', 'σπυρος': 'Σπύρε',
-  'αποστολος': 'Απόστολε', 'γρηγοριος': 'Γρηγόριε', 'αλεξανδρος': 'Αλέξανδρε',
+  // -ος endings (formal -ε) — μόνο λίγα καθιερωμένα ονόματα παίρνουν αυτή την κατάληξη
+  'αγγελος': 'Άγγελε', 'κωνσταντινος': 'Κωνσταντίνε',
+  'θεοδωρος': 'Θεόδωρε', 'θοδωρος': 'Θόδωρε',
+  'στεφανος': 'Στέφανε',
+  'γρηγοριος': 'Γρηγόριε', 'αλεξανδρος': 'Αλέξανδρε',
   'ευαγγελος': 'Ευάγγελε', 'χαραλαμπος': 'Χαράλαμπε', 'λαζαρος': 'Λάζαρε',
-  'τηλεμαχος': 'Τηλέμαχε', 'αντωνιος': 'Αντώνιε', 'βασιλειος': 'Βασίλειε',
-  'λαμπρος': 'Λάμπρε', 'νικηφορος': 'Νικηφόρε',
-  // -ος endings (informal -ο)
+  'αντωνιος': 'Αντώνιε', 'βασιλειος': 'Βασίλειε',
+  // -ος endings (informal -ο) — ο κανόνας για όλα τα υπόλοιπα ονόματα σε -ος
   'γεωργος': 'Γεώργο', 'νικος': 'Νίκο', 'τασος': 'Τάσο',
-  'κυριακος': 'Κυριάκο', 'γιωργος': 'Γιώργο',
+  'κυριακος': 'Κυριάκο', 'γιωργος': 'Γιώργο', 'χρηστος': 'Χρήστο',
+  'σταυρος': 'Σταύρο', 'πετρος': 'Πέτρο', 'σπυρος': 'Σπύρο',
+  'αποστολος': 'Απόστολο', 'λαμπρος': 'Λάμπρο', 'νικηφορος': 'Νικηφόρο',
+  'τηλεμαχος': 'Τηλέμαχο',
   // -ας / -εας endings → -α
   'κωστας': 'Κώστα', 'ανδρεας': 'Ανδρέα', 'αχιλλεας': 'Αχιλλέα',
   'ζαχαριας': 'Ζαχαρία', 'θωμας': 'Θωμά', 'οδυσσεας': 'Οδυσσέα',
@@ -361,7 +370,9 @@ String _toVocative(String? fullName) {
   if (_vocativeDict.containsKey(key)) return _vocativeDict[key]!;
   // Algorithmic fallback
   if (first.endsWith('ης') || first.endsWith('ής')) return first.substring(0, first.length - 2) + 'η';
-  if (first.endsWith('ος') || first.endsWith('ός')) return first.substring(0, first.length - 2) + 'ε';
+  // Το -ε είναι εξαίρεση (λίγα καθιερωμένα ονόματα, ήδη στο λεξικό) — ο κανόνας
+  // για ονόματα σε -ος που δεν υπάρχουν στο λεξικό είναι απλή αφαίρεση του τελικού ς.
+  if (first.endsWith('ος') || first.endsWith('ός')) return first.substring(0, first.length - 1);
   if (first.endsWith('ας') || first.endsWith('άς')) return first.substring(0, first.length - 1);
   if (first.endsWith('ς')) return first.substring(0, first.length - 1);
   return first;
@@ -639,6 +650,10 @@ class _EmailVerificationScreenState extends State<EmailVerificationScreen> {
                   TextButton(
                     onPressed: () async {
                       await FirebaseAuth.instance.signOut();
+                      try {
+                        await FirebaseFirestore.instance.terminate();
+                        await FirebaseFirestore.instance.clearPersistence();
+                      } catch (_) {}
                     },
                     child: Text('Αποσύνδεση', style: TextStyle(color: Colors.white.withValues(alpha: 0.4), fontSize: 12)),
                   ),
@@ -685,6 +700,7 @@ class _LoginScreenState extends State<LoginScreen>
   List<String> _selectedSpecialties = [];
   List<String> _selectedAreas = [];
   String? _selectedArea; // for user
+  String? _selectedProHomeArea; // home city for professional
   String? _referralProName;
   String? _referralProUid;
   XFile? _selfieFile;
@@ -829,14 +845,25 @@ class _LoginScreenState extends State<LoginScreen>
   Future<void> _submitRegister() async {
     final email = _email.text.trim();
     final phone = _phone.text.trim();
+    if (_name.text.trim().isEmpty) { _snack('Παρακαλώ συμπληρώστε το όνομά σας'); return; }
     if (!_isValidEmail(email)) { _snack('Μη έγκυρο email'); return; }
-    if (phone.isNotEmpty && !_isValidPhone(phone)) { _snack('Το τηλέφωνο πρέπει να είναι 10 ψηφία'); return; }
+    if (phone.isEmpty) { _snack('Παρακαλώ συμπληρώστε το τηλέφωνό σας'); return; }
+    if (!_isValidPhone(phone)) { _snack('Το τηλέφωνο πρέπει να είναι 10 ψηφία'); return; }
     if (_pass.text.trim().length < 6) { _snack('Ο κωδικός πρέπει να έχει τουλάχιστον 6 χαρακτήρες'); return; }
     if (_pass.text.trim() != _passConfirm.text.trim()) {
       _snack('Οι κωδικοί δεν ταιριάζουν'); return;
     }
     if (_role == 'professional' && _selectedSpecialties.isEmpty) {
       _snack('Παρακαλώ επιλέξτε ειδικότητα'); return;
+    }
+    if (_role == 'professional' && (_selectedProHomeArea == null || _selectedProHomeArea!.isEmpty)) {
+      _snack('Παρακαλώ επιλέξτε την περιοχή κατοικίας σας'); return;
+    }
+    if (_role == 'professional' && _selectedAreas.isEmpty) {
+      _snack('Παρακαλώ επιλέξτε τουλάχιστον μία περιοχή εργασίας'); return;
+    }
+    if (_role == 'user' && (_selectedArea == null || _selectedArea!.isEmpty)) {
+      _snack('Παρακαλώ επιλέξτε την περιοχή σας'); return;
     }
     setState(() => _loading = true);
     try {
@@ -862,6 +889,7 @@ class _LoginScreenState extends State<LoginScreen>
         if (_role == 'professional') ...{
           'specialties': _selectedSpecialties,
           'areas': _selectedAreas,
+          'area': _selectedProHomeArea ?? '',
           'specialty': _selectedSpecialties.isNotEmpty ? _selectedSpecialties.first : '',
           'afm': _afm.text.trim(),
           'wantsVerifiedBadge': _wantsVerifiedBadge,
@@ -876,7 +904,8 @@ class _LoginScreenState extends State<LoginScreen>
           'name': fullName, 'email': _email.text.trim(), 'phone': _phone.text.trim(),
           'specialties': _selectedSpecialties,
           'specialty': _selectedSpecialties.isNotEmpty ? _selectedSpecialties.first : '',
-          'areas': _selectedAreas, 'is_active': true, 'userId': cred.user!.uid,
+          'areas': _selectedAreas, 'area': _selectedProHomeArea ?? '',
+          'is_active': true, 'userId': cred.user!.uid,
           'createdAt': FieldValue.serverTimestamp(),
           'afm': _afm.text.trim(),
           if (selfieUrl != null) 'profilePhotoUrl': selfieUrl,
@@ -1075,17 +1104,26 @@ class _LoginScreenState extends State<LoginScreen>
               final email = ctrl.text.trim();
               if (email.isEmpty) return;
               try {
-                await FirebaseAuth.instance.sendPasswordResetEmail(email: email);
-                if (ctx.mounted) {
-                  Navigator.pop(ctx);
-                  ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-                    content: Text('✅ Εστάλη email επαναφοράς κωδικού!'),
-                    backgroundColor: Color(0xFF2ECC71),
-                  ));
+                final resp = await http.post(
+                  Uri.parse('$kBackendUrl/forgot-password'),
+                  headers: {'Content-Type': 'application/json'},
+                  body: jsonEncode({'email': email}),
+                ).timeout(const Duration(seconds: 10));
+                if (resp.statusCode == 200) {
+                  if (ctx.mounted) {
+                    Navigator.pop(ctx);
+                    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+                      content: Text('✅ Εστάλη email επαναφοράς κωδικού!'),
+                      backgroundColor: Color(0xFF2ECC71),
+                    ));
+                  }
+                } else {
+                  if (ctx.mounted) ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Δεν βρέθηκε λογαριασμός με αυτό το email.'), backgroundColor: Colors.red));
                 }
               } catch (e) {
                 if (ctx.mounted) ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Δεν βρέθηκε λογαριασμός με αυτό το email.'), backgroundColor: Colors.red));
+                  const SnackBar(content: Text('Σφάλμα σύνδεσης. Δοκίμασε ξανά.'), backgroundColor: Colors.red));
               }
             },
             child: const Text('Αποστολή', style: TextStyle(color: kGold)),
@@ -1233,6 +1271,13 @@ class _LoginScreenState extends State<LoginScreen>
             }, selectedSingle: _selectedArea),
             const SizedBox(height: 16),
           ] else ...[
+            _pickerRow(Icons.home_outlined, 'Περιοχή κατοικίας', 'Σε ποια περιοχή μένεις;', null, null, () async {
+              final r = await showModalBottomSheet<String>(
+                  context: context, backgroundColor: Colors.transparent, isScrollControlled: true,
+                  builder: (_) => const _AreaPicker());
+              if (r != null) setState(() => _selectedProHomeArea = r);
+            }, selectedSingle: _selectedProHomeArea),
+            const SizedBox(height: 12),
             _pickerRow(Icons.location_on_outlined, 'Περιοχές εργασίας', 'Επίλεξε όλες τις περιοχές που εξυπηρετείς', null, _selectedAreas, () async {
               final r = await showModalBottomSheet<List<String>>(
                   context: context, backgroundColor: Colors.transparent, isScrollControlled: true,
@@ -1867,6 +1912,8 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   List<String> _proAreas = [];
   String? _proPhotoUrlHome;
   double _proAvgRatingHome = 0.0;
+  bool _proIsVerifiedHome = false;
+  Timestamp? _proLastSeenRequests;
   // Ενεργά αιτήματα (για το G button — μέχρι 2)
   List<Map<String, dynamic>> _activeRequests = []; // list of {id, status, desc, criteria, expiresAt}
 
@@ -1934,8 +1981,9 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
           final recent = snap2.docs.where((doc) {
             final tsMs = (doc.data()['createdAt'] as dynamic)?.millisecondsSinceEpoch;
             if (tsMs == null) return false;
-            // Αν έχει ήδη επιλεγεί επαγγελματίας → δεν το δείχνουμε στο hero
+            // Αν έχει ήδη επιλεγεί επαγγελματίας ή dismissed → δεν το δείχνουμε
             if (doc.data()['selectedPro'] != null) return false;
+            if (doc.data()['dismissed'] == true) return false;
             return now.difference(DateTime.fromMillisecondsSinceEpoch(tsMs)).inHours < 2;
           }).take(2).map((doc) {
             final d = doc.data();
@@ -1990,6 +2038,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     List<String> areas = [];
     String proPhotoUrl = '';
     double proAvgRating = 0.0;
+    bool proIsVerified = false;
     if (isPro) {
       specialty = (data['specialty'] as String? ?? '').toLowerCase();
       final rawAreas = data['areas'];
@@ -1999,6 +2048,8 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
         final pd = proDoc.data() ?? {};
         proPhotoUrl = (pd['profilePhotoUrl'] as String? ?? data['profilePhotoUrl'] as String? ?? '');
         proAvgRating = (pd['averageRating'] as num? ?? data['averageRating'] as num? ?? 0).toDouble();
+        final afm = (pd['afm'] as String? ?? data['afm'] as String? ?? '').trim();
+        proIsVerified = afm.isNotEmpty;
       } catch (_) {}
     }
     setState(() {
@@ -2009,6 +2060,8 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       _proAreas = areas;
       _proPhotoUrlHome = proPhotoUrl.isNotEmpty ? proPhotoUrl : null;
       _proAvgRatingHome = proAvgRating;
+      _proIsVerifiedHome = proIsVerified;
+      _proLastSeenRequests = data['lastSeenRequestsAt'] as Timestamp?;
     });
   }
 
@@ -2283,6 +2336,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                                   if (data['filterWithPhoto'] == true && (_proPhotoUrlHome == null || _proPhotoUrlHome!.isEmpty)) return false;
                                   final minRating = (data['filterMinRating'] as num? ?? 0).toDouble();
                                   if (minRating > 0 && _proAvgRatingHome < minRating) return false;
+                                  if (data['filterVerifiedOnly'] == true && !_proIsVerifiedHome) return false;
                                   return true;
                                 }).length
                               : 0;
@@ -2296,13 +2350,34 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                                 : const Stream.empty(),
                             builder: (context, snapBook) {
                           final bookCount = snapBook.hasData ? snapBook.data!.docs.length : 0;
-                          final total = unread + reqCount + bookCount;
+                          // reqCount για badge: μόνο αν υπάρχουν νέα αιτήματα μετά το lastSeenRequestsAt
+                          final lastSeenTs = (_proLastSeenRequests as Timestamp?)?.toDate();
+                          final unseenReqCount = lastSeenTs == null ? reqCount : snapReq.hasData
+                              ? snapReq.data!.docs.where((d) {
+                                  if (respondedIds.contains(d.id)) return false;
+                                  final data = d.data() as Map<String, dynamic>;
+                                  final createdAt = (data['createdAt'] as Timestamp?)?.toDate();
+                                  if (createdAt != null && !createdAt.isAfter(lastSeenTs)) return false;
+                                  if (_proSpecialty.isNotEmpty) {
+                                    final reqProf = (data['profession'] as String? ?? '').toLowerCase();
+                                    if (reqProf.isNotEmpty && !_proSpecialty.contains(reqProf) && !reqProf.contains(_proSpecialty)) return false;
+                                  }
+                                  if (_proAreas.isNotEmpty) {
+                                    final reqLoc = (data['location'] as String? ?? '').toLowerCase();
+                                    if (reqLoc.isNotEmpty && reqLoc != 'κοντά μου') {
+                                      if (!_proAreas.any((a) => a.contains(reqLoc) || reqLoc.contains(a))) return false;
+                                    }
+                                  }
+                                  return true;
+                                }).length
+                              : 0;
+                          final total = unread + unseenReqCount + bookCount;
                           return GestureDetector(
                             onTap: () => Navigator.push(context, PageRouteBuilder(
                               transitionDuration: const Duration(milliseconds: 350),
                               pageBuilder: (_, __, ___) => const ProfessionalHomeScreen(),
                               transitionsBuilder: (_, a, __, c) => FadeTransition(opacity: a, child: c),
-                            )),
+                            )).then((_) => _loadProfile()),
                             child: Stack(clipBehavior: Clip.none, children: [
                               Container(
                                 padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
@@ -2615,6 +2690,16 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
             const SizedBox(width: 10),
             const Text('Επαγγελματίες κοντά σου',
                 style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.w700, letterSpacing: 0.3)),
+            const SizedBox(width: 8),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(8),
+                color: kGold.withValues(alpha: 0.12),
+                border: Border.all(color: kGold.withValues(alpha: 0.4)),
+              ),
+              child: const Text('BETA', style: TextStyle(color: kGold, fontSize: 9, fontWeight: FontWeight.w800, letterSpacing: 0.5)),
+            ),
             const Spacer(),
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
@@ -3598,6 +3683,7 @@ class _ProfessionalHomeScreenState extends State<ProfessionalHomeScreen> {
   final Set<String> _submittedIds = {};
   bool _isAvailable = true;
   bool _uploadingPhoto = false;
+  DateTime? _lastSeenRequestsAt;
 
   Future<void> _changeProfilePhoto() async {
     final picker = ImagePicker();
@@ -3612,11 +3698,16 @@ class _ProfessionalHomeScreenState extends State<ProfessionalHomeScreen> {
       final url = await ref.getDownloadURL();
       await Future.wait([
         FirebaseFirestore.instance.collection('users').doc(uid).set({'profilePhotoUrl': url}, SetOptions(merge: true)),
-        FirebaseFirestore.instance.collection('professionals').doc(_proDocId ?? uid).set({'profilePhotoUrl': url}, SetOptions(merge: true)),
+        if (_proDocId != null)
+          FirebaseFirestore.instance.collection('professionals').doc(_proDocId).set({'profilePhotoUrl': url}, SetOptions(merge: true)),
       ]);
       if (mounted) setState(() { _proPhotoUrl = url; _uploadingPhoto = false; });
-    } catch (_) {
-      if (mounted) setState(() => _uploadingPhoto = false);
+    } catch (e) {
+      if (mounted) {
+        setState(() => _uploadingPhoto = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Σφάλμα: $e'), backgroundColor: Colors.red));
+      }
     }
   }
 
@@ -3626,6 +3717,7 @@ class _ProfessionalHomeScreenState extends State<ProfessionalHomeScreen> {
   List<String> _specialties = [];
   List<String> _subSpecialties = [];
   List<String> _areas = [];
+  String _proAfm = '';
   String _companyName = '';
   String _googlePlaceUrl = '';
   String _googlePlaceId = '';
@@ -3791,17 +3883,93 @@ class _ProfessionalHomeScreenState extends State<ProfessionalHomeScreen> {
       _instagramUrl = merged['instagram'] as String? ?? '';
       _tiktokUrl = merged['tiktok'] as String? ?? '';
       _proAverageRating = (merged['averageRating'] as num?)?.toDouble() ?? 0.0;
+      _proAfm = (merged['afm'] as String? ?? '').trim();
       _portfolioProjects = projects;
       _bioCtrl.text = _bio;
     });
+
+    // Φόρτωσε ποια αιτήματα έχει ήδη απαντήσει, ώστε να μην ξαναεμφανίζονται
+    // μετά από επανεκκίνηση/ανανέωση της εφαρμογής (το _submittedIds ήταν
+    // μέχρι τώρα μόνο σε μνήμη, χανόταν σε κάθε νέο άνοιγμα).
+    try {
+      final offersSnap = await FirebaseFirestore.instance
+          .collection('offers')
+          .where('professionalId', isEqualTo: _proId)
+          .get();
+      if (mounted) {
+        setState(() {
+          _submittedIds.addAll(offersSnap.docs.map((d) => (d.data())['requestId'] as String? ?? '').where((id) => id.isNotEmpty));
+        });
+      }
+    } catch (_) {}
+
+    // Prompt existing pros without city to fill it in
+    final proCity = (merged['area'] as String? ?? '').trim();
+    if (proCity.isEmpty && mounted) {
+      WidgetsBinding.instance.addPostFrameCallback((_) => _showCityPrompt());
+    }
+  }
+
+  Future<void> _showCityPrompt() async {
+    String? picked;
+    await showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) => StatefulBuilder(builder: (ctx, setS) => AlertDialog(
+        backgroundColor: kBg,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18), side: BorderSide(color: kGold.withValues(alpha: 0.3))),
+        title: const Text('📍 Συμπλήρωσε την περιοχή σου', style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.w700)),
+        content: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Text('Για να σε βρίσκουν χρήστες κοντά σου, χρειαζόμαστε την περιοχή κατοικίας σου.', style: TextStyle(color: Colors.white.withValues(alpha: 0.65), fontSize: 13)),
+          const SizedBox(height: 16),
+          GestureDetector(
+            onTap: () async {
+              final r = await showModalBottomSheet<String>(context: ctx, backgroundColor: Colors.transparent, isScrollControlled: true, builder: (_) => const _AreaPicker());
+              if (r != null) setS(() => picked = r);
+            },
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+              decoration: BoxDecoration(borderRadius: BorderRadius.circular(12), color: picked != null ? kGold.withValues(alpha: 0.1) : Colors.white.withValues(alpha: 0.04), border: Border.all(color: picked != null ? kGold.withValues(alpha: 0.5) : Colors.white.withValues(alpha: 0.12))),
+              child: Row(children: [
+                Icon(Icons.location_on_outlined, color: picked != null ? kGold : Colors.white.withValues(alpha: 0.35), size: 18),
+                const SizedBox(width: 10),
+                Expanded(child: Text(picked ?? 'Επίλεξε περιοχή...', style: TextStyle(color: picked != null ? Colors.white : Colors.white.withValues(alpha: 0.3), fontSize: 14))),
+                if (picked != null) Icon(Icons.check_circle, color: kGold, size: 16),
+              ]),
+            ),
+          ),
+        ]),
+        actions: [
+          TextButton(
+            onPressed: picked == null ? null : () async {
+              final uid = FirebaseAuth.instance.currentUser?.uid;
+              if (uid != null && picked != null) {
+                if (_proDocId != null) {
+                  await FirebaseFirestore.instance.collection('professionals').doc(_proDocId).set({'area': picked}, SetOptions(merge: true));
+                }
+                await FirebaseFirestore.instance.collection('users').doc(uid).set({'area': picked}, SetOptions(merge: true));
+              }
+              if (ctx.mounted) Navigator.pop(ctx);
+            },
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+              decoration: BoxDecoration(borderRadius: BorderRadius.circular(10), color: picked != null ? kGold : Colors.white.withValues(alpha: 0.1)),
+              child: Text('Αποθήκευση', style: TextStyle(color: picked != null ? Colors.black : Colors.white.withValues(alpha: 0.3), fontWeight: FontWeight.w700, fontSize: 13)),
+            ),
+          ),
+        ],
+      )),
+    );
   }
 
   Future<void> _toggleAvailability(bool val) async {
     setState(() => _isAvailable = val);
     final uid = FirebaseAuth.instance.currentUser?.uid;
     if (uid != null) {
-      await FirebaseFirestore.instance.collection('professionals').doc(_proDocId ?? uid).set(
-          {'isAvailable': val, 'is_active': val}, SetOptions(merge: true));
+      if (_proDocId != null) {
+        await FirebaseFirestore.instance.collection('professionals').doc(_proDocId).set(
+            {'isAvailable': val, 'is_active': val}, SetOptions(merge: true));
+      }
       await FirebaseFirestore.instance.collection('users').doc(uid).set(
           {'isAvailable': val}, SetOptions(merge: true));
     }
@@ -4013,7 +4181,18 @@ class _ProfessionalHomeScreenState extends State<ProfessionalHomeScreen> {
                   ),
                 ]),
                 const SizedBox(height: 12),
-                StreamBuilder<QuerySnapshot>(
+                // Μην τρέξεις κανένα query πριν φορτώσει το προφίλ (_proId/_proName) —
+                // αλλιώς τα queries γίνονται στιγμιαία με null/κενές τιμές και πιάνουν
+                // παλιά "ορφανά" documents χωρίς σωστό proId/professionalName, δείχνοντας
+                // λάθος αριθμούς σε ΟΛΟΥΣ τους επαγγελματίες μέχρι να διορθωθούν.
+                (_proId == null || _proId!.isEmpty || _proName == null || _proName!.isEmpty)
+                  ? const Row(children: [
+                      _ProStatBox(value: '0', label: 'Αιτήματα'),
+                      _ProStatBox(value: '0', label: 'Εκκρεμή'),
+                      _ProStatBox(value: '0', label: 'Bookings'),
+                      _ProStatBox(value: '—', label: 'Rating', highlight: true),
+                    ])
+                  : StreamBuilder<QuerySnapshot>(
                   stream: FirebaseFirestore.instance.collection('requests')
                       .where('proId', isEqualTo: _proId).where('status', isEqualTo: 'active').snapshots(),
                   builder: (_, s1) {
@@ -4032,7 +4211,7 @@ class _ProfessionalHomeScreenState extends State<ProfessionalHomeScreen> {
                               stream: FirebaseFirestore.instance.collection('reviews')
                                   .where('proId', isEqualTo: _proId).snapshots(),
                               builder: (_, s4) {
-                                double rating = 5.0;
+                                double rating = 0.0;
                                 if (s4.hasData && s4.data!.docs.isNotEmpty) {
                                   final total = s4.data!.docs.fold<double>(0, (sum, d) => sum + ((d.data() as Map)['rating'] as num? ?? 0).toDouble());
                                   rating = total / s4.data!.docs.length;
@@ -4041,7 +4220,7 @@ class _ProfessionalHomeScreenState extends State<ProfessionalHomeScreen> {
                                   _ProStatBox(value: '$reqCount', label: 'Αιτήματα'),
                                   _ProStatBox(value: '$pendCount', label: 'Εκκρεμή'),
                                   _ProStatBox(value: '$bookCount', label: 'Bookings'),
-                                  _ProStatBox(value: rating.toStringAsFixed(1), label: 'Rating', highlight: true),
+                                  _ProStatBox(value: rating > 0 ? rating.toStringAsFixed(1) : '—', label: 'Rating', highlight: true),
                                 ]);
                               },
                             );
@@ -4120,15 +4299,26 @@ class _ProfessionalHomeScreenState extends State<ProfessionalHomeScreen> {
           .limit(20)
           .snapshots(),
       builder: (_, snapReq) {
-        final proSpecialty = _specialty.toLowerCase();
+        // Fallback στο κύριο _specialty αν η λίστα _specialties είναι άδεια
+        // (παλιοί λογαριασμοί πριν το multi-specialty) — αλλιώς παρακάμπτεται
+        // εντελώς το φίλτρο ειδικότητας.
+        final proSpecialties = <String>{
+          ..._specialties.map((s) => s.toLowerCase()),
+          if (_specialty.isNotEmpty) _specialty.toLowerCase(),
+        }.toList();
         final proAreas = _areas.map((a) => a.toLowerCase()).toList();
-        final reqCount = snapReq.hasData
+        // Περιμένουμε ΚΑΙ τα δύο streams (offers + requests) πριν μετρήσουμε, αλλιώς
+        // ο μετρητής δείχνει στιγμιαία λάθος (μεγαλύτερο) αριθμό μέχρι να φτάσουν
+        // οι ήδη υποβληθείσες προσφορές και να τον διορθώσουν προς τα κάτω.
+        final reqCount = (snapOffers.hasData && snapReq.hasData)
             ? snapReq.data!.docs.where((d) {
                 if (_submittedIds.contains(d.id) || offeredIds.contains(d.id)) return false;
                 final data = d.data() as Map<String, dynamic>;
-                if (proSpecialty.isNotEmpty) {
+                final expiresAt = data['expiresAt'] as Timestamp?;
+                if (expiresAt != null && expiresAt.toDate().isBefore(DateTime.now())) return false;
+                if (proSpecialties.isNotEmpty) {
                   final reqProf = (data['profession'] as String? ?? '').toLowerCase();
-                  if (reqProf.isNotEmpty && !proSpecialty.contains(reqProf) && !reqProf.contains(proSpecialty)) return false;
+                  if (reqProf.isNotEmpty && !proSpecialties.any((s) => s.contains(reqProf) || reqProf.contains(s))) return false;
                 }
                 if (proAreas.isNotEmpty) {
                   final reqLoc = (data['location'] as String? ?? '').toLowerCase();
@@ -4139,6 +4329,7 @@ class _ProfessionalHomeScreenState extends State<ProfessionalHomeScreen> {
                 if (data['filterWithPhoto'] == true && (_proPhotoUrl == null || _proPhotoUrl!.isEmpty)) return false;
                 final minRating = (data['filterMinRating'] as num? ?? 0).toDouble();
                 if (minRating > 0 && _proAverageRating < minRating) return false;
+                if (data['filterVerifiedOnly'] == true && _proAfm.isEmpty) return false;
                 return true;
               }).length
             : 0;
@@ -4177,7 +4368,14 @@ class _ProfessionalHomeScreenState extends State<ProfessionalHomeScreen> {
                       crossAxisSpacing: 10,
                       mainAxisSpacing: 10,
                       children: [
-                        _buildNavCard('requests', '📋', 'Αιτήματα', 'Ολοκλήρωσε αιτήματα', badge: reqCount),
+                        _buildNavCard('requests', '📋', 'Αιτήματα', 'Ολοκλήρωσε αιτήματα', badge: reqCount, customOnTap: () {
+                          setState(() { _activeSection = 'requests'; _lastSeenRequestsAt = DateTime.now(); });
+                          final uid = FirebaseAuth.instance.currentUser?.uid;
+                          if (uid != null) {
+                            FirebaseFirestore.instance.collection('users').doc(uid)
+                                .set({'lastSeenRequestsAt': FieldValue.serverTimestamp()}, SetOptions(merge: true));
+                          }
+                        }),
                         _buildNavCard('messages', '💬', 'Μηνύματα', 'Εξυπηρέτηση πελατών',
                             badge: unreadMsg,
                             customOnTap: () => Navigator.push(context, MaterialPageRoute(
@@ -4245,7 +4443,7 @@ class _ProfessionalHomeScreenState extends State<ProfessionalHomeScreen> {
       case 'requests':
         return _buildRequestsList();
       case 'bookings':
-        return _buildBookingsList('pending');
+        return _buildBookingsList(null);
       case 'rejected':
         return _buildBookingsList('rejected');
       case 'minicv':
@@ -4259,15 +4457,17 @@ class _ProfessionalHomeScreenState extends State<ProfessionalHomeScreen> {
     }
   }
 
-  Widget _buildBookingsList(String status) {
+  Widget _buildBookingsList(String? status) {
+    Query<Map<String, dynamic>> query = FirebaseFirestore.instance
+        .collection('bookings')
+        .where('professionalName', isEqualTo: _proName);
+    if (status != null) query = query.where('status', isEqualTo: status);
     return StreamBuilder<QuerySnapshot>(
-      stream: FirebaseFirestore.instance
-          .collection('bookings')
-          .where('professionalName', isEqualTo: _proName)
-          .where('status', isEqualTo: status)
-          .orderBy('createdAt', descending: true)
-          .snapshots(),
+      stream: query.orderBy('createdAt', descending: true).snapshots(),
       builder: (context, snap) {
+        if (snap.hasError) {
+          return Center(child: Text('Σφάλμα φόρτωσης: ${snap.error}', textAlign: TextAlign.center, style: TextStyle(color: Colors.red.withValues(alpha: 0.7), fontSize: 12)));
+        }
         if (!snap.hasData) return const Center(child: CircularProgressIndicator(color: kGold));
         final docs = snap.data!.docs.where((d) => d.data() is Map && (d.data() as Map)['hiddenByPro'] != true).toList();
         if (docs.isEmpty) {
@@ -4284,6 +4484,11 @@ class _ProfessionalHomeScreenState extends State<ProfessionalHomeScreen> {
             final d = docs[i].data() as Map<String, dynamic>;
             final bookingId = docs[i].id;
             final isImmediate = d['isImmediate'] == true;
+            final itemStatus = d['status'] as String? ?? 'pending';
+            final statusColor = itemStatus == 'accepted' ? Colors.green
+                : itemStatus == 'rejected' ? Colors.red : kGold;
+            final statusLabel = itemStatus == 'accepted' ? '✅ Επιβεβαιωμένο'
+                : itemStatus == 'rejected' ? '❌ Απορρίφθηκε' : '⏳ Αναμονή';
             return Container(
               margin: const EdgeInsets.only(bottom: 12),
               decoration: BoxDecoration(borderRadius: BorderRadius.circular(18), color: _g(0.05)),
@@ -4317,13 +4522,23 @@ class _ProfessionalHomeScreenState extends State<ProfessionalHomeScreen> {
                         Text(d['userPhone'] ?? '', style: const TextStyle(color: kGold, fontWeight: FontWeight.w600, fontSize: 14)),
                       ]),
                     ),
+                    const SizedBox(height: 8),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(20),
+                        color: statusColor.withValues(alpha: 0.12),
+                        border: Border.all(color: statusColor.withValues(alpha: 0.35)),
+                      ),
+                      child: Text(statusLabel, style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: statusColor)),
+                    ),
                     const SizedBox(height: 5),
                     Row(children: [
                       Icon(Icons.access_time, color: _g(0.38), size: 14),
                       const SizedBox(width: 6),
                       Text(d['scheduledTime'] ?? '', style: TextStyle(color: _g(0.5), fontSize: 12)),
                     ]),
-                    if (status == 'pending') ...[
+                    if (itemStatus == 'pending') ...[
                       const SizedBox(height: 12),
                       Row(children: [
                         Expanded(child: GestureDetector(
@@ -4345,7 +4560,7 @@ class _ProfessionalHomeScreenState extends State<ProfessionalHomeScreen> {
                         )),
                       ]),
                     ],
-                    if (status != 'pending') ...[
+                    if (itemStatus != 'pending') ...[
                       const SizedBox(height: 10),
                       GestureDetector(
                         onTap: () async => FirebaseFirestore.instance.collection('bookings').doc(bookingId).update({'hiddenByPro': true}),
@@ -4462,8 +4677,9 @@ class _ProfessionalHomeScreenState extends State<ProfessionalHomeScreen> {
                 final uid = FirebaseAuth.instance.currentUser?.uid;
                 if (uid == null) return;
                 final val = _bioCtrl.text.trim();
+                if (_proDocId == null) return;
                 try {
-                  await FirebaseFirestore.instance.collection('professionals').doc(_proDocId ?? uid).set({'bio': val}, SetOptions(merge: true));
+                  await FirebaseFirestore.instance.collection('professionals').doc(_proDocId).set({'bio': val}, SetOptions(merge: true));
                   await FirebaseFirestore.instance.collection('users').doc(uid).set({'bio': val}, SetOptions(merge: true));
                   if (mounted) {
                     setState(() => _bio = val);
@@ -4511,7 +4727,9 @@ class _ProfessionalHomeScreenState extends State<ProfessionalHomeScreen> {
                     final updated = List<String>.from(_specialties)..remove(s);
                     final primary = updated.isNotEmpty ? updated.first : '';
                     await FirebaseFirestore.instance.collection('users').doc(uid).set({'specialties': updated, 'specialty': primary}, SetOptions(merge: true));
-                    await FirebaseFirestore.instance.collection('professionals').doc(_proDocId ?? uid).set({'specialties': updated, 'specialty': primary}, SetOptions(merge: true));
+                    if (_proDocId != null) {
+                      await FirebaseFirestore.instance.collection('professionals').doc(_proDocId).set({'specialties': updated, 'specialty': primary}, SetOptions(merge: true));
+                    }
                     if (mounted) setState(() { _specialties = updated; _specialty = primary; });
                   },
                   child: Container(
@@ -4542,7 +4760,9 @@ class _ProfessionalHomeScreenState extends State<ProfessionalHomeScreen> {
                 if (uid == null) return;
                 final primary = result.isNotEmpty ? result.first : '';
                 await FirebaseFirestore.instance.collection('users').doc(uid).set({'specialties': result, 'specialty': primary}, SetOptions(merge: true));
-                await FirebaseFirestore.instance.collection('professionals').doc(_proDocId ?? uid).set({'specialties': result, 'specialty': primary}, SetOptions(merge: true));
+                if (_proDocId != null) {
+                  await FirebaseFirestore.instance.collection('professionals').doc(_proDocId).set({'specialties': result, 'specialty': primary}, SetOptions(merge: true));
+                }
                 if (mounted) setState(() { _specialties = result; _specialty = primary; });
               },
               child: _cvPickerButton(
@@ -4570,7 +4790,9 @@ class _ProfessionalHomeScreenState extends State<ProfessionalHomeScreen> {
                     if (uid == null) return;
                     final updated = List<String>.from(_subSpecialties)..remove(s);
                     await FirebaseFirestore.instance.collection('users').doc(uid).set({'subSpecialties': updated}, SetOptions(merge: true));
-                    await FirebaseFirestore.instance.collection('professionals').doc(_proDocId ?? uid).set({'subSpecialties': updated}, SetOptions(merge: true));
+                    if (_proDocId != null) {
+                      await FirebaseFirestore.instance.collection('professionals').doc(_proDocId).set({'subSpecialties': updated}, SetOptions(merge: true));
+                    }
                     if (mounted) setState(() => _subSpecialties = updated);
                   },
                   child: Container(
@@ -4600,7 +4822,9 @@ class _ProfessionalHomeScreenState extends State<ProfessionalHomeScreen> {
                 final uid = FirebaseAuth.instance.currentUser?.uid;
                 if (uid == null) return;
                 await FirebaseFirestore.instance.collection('users').doc(uid).set({'subSpecialties': result}, SetOptions(merge: true));
-                await FirebaseFirestore.instance.collection('professionals').doc(_proDocId ?? uid).set({'subSpecialties': result}, SetOptions(merge: true));
+                if (_proDocId != null) {
+                  await FirebaseFirestore.instance.collection('professionals').doc(_proDocId).set({'subSpecialties': result}, SetOptions(merge: true));
+                }
                 if (mounted) setState(() => _subSpecialties = result);
               },
               child: _cvPickerButton(
@@ -4628,7 +4852,9 @@ class _ProfessionalHomeScreenState extends State<ProfessionalHomeScreen> {
                     if (uid == null) return;
                     final updated = List<String>.from(_areas)..remove(a);
                     await FirebaseFirestore.instance.collection('users').doc(uid).set({'areas': updated}, SetOptions(merge: true));
-                    await FirebaseFirestore.instance.collection('professionals').doc(_proDocId ?? uid).set({'areas': updated}, SetOptions(merge: true));
+                    if (_proDocId != null) {
+                      await FirebaseFirestore.instance.collection('professionals').doc(_proDocId).set({'areas': updated}, SetOptions(merge: true));
+                    }
                     if (mounted) setState(() => _areas = updated);
                   },
                   child: Container(
@@ -4658,7 +4884,9 @@ class _ProfessionalHomeScreenState extends State<ProfessionalHomeScreen> {
                 final uid = FirebaseAuth.instance.currentUser?.uid;
                 if (uid == null) return;
                 await FirebaseFirestore.instance.collection('users').doc(uid).set({'areas': result}, SetOptions(merge: true));
-                await FirebaseFirestore.instance.collection('professionals').doc(_proDocId ?? uid).set({'areas': result}, SetOptions(merge: true));
+                if (_proDocId != null) {
+                  await FirebaseFirestore.instance.collection('professionals').doc(_proDocId).set({'areas': result}, SetOptions(merge: true));
+                }
                 if (mounted) setState(() => _areas = result);
               },
               child: _cvPickerButton(
@@ -4692,7 +4920,9 @@ class _ProfessionalHomeScreenState extends State<ProfessionalHomeScreen> {
                 if (ratingCount > 0) 'googleRatingCount': ratingCount,
               };
               await FirebaseFirestore.instance.collection('users').doc(uid).set(data, SetOptions(merge: true));
-              await FirebaseFirestore.instance.collection('professionals').doc(_proDocId ?? uid).set(data, SetOptions(merge: true));
+              if (_proDocId != null) {
+                await FirebaseFirestore.instance.collection('professionals').doc(_proDocId).set(data, SetOptions(merge: true));
+              }
               if (mounted) setState(() {
                 _companyName = name;
                 _googlePlaceId = placeId;
@@ -4735,7 +4965,9 @@ class _ProfessionalHomeScreenState extends State<ProfessionalHomeScreen> {
                     if (uid == null) return;
                     final val = int.tryParse(_yearsCtrl.text.trim()) ?? 0;
                     await FirebaseFirestore.instance.collection('users').doc(uid).update({'yearsExperience': val});
-                    await FirebaseFirestore.instance.collection('professionals').doc(_proDocId ?? uid).set({'yearsExperience': val}, SetOptions(merge: true));
+                    if (_proDocId != null) {
+                      await FirebaseFirestore.instance.collection('professionals').doc(_proDocId).set({'yearsExperience': val}, SetOptions(merge: true));
+                    }
                     if (mounted) setState(() { _yearsExperience = val; _editingYears = false; });
                   },
                 ),
@@ -4881,7 +5113,8 @@ class _ProfessionalHomeScreenState extends State<ProfessionalHomeScreen> {
       'title': p['title'],
       'photos': p['photos'] ?? [],
     }).toList();
-    await FirebaseFirestore.instance.collection('professionals').doc(_proDocId ?? uid).set({'portfolioProjects': data}, SetOptions(merge: true));
+    if (_proDocId == null) return;
+    await FirebaseFirestore.instance.collection('professionals').doc(_proDocId).set({'portfolioProjects': data}, SetOptions(merge: true));
     await FirebaseFirestore.instance.collection('users').doc(uid).set({'portfolioProjects': data}, SetOptions(merge: true));
   }
 
@@ -5317,7 +5550,8 @@ class _ProfessionalHomeScreenState extends State<ProfessionalHomeScreen> {
                     final ig = _igCtrl.text.trim().replaceAll('@', '');
                     final tt = _ttCtrl.text.trim().replaceAll('@', '');
                     final data = {'instagram': ig, 'tiktok': tt};
-                    await FirebaseFirestore.instance.collection('professionals').doc(_proDocId ?? uid).set(data, SetOptions(merge: true));
+                    if (_proDocId == null) return;
+                    await FirebaseFirestore.instance.collection('professionals').doc(_proDocId).set(data, SetOptions(merge: true));
                     await FirebaseFirestore.instance.collection('users').doc(uid).set(data, SetOptions(merge: true));
                     if (mounted) {
                       setState(() { _instagramUrl = ig; _tiktokUrl = tt; _editingSocial = false; });
@@ -5354,7 +5588,18 @@ class _ProfessionalHomeScreenState extends State<ProfessionalHomeScreen> {
     if (_proName == null || _proName!.isEmpty) {
       return const Center(child: CircularProgressIndicator(color: kGold));
     }
+    // Live έλεγχος από το 'offers' collection — έτσι ένα αίτημα κρύβεται
+    // αξιόπιστα αμέσως μόλις σταλεί προσφορά, ανεξάρτητα από ποιο σημείο της
+    // εφαρμογής έγινε η αποστολή (π.χ. και από quick-reply notification).
     return StreamBuilder<QuerySnapshot>(
+      stream: _proId != null
+          ? FirebaseFirestore.instance.collection('offers').where('professionalId', isEqualTo: _proId).snapshots()
+          : const Stream.empty(),
+      builder: (_, snapOffers) {
+        final offeredIds = snapOffers.hasData
+            ? snapOffers.data!.docs.map((d) => (d.data() as Map)['requestId'] as String? ?? '').toSet()
+            : <String>{};
+        return StreamBuilder<QuerySnapshot>(
       stream: FirebaseFirestore.instance
           .collection('requests')
           .where('status', isEqualTo: 'active')
@@ -5364,16 +5609,22 @@ class _ProfessionalHomeScreenState extends State<ProfessionalHomeScreen> {
         if (!snap.hasData) {
           return const Center(child: CircularProgressIndicator(color: kGold));
         }
-        final proSpecialty = _specialty.toLowerCase();
+        final proSpecialties = <String>{
+          ..._specialties.map((s) => s.toLowerCase()),
+          if (_specialty.isNotEmpty) _specialty.toLowerCase(),
+        }.toList();
         final proAreas = _areas.map((a) => a.toLowerCase()).toList();
         final docs = snap.data!.docs
-            .where((d) => !_submittedIds.contains(d.id))
+            .where((d) => !_submittedIds.contains(d.id) && !offeredIds.contains(d.id))
             .where((d) {
               final data = d.data() as Map<String, dynamic>;
+              // Κρύψε ληγμένα αιτήματα (πέρασε η 1 ώρα)
+              final expiresAt = data['expiresAt'] as Timestamp?;
+              if (expiresAt != null && expiresAt.toDate().isBefore(DateTime.now())) return false;
               // Filter by profession
               final reqProfession = (data['profession'] as String? ?? '').toLowerCase();
-              if (proSpecialty.isNotEmpty && reqProfession.isNotEmpty) {
-                if (!proSpecialty.contains(reqProfession) && !reqProfession.contains(proSpecialty)) return false;
+              if (proSpecialties.isNotEmpty && reqProfession.isNotEmpty) {
+                if (!proSpecialties.any((s) => s.contains(reqProfession) || reqProfession.contains(s))) return false;
               }
               // Filter by location
               final reqLocation = (data['location'] as String? ?? '').toLowerCase();
@@ -5388,6 +5639,8 @@ class _ProfessionalHomeScreenState extends State<ProfessionalHomeScreen> {
               // Filter by filterMinRating: pro's rating must meet minimum
               final minRating = (data['filterMinRating'] as num? ?? 0).toDouble();
               if (minRating > 0 && _proAverageRating < minRating) return false;
+              // Filter by filterVerifiedOnly: pro must have AFM (verified)
+              if (data['filterVerifiedOnly'] == true && _proAfm.isEmpty) return false;
               return true;
             })
             .toList();
@@ -5618,6 +5871,8 @@ class _ProfessionalHomeScreenState extends State<ProfessionalHomeScreen> {
             );
           },
         );
+      },
+    );
       },
     );
   }
@@ -5950,45 +6205,10 @@ class _ProfessionalHomeScreenState extends State<ProfessionalHomeScreen> {
 
 Future<void> _submitOffer(String requestId, Map<String, dynamic> requestData,
     double price, String message, String available, {String? audioUrl, bool priceAfterVisit = false}) async {
-  try {
-    final response = await http.post(
-      Uri.parse('$kBackendUrl/submit-offer'),
-      headers: {'Content-Type': 'application/json'},
-      body: jsonEncode({
-        'requestId': requestId,
-        'professionalId': _proId ?? '',
-        'professionalName': _proName ?? '',
-        'price': price,
-        'priceAfterVisit': priceAfterVisit,
-        'message': message,
-        'availableFrom': available,
-        'rating': 4.8,
-        'emoji': '🔧',
-        if (audioUrl != null) 'audioUrl': audioUrl,
-      }),
-    ).timeout(const Duration(seconds: 8));
-
-    if (response.statusCode == 200) {
-      if (mounted) {
-        setState(() => _submittedIds.add(requestId));
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: const Text('✅ Η προσφορά στάλθηκε!'),
-            backgroundColor: kGreen.withValues(alpha: 0.9),
-            behavior: SnackBarBehavior.floating,
-          ),
-        );
-      }
-    } else {
-      await _submitOfferFallback(requestId, price, message, available, audioUrl: audioUrl, priceAfterVisit: priceAfterVisit);
-    }
-  } catch (e) {
-    await _submitOfferFallback(requestId, price, message, available, audioUrl: audioUrl, priceAfterVisit: priceAfterVisit);
-  }
+  await _submitOfferFallback(requestId, requestData, price, message, available, audioUrl: audioUrl, priceAfterVisit: priceAfterVisit);
 }
 
-// Fallback μόνο αν το server δεν απαντά
-Future<void> _submitOfferFallback(String requestId, double price,
+Future<void> _submitOfferFallback(String requestId, Map<String, dynamic> requestData, double price,
     String message, String available, {String? audioUrl, bool priceAfterVisit = false}) async {
   try {
     // Έλεγξε αν υπάρχει ήδη προσφορά από τον ίδιο επαγγελματία
@@ -6026,6 +6246,31 @@ Future<void> _submitOfferFallback(String requestId, double price,
         .collection('requests').doc(requestId)
         .update({'offersCount': FieldValue.increment(1)});
 
+    // Ειδοποίηση email/push στον χρήστη ότι έλαβε νέα προσφορά
+    try {
+      final requestUserId = requestData['userId'] as String?;
+      if (requestUserId != null && requestUserId.isNotEmpty) {
+        final userDoc = await FirebaseFirestore.instance.collection('users').doc(requestUserId).get();
+        final ud = userDoc.data();
+        final userFcmToken = ud?['fcmToken'] as String?;
+        final userName = ud?['name'] as String? ?? requestData['userName'] as String? ?? 'Χρήστη';
+        // Το email δεν αποθηκεύεται πάντα στο Firestore users doc — το backend
+        // το βρίσκει αξιόπιστα από το Firebase Auth μέσω του userId.
+        await http.post(
+          Uri.parse('$kBackendUrl/new-offer'),
+          headers: {'Content-Type': 'application/json'},
+          body: jsonEncode({
+            'userId': requestUserId,
+            'userName': userName,
+            if (userFcmToken != null) 'userFcmToken': userFcmToken,
+            'proName': _proName ?? 'Επαγγελματίας',
+            'price': price,
+            'requestDesc': requestData['description'] ?? '',
+          }),
+        ).timeout(const Duration(seconds: 8));
+      }
+    } catch (_) {} // Μη μπλοκάρεις την υποβολή προσφοράς αν αποτύχει η ειδοποίηση
+
     if (mounted) {
       setState(() => _submittedIds.add(requestId));
       ScaffoldMessenger.of(context).showSnackBar(
@@ -6058,7 +6303,7 @@ class _RequestProfessionPickerState extends State<_RequestProfessionPicker> {
   // Fallback list — ίδιο με τη σελίδα admin
   static const _fallback = [
     'Αλουμινάς', 'Αποφράξεις', 'Αρχιτέκτονας', 'Baby Sitter',
-    'Βιολογικός Καθαρισμός', 'Γραφίστας', 'Γυάλισμα Μαρμάρων', 'Γυψοσανίδες',
+    'Βιολογικός Καθαρισμός', 'Γκαραζόπορτες - Ρολά - Συρόμενα', 'Γραφίστας', 'Γυάλισμα Μαρμάρων', 'Γυψοσανίδες',
     'Διατροφολόγος', 'Δικηγόρος', 'Διοργάνωση Πάρτυ', 'DJ / Μουσική Εκδηλώσεων',
     'Εγκατάσταση Ηλιακών', 'Εκδηλώσεις Βάφτισης', 'Εκδηλώσεις Γάμου', 'Εκπαιδευτής Σκύλων',
     'Ελαιοχρωματιστής', 'Ηλεκτρολόγος', 'Καθαρίστρια', 'Καθηγητής Αγγλικών',
@@ -6194,7 +6439,7 @@ class _CategorySpecialtyPickerState extends State<_CategorySpecialtyPicker> {
 
   @override
   Widget build(BuildContext context) {
-    final q = _search.toLowerCase();
+    final q = _foldGreek(_search);
     return Container(
       height: MediaQuery.of(context).size.height * 0.85,
       decoration: const BoxDecoration(
@@ -6247,7 +6492,7 @@ class _CategorySpecialtyPickerState extends State<_CategorySpecialtyPicker> {
             final cat = _specialtyCategories[i];
             final catName = cat['category'] as String;
             final items = (cat['items'] as List<String>)
-                .where((s) => q.isEmpty || s.toLowerCase().contains(q))
+                .where((s) => q.isEmpty || _foldGreek(s).contains(q))
                 .toList();
             if (items.isEmpty) return const SizedBox();
             return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
@@ -6309,7 +6554,7 @@ class _SimpleListPickerState extends State<_SimpleListPicker> {
   Widget build(BuildContext context) {
     final filtered = _query.isEmpty
         ? widget.items
-        : widget.items.where((item) => item.toLowerCase().contains(_query.toLowerCase())).toList();
+        : widget.items.where((item) => _foldGreek(item).contains(_foldGreek(_query))).toList();
     return Container(
     height: MediaQuery.of(context).size.height * 0.80,
     decoration: const BoxDecoration(
@@ -6580,6 +6825,7 @@ class _AIInsightsWidget extends StatelessWidget {
 
   String _detectProfession(String t) {
     t = t.toLowerCase();
+    if (t.contains('γκαραζόπορτ') || t.contains('ρολό') || t.contains('συρόμεν')) return 'Γκαραζόπορτες - Ρολά - Συρόμενα';
     if (t.contains('βαψ') || t.contains('βαφ') || t.contains('χρωμ') || t.contains('σαλόνι')) return 'Ελαιοχρωματιστής';
     if (t.contains('ηλεκτρ') || t.contains('ρεύμα') || t.contains('ασφάλεια')) return 'Ηλεκτρολόγος';
     if (t.contains('υδρ') || t.contains('νερ') || t.contains('βρύση') || t.contains('αποχέτ')) return 'Υδραυλικός';
@@ -6688,6 +6934,7 @@ class _RequestScreenState extends State<RequestScreen>
   String _selectedCriteria = 'cheap';
   bool _filterWithPhoto = false;
   double _filterMinRating = 0.0;
+  bool _filterVerifiedOnly = false;
   final List<XFile> _images = [];
   XFile? _video;
   final _picker = ImagePicker();
@@ -6956,6 +7203,7 @@ class _RequestScreenState extends State<RequestScreen>
         'imageCount': _images.length,
         'filterWithPhoto': _filterWithPhoto,
         'filterMinRating': _filterMinRating,
+        'filterVerifiedOnly': _filterVerifiedOnly,
         if (_requestAudioUrl != null) 'audioUrl': _requestAudioUrl,
       });
 
@@ -6963,18 +7211,30 @@ class _RequestScreenState extends State<RequestScreen>
       try {
         // Encode images as base64
         List<String> imageBase64 = [];
+        int imageFailCount = 0;
         for (final img in _images) {
           try {
             final bytes = await img.readAsBytes();
             imageBase64.add(base64Encode(bytes));
-          } catch (_) {}
+          } catch (_) {
+            imageFailCount++;
+          }
         }
-        // Αποθήκευσε images στο Firestore (base64) για να τα βλέπει ο επαγγελματίας
-        if (imageBase64.isNotEmpty) {
-          await FirebaseFirestore.instance
-              .collection('requests')
-              .doc(docRef.id)
-              .update({'images': imageBase64, 'hasImages': true});
+        // Αποθήκευσε images στο Firestore (base64) για να τα βλέπει ο επαγγελματίας.
+        // Διόρθωσε πάντα το imageCount ώστε να ταιριάζει με όσες πραγματικά
+        // αποθηκεύτηκαν — αλλιώς ο επαγγελματίας βλέπει ένδειξη φωτογραφίας
+        // που στην πραγματικότητα δεν υπάρχει (imageCount>0 αλλά images: null).
+        await FirebaseFirestore.instance
+            .collection('requests')
+            .doc(docRef.id)
+            .update({
+              if (imageBase64.isNotEmpty) 'images': imageBase64,
+              'hasImages': imageBase64.isNotEmpty,
+              'imageCount': imageBase64.length,
+            });
+        if (imageFailCount > 0 && mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('⚠️ $imageFailCount φωτογραφία(ες) δεν στάλθηκαν'), backgroundColor: Colors.orange));
         }
 
         // Upload βίντεο στο Storage αν υπάρχει
@@ -7001,10 +7261,17 @@ class _RequestScreenState extends State<RequestScreen>
                 .update({'videoUrl': vurl, 'hasVideo': true});
             if (mounted) ScaffoldMessenger.of(context).hideCurrentSnackBar();
           } catch (e) {
+            // Σε release web builds τα ονόματα κλάσεων JS σφαλμάτων είναι
+            // "minified" (π.χ. "Instance of minified:oe") — άχρηστα στον χρήστη.
+            // Δείξε κατανοητό μήνυμα, κράτα το raw error μόνο στο console.
+            debugPrint('Video upload error: $e');
             if (mounted) {
               ScaffoldMessenger.of(context).hideCurrentSnackBar();
               ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(content: Text('Σφάλμα βίντεο: $e'), backgroundColor: Colors.red));
+                const SnackBar(
+                  content: Text('⚠️ Το βίντεο δεν στάλθηκε. Δοκίμασε ξανά ή με μικρότερο αρχείο.'),
+                  backgroundColor: Colors.red,
+                ));
             }
           } finally {
             if (mounted) setState(() => _videoUploading = false);
@@ -7043,6 +7310,7 @@ class _RequestScreenState extends State<RequestScreen>
             'location': _selectedLocation ?? '',
             'description': _textCtrl.text.trim(),
             'requestId': docRef.id,
+            'filterVerifiedOnly': _filterVerifiedOnly,
           }),
         ).timeout(const Duration(seconds: 60)).catchError((_) {});
 
@@ -7542,6 +7810,10 @@ Future<void> _notifyProsDirectly(
                     _CriteriaChip(emoji: '4.5★', label: '4.5+',
                         selected: _filterMinRating == 4.5,
                         onTap: () => setState(() => _filterMinRating = _filterMinRating == 4.5 ? 0.0 : 4.5)),
+                    const SizedBox(width: 8),
+                    _CriteriaChip(emoji: '✓', label: 'Verified',
+                        selected: _filterVerifiedOnly,
+                        onTap: () => setState(() => _filterVerifiedOnly = !_filterVerifiedOnly)),
                   ]),
                   const SizedBox(height: 10),
                   Row(mainAxisAlignment: MainAxisAlignment.center, children: [
@@ -8415,15 +8687,23 @@ class _OffersScreenState extends State<OffersScreen>
         });
       }
 
-      // Ενημέρωση request ως completed
+      // Ενημέρωση request ως completed — dismissed απευθείας εδώ (όχι μόνο
+      // στο κουμπί του διαλόγου παρακάτω) ώστε να εξαφανίζεται αμέσως από
+      // την αρχική οθόνη, χωρίς να χρειάζεται δεύτερο πέρασμα.
       await FirebaseFirestore.instance
           .collection('requests')
           .doc(widget.requestId)
-          .update({'status': 'completed', 'selectedPro': offer['name']});
+          .update({'status': 'completed', 'selectedPro': offer['name'], 'dismissed': true});
 
       // Notification + FCM push στον επαγγελματία
       final proId = offer['professionalId'] as String?;
       if (proId != null && proId.isNotEmpty) {
+        // ΣΗΜΕΙΩΣΗ: η αύξηση του μετρητή "Δουλειές" ΔΕΝ γίνεται εδώ πλέον —
+        // οι κανόνες ασφαλείας δεν επιτρέπουν στον πελάτη να γράψει στο
+        // προφίλ του επαγγελματία (μόνο ο ίδιος/admin μπορεί), οπότε αυτό το
+        // βήμα πετούσε σφάλμα δικαιωμάτων και μπλόκαρε ΟΛΑ τα επόμενα βήματα
+        // (ειδοποίηση, push, email). Μεταφέρθηκε στο backend (/offer-accepted)
+        // που έχει πλήρη πρόσβαση μέσω Admin SDK.
         await FirebaseFirestore.instance
             .collection('users').doc(proId)
             .collection('notifications').add({
@@ -8458,6 +8738,20 @@ class _OffersScreenState extends State<OffersScreen>
               }),
             ).timeout(const Duration(seconds: 6));
           }
+        } catch (_) {}
+
+        // Email στον επαγγελματία ότι αποδέχτηκαν την προσφορά του
+        try {
+          await http.post(
+            Uri.parse('$kBackendUrl/offer-accepted'),
+            headers: {'Content-Type': 'application/json'},
+            body: jsonEncode({
+              'proId': proId,
+              'userName': userName,
+              'userPhone': userPhone,
+              'requestDesc': widget.description,
+            }),
+          ).timeout(const Duration(seconds: 8));
         } catch (_) {}
       }
     } catch (e) {
@@ -8502,6 +8796,11 @@ class _OffersScreenState extends State<OffersScreen>
                     onTap: () {
                       Navigator.pop(ctx);
                       Navigator.popUntil(context, (r) => r.isFirst);
+                      // Mark request as dismissed so home screen clears the card
+                      FirebaseFirestore.instance
+                          .collection('requests')
+                          .doc(widget.requestId)
+                          .update({'dismissed': true}).catchError((_) {});
                     },
                   ),
                 ]),
@@ -10287,7 +10586,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
       if (mounted) ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Φωτογραφία αποθηκεύτηκε ✓'), backgroundColor: Colors.green));
     } catch (e) {
-      if (mounted) setState(() => _uploadingPhoto = false);
+      if (mounted) {
+        setState(() => _uploadingPhoto = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Σφάλμα: $e'), backgroundColor: Colors.red));
+      }
     }
   }
 
@@ -10619,45 +10922,71 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   void _showEditDialog() {
     _nameCtrl.text = _name ?? '';
-    _cityCtrl.text = _city ?? '';
+    String? pickedCity = _city?.isNotEmpty == true ? _city : null;
     showDialog(
         context: context,
-        builder: (ctx) => AlertDialog(
+        builder: (ctx) => StatefulBuilder(builder: (ctx, setS) => AlertDialog(
               backgroundColor: const Color(0xFF111111),
               shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(20),
                   side: BorderSide(color: kGold.withValues(alpha: 0.2))),
               title: const Text('Επεξεργασία',
-                  style: TextStyle(
-                      color: Colors.white, fontFamily: 'Raleway')),
+                  style: TextStyle(color: Colors.white, fontFamily: 'Raleway')),
               content: Column(mainAxisSize: MainAxisSize.min, children: [
-                _GoldTextField(
-                    controller: _nameCtrl, label: 'Όνομα'),
+                _GoldTextField(controller: _nameCtrl, label: 'Όνομα'),
                 const SizedBox(height: 12),
-                _GoldTextField(
-                    controller: _cityCtrl, label: 'Πόλη'),
+                // City: picker for pros, text field for users
+                if (_role == 'professional')
+                  GestureDetector(
+                    onTap: () async {
+                      final r = await showModalBottomSheet<String>(
+                          context: ctx, backgroundColor: Colors.transparent, isScrollControlled: true,
+                          builder: (_) => const _AreaPicker());
+                      if (r != null) setS(() => pickedCity = r);
+                    },
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(12),
+                        color: pickedCity != null ? kGold.withValues(alpha: 0.08) : Colors.white.withValues(alpha: 0.04),
+                        border: Border.all(color: pickedCity != null ? kGold.withValues(alpha: 0.5) : Colors.white.withValues(alpha: 0.12)),
+                      ),
+                      child: Row(children: [
+                        Icon(Icons.location_on_outlined, color: pickedCity != null ? kGold : Colors.white.withValues(alpha: 0.35), size: 18),
+                        const SizedBox(width: 10),
+                        Expanded(child: Text(pickedCity ?? 'Επίλεξε περιοχή κατοικίας...', style: TextStyle(color: pickedCity != null ? Colors.white : Colors.white.withValues(alpha: 0.3), fontSize: 14))),
+                        if (pickedCity != null) Icon(Icons.check_circle, color: kGold, size: 16),
+                      ]),
+                    ),
+                  )
+                else
+                  _GoldTextField(controller: _cityCtrl, label: 'Πόλη'),
               ]),
               actions: [
                 TextButton(
                     onPressed: () => Navigator.pop(ctx),
-                    child: const Text('Άκυρο',
-                        style: TextStyle(color: Colors.white54))),
+                    child: const Text('Άκυρο', style: TextStyle(color: Colors.white54))),
                 TextButton(
                   onPressed: () async {
                     final user = FirebaseAuth.instance.currentUser;
                     if (user == null) return;
                     final newName = _nameCtrl.text.trim();
-                    final newCity = _cityCtrl.text.trim();
+                    final newCity = _role == 'professional' ? (pickedCity ?? '') : _cityCtrl.text.trim();
                     try {
-                      await FirebaseFirestore.instance
-                          .collection('users')
-                          .doc(user.uid)
-                          .set({'name': newName, 'city': newCity}, SetOptions(merge: true));
+                      // For pros: save area to users doc; for users: save city
+                      final usersUpdate = _role == 'professional'
+                          ? {'name': newName, 'area': newCity}
+                          : {'name': newName, 'city': newCity};
+                      await FirebaseFirestore.instance.collection('users').doc(user.uid)
+                          .set(usersUpdate, SetOptions(merge: true));
                       if (_role == 'professional') {
-                        await FirebaseFirestore.instance
-                            .collection('professionals')
-                            .doc(user.uid)
-                            .set({'name': newName, 'city': newCity}, SetOptions(merge: true));
+                        // Find correct pro doc (may differ from user.uid for legacy accounts)
+                        String proDocId = user.uid;
+                        final proQ = await FirebaseFirestore.instance.collection('professionals')
+                            .where('userId', isEqualTo: user.uid).limit(1).get();
+                        if (proQ.docs.isNotEmpty) proDocId = proQ.docs.first.id;
+                        await FirebaseFirestore.instance.collection('professionals').doc(proDocId)
+                            .set({'name': newName, 'area': newCity}, SetOptions(merge: true));
                       }
                       await user.updateDisplayName(newName);
                       setState(() { _name = newName; _city = newCity; });
@@ -10667,11 +10996,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         SnackBar(content: Text('Σφάλμα: $e'), backgroundColor: Colors.red));
                     }
                   },
-                  child: const Text('Αποθήκευση',
-                      style: TextStyle(color: kGold)),
+                  child: const Text('Αποθήκευση', style: TextStyle(color: kGold)),
                 ),
               ],
-            ));
+            )));
   }
 
   void _showChangePasswordDialog() {
@@ -10982,6 +11310,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     onTap: () async {
                       await FirebaseAuth.instance.signOut();
                       await AuthService.logout();
+                      try {
+                        await FirebaseFirestore.instance.terminate();
+                        await FirebaseFirestore.instance.clearPersistence();
+                      } catch (_) {}
                       if (mounted) {
                         Navigator.of(context).popUntil((r) => r.isFirst);
                       }
@@ -11618,7 +11950,7 @@ const List<Map<String, dynamic>> _specialtyCategories = [
   {
     'category': 'Τεχνικοί',
     'items': [
-      'Αλουμινάς', 'Αποφράξεις', 'Γυάλισμα Μαρμάρων', 'Γυψοσανίδες',
+      'Αλουμινάς', 'Αποφράξεις', 'Γκαραζόπορτες - Ρολά - Συρόμενα', 'Γυάλισμα Μαρμάρων', 'Γυψοσανίδες',
       'Εγκατάσταση Ηλιακών', 'Ελαιοχρωματιστής', 'Ηλεκτρολόγος', 'Κτίστης',
       'Μεταλλικές Κατασκευές', 'Μονώσεις - Διαχείριση & Αντιμετώπιση Υγρασίας', 'Πλακάς', 'Συντήρηση Κλιματιστικών',
       'Τεχνικός Ανελκυστήρων', 'Υαλουργός', 'Υδραυλικός', 'Υπηρεσία Αποξήλωσης',
@@ -11859,13 +12191,23 @@ const List<String> _greekAreas = [
   'Σάμος', 'Αν. Σάμου', 'Καρλόβασι',                        // Σάμος
   'Ικαρία', 'Λήμνος', 'Άγιος Ευστράτιος',
 
-  // ── ΝΟΤΙΟ ΑΙΓΑΙΟ ──
-  'Ρόδος', 'Λίνδος', 'Κάρπαθος',                // Δωδεκάνησα - Ρόδος
-  'Κως', 'Νίσυρος',
-  'Καλύμνιοι', 'Λέρος', 'Πάτμος', 'Αστυπάλαια',
-  'Μύκονος', 'Νάξος & Μ.Κυκλάδες', 'Πάρος', 'Σαντορίνη', 'Σύρος-Ερμούπολη', // Κυκλάδες
+  // ── ΝΟΤΙΟ ΑΙΓΑΙΟ - Δωδεκάνησα ──
+  'Ρόδος', 'Λίνδος', 'Κάρπαθος', 'Κάσος', 'Καστελλόριζο',
+  'Κως', 'Νίσυρος', 'Τήλος', 'Σύμη', 'Χάλκη',
+  'Καλύμνιοι', 'Λέρος', 'Πάτμος', 'Αστυπάλαια', 'Λειψοί',
+
+  // ── ΝΟΤΙΟ ΑΙΓΑΙΟ - Κυκλάδες ──
+  'Μύκονος', 'Νάξος & Μ.Κυκλάδες', 'Πάρος', 'Σαντορίνη', 'Σύρος-Ερμούπολη',
   'Άνδρος', 'Τήνος', 'Κέα-Κύθνος', 'Μήλος', 'Αμοργός', 'Θήρα',
+  'Ίος', 'Σίφνος', 'Σέριφος', 'Φολέγανδρος', 'Σίκινος', 'Ανάφη',
+  'Κουφονήσια', 'Σχοινούσα', 'Ηρακλειά', 'Δονούσα',
   'Κύθηρα', 'Αντικύθηρα',
+
+  // ── ΒΟΡΕΙΟ ΑΙΓΑΙΟ (επιπλέον) ──
+  'Ψαρά', 'Οινούσσες', 'Φούρνοι',
+
+  // ── ΣΑΡΩΝΙΚΟΣ ──
+  'Αίγινα', 'Πόρος', 'Ύδρα', 'Σπέτσες', 'Αγκίστρι',
 ];
 
 // Flat sorted list of all specialties (χρησιμοποιείται παντού)
@@ -12592,7 +12934,7 @@ class _NearbyProsSectionState extends State<_NearbyProsSection> {
       stream: FirebaseFirestore.instance
           .collection('professionals')
           .where('is_active', isEqualTo: true)
-          .limit(20)
+          .limit(50)
           .snapshots(),
       builder: (context, snap) {
         final docs = snap.hasData ? snap.data!.docs : <QueryDocumentSnapshot>[];
@@ -12610,6 +12952,12 @@ class _NearbyProsSectionState extends State<_NearbyProsSection> {
               final name = d['name'] as String? ?? 'Επαγγελματίας';
               final specialty = d['specialty'] as String?
                   ?? d['profession'] as String? ?? '';
+              final areasList = List<String>.from((d['areas'] as List?)?.whereType<String>() ?? []);
+              final area = (d['area'] as String? ?? '').isNotEmpty
+                  ? d['area'] as String
+                  : (areasList.isNotEmpty ? areasList.first : '');
+              final specialtiesList = List<String>.from((d['specialties'] as List?)?.whereType<String>() ?? []);
+              final extraSpecialties = specialtiesList.length > 1 ? specialtiesList.length - 1 : 0;
               final rating = _combinedRating(d);
               final userId = d['userId'] as String? ?? doc.id;
               final createdAt = (d['createdAt'] as Timestamp?)?.toDate() ?? (d['created_at'] as Timestamp?)?.toDate();
@@ -12655,6 +13003,25 @@ class _NearbyProsSectionState extends State<_NearbyProsSection> {
                             ),
                           ),
                         )),
+                        // Badge πάνω αριστερά: περιοχή
+                        if (area.isNotEmpty)
+                          Positioned(top: 8, left: 8,
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
+                              constraints: const BoxConstraints(maxWidth: 100),
+                              decoration: BoxDecoration(
+                                borderRadius: BorderRadius.circular(6),
+                                color: Colors.black.withValues(alpha: 0.65),
+                                border: Border.all(color: kGold.withValues(alpha: 0.4)),
+                              ),
+                              child: Row(mainAxisSize: MainAxisSize.min, children: [
+                                const Icon(Icons.location_on, color: kGold, size: 9),
+                                const SizedBox(width: 3),
+                                Flexible(child: Text(area, maxLines: 1, overflow: TextOverflow.ellipsis,
+                                    style: const TextStyle(color: kGold, fontSize: 8, fontWeight: FontWeight.w700))),
+                              ]),
+                            ),
+                          ),
                         // Badge πάνω δεξιά: Verified αν έχει ΑΦΜ, αλλιώς Νέος
                         if (isVerified || isNew)
                           Positioned(top: 8, right: 8,
@@ -12662,14 +13029,14 @@ class _NearbyProsSectionState extends State<_NearbyProsSection> {
                               padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
                               decoration: BoxDecoration(
                                 borderRadius: BorderRadius.circular(6),
-                                color: isVerified ? const Color(0xFF1565C0).withValues(alpha: 0.85) : Colors.black.withValues(alpha: 0.65),
-                                border: Border.all(color: isVerified ? const Color(0xFF42A5F5) : kGold.withValues(alpha: 0.4)),
+                                color: Colors.black.withValues(alpha: 0.65),
+                                border: Border.all(color: kGold.withValues(alpha: 0.4)),
                               ),
                               child: Row(mainAxisSize: MainAxisSize.min, children: [
                                 if (isVerified) ...[
-                                  const Icon(Icons.verified, color: Color(0xFF42A5F5), size: 9),
+                                  const Icon(Icons.verified, color: kGold, size: 9),
                                   const SizedBox(width: 3),
-                                  const Text('Verified', style: TextStyle(color: Color(0xFF90CAF9), fontSize: 8, fontWeight: FontWeight.w700)),
+                                  const Text('Verified', style: TextStyle(color: kGold, fontSize: 8, fontWeight: FontWeight.w700)),
                                 ] else
                                   const Text('Νέος', style: TextStyle(color: kGold, fontSize: 8, fontWeight: FontWeight.w700)),
                               ]),
@@ -12681,8 +13048,22 @@ class _NearbyProsSectionState extends State<_NearbyProsSection> {
                             Text(name, maxLines: 1, overflow: TextOverflow.ellipsis,
                                 style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.w700)),
                             if (specialty.isNotEmpty)
-                              Text(specialty, maxLines: 1, overflow: TextOverflow.ellipsis,
-                                  style: TextStyle(color: _g(0.6), fontSize: 10)),
+                              Row(mainAxisSize: MainAxisSize.min, children: [
+                                Flexible(child: Text(specialty, maxLines: 1, overflow: TextOverflow.ellipsis,
+                                    style: TextStyle(color: _g(0.6), fontSize: 10))),
+                                if (extraSpecialties > 0) ...[
+                                  const SizedBox(width: 4),
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
+                                    decoration: BoxDecoration(
+                                      borderRadius: BorderRadius.circular(4),
+                                      color: kGold.withValues(alpha: 0.18),
+                                    ),
+                                    child: Text('+$extraSpecialties',
+                                        style: const TextStyle(color: kGold, fontSize: 9, fontWeight: FontWeight.w700)),
+                                  ),
+                                ],
+                              ]),
                             const SizedBox(height: 4),
                             Row(children: [
                               Text(rating > 0 ? '⭐ ${rating.toStringAsFixed(1)}' : (isNew ? '⭐ Νέος' : '⭐ —'),
@@ -12892,16 +13273,28 @@ class _ProPublicProfileScreenState extends State<_ProPublicProfileScreen> {
                 child: Builder(builder: (_) {
                   final pUrl = _data['profilePhotoUrl'] as String? ?? _data['photoUrl'] as String?;
                   final nm = _data['name'] as String? ?? 'P';
-                  return Container(
-                    width: 40, height: 40,
-                    decoration: BoxDecoration(shape: BoxShape.circle, border: Border.all(color: kGold.withValues(alpha: 0.5), width: 1.5)),
-                    child: ClipOval(
-                      child: pUrl != null
-                          ? Image.network(pUrl, fit: BoxFit.cover,
-                              errorBuilder: (_, __, ___) => Container(color: kGold.withValues(alpha: 0.12),
-                                  child: Center(child: Text(nm[0].toUpperCase(), style: const TextStyle(color: kGold, fontSize: 15, fontWeight: FontWeight.bold)))))
-                          : Container(color: kGold.withValues(alpha: 0.12),
-                              child: Center(child: Text(nm[0].toUpperCase(), style: const TextStyle(color: kGold, fontSize: 15, fontWeight: FontWeight.bold)))),
+                  return GestureDetector(
+                    onTap: pUrl != null ? () => showDialog(context: context, builder: (_) => Dialog(
+                      backgroundColor: Colors.transparent,
+                      child: GestureDetector(
+                        onTap: () => Navigator.pop(context),
+                        child: InteractiveViewer(child: ClipRRect(
+                          borderRadius: BorderRadius.circular(16),
+                          child: Image.network(pUrl, fit: BoxFit.contain),
+                        )),
+                      ),
+                    )) : null,
+                    child: Container(
+                      width: 40, height: 40,
+                      decoration: BoxDecoration(shape: BoxShape.circle, border: Border.all(color: kGold.withValues(alpha: 0.5), width: 1.5)),
+                      child: ClipOval(
+                        child: pUrl != null
+                            ? Image.network(pUrl, fit: BoxFit.cover,
+                                errorBuilder: (_, __, ___) => Container(color: kGold.withValues(alpha: 0.12),
+                                    child: Center(child: Text(nm[0].toUpperCase(), style: const TextStyle(color: kGold, fontSize: 15, fontWeight: FontWeight.bold)))))
+                            : Container(color: kGold.withValues(alpha: 0.12),
+                                child: Center(child: Text(nm[0].toUpperCase(), style: const TextStyle(color: kGold, fontSize: 15, fontWeight: FontWeight.bold)))),
+                      ),
                     ),
                   );
                 }),
@@ -15411,10 +15804,11 @@ class _ChatScreenState extends State<ChatScreen> {
         }
       }
 
-      // Email notification to pro when user sends a message (fire-and-forget)
+      // Email notification when message is sent (fire-and-forget)
+      final _emailChatParts = widget.chatId.split('_');
       if (!widget.isPro) {
-        final chatParts = widget.chatId.split('_');
-        final proId = chatParts.length > 1 ? chatParts[1] : '';
+        // User → Pro: notify the professional
+        final proId = _emailChatParts.length > 1 ? _emailChatParts[1] : '';
         if (proId.isNotEmpty) {
           http.post(
             Uri.parse('$kBackendUrl/email-pro-new-message'),
@@ -15422,6 +15816,20 @@ class _ChatScreenState extends State<ChatScreen> {
             body: jsonEncode({
               'proId': proId,
               'senderName': widget.currentUserName,
+              'messagePreview': previewText,
+            }),
+          ).timeout(const Duration(seconds: 30)).catchError((_) {});
+        }
+      } else {
+        // Pro → User: notify the user
+        final userId = _emailChatParts.isNotEmpty ? _emailChatParts[0] : '';
+        if (userId.isNotEmpty) {
+          http.post(
+            Uri.parse('$kBackendUrl/email-user-new-message'),
+            headers: {'Content-Type': 'application/json'},
+            body: jsonEncode({
+              'userId': userId,
+              'proName': widget.currentUserName,
               'messagePreview': previewText,
             }),
           ).timeout(const Duration(seconds: 30)).catchError((_) {});

@@ -356,6 +356,16 @@ app.post('/offer-accepted', rateLimit(20, 60_000), async (req, res) => {
   if (!firebaseReady) return res.json({ success: false, reason: 'firebase not ready' });
 
   try {
+    // Αύξηση μετρητή "Δουλειές" στο δημόσιο προφίλ — γίνεται εδώ (Admin SDK)
+    // γιατί ο πελάτης δεν επιτρέπεται από τους κανόνες ασφαλείας να γράψει
+    // απευθείας στο professionals doc κάποιου άλλου.
+    try {
+      await admin.firestore().collection('professionals').doc(proId).set({
+        completedJobs: admin.firestore.FieldValue.increment(1),
+        jobs_count: admin.firestore.FieldValue.increment(1),
+      }, { merge: true });
+    } catch (e) { console.error('jobs-count increment error:', e.message); }
+
     let proEmail = null;
     try {
       const authUser = await admin.auth().getUser(proId);
