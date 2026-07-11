@@ -347,6 +347,41 @@ app.post('/new-offer', rateLimit(20, 60_000), async (req, res) => {
   res.json({ success: true, results });
 });
 
+// ── Offer accepted notification (customer selected this pro) ─────────
+// POST /offer-accepted
+// Body: { proId, userName, userPhone, requestDesc }
+app.post('/offer-accepted', rateLimit(20, 60_000), async (req, res) => {
+  const { proId, userName, userPhone, requestDesc } = req.body;
+  if (!proId) return res.status(400).json({ error: 'proId required' });
+  if (!firebaseReady) return res.json({ success: false, reason: 'firebase not ready' });
+
+  try {
+    let proEmail = null;
+    try {
+      const authUser = await admin.auth().getUser(proId);
+      proEmail = authUser.email || null;
+    } catch (e) { /* δεν βρέθηκε λογαριασμός Auth */ }
+
+    if (!proEmail) return res.json({ success: false, reason: 'no email found for pro' });
+
+    const html = `
+      <div style="font-family:Arial,sans-serif;max-width:480px;margin:0 auto;background:#0A0800;color:#fff;border-radius:16px;padding:32px;border:1px solid rgba(201,168,76,0.3)">
+        <h1 style="color:#FFD47A;font-size:22px;margin-bottom:4px;">🎉 Αποδέχτηκαν την προσφορά σου!</h1>
+        <p style="color:rgba(255,255,255,0.75);font-size:14px;line-height:1.6;">Ο/Η <strong style="color:#FFD47A">${userName || 'πελάτης'}</strong> αποδέχτηκε την προσφορά σου${requestDesc ? ` για: "${String(requestDesc).substring(0, 120)}"` : ''}.</p>
+        ${userPhone ? `<p style="color:rgba(255,255,255,0.6);font-size:14px;margin-top:12px;">📞 Τηλέφωνο επικοινωνίας: <strong style="color:#FFD47A">${userPhone}</strong></p>` : ''}
+        <a href="https://gorealai.web.app/app" style="display:inline-block;margin-top:20px;padding:13px 28px;background:linear-gradient(135deg,#FFD47A,#C9A84C);color:#000;border-radius:12px;text-decoration:none;font-weight:800;font-size:14px;">Δες τα Bookings σου →</a>
+        <p style="color:rgba(255,255,255,0.2);font-size:11px;margin-top:24px;">GorealAI · gorealai.web.app · info@gorealai.gr</p>
+      </div>
+    `;
+    await sendEmail({ to: proEmail, subject: '🎉 Αποδέχτηκαν την προσφορά σου στο GorealAI', html });
+    console.log(`📧 Offer-accepted email sent to ${proEmail}`);
+    res.json({ success: true });
+  } catch (e) {
+    console.error('offer-accepted error:', e.message);
+    res.status(500).json({ error: e.message });
+  }
+});
+
 // ── Welcome email on registration ────────────────────────────────────
 // POST /welcome-email
 // Body: { email, name, role }
