@@ -803,7 +803,10 @@ class _LoginScreenState extends State<LoginScreen>
         final name = (data['name'] as String? ?? '').trim();
         setState(() {
           _referralProName = name.isNotEmpty ? name : 'Επαγγελματίας';
-          _referralProUid = snap.docs.first.id;
+          // Προτίμησε το πεδίο userId (το πραγματικό Auth UID) αντί για το ID
+          // του εγγράφου professionals, που διαφέρει για όσους προστέθηκαν
+          // από το admin panel.
+          _referralProUid = (data['userId'] as String?) ?? snap.docs.first.id;
           _referralNotFound = false;
           _referralLoading = false;
         });
@@ -910,18 +913,18 @@ class _LoginScreenState extends State<LoginScreen>
           'afm': _afm.text.trim(),
           if (selfieUrl != null) 'profilePhotoUrl': selfieUrl,
         });
-        // Update referrer's count
+        // Ενημέρωση μετρητή του referrer — γίνεται στο backend (Admin SDK)
+        // γιατί ο νέος εγγεγραμμένος δεν επιτρέπεται να γράψει στο users doc
+        // κάποιου άλλου. Ξεχωριστό try/catch ώστε μια αποτυχία εδώ να ΜΗΝ
+        // εμφανίζει σφάλμα στον χρήστη — ο λογαριασμός του ήδη δημιουργήθηκε.
         if (_referralProUid != null) {
-          final ref = FirebaseFirestore.instance.collection('users').doc(_referralProUid);
-          await FirebaseFirestore.instance.runTransaction((tx) async {
-            final doc = await tx.get(ref);
-            final count = ((doc.data()?['referralCount'] as int?) ?? 0) + 1;
-            final updates = <String, dynamic>{'referralCount': count};
-            if (count >= 5 && doc.data()?['freeUntil'] == null) {
-              updates['freeUntil'] = Timestamp.fromDate(DateTime.now().add(const Duration(days: 365)));
-            }
-            tx.update(ref, updates);
-          });
+          try {
+            await http.post(
+              Uri.parse('$kBackendUrl/track-referral'),
+              headers: {'Content-Type': 'application/json'},
+              body: jsonEncode({'referrerUid': _referralProUid, 'newProName': fullName}),
+            ).timeout(const Duration(seconds: 8));
+          } catch (_) {}
         }
       }
       // Email verification + welcome email

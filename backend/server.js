@@ -392,6 +392,45 @@ app.post('/offer-accepted', rateLimit(20, 60_000), async (req, res) => {
   }
 });
 
+// ── Track professional referral (new pro signed up via referral) ─────
+// POST /track-referral
+// Body: { referrerUid, newProName }
+// Ο νέος εγγεγραμμένος δεν επιτρέπεται από τους κανόνες ασφαλείας να γράψει
+// στο users doc κάποιου άλλου (του referrer) — γίνεται εδώ με Admin SDK.
+app.post('/track-referral', rateLimit(20, 60_000), async (req, res) => {
+  const { referrerUid, newProName } = req.body;
+  if (!referrerUid) return res.status(400).json({ error: 'referrerUid required' });
+  if (!firebaseReady) return res.json({ success: false, reason: 'firebase not ready' });
+
+  try {
+    const ref = admin.firestore().collection('users').doc(referrerUid);
+    const result = await admin.firestore().runTransaction(async (tx) => {
+      const doc = await tx.get(ref);
+      if (!doc.exists) return { count: 0, justUnlocked: false };
+      const count = ((doc.data().referralCount) || 0) + 1;
+      const updates = { referralCount: count };
+      let justUnlocked = false;
+      // Συνδέεται με τα ΠΡΑΓΜΑΤΙΚΑ πεδία που ελέγχει η εφαρμογή για premium
+      // πρόσβαση (isPremium/premiumUntil), όχι το ανενεργό freeUntil.
+      if (count >= 5 && doc.data().isPremium !== true) {
+        updates.isPremium = true;
+        updates.premiumUntil = admin.firestore.Timestamp.fromDate(
+          new Date(Date.now() + 365 * 24 * 60 * 60 * 1000)
+        );
+        updates.premiumSince = admin.firestore.FieldValue.serverTimestamp();
+        justUnlocked = true;
+      }
+      tx.update(ref, updates);
+      return { count, justUnlocked };
+    });
+    console.log(`🤝 Referral tracked for ${referrerUid}: count=${result.count}${result.justUnlocked ? ' — PREMIUM UNLOCKED' : ''}`);
+    res.json({ success: true, ...result });
+  } catch (e) {
+    console.error('track-referral error:', e.message);
+    res.status(500).json({ error: e.message });
+  }
+});
+
 // ── Welcome email on registration ────────────────────────────────────
 // POST /welcome-email
 // Body: { email, name, role }
