@@ -26,7 +26,7 @@ dependencies:
   firebase_analytics: ^11.4.0
   image_picker: ^1.1.2
   speech_to_text: ^7.0.0
-  record: ^5.1.2
+  record: ^6.0.0
   audioplayers: ^6.1.0
   shimmer: ^3.0.0
   permission_handler: ^11.3.1

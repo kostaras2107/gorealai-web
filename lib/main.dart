@@ -2,7 +2,7 @@ import 'dart:async';
 import 'dart:typed_data';
 import 'dart:convert';
 import 'dart:math';
-import 'dart:html' as html;
+import 'web_blob_stub.dart' if (dart.library.html) 'web_blob_web.dart' as web_blob;
 import 'package:image_picker/image_picker.dart';
 import 'dart:ui';
 import 'package:flutter/material.dart';
@@ -35,8 +35,7 @@ const Color kGreen = Color(0xFF00D4AA);
 /// Reads a blob: URL using the browser's native XHR (works on Flutter web).
 Future<Uint8List> _readFileBytes(String path) async {
   if (path.startsWith('blob:') || path.startsWith('http')) {
-    final req = await html.HttpRequest.request(path, responseType: 'arraybuffer');
-    return (req.response as ByteBuffer).asUint8List();
+    return web_blob.fetchArrayBuffer(path);
   }
   return XFile(path).readAsBytes();
 }
@@ -6248,31 +6247,8 @@ Future<void> _submitOfferFallback(String requestId, Map<String, dynamic> request
     await FirebaseFirestore.instance
         .collection('requests').doc(requestId)
         .update({'offersCount': FieldValue.increment(1)});
-
-    // Ειδοποίηση email/push στον χρήστη ότι έλαβε νέα προσφορά
-    try {
-      final requestUserId = requestData['userId'] as String?;
-      if (requestUserId != null && requestUserId.isNotEmpty) {
-        final userDoc = await FirebaseFirestore.instance.collection('users').doc(requestUserId).get();
-        final ud = userDoc.data();
-        final userFcmToken = ud?['fcmToken'] as String?;
-        final userName = ud?['name'] as String? ?? requestData['userName'] as String? ?? 'Χρήστη';
-        // Το email δεν αποθηκεύεται πάντα στο Firestore users doc — το backend
-        // το βρίσκει αξιόπιστα από το Firebase Auth μέσω του userId.
-        await http.post(
-          Uri.parse('$kBackendUrl/new-offer'),
-          headers: {'Content-Type': 'application/json'},
-          body: jsonEncode({
-            'userId': requestUserId,
-            'userName': userName,
-            if (userFcmToken != null) 'userFcmToken': userFcmToken,
-            'proName': _proName ?? 'Επαγγελματίας',
-            'price': price,
-            'requestDesc': requestData['description'] ?? '',
-          }),
-        ).timeout(const Duration(seconds: 8));
-      }
-    } catch (_) {} // Μη μπλοκάρεις την υποβολή προσφοράς αν αποτύχει η ειδοποίηση
+    // Η ειδοποίηση στον πελάτη πλέον στέλνεται μία φορά όταν λήξει η 1 ώρα
+    // του αιτήματος (backend poller), όχι σε κάθε προσφορά ξεχωριστά.
 
     if (mounted) {
       setState(() => _submittedIds.add(requestId));
@@ -7210,6 +7186,13 @@ class _RequestScreenState extends State<RequestScreen>
         if (_requestAudioUrl != null) 'audioUrl': _requestAudioUrl,
       });
 
+      // Προγραμμάτισε την ειδοποίηση λήξης (email+push όταν τελειώσει η 1 ώρα)
+      http.post(
+        Uri.parse('$kBackendUrl/schedule-expiry-notification'),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({'requestId': docRef.id}),
+      ).timeout(const Duration(seconds: 8)).catchError((_) {});
+
       // Server για AI categorization + pro notifications
       try {
         // Encode images as base64
@@ -7253,8 +7236,7 @@ class _RequestScreenState extends State<RequestScreen>
             final vref = FirebaseStorage.instance.ref('requests/videos/${docRef.id}_vid.$ext');
             if (path.startsWith('blob:')) {
               // Fetch blob URL → native browser Blob (stays in JS memory, not Dart heap)
-              final req = await html.HttpRequest.request(path, responseType: 'blob');
-              await vref.putBlob(req.response, SettableMetadata(contentType: ct));
+              await web_blob.uploadBlobUrl(path, vref, ct);
             } else {
               await vref.putData(await _readFileBytes(path), SettableMetadata(contentType: ct));
             }

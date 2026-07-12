@@ -1,3 +1,8 @@
+# Secrets
+serviceAccount.json
+sent_log.json
+pro_leads.csv
+
 # Miscellaneous
 *.class
 *.log

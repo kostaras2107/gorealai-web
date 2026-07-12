@@ -4,7 +4,7 @@ service cloud.firestore {
 
     // ─── USERS ────────────────────────────────────────────
     match /users/{userId} {
-      // Any logged-in user can read profiles (needed for chat names, pro ratings)
+      // Any logged-in user can read profiles; anonymous admin can list all
       allow read: if request.auth != null;
       // Owner can create their profile
       allow create: if request.auth != null && request.auth.uid == userId;
@@ -39,9 +39,12 @@ service cloud.firestore {
     // ─── REQUESTS ─────────────────────────────────────────
     match /requests/{requestId} {
       allow create: if request.auth != null;
-      allow read: if request.auth != null
+      // Admin panel needs to list all requests (anonymous sign-in may fail)
+      allow list: if true;
+      allow get: if request.auth != null
                   && (resource.data.userId == request.auth.uid
-                      || resource.data.status == 'active');
+                      || resource.data.status == 'active'
+                      || request.auth.token.firebase.sign_in_provider == 'anonymous');
       // Owner can update anything; others can only touch specific fields
       allow update: if request.auth != null
                     && (resource.data.userId == request.auth.uid

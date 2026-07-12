@@ -1,4 +1,4 @@
-package com.example.shoppilot
+package gr.gorealai.app
 
 import io.flutter.embedding.android.FlutterFragmentActivity
 
