@@ -1038,6 +1038,99 @@ app.get('/debug-pro/:uid', async (req, res) => {
   }
 });
 
+// ── Request-expiry notification (fires once, exactly when the 1h countdown ends) ──
+async function sendExpiryNotification(requestId) {
+  if (!firebaseReady) return;
+  try {
+    const ref = admin.firestore().collection('requests').doc(requestId);
+    const doc = await ref.get();
+    if (!doc.exists) return;
+    const d = doc.data();
+    if (d.expiryNotified) return; // already sent
+    if (d.status === 'completed') return; // ο πελάτης διάλεξε ήδη επαγγελματία, το ξέρει
+
+    await ref.update({ expiryNotified: true });
+
+    const offersCount = d.offersCount || 0;
+    const found = offersCount > 0;
+    const userId = d.userId;
+    if (!userId) return;
+
+    let userEmail = null, fcmToken = null, userName = d.userName || 'Χρήστη';
+    try {
+      const userDoc = await admin.firestore().collection('users').doc(userId).get();
+      if (userDoc.exists) {
+        fcmToken = userDoc.data().fcmToken || null;
+        userName = userDoc.data().name || userName;
+      }
+    } catch (_) {}
+    try {
+      const authUser = await admin.auth().getUser(userId);
+      userEmail = authUser.email || null;
+    } catch (_) {}
+
+    const title = found ? '✅ Βρέθηκε επαγγελματίας!' : '😕 Δεν βρέθηκε επαγγελματίας';
+    const body = found
+      ? `Έλαβες ${offersCount} προσφορά${offersCount > 1 ? 'ές' : ''} για το αίτημά σου!`
+      : 'Δυστυχώς δεν βρέθηκε διαθέσιμος επαγγελματίας αυτή τη στιγμή. Δοκίμασε ξανά αργότερα.';
+
+    if (userEmail) {
+      try {
+        await sendEmail({
+          to: userEmail,
+          subject: title,
+          html: `
+            <div style="font-family:Arial,sans-serif;max-width:480px;margin:0 auto;background:#0A0800;color:#fff;border-radius:16px;padding:32px;border:1px solid rgba(201,168,76,0.3)">
+              <h1 style="color:#FFD47A;font-size:22px;margin-bottom:4px;">${title}</h1>
+              <p style="color:rgba(255,255,255,0.75);font-size:14px;line-height:1.6;">Γεια σου <strong>${userName}</strong>,</p>
+              <p style="color:rgba(255,255,255,0.75);font-size:14px;line-height:1.6;">${body}</p>
+              <a href="https://gorealai.web.app/app" style="display:inline-block;margin-top:20px;padding:13px 28px;background:linear-gradient(135deg,#FFD47A,#C9A84C);color:#000;border-radius:12px;text-decoration:none;font-weight:800;font-size:14px;">Άνοιξε την εφαρμογή →</a>
+              <p style="color:rgba(255,255,255,0.2);font-size:11px;margin-top:24px;">GorealAI · gorealai.web.app · info@gorealai.gr</p>
+            </div>
+          `,
+        });
+      } catch (e) { console.error('expiry email error:', e.message); }
+    }
+
+    if (fcmToken) {
+      try {
+        await admin.messaging().send({
+          token: fcmToken,
+          notification: { title, body },
+          android: {
+            priority: 'high',
+            notification: { channelId: 'gorealai_channel', priority: 'high', sound: 'default', icon: 'ic_launcher', title, body },
+          },
+          apns: { payload: { aps: { alert: { title, body }, sound: 'default', badge: 1 } } },
+        });
+      } catch (e) { console.error('expiry push error:', e.message); }
+    }
+    console.log(`⏰ Expiry notification sent for request ${requestId} (found=${found}, offers=${offersCount})`);
+  } catch (e) {
+    console.error('sendExpiryNotification error:', e.message);
+  }
+}
+
+// POST /schedule-expiry-notification
+// Body: { requestId }
+// Καλείται μία φορά, τη στιγμή που δημιουργείται το αίτημα. Προγραμματίζει
+// έναν timer που θα εκτελεστεί ΑΚΡΙΒΩΣ όταν λήξει η 1ωρη προθεσμία — όχι
+// επαναλαμβανόμενο polling.
+app.post('/schedule-expiry-notification', rateLimit(30, 60_000), async (req, res) => {
+  const { requestId } = req.body;
+  if (!requestId || !firebaseReady) return res.json({ success: false });
+  try {
+    const doc = await admin.firestore().collection('requests').doc(requestId).get();
+    if (!doc.exists) return res.json({ success: false, reason: 'request not found' });
+    const expiresAt = doc.data().expiresAt;
+    const delayMs = expiresAt ? Math.max(0, expiresAt.toMillis() - Date.now()) : 0;
+    setTimeout(() => sendExpiryNotification(requestId), delayMs);
+    res.json({ success: true, delayMs });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
 // ── Start server ────────────────────────────────────────────────
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
