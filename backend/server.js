@@ -268,6 +268,7 @@ app.post('/booking-response', rateLimit(20, 60_000), async (req, res) => {
             icon: 'ic_launcher',
             title: pushTitle,
             body: pushBody,
+            notificationCount: 1,
           },
         },
         apns: {
@@ -334,6 +335,7 @@ app.post('/new-offer', rateLimit(20, 60_000), async (req, res) => {
             icon: 'ic_launcher',
             title: offerTitle,
             body: offerBody,
+            notificationCount: 1,
           },
         },
         apns: {
@@ -1099,7 +1101,7 @@ async function sendExpiryNotification(requestId) {
           notification: { title, body },
           android: {
             priority: 'high',
-            notification: { channelId: 'gorealai_channel', priority: 'high', sound: 'default', icon: 'ic_launcher', title, body },
+            notification: { channelId: 'gorealai_channel', priority: 'high', sound: 'default', icon: 'ic_launcher', title, body, notificationCount: 1 },
           },
           apns: { payload: { aps: { alert: { title, body }, sound: 'default', badge: 1 } } },
         });
@@ -1130,6 +1132,36 @@ app.post('/schedule-expiry-notification', rateLimit(30, 60_000), async (req, res
     res.status(500).json({ error: e.message });
   }
 });
+
+// ── Rehydrate expiry timers on boot ──────────────────────────────
+// Οι setTimeout ζουν μόνο στη μνήμη του process — αν ο server κάνει restart
+// (νέο deploy, redeploy από Render κ.λπ.) ενώ κάποιο αίτημα μετράει ακόμα,
+// ο προγραμματισμένος timer χάνεται. Αυτή η συνάρτηση τρέχει ΜΙΑ φορά στο
+// ξεκίνημα (όχι επαναλαμβανόμενο polling) και είτε ξαναπρογραμματίζει τον
+// timer για ό,τι έχει μείνει, είτε στέλνει αμέσως όσα έχουν ήδη λήξει.
+async function rehydrateExpiryTimers() {
+  if (!firebaseReady) return;
+  try {
+    const snap = await admin.firestore().collection('requests').where('status', '==', 'active').get();
+    let rescheduled = 0, firedNow = 0;
+    snap.forEach(doc => {
+      const d = doc.data();
+      if (d.expiryNotified || !d.expiresAt) return;
+      const delayMs = d.expiresAt.toMillis() - Date.now();
+      if (delayMs <= 0) {
+        firedNow++;
+        sendExpiryNotification(doc.id);
+      } else {
+        rescheduled++;
+        setTimeout(() => sendExpiryNotification(doc.id), delayMs);
+      }
+    });
+    console.log(`⏰ Expiry timers rehydrated on boot: ${rescheduled} rescheduled, ${firedNow} fired immediately`);
+  } catch (e) {
+    console.error('rehydrateExpiryTimers error:', e.message);
+  }
+}
+rehydrateExpiryTimers();
 
 // ── Start server ────────────────────────────────────────────────
 const PORT = process.env.PORT || 3000;
