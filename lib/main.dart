@@ -528,26 +528,86 @@ class AuthGate extends StatelessWidget {
         }
         if (!snapshot.hasData) return const LoginScreen();
         final user = snapshot.data!;
-        if (!user.emailVerified) return EmailVerificationScreen(user: user);
-        return FutureBuilder<DocumentSnapshot>(
-          future: FirebaseFirestore.instance
-              .collection('users')
-              .doc(user.uid)
-              .get(),
-          builder: (context, userSnap) {
-            if (userSnap.connectionState == ConnectionState.waiting) {
-              return const Scaffold(
-                  body:
-                      Center(child: CircularProgressIndicator(color: kGold)));
-            }
-            final role = userSnap.data?.data() != null
-                ? (userSnap.data!.data()
-                        as Map<String, dynamic>)['role'] ??
-                    'user'
-                : 'user';
-            return const HomeScreen();
-          },
-        );
+        if (!user.emailVerified) {
+          // Το emailVerified του cached User μπορεί να είναι μπαγιάτικο —
+          // π.χ. αν επιβεβαίωσε το email σε άλλη καρτέλα/συσκευή και μετά
+          // άνοιξε ξανά την εφαρμογή από τον σύνδεσμο του welcome email.
+          // Κάνε reload πριν δείξεις την οθόνη επιβεβαίωσης, ώστε όσοι έχουν
+          // ήδη επιβεβαιώσει να μπαίνουν κατευθείαν μέσα.
+          return FutureBuilder<User?>(
+            future: user.reload().then((_) => FirebaseAuth.instance.currentUser),
+            builder: (context, reloadSnap) {
+              if (reloadSnap.connectionState == ConnectionState.waiting) {
+                return const Scaffold(
+                    body: Center(child: CircularProgressIndicator(color: kGold)));
+              }
+              final refreshed = reloadSnap.data;
+              if (refreshed != null && refreshed.emailVerified) {
+                return _AuthGateRoleCheck(user: refreshed);
+              }
+              return EmailVerificationScreen(user: user);
+            },
+          );
+        }
+        return _AuthGateRoleCheck(user: user);
+      },
+    );
+  }
+}
+
+class _AuthGateRoleCheck extends StatefulWidget {
+  final User user;
+  const _AuthGateRoleCheck({required this.user});
+  @override
+  State<_AuthGateRoleCheck> createState() => _AuthGateRoleCheckState();
+}
+
+class _AuthGateRoleCheckState extends State<_AuthGateRoleCheck> {
+  late final Future<DocumentSnapshot> _future;
+
+  @override
+  void initState() {
+    super.initState();
+    _future = FirebaseFirestore.instance
+        .collection('users')
+        .doc(widget.user.uid)
+        .get()
+      ..then(_maybeSendWelcomeEmail);
+  }
+
+  // Το welcome email στέλνεται εδώ, την πρώτη φορά που ο AuthGate βλέπει τον
+  // χρήστη ως πραγματικά επιβεβαιωμένο — όχι στην εγγραφή. Το flag
+  // welcomeEmailSent στη βάση αποτρέπει διπλή αποστολή σε επόμενα logins.
+  Future<void> _maybeSendWelcomeEmail(DocumentSnapshot snap) async {
+    final data = snap.data() as Map<String, dynamic>?;
+    if (data == null || data['welcomeEmailSent'] == true) return;
+    try {
+      await FirebaseFirestore.instance
+          .collection('users')
+          .doc(widget.user.uid)
+          .update({'welcomeEmailSent': true});
+      await http.post(
+        Uri.parse('$kBackendUrl/welcome-email'),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({
+          'email': widget.user.email ?? '',
+          'name': data['name'] ?? '',
+          'role': data['role'] ?? 'user',
+        }),
+      ).timeout(const Duration(seconds: 10));
+    } catch (_) {}
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return FutureBuilder<DocumentSnapshot>(
+      future: _future,
+      builder: (context, userSnap) {
+        if (userSnap.connectionState == ConnectionState.waiting) {
+          return const Scaffold(
+              body: Center(child: CircularProgressIndicator(color: kGold)));
+        }
+        return const HomeScreen();
       },
     );
   }
@@ -589,9 +649,18 @@ class _EmailVerificationScreenState extends State<EmailVerificationScreen> {
   Future<void> _resend() async {
     setState(() => _resending = true);
     try {
-      await widget.user.sendEmailVerification();
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('✅ Στάλθηκε ξανά email επιβεβαίωσης.')));
+      final resp = await http.post(
+        Uri.parse('$kBackendUrl/verify-email'),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({'email': widget.user.email}),
+      ).timeout(const Duration(seconds: 10));
+      if (resp.statusCode == 200) {
+        if (mounted) ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('✅ Στάλθηκε ξανά email επιβεβαίωσης.')));
+      } else {
+        if (mounted) ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Σφάλμα αποστολής email'), backgroundColor: Colors.red));
+      }
     } catch (e) {
       if (mounted) ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Σφάλμα: $e'), backgroundColor: Colors.red));
@@ -926,13 +995,15 @@ class _LoginScreenState extends State<LoginScreen>
           } catch (_) {}
         }
       }
-      // Email verification + welcome email
-      try { await cred.user!.sendEmailVerification(); } catch (_) {}
+      // Email verification (μέσω δικού μας Zoho sender — το Firebase
+      // client-side sendEmailVerification() αποτυγχάνει σιωπηλά κάποιες φορές).
+      // Το welcome email ΔΕΝ στέλνεται εδώ πια — στέλνεται μόνο αφού ο
+      // χρήστης πατήσει πραγματικά τον σύνδεσμο επιβεβαίωσης (βλ. AuthGate).
       try {
         await http.post(
-          Uri.parse('$kBackendUrl/welcome-email'),
+          Uri.parse('$kBackendUrl/verify-email'),
           headers: {'Content-Type': 'application/json'},
-          body: jsonEncode({'email': _email.text.trim(), 'name': fullName, 'role': _role}),
+          body: jsonEncode({'email': _email.text.trim()}),
         ).timeout(const Duration(seconds: 10));
       } catch (_) {}
       await AuthService.saveUser(_email.text.trim());
