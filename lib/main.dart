@@ -3,6 +3,7 @@ import 'dart:typed_data';
 import 'dart:convert';
 import 'dart:math';
 import 'web_blob_stub.dart' if (dart.library.html) 'web_blob_web.dart' as web_blob;
+import 'tiktok_embed_stub.dart' if (dart.library.html) 'tiktok_embed_web.dart' as tiktok_embed;
 import 'package:image_picker/image_picker.dart';
 import 'dart:ui';
 import 'package:flutter/material.dart';
@@ -358,6 +359,13 @@ double _combinedRating(Map<String, dynamic> data, {List<Map<String,dynamic>>? re
 
 // Έλεγχος checksum ελληνικού ΑΦΜ (9 ψηφία, το τελευταίο είναι ψηφίο ελέγχου).
 // Πιάνει προφανώς λάθος/ψεύτικους αριθμούς πριν καν φτάσουμε στο VIES.
+// Εξάγει το video ID από ένα link TikTok (π.χ. tiktok.com/@user/video/1234567890)
+// ώστε να μπορούμε να το κάνουμε embed. Επιστρέφει null αν δεν αναγνωρίζεται.
+String? extractTikTokVideoId(String url) {
+  final match = RegExp(r'/video/(\d+)').firstMatch(url.trim());
+  return match?.group(1);
+}
+
 bool isValidGreekAfmFormat(String afm) {
   final a = afm.trim();
   if (!RegExp(r'^\d{9}$').hasMatch(a) || a == '000000000') return false;
@@ -3842,6 +3850,9 @@ class _ProfessionalHomeScreenState extends State<ProfessionalHomeScreen> {
   // Social
   String _instagramUrl = '';
   String _tiktokUrl = '';
+  // TikTok Shorts — Ultra Premium feature, λίστα από links βίντεο TikTok
+  List<String> _tiktokShorts = [];
+  bool _isPremium = false;
   // Portfolio — each project: {id, title, photos:[url,...]}
   List<Map<String, dynamic>> _portfolioProjects = [];
   bool _portfolioUploading = false;
@@ -3996,6 +4007,9 @@ class _ProfessionalHomeScreenState extends State<ProfessionalHomeScreen> {
       _yearsExperience = (merged['yearsExperience'] as num?)?.toInt() ?? 0;
       _instagramUrl = merged['instagram'] as String? ?? '';
       _tiktokUrl = merged['tiktok'] as String? ?? '';
+      _tiktokShorts = ((merged['tiktokShorts'] as List?) ?? []).whereType<String>().toList();
+      final premiumUntil = (merged['premiumUntil'] as Timestamp?)?.toDate();
+      _isPremium = merged['isPremium'] == true && (premiumUntil == null || premiumUntil.isAfter(DateTime.now()));
       _proAverageRating = (merged['averageRating'] as num?)?.toDouble() ?? 0.0;
       _proAfm = (merged['afm'] as String? ?? '').trim();
       _portfolioProjects = projects;
@@ -4500,6 +4514,7 @@ class _ProfessionalHomeScreenState extends State<ProfessionalHomeScreen> {
                         _buildNavCard('rejected', '❌', 'Απορριφθέντα', 'Ιστορικό απορρίψεων',
                             iconColor: Colors.red),
                         _buildNavCard('social', '📱', 'Social Media', 'Instagram & TikTok'),
+                        _buildNavCard('shorts', '🎬', 'TikTok Shorts', 'Ultra Premium ✨'),
                       ],
                     ),
                   ]),
@@ -4522,6 +4537,7 @@ class _ProfessionalHomeScreenState extends State<ProfessionalHomeScreen> {
       'minicv': '👤 Mini CV',
       'portfolio': '📸 Portfolio',
       'social': '📱 Social Media',
+      'shorts': '🎬 TikTok Shorts',
     };
     return Column(children: [
       // Back button row
@@ -4566,6 +4582,8 @@ class _ProfessionalHomeScreenState extends State<ProfessionalHomeScreen> {
         return _buildPortfolioSection();
       case 'social':
         return _buildSocialSection();
+      case 'shorts':
+        return _buildTikTokShortsSection();
       default:
         return const SizedBox();
     }
@@ -5555,6 +5573,7 @@ class _ProfessionalHomeScreenState extends State<ProfessionalHomeScreen> {
 
   final _igCtrl = TextEditingController();
   final _ttCtrl = TextEditingController();
+  final _shortCtrl = TextEditingController();
   bool _editingSocial = false;
 
   Widget _buildSocialSection() {
@@ -5695,6 +5714,123 @@ class _ProfessionalHomeScreenState extends State<ProfessionalHomeScreen> {
           ),
       ],
     );
+  }
+
+  Widget _buildTikTokShortsSection() {
+    if (!_isPremium) {
+      return ListView(
+        padding: const EdgeInsets.fromLTRB(20, 40, 20, 40),
+        children: [
+          _SectionCard(
+            title: '🎬 TikTok Shorts',
+            child: Column(children: [
+              Icon(Icons.lock_outline, color: kGold.withValues(alpha: 0.6), size: 36),
+              const SizedBox(height: 12),
+              const Text('Ultra Premium Feature',
+                  style: TextStyle(color: kGold, fontWeight: FontWeight.bold, fontSize: 15)),
+              const SizedBox(height: 8),
+              Text(
+                'Ξεκλείδωσε την προβολή των TikTok βίντεό σου μέσα στο προφίλ σου, φέρνοντας 5 νέους επαγγελματίες με το referral σου.',
+                textAlign: TextAlign.center,
+                style: TextStyle(color: _g(0.5), fontSize: 13, height: 1.5),
+              ),
+            ]),
+          ),
+        ],
+      );
+    }
+
+    return ListView(
+      padding: const EdgeInsets.fromLTRB(20, 8, 20, 40),
+      children: [
+        _SectionCard(
+          title: '🎬 Τα Shorts σου',
+          child: Column(children: [
+            if (_tiktokShorts.isEmpty)
+              Text('Δεν έχεις προσθέσει ακόμα κανένα βίντεο',
+                  style: TextStyle(color: _g(0.3), fontSize: 13))
+            else
+              ..._tiktokShorts.map((url) => Container(
+                    margin: const EdgeInsets.only(bottom: 8),
+                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                    decoration: BoxDecoration(borderRadius: BorderRadius.circular(12), color: _g(0.04)),
+                    child: Row(children: [
+                      const Text('🎵', style: TextStyle(fontSize: 18)),
+                      const SizedBox(width: 10),
+                      Expanded(
+                          child: Text(url,
+                              style: const TextStyle(color: Colors.white70, fontSize: 12),
+                              overflow: TextOverflow.ellipsis)),
+                      GestureDetector(
+                        onTap: () => _removeTikTokShort(url),
+                        child: Icon(Icons.close, color: Colors.red.withValues(alpha: 0.6), size: 18),
+                      ),
+                    ]),
+                  )),
+          ]),
+        ),
+        const SizedBox(height: 20),
+        _SectionCard(
+          title: 'Πρόσθεσε νέο βίντεο',
+          child: Column(children: [
+            TextField(
+              controller: _shortCtrl,
+              style: const TextStyle(color: Colors.white, fontSize: 14),
+              decoration: InputDecoration(
+                hintText: 'https://www.tiktok.com/@username/video/...',
+                hintStyle: TextStyle(color: _g(0.3), fontSize: 13),
+                border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: _g(0.1))),
+                enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: _g(0.1))),
+                focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Color(0xFF69C9D0))),
+                filled: true, fillColor: _g(0.04),
+              ),
+            ),
+            const SizedBox(height: 14),
+            GestureDetector(
+              onTap: _addTikTokShort,
+              child: Container(
+                width: double.infinity,
+                padding: const EdgeInsets.symmetric(vertical: 12),
+                decoration: BoxDecoration(borderRadius: BorderRadius.circular(12), gradient: const LinearGradient(colors: [kGold, Color(0xFFCC8800)])),
+                child: const Center(child: Text('Προσθήκη', style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold, fontSize: 13))),
+              ),
+            ),
+          ]),
+        ),
+      ],
+    );
+  }
+
+  Future<void> _addTikTokShort() async {
+    final url = _shortCtrl.text.trim();
+    if (url.isEmpty) return;
+    final videoId = extractTikTokVideoId(url);
+    if (videoId == null) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Μη έγκυρο link TikTok βίντεο'), backgroundColor: Colors.red));
+      }
+      return;
+    }
+    final uid = FirebaseAuth.instance.currentUser?.uid;
+    if (uid == null || _proDocId == null) return;
+    final updated = [..._tiktokShorts, url];
+    await FirebaseFirestore.instance.collection('professionals').doc(_proDocId).set({'tiktokShorts': updated}, SetOptions(merge: true));
+    await FirebaseFirestore.instance.collection('users').doc(uid).set({'tiktokShorts': updated}, SetOptions(merge: true));
+    if (mounted) {
+      setState(() { _tiktokShorts = updated; _shortCtrl.clear(); });
+      ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: const Text('Προστέθηκε ✓'), backgroundColor: kGold.withValues(alpha: 0.9), duration: const Duration(seconds: 2)));
+    }
+  }
+
+  Future<void> _removeTikTokShort(String url) async {
+    final uid = FirebaseAuth.instance.currentUser?.uid;
+    if (uid == null || _proDocId == null) return;
+    final updated = _tiktokShorts.where((u) => u != url).toList();
+    await FirebaseFirestore.instance.collection('professionals').doc(_proDocId).set({'tiktokShorts': updated}, SetOptions(merge: true));
+    await FirebaseFirestore.instance.collection('users').doc(uid).set({'tiktokShorts': updated}, SetOptions(merge: true));
+    if (mounted) setState(() => _tiktokShorts = updated);
   }
 
   // ── Requests list για επαγγελματίες ──
@@ -14695,6 +14831,7 @@ class _ProPortfolioScreenState extends State<ProPortfolioScreen> {
     final portfolioProjects = ((pro['portfolioProjects'] as List?) ?? [])
         .map((p) => Map<String, dynamic>.from(p as Map)).toList();
     final legacyPhotos = (pro['portfolioPhotos'] ?? pro['photos'] ?? []) as List;
+    final tiktokShorts = ((pro['tiktokShorts'] as List?) ?? []).whereType<String>().toList();
 
     return Scaffold(
       backgroundColor: kBg,
@@ -15005,6 +15142,36 @@ class _ProPortfolioScreenState extends State<ProPortfolioScreen> {
                     );
                   },
                 ),
+              if (tiktokShorts.isNotEmpty) ...[
+                const SizedBox(height: 24),
+                Row(children: [
+                  Container(width: 3, height: 16,
+                      decoration: BoxDecoration(borderRadius: BorderRadius.circular(2),
+                          gradient: const LinearGradient(begin: Alignment.topCenter, end: Alignment.bottomCenter,
+                              colors: [Color(0xFF69C9D0), Color(0xFFEE1D52)]))),
+                  const SizedBox(width: 8),
+                  const Text('TIKTOK SHORTS', style: TextStyle(color: Color(0xFF69C9D0), fontSize: 11, fontWeight: FontWeight.w800, letterSpacing: 1.2)),
+                ]),
+                const SizedBox(height: 12),
+                SizedBox(
+                  height: 480,
+                  child: ListView.builder(
+                    scrollDirection: Axis.horizontal,
+                    itemCount: tiktokShorts.length,
+                    itemBuilder: (_, i) {
+                      final videoId = extractTikTokVideoId(tiktokShorts[i]);
+                      if (videoId == null) return const SizedBox.shrink();
+                      return Container(
+                        width: 270,
+                        margin: EdgeInsets.only(right: i == tiktokShorts.length - 1 ? 0 : 12),
+                        clipBehavior: Clip.antiAlias,
+                        decoration: BoxDecoration(borderRadius: BorderRadius.circular(16), color: _g(0.04)),
+                        child: tiktok_embed.buildTikTokEmbed(videoId),
+                      );
+                    },
+                  ),
+                ),
+              ],
             ]),
           ),
         ),
