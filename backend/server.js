@@ -533,6 +533,32 @@ app.post('/verify-email', rateLimit(5, 60_000), async (req, res) => {
   }
 });
 
+// ── AFM verification via the EU VIES service ──────────────────────────
+// POST /verify-afm
+// Body: { afm }
+// Καλεί το επίσημο REST API του VIES (ec.europa.eu) για να επιβεβαιώσει ότι
+// το ΑΦΜ αντιστοιχεί σε πραγματική, ενεργή επιχείρηση — όχι απλά ότι
+// γράφτηκε κάτι στο πεδίο.
+app.post('/verify-afm', rateLimit(20, 60_000), async (req, res) => {
+  const { afm } = req.body;
+  if (!afm || !/^\d{9}$/.test(afm)) return res.status(400).json({ valid: false, reason: 'invalid format' });
+
+  try {
+    const viesRes = await fetch('https://ec.europa.eu/taxation_customs/vies/rest-api/check-vat-number', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ countryCode: 'EL', vatNumber: afm }),
+      signal: AbortSignal.timeout(10_000),
+    });
+    if (!viesRes.ok) return res.json({ valid: false, reason: 'vies unavailable' });
+    const data = await viesRes.json();
+    res.json({ valid: data.valid === true, name: data.name || null });
+  } catch (e) {
+    console.error('verify-afm error:', e.message);
+    res.json({ valid: false, reason: 'vies error' });
+  }
+});
+
 // ── Password reset email (via our own Zoho sender, better deliverability) ──
 // POST /forgot-password
 // Body: { email }
