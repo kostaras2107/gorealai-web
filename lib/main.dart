@@ -356,6 +356,19 @@ double _combinedRating(Map<String, dynamic> data, {List<Map<String,dynamic>>? re
   return (gorealaiRating * gorealaiCount + googleRating * googleCount) / (gorealaiCount + googleCount);
 }
 
+// Έλεγχος checksum ελληνικού ΑΦΜ (9 ψηφία, το τελευταίο είναι ψηφίο ελέγχου).
+// Πιάνει προφανώς λάθος/ψεύτικους αριθμούς πριν καν φτάσουμε στο VIES.
+bool isValidGreekAfmFormat(String afm) {
+  final a = afm.trim();
+  if (!RegExp(r'^\d{9}$').hasMatch(a) || a == '000000000') return false;
+  int sum = 0;
+  for (int i = 0; i < 8; i++) {
+    sum += int.parse(a[i]) * (1 << (8 - i)); // 2^(8-i)
+  }
+  final check = (sum % 11) % 10;
+  return check == int.parse(a[8]);
+}
+
 String _toVocative(String? fullName) {
   if (fullName == null || fullName.isEmpty) return '';
   // First name only
@@ -981,6 +994,26 @@ class _LoginScreenState extends State<LoginScreen>
           'afm': _afm.text.trim(),
           if (selfieUrl != null) 'profilePhotoUrl': selfieUrl,
         });
+        // Πραγματικός έλεγχος ΑΦΜ μέσω VIES (μη μπλοκάρεις την εγγραφή αν αργήσει/αποτύχει)
+        final afmTrimmed = _afm.text.trim();
+        if (isValidGreekAfmFormat(afmTrimmed)) {
+          try {
+            final viesResp = await http.post(
+              Uri.parse('$kBackendUrl/verify-afm'),
+              headers: {'Content-Type': 'application/json'},
+              body: jsonEncode({'afm': afmTrimmed}),
+            ).timeout(const Duration(seconds: 10));
+            if (viesResp.statusCode == 200) {
+              final viesData = jsonDecode(viesResp.body) as Map<String, dynamic>;
+              final afmValid = viesData['valid'] == true;
+              final afmVerifiedName = viesData['name'] as String?;
+              await FirebaseFirestore.instance.collection('users').doc(cred.user!.uid)
+                  .update({'afmValid': afmValid, if (afmVerifiedName != null) 'afmVerifiedName': afmVerifiedName});
+              await FirebaseFirestore.instance.collection('professionals').doc(cred.user!.uid)
+                  .update({'afmValid': afmValid, if (afmVerifiedName != null) 'afmVerifiedName': afmVerifiedName});
+            }
+          } catch (_) {}
+        }
         // Ενημέρωση μετρητή του referrer — γίνεται στο backend (Admin SDK)
         // γιατί ο νέος εγγεγραμμένος δεν επιτρέπεται να γράψει στο users doc
         // κάποιου άλλου. Ξεχωριστό try/catch ώστε μια αποτυχία εδώ να ΜΗΝ
@@ -1403,7 +1436,8 @@ class _LoginScreenState extends State<LoginScreen>
             ),
             const SizedBox(height: 12),
 
-            // ΑΦΜ — verified badge αυτόματα όταν συμπληρωθεί
+            // ΑΦΜ — το verified badge ενεργοποιείται μόνο αν το ΑΦΜ περάσει
+            // πραγματικό έλεγχο (μορφή + VIES), όχι απλά επειδή γράφτηκε κάτι.
             Row(children: [
               Expanded(child: TextField(
                 controller: _afm,
@@ -1415,24 +1449,31 @@ class _LoginScreenState extends State<LoginScreen>
                   hintStyle: TextStyle(color: _g(0.3)),
                   enabledBorder: UnderlineInputBorder(borderSide: BorderSide(color: _g(0.2))),
                   focusedBorder: const UnderlineInputBorder(borderSide: BorderSide(color: kGold)),
+                  errorText: _afm.text.trim().length == 9 && !isValidGreekAfmFormat(_afm.text.trim())
+                      ? 'Μη έγκυρο ΑΦΜ'
+                      : null,
+                  errorStyle: const TextStyle(color: Colors.redAccent, fontSize: 11),
                 ),
               )),
               const SizedBox(width: 10),
-              AnimatedContainer(
-                duration: const Duration(milliseconds: 300),
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(8),
-                  color: _afm.text.trim().isNotEmpty ? kGold.withValues(alpha: 0.15) : _g(0.04),
-                  border: Border.all(color: _afm.text.trim().isNotEmpty ? kGold.withValues(alpha: 0.5) : _g(0.12)),
-                ),
-                child: Row(mainAxisSize: MainAxisSize.min, children: [
-                  Icon(Icons.verified, color: _afm.text.trim().isNotEmpty ? kGold : _g(0.25), size: 14),
-                  const SizedBox(width: 4),
-                  Text('✓ Verified badge',
-                      style: TextStyle(color: _afm.text.trim().isNotEmpty ? kGold : _g(0.3), fontSize: 10, fontWeight: FontWeight.w600)),
-                ]),
-              ),
+              Builder(builder: (context) {
+                final validFormat = isValidGreekAfmFormat(_afm.text.trim());
+                return AnimatedContainer(
+                  duration: const Duration(milliseconds: 300),
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(8),
+                    color: validFormat ? kGold.withValues(alpha: 0.15) : _g(0.04),
+                    border: Border.all(color: validFormat ? kGold.withValues(alpha: 0.5) : _g(0.12)),
+                  ),
+                  child: Row(mainAxisSize: MainAxisSize.min, children: [
+                    Icon(Icons.verified, color: validFormat ? kGold : _g(0.25), size: 14),
+                    const SizedBox(width: 4),
+                    Text('✓ Verified badge',
+                        style: TextStyle(color: validFormat ? kGold : _g(0.3), fontSize: 10, fontWeight: FontWeight.w600)),
+                  ]),
+                );
+              }),
             ]),
             const SizedBox(height: 12),
 
@@ -6309,7 +6350,9 @@ Future<void> _submitOfferFallback(String requestId, Map<String, dynamic> request
       'priceAfterVisit': priceAfterVisit,
       'message': message,
       'availableFrom': available,
-      'rating': 4.8,
+      // Το rating ΔΕΝ αποθηκεύεται εδώ πια — υπολογίζεται ζωντανά από το
+      // πραγματικό averageRating του επαγγελματία όταν φορτώνονται οι
+      // προσφορές (OffersScreen._loadOffers), ώστε να μην «παγώνει».
       'emoji': '🔧',
       'createdAt': FieldValue.serverTimestamp(),
       if (audioUrl != null) 'audioUrl': audioUrl,
@@ -8659,9 +8702,21 @@ class _OffersScreenState extends State<OffersScreen>
           .limit(10)
           .get();
       if (snap.docs.isNotEmpty) {
+        final rawOffers = snap.docs.map((d) => Map<String, dynamic>.from(d.data())).toList();
+        // Το rating αποθηκεύεται «παγωμένο» πάνω στην προσφορά τη στιγμή που
+        // στάλθηκε — αντικατέστησέ το με το πραγματικό, τρέχον rating του
+        // επαγγελματία, ώστε να ταιριάζει με ό,τι δείχνει το προφίλ του.
+        await Future.wait(rawOffers.map((o) async {
+          final proId = o['professionalId'] as String?;
+          if (proId == null || proId.isEmpty) return;
+          try {
+            final proDoc = await FirebaseFirestore.instance.collection('professionals').doc(proId).get();
+            if (proDoc.exists) o['rating'] = _combinedRating(proDoc.data()!);
+          } catch (_) {}
+        }));
         if (mounted) {
           setState(() {
-            final sorted = snap.docs.map((d) => d.data()).toList()
+            final sorted = rawOffers
               ..sort((a, b) => ((a['price'] ?? 0) as num).compareTo((b['price'] ?? 0) as num));
             _offers = sorted.take(3).toList();
             _loading = false;
@@ -13021,8 +13076,7 @@ class _NearbyProsSectionState extends State<_NearbyProsSection> {
               final isNew = createdAt == null
                   ? false
                   : DateTime.now().difference(createdAt).inDays <= 7;
-              final afm = (d['afm'] as String? ?? '').trim();
-              final isVerified = afm.isNotEmpty;
+              final isVerified = d['afmValid'] == true;
               final initials = name.isNotEmpty ? name[0].toUpperCase() : 'P';
               final isActive = i == _page;
 
@@ -14632,7 +14686,7 @@ class _ProPortfolioScreenState extends State<ProPortfolioScreen> {
     final specialty = (pro['specialty'] ?? pro['profession'] ?? '') as String;
     final area = (pro['area'] ?? '') as String;
     final bio = (pro['bio'] ?? pro['description'] ?? '') as String;
-    final isVerified = pro['verified'] == true || pro['afmVerified'] == true;
+    final isVerified = pro['afmValid'] == true;
     final isOnline = pro['is_active'] == true;
     final rating = _liveRating ?? ((pro['averageRating'] ?? pro['rating'] ?? 0.0) as num).toDouble();
     final reviewCount = _liveReviewCount ?? ((pro['reviewCount'] ?? 0) as num).toInt();
