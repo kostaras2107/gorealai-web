@@ -2844,6 +2844,34 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
 
         const SizedBox(height: 28),
 
+        // TIK TOK SHORTS
+        Padding(
+          padding: const EdgeInsets.fromLTRB(20, 0, 20, 12),
+          child: Row(children: [
+            Container(width: 3, height: 20,
+                decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(2),
+                    gradient: const LinearGradient(begin: Alignment.topCenter, end: Alignment.bottomCenter,
+                        colors: [Color(0xFFEE1D52), Color(0xFF69C9D0)]),
+                    boxShadow: [BoxShadow(color: const Color(0xFF69C9D0).withValues(alpha: 0.5), blurRadius: 6)])),
+            const SizedBox(width: 10),
+            const Text('TikTok Shorts',
+                style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.w700, letterSpacing: 0.3)),
+            const SizedBox(width: 8),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(20),
+                gradient: const LinearGradient(colors: [Color(0xFFEE1D52), Color(0xFF69C9D0)]),
+              ),
+              child: const Text('✨ ULTRA', style: TextStyle(color: Colors.white, fontSize: 9, fontWeight: FontWeight.w900, letterSpacing: 0.5)),
+            ),
+          ]),
+        ),
+        const _TikTokShortsCarousel(),
+
+        const SizedBox(height: 28),
+
         // LIVE ACTIVITY FEED
         Padding(
           padding: const EdgeInsets.fromLTRB(20, 0, 20, 12),
@@ -3850,9 +3878,8 @@ class _ProfessionalHomeScreenState extends State<ProfessionalHomeScreen> {
   // Social
   String _instagramUrl = '';
   String _tiktokUrl = '';
-  // TikTok Shorts — Ultra Premium feature, λίστα από links βίντεο TikTok
+  // TikTok Shorts — λίστα από links βίντεο TikTok, ultra premium design
   List<String> _tiktokShorts = [];
-  bool _isPremium = false;
   // Portfolio — each project: {id, title, photos:[url,...]}
   List<Map<String, dynamic>> _portfolioProjects = [];
   bool _portfolioUploading = false;
@@ -4008,8 +4035,6 @@ class _ProfessionalHomeScreenState extends State<ProfessionalHomeScreen> {
       _instagramUrl = merged['instagram'] as String? ?? '';
       _tiktokUrl = merged['tiktok'] as String? ?? '';
       _tiktokShorts = ((merged['tiktokShorts'] as List?) ?? []).whereType<String>().toList();
-      final premiumUntil = (merged['premiumUntil'] as Timestamp?)?.toDate();
-      _isPremium = merged['isPremium'] == true && (premiumUntil == null || premiumUntil.isAfter(DateTime.now()));
       _proAverageRating = (merged['averageRating'] as num?)?.toDouble() ?? 0.0;
       _proAfm = (merged['afm'] as String? ?? '').trim();
       _portfolioProjects = projects;
@@ -4514,7 +4539,7 @@ class _ProfessionalHomeScreenState extends State<ProfessionalHomeScreen> {
                         _buildNavCard('rejected', '❌', 'Απορριφθέντα', 'Ιστορικό απορρίψεων',
                             iconColor: Colors.red),
                         _buildNavCard('social', '📱', 'Social Media', 'Instagram & TikTok'),
-                        _buildNavCard('shorts', '🎬', 'TikTok Shorts', 'Ultra Premium ✨'),
+                        _buildNavCard('shorts', '🎬', 'TikTok Shorts', 'Δείξε τα βίντεό σου ✨'),
                       ],
                     ),
                   ]),
@@ -5717,34 +5742,52 @@ class _ProfessionalHomeScreenState extends State<ProfessionalHomeScreen> {
   }
 
   Widget _buildTikTokShortsSection() {
-    if (!_isPremium) {
-      return ListView(
-        padding: const EdgeInsets.fromLTRB(20, 40, 20, 40),
-        children: [
-          _SectionCard(
-            title: '🎬 TikTok Shorts',
-            child: Column(children: [
-              Icon(Icons.lock_outline, color: kGold.withValues(alpha: 0.6), size: 36),
-              const SizedBox(height: 12),
-              const Text('Ultra Premium Feature',
-                  style: TextStyle(color: kGold, fontWeight: FontWeight.bold, fontSize: 15)),
-              const SizedBox(height: 8),
-              Text(
-                'Ξεκλείδωσε την προβολή των TikTok βίντεό σου μέσα στο προφίλ σου, φέρνοντας 5 νέους επαγγελματίες με το referral σου.',
-                textAlign: TextAlign.center,
-                style: TextStyle(color: _g(0.5), fontSize: 13, height: 1.5),
-              ),
-            ]),
-          ),
-        ],
-      );
-    }
-
     return ListView(
       padding: const EdgeInsets.fromLTRB(20, 8, 20, 40),
       children: [
+        // Πολυτελές, "ultra premium" εικαστικό header — καθαρά design,
+        // διαθέσιμο σε όλους τους επαγγελματίες, καμία σχέση με premium tier.
+        Container(
+          padding: const EdgeInsets.all(2),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(20),
+            gradient: const LinearGradient(
+              colors: [Color(0xFFEE1D52), Color(0xFF69C9D0), kGoldLight],
+            ),
+            boxShadow: [BoxShadow(color: const Color(0xFF69C9D0).withValues(alpha: 0.25), blurRadius: 20)],
+          ),
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 16),
+            decoration: BoxDecoration(borderRadius: BorderRadius.circular(18), color: const Color(0xFF0A0800)),
+            child: Row(children: [
+              const Text('🎬', style: TextStyle(fontSize: 26)),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                  Row(children: [
+                    const Text('TikTok Shorts',
+                        style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.w900)),
+                    const SizedBox(width: 8),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(20),
+                        gradient: const LinearGradient(colors: [Color(0xFFEE1D52), Color(0xFF69C9D0)]),
+                      ),
+                      child: const Text('✨ ULTRA', style: TextStyle(color: Colors.white, fontSize: 8, fontWeight: FontWeight.w900, letterSpacing: 0.5)),
+                    ),
+                  ]),
+                  const SizedBox(height: 3),
+                  Text('Δείξε τη δουλειά σου σε βίντεο, ζωντανά στο προφίλ σου',
+                      style: TextStyle(color: _g(0.55), fontSize: 11)),
+                ]),
+              ),
+            ]),
+          ),
+        ),
+        const SizedBox(height: 20),
         _SectionCard(
-          title: '🎬 Τα Shorts σου',
+          title: '🎵 Τα Shorts σου',
           child: Column(children: [
             if (_tiktokShorts.isEmpty)
               Text('Δεν έχεις προσθέσει ακόμα κανένα βίντεο',
@@ -13337,6 +13380,120 @@ class _NearbyProsSectionState extends State<_NearbyProsSection> {
     child: Center(child: Text(initials,
         style: const TextStyle(color: kGold, fontSize: 36, fontWeight: FontWeight.bold))),
   );
+}
+
+// ══════════════════════════════════════════════════════
+// TIKTOK SHORTS CAROUSEL — αυτόματο scroll, βίντεο απ' όλους τους
+// επαγγελματίες που έχουν προσθέσει links (ίδιο μοτίβο με _NearbyProsSection)
+// ══════════════════════════════════════════════════════
+class _TikTokShortsCarousel extends StatefulWidget {
+  const _TikTokShortsCarousel();
+  @override
+  State<_TikTokShortsCarousel> createState() => _TikTokShortsCarouselState();
+}
+
+class _TikTokShortsCarouselState extends State<_TikTokShortsCarousel> {
+  final PageController _pageCtrl = PageController(viewportFraction: 0.6);
+  Timer? _autoScrollTimer;
+
+  @override
+  void initState() {
+    super.initState();
+    _autoScrollTimer = Timer.periodic(const Duration(seconds: 4), (_) {
+      if (!mounted || !_pageCtrl.hasClients) return;
+      _pageCtrl.nextPage(
+        duration: const Duration(milliseconds: 700),
+        curve: Curves.easeInOut,
+      );
+    });
+  }
+
+  @override
+  void dispose() {
+    _autoScrollTimer?.cancel();
+    _pageCtrl.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return StreamBuilder<QuerySnapshot>(
+      stream: FirebaseFirestore.instance
+          .collection('professionals')
+          .where('is_active', isEqualTo: true)
+          .limit(50)
+          .snapshots(),
+      builder: (context, snap) {
+        if (!snap.hasData) return const SizedBox(height: 420);
+        final items = <Map<String, dynamic>>[];
+        for (final doc in snap.data!.docs) {
+          final d = doc.data() as Map<String, dynamic>;
+          final shorts = ((d['tiktokShorts'] as List?) ?? []).whereType<String>();
+          for (final url in shorts) {
+            final videoId = extractTikTokVideoId(url);
+            if (videoId != null) {
+              items.add({'videoId': videoId, 'proName': d['name'] ?? 'Επαγγελματίας', 'proId': doc.id, 'proData': d});
+            }
+          }
+        }
+        if (items.isEmpty) {
+          return Container(
+            height: 160,
+            margin: const EdgeInsets.symmetric(horizontal: 20),
+            padding: const EdgeInsets.all(20),
+            decoration: BoxDecoration(borderRadius: BorderRadius.circular(16), color: const Color(0xFF69C9D0).withValues(alpha: 0.04),
+                border: Border.all(color: const Color(0xFF69C9D0).withValues(alpha: 0.15))),
+            child: Center(
+              child: Text('Δεν υπάρχουν ακόμα βίντεο από επαγγελματίες',
+                  textAlign: TextAlign.center, style: TextStyle(color: _g(0.35), fontSize: 12)),
+            ),
+          );
+        }
+        return SizedBox(
+          height: 420,
+          child: PageView.builder(
+            controller: _pageCtrl,
+            itemCount: 9999,
+            itemBuilder: (_, i) {
+              final item = items[i % items.length];
+              return GestureDetector(
+                onTap: () => Navigator.push(context, PageRouteBuilder(
+                  pageBuilder: (_, __, ___) => _ProPublicProfileScreen(
+                      proId: item['proId'] as String, proData: item['proData'] as Map<String, dynamic>),
+                  transitionsBuilder: (_, a, __, c) => FadeTransition(opacity: a, child: c),
+                )),
+                child: Container(
+                  margin: const EdgeInsets.symmetric(horizontal: 6),
+                  clipBehavior: Clip.antiAlias,
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(18),
+                    border: Border.all(color: const Color(0xFF69C9D0).withValues(alpha: 0.3)),
+                    boxShadow: [BoxShadow(color: const Color(0xFF69C9D0).withValues(alpha: 0.1), blurRadius: 12)],
+                  ),
+                  child: Stack(fit: StackFit.expand, children: [
+                    tiktok_embed.buildTikTokEmbed(item['videoId'] as String),
+                    Positioned(
+                      left: 8, right: 8, bottom: 8,
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                        decoration: BoxDecoration(borderRadius: BorderRadius.circular(10), color: Colors.black.withValues(alpha: 0.65)),
+                        child: Row(mainAxisSize: MainAxisSize.min, children: [
+                          const Text('🎵', style: TextStyle(fontSize: 12)),
+                          const SizedBox(width: 5),
+                          Flexible(child: Text(item['proName'] as String, maxLines: 1, overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.w700))),
+                        ]),
+                      ),
+                    ),
+                  ]),
+                ),
+              );
+            },
+          ),
+        );
+      },
+    );
+  }
 }
 
 // ══════════════════════════════════════════════════════
