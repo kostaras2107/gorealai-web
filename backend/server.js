@@ -559,6 +559,28 @@ app.post('/verify-afm', rateLimit(20, 60_000), async (req, res) => {
   }
 });
 
+// ── Resolve short TikTok share links (vm.tiktok.com / vt.tiktok.com) ─────
+// Το κουμπί "Αντιγραφή Συνδέσμου" στο κινητό δίνει σύντομο redirect link,
+// όχι το πλήρες https://www.tiktok.com/@user/video/123... — το ακολουθούμε
+// server-side (χωρίς πρόβλημα CORS, σε αντίθεση με τον browser) για να
+// βγάλουμε το πραγματικό video ID.
+// POST /resolve-tiktok-link
+// Body: { url }
+app.post('/resolve-tiktok-link', rateLimit(30, 60_000), async (req, res) => {
+  const { url } = req.body;
+  if (!url) return res.status(400).json({ success: false, reason: 'url required' });
+  try {
+    const resp = await fetch(url, { redirect: 'follow', signal: AbortSignal.timeout(10_000) });
+    const finalUrl = resp.url;
+    const match = finalUrl.match(/\/video\/(\d+)/);
+    if (!match) return res.json({ success: false, reason: 'video id not found' });
+    res.json({ success: true, videoId: match[1], canonicalUrl: finalUrl });
+  } catch (e) {
+    console.error('resolve-tiktok-link error:', e.message);
+    res.json({ success: false, reason: e.message });
+  }
+});
+
 // ── Password reset email (via our own Zoho sender, better deliverability) ──
 // POST /forgot-password
 // Body: { email }
