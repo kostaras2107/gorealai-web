@@ -362,7 +362,7 @@ double _combinedRating(Map<String, dynamic> data, {List<Map<String,dynamic>>? re
 // Εξάγει το video ID από ένα link TikTok (π.χ. tiktok.com/@user/video/1234567890)
 // ώστε να μπορούμε να το κάνουμε embed. Επιστρέφει null αν δεν αναγνωρίζεται.
 String? extractTikTokVideoId(String url) {
-  final match = RegExp(r'/video/(\d+)').firstMatch(url.trim());
+  final match = RegExp(r'/(?:video|photo)/(\d+)').firstMatch(url.trim());
   return match?.group(1);
 }
 
@@ -5845,9 +5845,28 @@ class _ProfessionalHomeScreenState extends State<ProfessionalHomeScreen> {
   }
 
   Future<void> _addTikTokShort() async {
-    final url = _shortCtrl.text.trim();
-    if (url.isEmpty) return;
-    final videoId = extractTikTokVideoId(url);
+    final rawUrl = _shortCtrl.text.trim();
+    if (rawUrl.isEmpty) return;
+    String urlToSave = rawUrl;
+    if (extractTikTokVideoId(rawUrl) == null) {
+      // Μάλλον είναι σύντομος σύνδεσμος (vm.tiktok.com/vt.tiktok.com) από το
+      // κουμπί "Αντιγραφή Συνδέσμου" στο κινητό — ζήτα από το backend να τον
+      // αναλύσει (ο browser δεν μπορεί λόγω CORS).
+      try {
+        final resp = await http.post(
+          Uri.parse('$kBackendUrl/resolve-tiktok-link'),
+          headers: {'Content-Type': 'application/json'},
+          body: jsonEncode({'url': rawUrl}),
+        ).timeout(const Duration(seconds: 10));
+        if (resp.statusCode == 200) {
+          final data = jsonDecode(resp.body) as Map<String, dynamic>;
+          if (data['success'] == true) {
+            urlToSave = data['canonicalUrl'] as String? ?? rawUrl;
+          }
+        }
+      } catch (_) {}
+    }
+    final videoId = extractTikTokVideoId(urlToSave);
     if (videoId == null) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -5857,7 +5876,7 @@ class _ProfessionalHomeScreenState extends State<ProfessionalHomeScreen> {
     }
     final uid = FirebaseAuth.instance.currentUser?.uid;
     if (uid == null || _proDocId == null) return;
-    final updated = [..._tiktokShorts, url];
+    final updated = [..._tiktokShorts, urlToSave];
     await FirebaseFirestore.instance.collection('professionals').doc(_proDocId).set({'tiktokShorts': updated}, SetOptions(merge: true));
     await FirebaseFirestore.instance.collection('users').doc(uid).set({'tiktokShorts': updated}, SetOptions(merge: true));
     if (mounted) {
