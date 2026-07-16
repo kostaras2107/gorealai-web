@@ -13488,7 +13488,8 @@ class _TikTokShortsCarouselState extends State<_TikTokShortsCarousel> {
                   boxShadow: [BoxShadow(color: const Color(0xFF69C9D0).withValues(alpha: 0.1), blurRadius: 12)],
                 ),
                 child: Stack(fit: StackFit.expand, children: [
-                  tiktok_embed.buildTikTokEmbed(item['videoId'] as String),
+                  Container(color: Colors.black),
+                  Center(child: tiktok_embed.buildTikTokEmbed(item['videoId'] as String)),
                   Positioned(
                     left: 8, right: 8, bottom: 8,
                     child: IgnorePointer(
@@ -13538,7 +13539,7 @@ class _FullscreenTikTokViewer extends StatelessWidget {
       backgroundColor: Colors.black,
       body: SafeArea(
         child: Stack(children: [
-          Positioned.fill(child: tiktok_embed.buildTikTokEmbed(videoId)),
+          Positioned.fill(child: Center(child: tiktok_embed.buildTikTokEmbed(videoId))),
           Positioned(
             top: 8, left: 8,
             child: GestureDetector(
@@ -15382,7 +15383,8 @@ class _ProPortfolioScreenState extends State<ProPortfolioScreen> {
                         width: 270,
                         margin: EdgeInsets.only(right: i == tiktokShorts.length - 1 ? 0 : 12),
                         clipBehavior: Clip.antiAlias,
-                        decoration: BoxDecoration(borderRadius: BorderRadius.circular(16), color: _g(0.04)),
+                        alignment: Alignment.center,
+                        decoration: BoxDecoration(borderRadius: BorderRadius.circular(16), color: Colors.black),
                         child: tiktok_embed.buildTikTokEmbed(videoId),
                       );
                     },
