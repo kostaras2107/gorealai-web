@@ -13479,23 +13479,19 @@ class _TikTokShortsCarouselState extends State<_TikTokShortsCarousel> {
             itemCount: items.length <= 1 ? items.length : 9999,
             itemBuilder: (_, i) {
               final item = items[i % items.length];
-              return GestureDetector(
-                onTap: () => Navigator.push(context, PageRouteBuilder(
-                  pageBuilder: (_, __, ___) => _FullscreenTikTokViewer(videoId: item['videoId'] as String),
-                  transitionsBuilder: (_, a, __, c) => FadeTransition(opacity: a, child: c),
-                )),
-                child: Container(
-                  margin: const EdgeInsets.symmetric(horizontal: 6),
-                  clipBehavior: Clip.antiAlias,
-                  decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(18),
-                    border: Border.all(color: const Color(0xFF69C9D0).withValues(alpha: 0.3)),
-                    boxShadow: [BoxShadow(color: const Color(0xFF69C9D0).withValues(alpha: 0.1), blurRadius: 12)],
-                  ),
-                  child: Stack(fit: StackFit.expand, children: [
-                    tiktok_embed.buildTikTokEmbed(item['videoId'] as String),
-                    Positioned(
-                      left: 8, right: 8, bottom: 8,
+              return Container(
+                margin: const EdgeInsets.symmetric(horizontal: 6),
+                clipBehavior: Clip.antiAlias,
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(18),
+                  border: Border.all(color: const Color(0xFF69C9D0).withValues(alpha: 0.3)),
+                  boxShadow: [BoxShadow(color: const Color(0xFF69C9D0).withValues(alpha: 0.1), blurRadius: 12)],
+                ),
+                child: Stack(fit: StackFit.expand, children: [
+                  tiktok_embed.buildTikTokEmbed(item['videoId'] as String),
+                  Positioned(
+                    left: 8, right: 8, bottom: 8,
+                    child: IgnorePointer(
                       child: Container(
                         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                         decoration: BoxDecoration(borderRadius: BorderRadius.circular(10), color: Colors.black.withValues(alpha: 0.65)),
@@ -13507,8 +13503,22 @@ class _TikTokShortsCarouselState extends State<_TikTokShortsCarousel> {
                         ]),
                       ),
                     ),
-                  ]),
-                ),
+                  ),
+                  // Αόρατο κάλυμμα ΠΑΝΩ από το iframe — χωρίς αυτό, το πάτημα
+                  // το «καταπίνει» το ίδιο το TikTok iframe (πραγματικό DOM
+                  // στοιχείο) και ανοίγει άλλο βίντεο μέσα στο ίδιο το TikTok,
+                  // αντί να το πιάνει η εφαρμογή μας.
+                  Positioned.fill(
+                    child: GestureDetector(
+                      behavior: HitTestBehavior.opaque,
+                      onTap: () => Navigator.push(context, PageRouteBuilder(
+                        pageBuilder: (_, __, ___) => _FullscreenTikTokViewer(videoId: item['videoId'] as String),
+                        transitionsBuilder: (_, a, __, c) => FadeTransition(opacity: a, child: c),
+                      )),
+                      child: const ColoredBox(color: Colors.transparent),
+                    ),
+                  ),
+                ]),
               );
             },
           ),
