@@ -13414,12 +13414,14 @@ class _TikTokShortsCarousel extends StatefulWidget {
 class _TikTokShortsCarouselState extends State<_TikTokShortsCarousel> {
   final PageController _pageCtrl = PageController(viewportFraction: 0.6);
   Timer? _autoScrollTimer;
+  int _itemCount = 0;
 
   @override
   void initState() {
     super.initState();
     _autoScrollTimer = Timer.periodic(const Duration(seconds: 4), (_) {
-      if (!mounted || !_pageCtrl.hasClients) return;
+      // Αν υπάρχει μόνο 1 (ή 0) βίντεο, δεν χρειάζεται καθόλου κίνηση.
+      if (!mounted || !_pageCtrl.hasClients || _itemCount <= 1) return;
       _pageCtrl.nextPage(
         duration: const Duration(milliseconds: 700),
         curve: Curves.easeInOut,
@@ -13455,6 +13457,7 @@ class _TikTokShortsCarouselState extends State<_TikTokShortsCarousel> {
             }
           }
         }
+        _itemCount = items.length;
         if (items.isEmpty) {
           return Container(
             height: 160,
@@ -13472,13 +13475,13 @@ class _TikTokShortsCarouselState extends State<_TikTokShortsCarousel> {
           height: 420,
           child: PageView.builder(
             controller: _pageCtrl,
-            itemCount: 9999,
+            // Με 1 μόνο βίντεο δεν χρειάζεται άπειρο loop — δείξε το μία φορά, ακίνητο.
+            itemCount: items.length <= 1 ? items.length : 9999,
             itemBuilder: (_, i) {
               final item = items[i % items.length];
               return GestureDetector(
                 onTap: () => Navigator.push(context, PageRouteBuilder(
-                  pageBuilder: (_, __, ___) => _ProPublicProfileScreen(
-                      proId: item['proId'] as String, proData: item['proData'] as Map<String, dynamic>),
+                  pageBuilder: (_, __, ___) => _FullscreenTikTokViewer(videoId: item['videoId'] as String),
                   transitionsBuilder: (_, a, __, c) => FadeTransition(opacity: a, child: c),
                 )),
                 child: Container(
@@ -13511,6 +13514,34 @@ class _TikTokShortsCarouselState extends State<_TikTokShortsCarousel> {
           ),
         );
       },
+    );
+  }
+}
+
+// ── Fullscreen TikTok video viewer — ανοίγει το βίντεο μεγάλο, μέσα στην εφαρμογή ──
+class _FullscreenTikTokViewer extends StatelessWidget {
+  final String videoId;
+  const _FullscreenTikTokViewer({required this.videoId});
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: Colors.black,
+      body: SafeArea(
+        child: Stack(children: [
+          Positioned.fill(child: tiktok_embed.buildTikTokEmbed(videoId)),
+          Positioned(
+            top: 8, left: 8,
+            child: GestureDetector(
+              onTap: () => Navigator.pop(context),
+              child: Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(shape: BoxShape.circle, color: Colors.black.withValues(alpha: 0.55)),
+                child: const Icon(Icons.close, color: Colors.white, size: 20),
+              ),
+            ),
+          ),
+        ]),
+      ),
     );
   }
 }
