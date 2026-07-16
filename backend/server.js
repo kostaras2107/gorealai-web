@@ -572,7 +572,7 @@ app.post('/resolve-tiktok-link', rateLimit(30, 60_000), async (req, res) => {
   try {
     const resp = await fetch(url, { redirect: 'follow', signal: AbortSignal.timeout(10_000) });
     const finalUrl = resp.url;
-    const match = finalUrl.match(/\/video\/(\d+)/);
+    const match = finalUrl.match(/\/(?:video|photo)\/(\d+)/);
     if (!match) return res.json({ success: false, reason: 'video id not found' });
     res.json({ success: true, videoId: match[1], canonicalUrl: finalUrl });
   } catch (e) {
