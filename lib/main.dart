@@ -3825,6 +3825,111 @@ class ProfessionalHomeScreen extends StatefulWidget {
       _ProfessionalHomeScreenState();
 }
 
+// ── Netflix-style nav tile: grey, με βάθος (σκιά), "σηκώνεται" στο hover ──
+class _NetflixStyleNavCard extends StatefulWidget {
+  final String emoji;
+  final String title;
+  final String subtitle;
+  final int badge;
+  final Color iconColor;
+  final VoidCallback onTap;
+  const _NetflixStyleNavCard({
+    required this.emoji,
+    required this.title,
+    required this.subtitle,
+    required this.badge,
+    required this.iconColor,
+    required this.onTap,
+  });
+  @override
+  State<_NetflixStyleNavCard> createState() => _NetflixStyleNavCardState();
+}
+
+class _NetflixStyleNavCardState extends State<_NetflixStyleNavCard> {
+  bool _hovering = false;
+  bool _pressed = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final lifted = _hovering && !_pressed;
+    return MouseRegion(
+      onEnter: (_) => setState(() => _hovering = true),
+      onExit: (_) => setState(() => _hovering = false),
+      cursor: SystemMouseCursors.click,
+      child: GestureDetector(
+        onTapDown: (_) => setState(() => _pressed = true),
+        onTapCancel: () => setState(() => _pressed = false),
+        onTapUp: (_) => setState(() => _pressed = false),
+        onTap: widget.onTap,
+        child: AnimatedScale(
+          scale: lifted ? 1.05 : (_pressed ? 0.97 : 1.0),
+          duration: const Duration(milliseconds: 160),
+          curve: Curves.easeOut,
+          child: Stack(children: [
+            AnimatedContainer(
+              duration: const Duration(milliseconds: 160),
+              curve: Curves.easeOut,
+              height: 72,
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(16),
+                gradient: LinearGradient(
+                  begin: Alignment.topCenter, end: Alignment.bottomCenter,
+                  colors: lifted
+                      ? [const Color(0xFF3D3D3D), const Color(0xFF2A2A2A)]
+                      : [const Color(0xFF2C2C2C), const Color(0xFF1F1F1F)],
+                ),
+                border: Border.all(
+                  color: lifted ? Colors.white.withValues(alpha: 0.18) : Colors.white.withValues(alpha: 0.07),
+                  width: 1.0,
+                ),
+                boxShadow: lifted
+                    ? [
+                        BoxShadow(color: Colors.black.withValues(alpha: 0.55), blurRadius: 24, offset: const Offset(0, 14)),
+                        BoxShadow(color: widget.iconColor.withValues(alpha: 0.18), blurRadius: 18, offset: const Offset(0, 6)),
+                      ]
+                    : [
+                        BoxShadow(color: Colors.black.withValues(alpha: 0.4), blurRadius: 8, offset: const Offset(0, 3)),
+                      ],
+              ),
+              child: Row(children: [
+                Container(
+                  width: 42, height: 42,
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(12),
+                    color: widget.iconColor.withValues(alpha: lifted ? 0.26 : 0.18),
+                  ),
+                  child: Center(child: Text(widget.emoji, style: const TextStyle(fontSize: 21))),
+                ),
+                const SizedBox(width: 10),
+                Expanded(child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Text(widget.title, style: const TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.w700, height: 1.2)),
+                    Text(widget.subtitle, style: TextStyle(color: Colors.white.withValues(alpha: 0.4), fontSize: 10, height: 1.3),
+                        maxLines: 1, overflow: TextOverflow.ellipsis),
+                  ],
+                )),
+                Icon(Icons.arrow_forward_ios, size: 11, color: Colors.white.withValues(alpha: lifted ? 0.3 : 0.15)),
+              ]),
+            ),
+            if (widget.badge > 0)
+              Positioned(
+                top: 6, right: 6,
+                child: Container(
+                  padding: const EdgeInsets.all(4),
+                  decoration: const BoxDecoration(color: Colors.red, shape: BoxShape.circle),
+                  child: Text('${widget.badge}', style: const TextStyle(color: Colors.white, fontSize: 9, fontWeight: FontWeight.bold)),
+                ),
+              ),
+          ]),
+        ),
+      ),
+    );
+  }
+}
+
 class _ProfessionalHomeScreenState extends State<ProfessionalHomeScreen> {
   String? _proName;
   String? _proId;
@@ -4185,53 +4290,13 @@ class _ProfessionalHomeScreenState extends State<ProfessionalHomeScreen> {
   // ── Nav card (grid item) ──
   Widget _buildNavCard(String section, String emoji, String title, String subtitle,
       {int badge = 0, Color iconColor = kGold, VoidCallback? customOnTap}) {
-    return GestureDetector(
+    return _NetflixStyleNavCard(
+      emoji: emoji,
+      title: title,
+      subtitle: subtitle,
+      badge: badge,
+      iconColor: iconColor,
       onTap: customOnTap ?? () => setState(() => _activeSection = section),
-      child: Stack(children: [
-        Container(
-          height: 72,
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(16),
-            color: const Color(0xFF141414),
-            border: Border.all(color: Colors.white.withValues(alpha: 0.06), width: 1.0),
-            boxShadow: [
-              BoxShadow(color: iconColor.withValues(alpha: 0.10), blurRadius: 14, offset: const Offset(0, 4)),
-              BoxShadow(color: Colors.black.withValues(alpha: 0.45), blurRadius: 8, offset: const Offset(0, 3)),
-            ],
-          ),
-          child: Row(children: [
-            Container(
-              width: 42, height: 42,
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(12),
-                color: iconColor.withValues(alpha: 0.18),
-              ),
-              child: Center(child: Text(emoji, style: const TextStyle(fontSize: 21))),
-            ),
-            const SizedBox(width: 10),
-            Expanded(child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Text(title, style: const TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.w700, height: 1.2)),
-                Text(subtitle, style: TextStyle(color: Colors.white.withValues(alpha: 0.35), fontSize: 10, height: 1.3),
-                    maxLines: 1, overflow: TextOverflow.ellipsis),
-              ],
-            )),
-            Icon(Icons.arrow_forward_ios, size: 11, color: Colors.white.withValues(alpha: 0.15)),
-          ]),
-        ),
-        if (badge > 0)
-          Positioned(
-            top: 6, right: 6,
-            child: Container(
-              padding: const EdgeInsets.all(4),
-              decoration: const BoxDecoration(color: Colors.red, shape: BoxShape.circle),
-              child: Text('$badge', style: const TextStyle(color: Colors.white, fontSize: 9, fontWeight: FontWeight.bold)),
-            ),
-          ),
-      ]),
     );
   }
 
