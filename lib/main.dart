@@ -277,20 +277,6 @@ class AppTheme {
         accent: Color(0xFF64B5F6),
         background: Color(0xFF080C14),
         backgroundGradientEnd: Color(0xFF040710)),
-    'white': AppTheme(
-        id: 'white',
-        accent: Color(0xFFFFB340),
-        background: Color(0xFFF5F5F7),
-        backgroundGradientEnd: Color(0xFFEBEBF0),
-        isLight: true,
-        textBase: Color(0xFF0D0D1E)),
-    'grey': AppTheme(
-        id: 'grey',
-        accent: Color(0xFFFFB340),
-        background: Color(0xFFE5E5EA),
-        backgroundGradientEnd: Color(0xFFD8D8E0),
-        isLight: true,
-        textBase: Color(0xFF0D0D1E)),
   };
   static AppTheme get(String id) => themes[id] ?? themes['obsidian']!;
 }
@@ -3973,6 +3959,7 @@ class _ProfessionalHomeScreenState extends State<ProfessionalHomeScreen> {
   List<String> _subSpecialties = [];
   List<String> _areas = [];
   String _proAfm = '';
+  bool _proAfmValid = false;
   String _companyName = '';
   String _googlePlaceUrl = '';
   String _googlePlaceId = '';
@@ -4000,6 +3987,8 @@ class _ProfessionalHomeScreenState extends State<ProfessionalHomeScreen> {
   final _newAreaCtrl = TextEditingController();
   bool _editingAreas = false;
   final _companyNameCtrl = TextEditingController();
+  final _afmCtrl = TextEditingController();
+  bool _afmSaving = false;
   final _googlePlaceCtrl = TextEditingController();
   bool _editingGoogleCompany = false;
   final _yearsCtrl = TextEditingController();
@@ -4018,6 +4007,7 @@ class _ProfessionalHomeScreenState extends State<ProfessionalHomeScreen> {
     _newSpecialtyCtrl.dispose();
     _newAreaCtrl.dispose();
     _companyNameCtrl.dispose();
+    _afmCtrl.dispose();
     _googlePlaceCtrl.dispose();
     _yearsCtrl.dispose();
     _igCtrl.dispose();
@@ -4142,6 +4132,8 @@ class _ProfessionalHomeScreenState extends State<ProfessionalHomeScreen> {
       _tiktokShorts = ((merged['tiktokShorts'] as List?) ?? []).whereType<String>().toList();
       _proAverageRating = (merged['averageRating'] as num?)?.toDouble() ?? 0.0;
       _proAfm = (merged['afm'] as String? ?? '').trim();
+      _afmCtrl.text = _proAfm;
+      _proAfmValid = merged['afmValid'] == true;
       _portfolioProjects = projects;
       _bioCtrl.text = _bio;
     });
@@ -4932,6 +4924,58 @@ class _ProfessionalHomeScreenState extends State<ProfessionalHomeScreen> {
           ]),
         ),
 
+        // ── 1β. ΑΦΜ ──
+        _MiniCvCard(
+          icon: Icons.verified_outlined,
+          iconColor: kGold,
+          title: 'ΑΦΜ',
+          subtitle: _proAfmValid ? 'Επιβεβαιωμένο ✓' : 'Προαιρετικό — ξεκλειδώνει το verified badge',
+          isDone: _proAfm.isNotEmpty,
+          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            TextField(
+              controller: _afmCtrl,
+              keyboardType: TextInputType.number,
+              maxLength: 9,
+              onChanged: (_) => setState(() {}),
+              style: const TextStyle(color: Colors.white, fontSize: 14),
+              decoration: InputDecoration(
+                hintText: 'ΑΦΜ (9 ψηφία)',
+                hintStyle: TextStyle(color: _g(0.28), fontSize: 13),
+                counterText: '',
+                errorText: _afmCtrl.text.trim().length == 9 && !isValidGreekAfmFormat(_afmCtrl.text.trim())
+                    ? 'Μη έγκυρο ΑΦΜ' : null,
+                border: OutlineInputBorder(borderRadius: BorderRadius.circular(14), borderSide: BorderSide(color: _g(0.1))),
+                enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(14), borderSide: BorderSide(color: _g(0.1))),
+                focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(14), borderSide: const BorderSide(color: kGold, width: 1.5)),
+                filled: true, fillColor: _g(0.04),
+                contentPadding: const EdgeInsets.all(14),
+              ),
+            ),
+            const SizedBox(height: 12),
+            GestureDetector(
+              onTap: _afmSaving ? null : _saveAfm,
+              child: Container(
+                width: double.infinity,
+                padding: const EdgeInsets.symmetric(vertical: 14),
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(14),
+                  gradient: const LinearGradient(colors: [kGold, Color(0xFFCC8800)]),
+                  boxShadow: [BoxShadow(color: kGold.withValues(alpha: 0.25), blurRadius: 12, offset: const Offset(0, 4))],
+                ),
+                child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [
+                  if (_afmSaving)
+                    const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(color: Colors.black, strokeWidth: 2))
+                  else ...[
+                    const Icon(Icons.save_outlined, color: Colors.black, size: 16),
+                    const SizedBox(width: 8),
+                    const Text('Αποθήκευση', style: TextStyle(color: Colors.black, fontWeight: FontWeight.w800, fontSize: 14)),
+                  ],
+                ]),
+              ),
+            ),
+          ]),
+        ),
+
         // ── 2. Επαγγέλματα ──
         _MiniCvCard(
           icon: Icons.work_outline,
@@ -5434,6 +5478,59 @@ class _ProfessionalHomeScreenState extends State<ProfessionalHomeScreen> {
       }
     });
     await _savePortfolioToFirestore();
+  }
+
+  // Αποθήκευση ΑΦΜ από το προφίλ — ίδιο πεδίο/λογική με την εγγραφή, ώστε να
+  // συγχρονίζεται σωστά είτε μπει στην εγγραφή είτε προστεθεί/αλλάξει εδώ.
+  Future<void> _saveAfm() async {
+    final uid = FirebaseAuth.instance.currentUser?.uid;
+    if (uid == null || _proDocId == null) return;
+    final afm = _afmCtrl.text.trim();
+    if (afm.isNotEmpty && !isValidGreekAfmFormat(afm)) {
+      ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Μη έγκυρο ΑΦΜ'), backgroundColor: Colors.red));
+      return;
+    }
+    setState(() => _afmSaving = true);
+    try {
+      await FirebaseFirestore.instance.collection('professionals').doc(_proDocId).set({'afm': afm, 'afmValid': false}, SetOptions(merge: true));
+      await FirebaseFirestore.instance.collection('users').doc(uid).set({'afm': afm, 'afmValid': false}, SetOptions(merge: true));
+      bool afmValid = false;
+      if (afm.isNotEmpty) {
+        String? afmVerifiedName;
+        try {
+          final resp = await http.post(
+            Uri.parse('$kBackendUrl/verify-afm'),
+            headers: {'Content-Type': 'application/json'},
+            body: jsonEncode({'afm': afm}),
+          ).timeout(const Duration(seconds: 12));
+          if (resp.statusCode == 200) {
+            final data = jsonDecode(resp.body) as Map<String, dynamic>;
+            afmValid = data['valid'] == true;
+            afmVerifiedName = data['name'] as String?;
+          }
+        } catch (_) {}
+        await FirebaseFirestore.instance.collection('professionals').doc(_proDocId)
+            .set({'afmValid': afmValid, if (afmVerifiedName != null) 'afmVerifiedName': afmVerifiedName}, SetOptions(merge: true));
+        await FirebaseFirestore.instance.collection('users').doc(uid)
+            .set({'afmValid': afmValid, if (afmVerifiedName != null) 'afmVerifiedName': afmVerifiedName}, SetOptions(merge: true));
+      }
+      if (mounted) {
+        setState(() { _proAfm = afm; _proAfmValid = afmValid; _afmSaving = false; });
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(afm.isEmpty
+                ? 'ΑΦΜ αφαιρέθηκε'
+                : (afmValid ? '✅ ΑΦΜ επιβεβαιώθηκε!' : 'Αποθηκεύτηκε — δεν επιβεβαιώθηκε ως ενεργό ΑΦΜ')),
+            backgroundColor: afmValid || afm.isEmpty ? kGold.withValues(alpha: 0.9) : Colors.orange,
+          ));
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() => _afmSaving = false);
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Σφάλμα: $e'), backgroundColor: Colors.red));
+      }
+    }
   }
 
   Widget _buildPortfolioSection() {
@@ -12745,8 +12842,6 @@ class _ThemeSelectorState extends State<_ThemeSelector> {
     {'id': 'rose', 'name': 'Charcoal Rose', 'emoji': '🌹', 'bg': 0xFF140C0C, 'accent': 0xFFC4917A, 'light': false},
     {'id': 'forest', 'name': 'Forest Carbon', 'emoji': '🌲', 'bg': 0xFF060E08, 'accent': 0xFF3DBA7E, 'light': false},
     {'id': 'arctic', 'name': 'Arctic Slate', 'emoji': '🧊', 'bg': 0xFF080C14, 'accent': 0xFF64B5F6, 'light': false},
-    {'id': 'white', 'name': 'Pearl White', 'emoji': '🤍', 'bg': 0xFFF5F5F7, 'accent': 0xFFFFB340, 'light': true},
-    {'id': 'grey', 'name': 'Silver Grey', 'emoji': '🩶', 'bg': 0xFFE5E5EA, 'accent': 0xFFFFB340, 'light': true},
   ];
   String _selected = 'obsidian';
 
