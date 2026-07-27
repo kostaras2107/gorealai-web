@@ -3959,7 +3959,6 @@ class _ProfessionalHomeScreenState extends State<ProfessionalHomeScreen> {
   List<String> _subSpecialties = [];
   List<String> _areas = [];
   String _proAfm = '';
-  bool _proAfmValid = false;
   String _companyName = '';
   String _googlePlaceUrl = '';
   String _googlePlaceId = '';
@@ -3987,8 +3986,6 @@ class _ProfessionalHomeScreenState extends State<ProfessionalHomeScreen> {
   final _newAreaCtrl = TextEditingController();
   bool _editingAreas = false;
   final _companyNameCtrl = TextEditingController();
-  final _afmCtrl = TextEditingController();
-  bool _afmSaving = false;
   final _googlePlaceCtrl = TextEditingController();
   bool _editingGoogleCompany = false;
   final _yearsCtrl = TextEditingController();
@@ -4007,7 +4004,6 @@ class _ProfessionalHomeScreenState extends State<ProfessionalHomeScreen> {
     _newSpecialtyCtrl.dispose();
     _newAreaCtrl.dispose();
     _companyNameCtrl.dispose();
-    _afmCtrl.dispose();
     _googlePlaceCtrl.dispose();
     _yearsCtrl.dispose();
     _igCtrl.dispose();
@@ -4132,8 +4128,6 @@ class _ProfessionalHomeScreenState extends State<ProfessionalHomeScreen> {
       _tiktokShorts = ((merged['tiktokShorts'] as List?) ?? []).whereType<String>().toList();
       _proAverageRating = (merged['averageRating'] as num?)?.toDouble() ?? 0.0;
       _proAfm = (merged['afm'] as String? ?? '').trim();
-      _afmCtrl.text = _proAfm;
-      _proAfmValid = merged['afmValid'] == true;
       _portfolioProjects = projects;
       _bioCtrl.text = _bio;
     });
@@ -4924,58 +4918,6 @@ class _ProfessionalHomeScreenState extends State<ProfessionalHomeScreen> {
           ]),
         ),
 
-        // ── 1β. ΑΦΜ ──
-        _MiniCvCard(
-          icon: Icons.verified_outlined,
-          iconColor: kGold,
-          title: 'ΑΦΜ',
-          subtitle: _proAfmValid ? 'Επιβεβαιωμένο ✓' : 'Προαιρετικό — ξεκλειδώνει το verified badge',
-          isDone: _proAfm.isNotEmpty,
-          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            TextField(
-              controller: _afmCtrl,
-              keyboardType: TextInputType.number,
-              maxLength: 9,
-              onChanged: (_) => setState(() {}),
-              style: const TextStyle(color: Colors.white, fontSize: 14),
-              decoration: InputDecoration(
-                hintText: 'ΑΦΜ (9 ψηφία)',
-                hintStyle: TextStyle(color: _g(0.28), fontSize: 13),
-                counterText: '',
-                errorText: _afmCtrl.text.trim().length == 9 && !isValidGreekAfmFormat(_afmCtrl.text.trim())
-                    ? 'Μη έγκυρο ΑΦΜ' : null,
-                border: OutlineInputBorder(borderRadius: BorderRadius.circular(14), borderSide: BorderSide(color: _g(0.1))),
-                enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(14), borderSide: BorderSide(color: _g(0.1))),
-                focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(14), borderSide: const BorderSide(color: kGold, width: 1.5)),
-                filled: true, fillColor: _g(0.04),
-                contentPadding: const EdgeInsets.all(14),
-              ),
-            ),
-            const SizedBox(height: 12),
-            GestureDetector(
-              onTap: _afmSaving ? null : _saveAfm,
-              child: Container(
-                width: double.infinity,
-                padding: const EdgeInsets.symmetric(vertical: 14),
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(14),
-                  gradient: const LinearGradient(colors: [kGold, Color(0xFFCC8800)]),
-                  boxShadow: [BoxShadow(color: kGold.withValues(alpha: 0.25), blurRadius: 12, offset: const Offset(0, 4))],
-                ),
-                child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [
-                  if (_afmSaving)
-                    const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(color: Colors.black, strokeWidth: 2))
-                  else ...[
-                    const Icon(Icons.save_outlined, color: Colors.black, size: 16),
-                    const SizedBox(width: 8),
-                    const Text('Αποθήκευση', style: TextStyle(color: Colors.black, fontWeight: FontWeight.w800, fontSize: 14)),
-                  ],
-                ]),
-              ),
-            ),
-          ]),
-        ),
-
         // ── 2. Επαγγέλματα ──
         _MiniCvCard(
           icon: Icons.work_outline,
@@ -5478,59 +5420,6 @@ class _ProfessionalHomeScreenState extends State<ProfessionalHomeScreen> {
       }
     });
     await _savePortfolioToFirestore();
-  }
-
-  // Αποθήκευση ΑΦΜ από το προφίλ — ίδιο πεδίο/λογική με την εγγραφή, ώστε να
-  // συγχρονίζεται σωστά είτε μπει στην εγγραφή είτε προστεθεί/αλλάξει εδώ.
-  Future<void> _saveAfm() async {
-    final uid = FirebaseAuth.instance.currentUser?.uid;
-    if (uid == null || _proDocId == null) return;
-    final afm = _afmCtrl.text.trim();
-    if (afm.isNotEmpty && !isValidGreekAfmFormat(afm)) {
-      ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Μη έγκυρο ΑΦΜ'), backgroundColor: Colors.red));
-      return;
-    }
-    setState(() => _afmSaving = true);
-    try {
-      await FirebaseFirestore.instance.collection('professionals').doc(_proDocId).set({'afm': afm, 'afmValid': false}, SetOptions(merge: true));
-      await FirebaseFirestore.instance.collection('users').doc(uid).set({'afm': afm, 'afmValid': false}, SetOptions(merge: true));
-      bool afmValid = false;
-      if (afm.isNotEmpty) {
-        String? afmVerifiedName;
-        try {
-          final resp = await http.post(
-            Uri.parse('$kBackendUrl/verify-afm'),
-            headers: {'Content-Type': 'application/json'},
-            body: jsonEncode({'afm': afm}),
-          ).timeout(const Duration(seconds: 12));
-          if (resp.statusCode == 200) {
-            final data = jsonDecode(resp.body) as Map<String, dynamic>;
-            afmValid = data['valid'] == true;
-            afmVerifiedName = data['name'] as String?;
-          }
-        } catch (_) {}
-        await FirebaseFirestore.instance.collection('professionals').doc(_proDocId)
-            .set({'afmValid': afmValid, if (afmVerifiedName != null) 'afmVerifiedName': afmVerifiedName}, SetOptions(merge: true));
-        await FirebaseFirestore.instance.collection('users').doc(uid)
-            .set({'afmValid': afmValid, if (afmVerifiedName != null) 'afmVerifiedName': afmVerifiedName}, SetOptions(merge: true));
-      }
-      if (mounted) {
-        setState(() { _proAfm = afm; _proAfmValid = afmValid; _afmSaving = false; });
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(afm.isEmpty
-                ? 'ΑΦΜ αφαιρέθηκε'
-                : (afmValid ? '✅ ΑΦΜ επιβεβαιώθηκε!' : 'Αποθηκεύτηκε — δεν επιβεβαιώθηκε ως ενεργό ΑΦΜ')),
-            backgroundColor: afmValid || afm.isEmpty ? kGold.withValues(alpha: 0.9) : Colors.orange,
-          ));
-      }
-    } catch (e) {
-      if (mounted) {
-        setState(() => _afmSaving = false);
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Σφάλμα: $e'), backgroundColor: Colors.red));
-      }
-    }
   }
 
   Widget _buildPortfolioSection() {
@@ -10984,10 +10873,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
   bool _loading = true, _biometricOn = true;
   bool _uploadingPhoto = false;
   String? _photoUrl;
+  String _afm = '';
+  bool _afmValid = false;
+  bool _afmSaving = false;
   final _nameCtrl = TextEditingController();
   final _cityCtrl = TextEditingController();
   final _oldPassCtrl = TextEditingController();
   final _newPassCtrl = TextEditingController();
+  final _afmCtrl = TextEditingController();
 
   @override
   void initState() {
@@ -11001,6 +10894,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     _cityCtrl.dispose();
     _oldPassCtrl.dispose();
     _newPassCtrl.dispose();
+    _afmCtrl.dispose();
     super.dispose();
   }
 
@@ -11029,11 +10923,71 @@ class _ProfileScreenState extends State<ProfileScreen> {
       _premiumUntil = premiumUntil;
       _referralCount = (data['referralCount'] as int?) ?? 0;
       _photoUrl = data['profilePhotoUrl'] as String?;
+      _afm = (data['afm'] as String? ?? '').trim();
+      _afmCtrl.text = _afm;
+      _afmValid = data['afmValid'] == true;
       _nameCtrl.text = _name ?? '';
       _cityCtrl.text = _city ?? '';
       _biometricOn = prefs.getBool('biometric_enabled') ?? true;
       _loading = false;
     });
+  }
+
+  // Αποθήκευση ΑΦΜ — ίδιο πεδίο/λογική με την εγγραφή, ώστε να συγχρονίζεται
+  // σωστά είτε μπει στην εγγραφή είτε προστεθεί/αλλάξει εδώ από το προφίλ.
+  Future<void> _saveAfm() async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) return;
+    final afm = _afmCtrl.text.trim();
+    if (afm.isNotEmpty && !isValidGreekAfmFormat(afm)) {
+      ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Μη έγκυρο ΑΦΜ'), backgroundColor: Colors.red));
+      return;
+    }
+    setState(() => _afmSaving = true);
+    try {
+      final proQuery = await FirebaseFirestore.instance.collection('professionals').where('userId', isEqualTo: user.uid).limit(1).get();
+      final proDocId = proQuery.docs.isNotEmpty ? proQuery.docs.first.id : user.uid;
+
+      await FirebaseFirestore.instance.collection('users').doc(user.uid).set({'afm': afm, 'afmValid': false}, SetOptions(merge: true));
+      await FirebaseFirestore.instance.collection('professionals').doc(proDocId).set({'afm': afm, 'afmValid': false}, SetOptions(merge: true));
+
+      bool afmValid = false;
+      if (afm.isNotEmpty) {
+        String? afmVerifiedName;
+        try {
+          final resp = await http.post(
+            Uri.parse('$kBackendUrl/verify-afm'),
+            headers: {'Content-Type': 'application/json'},
+            body: jsonEncode({'afm': afm}),
+          ).timeout(const Duration(seconds: 12));
+          if (resp.statusCode == 200) {
+            final data = jsonDecode(resp.body) as Map<String, dynamic>;
+            afmValid = data['valid'] == true;
+            afmVerifiedName = data['name'] as String?;
+          }
+        } catch (_) {}
+        await FirebaseFirestore.instance.collection('users').doc(user.uid)
+            .set({'afmValid': afmValid, if (afmVerifiedName != null) 'afmVerifiedName': afmVerifiedName}, SetOptions(merge: true));
+        await FirebaseFirestore.instance.collection('professionals').doc(proDocId)
+            .set({'afmValid': afmValid, if (afmVerifiedName != null) 'afmVerifiedName': afmVerifiedName}, SetOptions(merge: true));
+      }
+      if (mounted) {
+        setState(() { _afm = afm; _afmValid = afmValid; _afmSaving = false; });
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(afm.isEmpty
+                ? 'ΑΦΜ αφαιρέθηκε'
+                : (afmValid ? '✅ ΑΦΜ επιβεβαιώθηκε!' : 'Αποθηκεύτηκε — δεν επιβεβαιώθηκε ως ενεργό ΑΦΜ')),
+            backgroundColor: afmValid || afm.isEmpty ? kGold.withValues(alpha: 0.9) : Colors.orange,
+          ));
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() => _afmSaving = false);
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Σφάλμα: $e'), backgroundColor: Colors.red));
+      }
+    }
   }
 
   Future<void> _changeProfilePhoto() async {
@@ -11563,6 +11517,65 @@ class _ProfileScreenState extends State<ProfileScreen> {
         });
   }
 
+  void _showAfmDialog() {
+    _afmCtrl.text = _afm;
+    showDialog(
+        context: context,
+        builder: (ctx) {
+          bool saving = false;
+          return StatefulBuilder(builder: (ctx, setSt) => AlertDialog(
+              backgroundColor: const Color(0xFF111111),
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(20),
+                  side: BorderSide(color: kGold.withValues(alpha: 0.2))),
+              title: const Text('ΑΦΜ',
+                  style: TextStyle(color: Colors.white, fontFamily: 'Raleway')),
+              content: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
+                Text(
+                  _afmValid ? 'Επιβεβαιωμένο ✓' : 'Προαιρετικό — ξεκλειδώνει το verified badge στο προφίλ σου',
+                  style: TextStyle(color: _afmValid ? kGold : Colors.white54, fontSize: 12),
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: _afmCtrl,
+                  keyboardType: TextInputType.number,
+                  maxLength: 9,
+                  onChanged: (_) => setSt(() {}),
+                  style: const TextStyle(color: Colors.white),
+                  decoration: InputDecoration(
+                    labelText: 'ΑΦΜ (9 ψηφία)',
+                    labelStyle: const TextStyle(color: Colors.white54),
+                    counterText: '',
+                    errorText: _afmCtrl.text.trim().length == 9 && !isValidGreekAfmFormat(_afmCtrl.text.trim())
+                        ? 'Μη έγκυρο ΑΦΜ' : null,
+                    filled: true,
+                    fillColor: const Color(0xFF1A1A1A),
+                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+                  ),
+                ),
+              ]),
+              actions: [
+                TextButton(
+                    onPressed: () => Navigator.pop(ctx),
+                    child: const Text('Άκυρο', style: TextStyle(color: Colors.white54))),
+                TextButton(
+                  onPressed: saving ? null : () async {
+                    setSt(() => saving = true);
+                    await _saveAfm();
+                    if (ctx.mounted) {
+                      setSt(() => saving = false);
+                      Navigator.pop(ctx);
+                    }
+                  },
+                  child: saving
+                      ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2, color: kGold))
+                      : const Text('Αποθήκευση', style: TextStyle(color: kGold)),
+                ),
+              ],
+            ));
+        });
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -11721,6 +11734,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       label: 'Αλλαγή κωδικού',
                       value: '••••••••',
                       onTap: _showChangePasswordDialog),
+                  if (_role == 'professional')
+                    _ProfileRow(
+                        icon: Icons.verified_outlined,
+                        emoji: '🪪',
+                        label: 'ΑΦΜ',
+                        value: _afm.isEmpty ? 'Δεν έχει προστεθεί' : (_afmValid ? '$_afm ✓' : _afm),
+                        onTap: _showAfmDialog),
 
                   const SizedBox(height: 20),
                   _sectionHeader('ΑΣΦΑΛΕΙΑ'),

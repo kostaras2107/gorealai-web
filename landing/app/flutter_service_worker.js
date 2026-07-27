@@ -37,7 +37,7 @@ const RESOURCES = {"assets/AssetManifest.bin": "321af958709dc1fff9b57772d32d90a0
 "favicon.png": "5dcef449791fa27946b3d35ad8803796",
 "firebase-messaging-sw.js": "c273b500781a50712c21eae615c37c3c",
 "flutter.js": "24bc71911b75b5f8135c949e27a2984e",
-"flutter_bootstrap.js": "ab5f5cc618aec48eef4aaddc0d9d07d1",
+"flutter_bootstrap.js": "225c9770f7b809d8e1b8eb22f7de6483",
 "icons/gorealai.svg": "f999b497865e10df2098aa97c6aee492",
 "icons/Icon-192-maskable.png": "92d267396b56382e759e34c40e080c5c",
 "icons/Icon-192.png": "92d267396b56382e759e34c40e080c5c",
@@ -45,7 +45,7 @@ const RESOURCES = {"assets/AssetManifest.bin": "321af958709dc1fff9b57772d32d90a0
 "icons/Icon-512.png": "92d267396b56382e759e34c40e080c5c",
 "index.html": "1599379a74ade5b6831bb1dc3b3fc9b9",
 "/": "1599379a74ade5b6831bb1dc3b3fc9b9",
-"main.dart.js": "e85f3480dec67cc0bc71ffc9243e018c",
+"main.dart.js": "4b7cb1b66d1d4897e3fcc0741d4e21ac",
 "manifest.json": "bb3040deb855306b750fc9547a4b5d14",
 "privacy.html": "3c91d49ca53fed12956d56048ec72784",
 "version.json": "f3bf09b66e259201ab003360d1732232"};
