@@ -2767,9 +2767,9 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                                 color: kGold.withValues(alpha: 0.18), width: 1),
                             boxShadow: [
                               BoxShadow(
-                                  color: kGold.withValues(alpha: 0.12),
-                                  blurRadius: 14,
-                                  offset: const Offset(0, 4)),
+                                  color: kGold.withValues(alpha: 0.1),
+                                  blurRadius: 6,
+                                  offset: const Offset(0, 2)),
                               BoxShadow(
                                   color: Colors.black.withValues(alpha: 0.5),
                                   blurRadius: 8,
@@ -3002,8 +3002,7 @@ class _EmptyHeroCard extends StatelessWidget {
             stops: const [0.0, 0.5, 1.0]),
         border: Border.all(color: kGold.withValues(alpha: 0.45), width: 1.5),
         boxShadow: [
-          BoxShadow(color: kGold.withValues(alpha: 0.22), blurRadius: 40, offset: const Offset(0, 6)),
-          BoxShadow(color: kGold.withValues(alpha: 0.08), blurRadius: 80),
+          BoxShadow(color: kGold.withValues(alpha: 0.15), blurRadius: 12, offset: const Offset(0, 4)),
           BoxShadow(color: Colors.black.withValues(alpha: 0.5), blurRadius: 16, offset: const Offset(0, 4)),
         ],
       ),
@@ -3041,7 +3040,7 @@ class _EmptyHeroCard extends StatelessWidget {
           width: double.infinity, padding: const EdgeInsets.symmetric(vertical: 14),
           decoration: BoxDecoration(borderRadius: BorderRadius.circular(16),
               gradient: const LinearGradient(colors: [kGoldLight, kGold, kGoldDark]),
-              boxShadow: [BoxShadow(color: kGold.withValues(alpha: 0.35), blurRadius: 20)]),
+              boxShadow: [BoxShadow(color: kGold.withValues(alpha: 0.25), blurRadius: 8)]),
           child: const Row(mainAxisAlignment: MainAxisAlignment.center, children: [
             Text('🚀', style: TextStyle(fontSize: 18)),
             SizedBox(width: 10),
@@ -3386,7 +3385,7 @@ class _HowItWorksStep extends StatelessWidget {
               width: 1),
           boxShadow: active
               ? [
-                  BoxShadow(color: kGold.withValues(alpha: 0.18), blurRadius: 20, offset: const Offset(0, 4)),
+                  BoxShadow(color: kGold.withValues(alpha: 0.15), blurRadius: 6, offset: const Offset(0, 2)),
                   BoxShadow(color: Colors.black.withValues(alpha: 0.4), blurRadius: 8),
                 ]
               : [BoxShadow(color: Colors.black.withValues(alpha: 0.3), blurRadius: 6)],
@@ -3405,7 +3404,7 @@ class _HowItWorksStep extends StatelessWidget {
                   color: active ? kGold.withValues(alpha: 0.5) : _g(0.1),
                   width: 1),
               boxShadow: active
-                  ? [BoxShadow(color: kGold.withValues(alpha: 0.3), blurRadius: 8)]
+                  ? [BoxShadow(color: kGold.withValues(alpha: 0.25), blurRadius: 4)]
                   : null,
             ),
             child:
