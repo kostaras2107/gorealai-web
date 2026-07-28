@@ -471,7 +471,7 @@ class _GorealAiAppState extends State<GorealAiApp> {
     final accent = theme.accent;
     return MaterialApp(
       debugShowCheckedModeBanner: false,
-      title: 'GorealAI',
+      title: 'GorealPro',
       theme: ThemeData(
         brightness: theme.isLight ? Brightness.light : Brightness.dark,
         scaffoldBackgroundColor: theme.background,
@@ -687,7 +687,7 @@ class _EmailVerificationScreenState extends State<EmailVerificationScreen> {
             child: Column(mainAxisSize: MainAxisSize.min, children: [
               ShaderMask(
                 shaderCallback: (b) => const LinearGradient(colors: [kGoldLight, kGold]).createShader(b),
-                child: const Text('GorealAI', style: TextStyle(fontSize: 32, fontWeight: FontWeight.w700, color: Colors.white)),
+                child: const Text('GorealPro', style: TextStyle(fontSize: 32, fontWeight: FontWeight.w700, color: Colors.white)),
               ),
               const SizedBox(height: 32),
               Container(
@@ -1131,7 +1131,7 @@ class _LoginScreenState extends State<LoginScreen>
         child: Column(mainAxisSize: MainAxisSize.min, children: [
           ShaderMask(
             shaderCallback: (b) => const LinearGradient(colors: [kGoldLight, kGold]).createShader(b),
-            child: const Text('GorealAI', style: TextStyle(fontSize: 36, fontWeight: FontWeight.w600, color: Colors.white)),
+            child: const Text('GorealPro', style: TextStyle(fontSize: 36, fontWeight: FontWeight.w600, color: Colors.white)),
           ),
           const SizedBox(height: 6),
           Text('The first app with Reverse Auction', style: TextStyle(fontSize: 12, color: _g(0.4))),
@@ -1244,7 +1244,7 @@ class _LoginScreenState extends State<LoginScreen>
       child: Column(mainAxisSize: MainAxisSize.min, children: [
         ShaderMask(
           shaderCallback: (b) => const LinearGradient(colors: [kGoldLight, kGold]).createShader(b),
-          child: const Text('GorealAI', style: TextStyle(fontSize: 36, fontWeight: FontWeight.w600, color: Colors.white)),
+          child: const Text('GorealPro', style: TextStyle(fontSize: 36, fontWeight: FontWeight.w600, color: Colors.white)),
         ),
         const SizedBox(height: 8),
         const Text('Καλώς ήρθες!', style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.w700)),
@@ -2010,7 +2010,7 @@ class _GorealWordmark extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return SizedBox(
-      height: 40,
+      height: 58,
       child: AspectRatio(
         aspectRatio: 1197 / 480,
         child: Image.asset(
@@ -2217,8 +2217,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
           pageBuilder: (_, __, ___) => RequestScreen(
               userId: _userId ?? '',
               userName: _userName ?? 'Χρήστης',
-              initialProfession: profession,
-              initialLocation: 'Κοντά μου'),
+              initialProfession: profession),
           transitionsBuilder: (_, a, __, c) => SlideTransition(
               position: Tween<Offset>(
                       begin: const Offset(0, 1), end: Offset.zero)
@@ -6747,17 +6746,12 @@ class _RequestLocationPickerState extends State<_RequestLocationPicker> {
       isScrollControlled: true,
       builder: (ctx) => _SimpleListPicker(
         title: '📍 Περιοχή εργασίας',
-        items: ['📍 Κοντά μου (GPS)', ..._greekAreasSorted],
+        items: _greekAreasSorted,
         selected: widget.value,
       ),
     );
     if (result == null) return;
-    if (result == '📍 Κοντά μου (GPS)') {
-      // Χρήση GPS
-      widget.onChanged('Κοντά μου');
-    } else {
-      widget.onChanged(result);
-    }
+    widget.onChanged(result);
   }
 
   @override
@@ -7835,12 +7829,12 @@ Future<void> _notifyProsDirectly(
                           isScrollControlled: true,
                           builder: (_) => _SimpleListPicker(
                             title: '📍 Περιοχή εργασίας',
-                            items: ['📍 Κοντά μου (GPS)', ..._greekAreasSorted],
+                            items: _greekAreasSorted,
                             selected: _selectedLocation,
                           ),
                         );
                         if (v == null) return;
-                        if (mounted) setState(() => _selectedLocation = v == '📍 Κοντά μου (GPS)' ? 'Κοντά μου' : v);
+                        if (mounted) setState(() => _selectedLocation = v);
                       },
                       child: Container(
                         height: 44,
@@ -8438,7 +8432,7 @@ class _WaitingScreenState extends State<WaitingScreen>
               ShaderMask(
                 shaderCallback: (b) => const LinearGradient(
                     colors: [kGoldLight, kGold]).createShader(b),
-                child: const Text('GOREAL',
+                child: const Text('GOREALPRO',
                     style: TextStyle(
                         fontFamily: 'Raleway',
                         fontSize: 13,
@@ -9221,7 +9215,7 @@ class _OffersScreenState extends State<OffersScreen>
               ShaderMask(
                 shaderCallback: (b) => const LinearGradient(
                     colors: [kGoldLight, kGold]).createShader(b),
-                child: const Text('GOREAL',
+                child: const Text('GOREALPRO',
                     style: TextStyle(
                         fontFamily: 'Raleway',
                         fontSize: 13,
@@ -9666,7 +9660,6 @@ const List<String> _teamTypes = [
 ];
 
 const List<String> _projectLocations = [
-  'Κοντά μου',
   'Αθήνα (κέντρο)',
   'Βόρεια Προάστια',
   'Νότια Προάστια',
@@ -13089,7 +13082,7 @@ class _TopBar extends StatelessWidget {
           ShaderMask(
             shaderCallback: (b) => const LinearGradient(
                 colors: [kGoldLight, kGold]).createShader(b),
-            child: const Text('GOREAL',
+            child: const Text('GOREALPRO',
                 style: TextStyle(
                     fontFamily: 'Raleway',
                     fontSize: 13,
@@ -13922,7 +13915,7 @@ class _ProPublicProfileScreenState extends State<_ProPublicProfileScreen> {
               // Centered logo — always full width, never clipped
               ShaderMask(
                 shaderCallback: (b) => const LinearGradient(colors: [kGoldLight, kGold]).createShader(b),
-                child: const Text('GOREAL', style: TextStyle(fontFamily: 'Raleway', fontSize: 13, letterSpacing: 5, color: Colors.white, fontWeight: FontWeight.w800)),
+                child: const Text('GOREALPRO', style: TextStyle(fontFamily: 'Raleway', fontSize: 13, letterSpacing: 5, color: Colors.white, fontWeight: FontWeight.w800)),
               ),
               // Profile photo right
               Align(
@@ -14023,7 +14016,7 @@ class _ProPublicProfileScreenState extends State<_ProPublicProfileScreen> {
                         _statPill('$jobs', 'Δουλειές'),
                         if (gorealaiOnlyRating > 0 && googleRatingForDisplay > 0) ...[
                           _statDivider(),
-                          _statPill(gorealaiOnlyRating.toStringAsFixed(1), 'GorealAI'),
+                          _statPill(gorealaiOnlyRating.toStringAsFixed(1), 'GorealPro'),
                           _statDivider(),
                           _statPill(googleRatingForDisplay.toStringAsFixed(1), 'Google'),
                         ],
@@ -14110,7 +14103,7 @@ class _ProPublicProfileScreenState extends State<_ProPublicProfileScreen> {
                       // ══════════════════════════════════════
                       // GOREAL REVIEWS
                       // ══════════════════════════════════════
-                      _sectionHeader('ΑΞΙΟΛΟΓΗΣΕΙΣ GOREAL'),
+                      _sectionHeader('ΑΞΙΟΛΟΓΗΣΕΙΣ GOREALPRO'),
                       Container(
                         width: double.infinity,
                         decoration: BoxDecoration(

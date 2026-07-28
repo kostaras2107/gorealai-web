@@ -115,7 +115,7 @@ async function sendSms(phone, message) {
 async function sendEmail({ to, subject, html }) {
   if (zohoTransporter) {
     await zohoTransporter.sendMail({
-      from: `GorealAI <${process.env.ZOHO_USER || 'info@gorealai.gr'}>`,
+      from: `GorealPro <${process.env.ZOHO_USER || 'info@gorealai.gr'}>`,
       to, subject, html,
     });
     return;
@@ -123,7 +123,7 @@ async function sendEmail({ to, subject, html }) {
   if (process.env.SENDGRID_API_KEY) {
     await sgMail.send({
       to,
-      from: { email: process.env.FROM_EMAIL || 'info@gorealai.gr', name: 'GorealAI' },
+      from: { email: process.env.FROM_EMAIL || 'info@gorealai.gr', name: 'GorealPro' },
       subject, html,
     });
     return;
@@ -135,7 +135,7 @@ async function sendEmail({ to, subject, html }) {
 app.get('/', (req, res) => {
   res.json({
     status: 'ok',
-    service: 'GorealAI Backend',
+    service: 'GorealPro Backend',
     firebase: firebaseReady,
     stripe: !!process.env.STRIPE_SECRET_KEY,
     sendgrid: !!process.env.SENDGRID_API_KEY,
@@ -230,7 +230,7 @@ app.post('/booking-response', rateLimit(20, 60_000), async (req, res) => {
               <p style="color:rgba(255,255,255,0.7);line-height:1.6;">Γεια σου <strong>${userName}</strong>,</p>
               <p style="color:rgba(255,255,255,0.7);line-height:1.6;">Ο <strong style="color:#C9A84C">${proName}</strong> αποδέχτηκε το αίτημά σου! Μπορείς να επικοινωνήσεις μαζί του μέσα από την εφαρμογή.</p>
               <a href="https://gorealai.web.app/app" style="display:inline-block;margin-top:20px;padding:12px 24px;background:linear-gradient(135deg,#FFD47A,#C9A84C);color:#000;border-radius:10px;text-decoration:none;font-weight:700;">Άνοιξε την εφαρμογή →</a>
-              <p style="color:rgba(255,255,255,0.3);font-size:11px;margin-top:24px;">GorealAI — gorealai.web.app</p>
+              <p style="color:rgba(255,255,255,0.3);font-size:11px;margin-top:24px;">GorealPro — gorealai.web.app</p>
             </div>
           `
           : `
@@ -382,10 +382,10 @@ app.post('/offer-accepted', rateLimit(20, 60_000), async (req, res) => {
         <p style="color:rgba(255,255,255,0.75);font-size:14px;line-height:1.6;">Ο/Η <strong style="color:#FFD47A">${userName || 'πελάτης'}</strong> αποδέχτηκε την προσφορά σου${requestDesc ? ` για: "${String(requestDesc).substring(0, 120)}"` : ''}.</p>
         ${userPhone ? `<p style="color:rgba(255,255,255,0.6);font-size:14px;margin-top:12px;">📞 Τηλέφωνο επικοινωνίας: <strong style="color:#FFD47A">${userPhone}</strong></p>` : ''}
         <a href="https://gorealai.web.app/app" style="display:inline-block;margin-top:20px;padding:13px 28px;background:linear-gradient(135deg,#FFD47A,#C9A84C);color:#000;border-radius:12px;text-decoration:none;font-weight:800;font-size:14px;">Δες τα Bookings σου →</a>
-        <p style="color:rgba(255,255,255,0.2);font-size:11px;margin-top:24px;">GorealAI · gorealai.web.app · info@gorealai.gr</p>
+        <p style="color:rgba(255,255,255,0.2);font-size:11px;margin-top:24px;">GorealPro · gorealai.web.app · info@gorealai.gr</p>
       </div>
     `;
-    await sendEmail({ to: proEmail, subject: '🎉 Αποδέχτηκαν την προσφορά σου στο GorealAI', html });
+    await sendEmail({ to: proEmail, subject: '🎉 Αποδέχτηκαν την προσφορά σου στο GorealPro', html });
     console.log(`📧 Offer-accepted email sent to ${proEmail}`);
     res.json({ success: true });
   } catch (e) {
@@ -442,14 +442,14 @@ app.post('/welcome-email', rateLimit(5, 60_000), async (req, res) => {
 
   const isPro = role === 'professional';
   const subject = isPro
-    ? `🎉 Καλώς ήρθες στο GorealAI, ${name.split(' ')[0]}!`
-    : `🎉 Καλώς ήρθες στο GorealAI, ${name.split(' ')[0]}!`;
+    ? `🎉 Καλώς ήρθες στο GorealPro, ${name.split(' ')[0]}!`
+    : `🎉 Καλώς ήρθες στο GorealPro, ${name.split(' ')[0]}!`;
 
   const html = isPro ? `
     <div style="font-family:Arial,sans-serif;max-width:520px;margin:0 auto;background:#0A0800;color:#fff;border-radius:20px;padding:36px;border:1px solid rgba(201,168,76,0.3)">
       <div style="text-align:center;margin-bottom:28px">
         <h1 style="color:#FFD47A;font-size:28px;margin:0;font-style:italic">${name.split(' ')[0]},</h1>
-        <p style="color:#C9A84C;font-size:16px;margin:8px 0 0">καλώς ήρθες στο GorealAI!</p>
+        <p style="color:#C9A84C;font-size:16px;margin:8px 0 0">καλώς ήρθες στο GorealPro!</p>
       </div>
       <p style="color:rgba(255,255,255,0.75);line-height:1.7;font-size:14px">Ο λογαριασμός σου ως <strong style="color:#FFD47A">Επαγγελματία</strong> είναι έτοιμος. Από τώρα μπορείς να λαμβάνεις αιτήματα από πελάτες κοντά σου και να στέλνεις τις προσφορές σου.</p>
       <div style="background:rgba(201,168,76,0.08);border:1px solid rgba(201,168,76,0.2);border-radius:14px;padding:20px;margin:24px 0">
@@ -464,13 +464,13 @@ app.post('/welcome-email', rateLimit(5, 60_000), async (req, res) => {
       <div style="text-align:center;margin-top:28px">
         <a href="https://gorealai.web.app/app" style="display:inline-block;padding:14px 32px;background:linear-gradient(135deg,#FFD47A,#C9A84C);color:#000;border-radius:12px;text-decoration:none;font-weight:800;font-size:15px">Άνοιξε την εφαρμογή →</a>
       </div>
-      <p style="color:rgba(255,255,255,0.25);font-size:11px;margin-top:28px;text-align:center">GorealAI · gorealai.web.app · info@gorealai.gr</p>
+      <p style="color:rgba(255,255,255,0.25);font-size:11px;margin-top:28px;text-align:center">GorealPro · gorealai.web.app · info@gorealai.gr</p>
     </div>
   ` : `
     <div style="font-family:Arial,sans-serif;max-width:520px;margin:0 auto;background:#0A0800;color:#fff;border-radius:20px;padding:36px;border:1px solid rgba(201,168,76,0.3)">
       <div style="text-align:center;margin-bottom:28px">
         <h1 style="color:#FFD47A;font-size:28px;margin:0;font-style:italic">${name.split(' ')[0]},</h1>
-        <p style="color:#C9A84C;font-size:16px;margin:8px 0 0">καλώς ήρθες στο GorealAI!</p>
+        <p style="color:#C9A84C;font-size:16px;margin:8px 0 0">καλώς ήρθες στο GorealPro!</p>
       </div>
       <p style="color:rgba(255,255,255,0.75);line-height:1.7;font-size:14px">Ο λογαριασμός σου είναι έτοιμος. Μπορείς τώρα να βρεις τον κατάλληλο επαγγελματία για οποιαδήποτε δουλειά, γρήγορα και εύκολα.</p>
       <div style="background:rgba(201,168,76,0.08);border:1px solid rgba(201,168,76,0.2);border-radius:14px;padding:20px;margin:24px 0">
@@ -485,7 +485,7 @@ app.post('/welcome-email', rateLimit(5, 60_000), async (req, res) => {
       <div style="text-align:center;margin-top:28px">
         <a href="https://gorealai.web.app/app" style="display:inline-block;padding:14px 32px;background:linear-gradient(135deg,#FFD47A,#C9A84C);color:#000;border-radius:12px;text-decoration:none;font-weight:800;font-size:15px">Κάνε το πρώτο σου αίτημα →</a>
       </div>
-      <p style="color:rgba(255,255,255,0.25);font-size:11px;margin-top:28px;text-align:center">GorealAI · gorealai.web.app · info@gorealai.gr</p>
+      <p style="color:rgba(255,255,255,0.25);font-size:11px;margin-top:28px;text-align:center">GorealPro · gorealai.web.app · info@gorealai.gr</p>
     </div>
   `;
 
@@ -515,13 +515,13 @@ app.post('/verify-email', rateLimit(5, 60_000), async (req, res) => {
     const html = `
       <div style="font-family:Arial,sans-serif;max-width:480px;margin:0 auto;background:#0A0800;color:#fff;border-radius:16px;padding:32px;border:1px solid rgba(201,168,76,0.3)">
         <h1 style="color:#FFD47A;font-size:20px;margin-bottom:8px;">Επιβεβαίωσε το email σου</h1>
-        <p style="color:rgba(255,255,255,0.75);font-size:14px;line-height:1.6;">Καλώς ήρθες στο GorealAI! Πάτα το παρακάτω κουμπί για να επιβεβαιώσεις το email σου και να ενεργοποιήσεις τον λογαριασμό σου.</p>
+        <p style="color:rgba(255,255,255,0.75);font-size:14px;line-height:1.6;">Καλώς ήρθες στο GorealPro! Πάτα το παρακάτω κουμπί για να επιβεβαιώσεις το email σου και να ενεργοποιήσεις τον λογαριασμό σου.</p>
         <a href="${link}" style="display:inline-block;margin-top:20px;padding:13px 28px;background:linear-gradient(135deg,#FFD47A,#C9A84C);color:#000;border-radius:12px;text-decoration:none;font-weight:800;font-size:14px;">Επιβεβαίωση Email →</a>
         <p style="color:rgba(255,255,255,0.4);font-size:12px;margin-top:20px;">Αν δεν δημιούργησες εσύ αυτόν τον λογαριασμό, αγνόησε αυτό το email.</p>
-        <p style="color:rgba(255,255,255,0.2);font-size:11px;margin-top:24px;">GorealAI · gorealai.web.app · info@gorealai.gr</p>
+        <p style="color:rgba(255,255,255,0.2);font-size:11px;margin-top:24px;">GorealPro · gorealai.web.app · info@gorealai.gr</p>
       </div>
     `;
-    await sendEmail({ to: email, subject: 'Επιβεβαίωσε το email σου στο GorealAI', html });
+    await sendEmail({ to: email, subject: 'Επιβεβαίωσε το email σου στο GorealPro', html });
     console.log(`📧 Verification email sent to ${email}`);
     res.json({ success: true });
   } catch (e) {
@@ -594,13 +594,13 @@ app.post('/forgot-password', rateLimit(5, 60_000), async (req, res) => {
     const html = `
       <div style="font-family:Arial,sans-serif;max-width:480px;margin:0 auto;background:#0A0800;color:#fff;border-radius:16px;padding:32px;border:1px solid rgba(201,168,76,0.3)">
         <h1 style="color:#FFD47A;font-size:20px;margin-bottom:8px;">Επαναφορά κωδικού</h1>
-        <p style="color:rgba(255,255,255,0.75);font-size:14px;line-height:1.6;">Ζήτησες επαναφορά κωδικού για τον λογαριασμό σου στο GorealAI. Πάτα το παρακάτω κουμπί για να ορίσεις νέο κωδικό.</p>
+        <p style="color:rgba(255,255,255,0.75);font-size:14px;line-height:1.6;">Ζήτησες επαναφορά κωδικού για τον λογαριασμό σου στο GorealPro. Πάτα το παρακάτω κουμπί για να ορίσεις νέο κωδικό.</p>
         <a href="${link}" style="display:inline-block;margin-top:20px;padding:13px 28px;background:linear-gradient(135deg,#FFD47A,#C9A84C);color:#000;border-radius:12px;text-decoration:none;font-weight:800;font-size:14px;">Επαναφορά Κωδικού →</a>
         <p style="color:rgba(255,255,255,0.4);font-size:12px;margin-top:20px;">Αν δεν το ζήτησες εσύ, αγνόησε αυτό το email.</p>
-        <p style="color:rgba(255,255,255,0.2);font-size:11px;margin-top:24px;">GorealAI · gorealai.web.app · info@gorealai.gr</p>
+        <p style="color:rgba(255,255,255,0.2);font-size:11px;margin-top:24px;">GorealPro · gorealai.web.app · info@gorealai.gr</p>
       </div>
     `;
-    await sendEmail({ to: email, subject: 'Επαναφορά κωδικού στο GorealAI', html });
+    await sendEmail({ to: email, subject: 'Επαναφορά κωδικού στο GorealPro', html });
     console.log(`📧 Password reset email sent to ${email}`);
     res.json({ success: true });
   } catch (e) {
@@ -703,7 +703,7 @@ app.post('/email-pros-new-request', rateLimit(30, 60_000), async (req, res) => {
         ${location ? `<p style="color:rgba(255,255,255,0.5);font-size:13px;margin:4px 0;">📍 ${location}</p>` : ''}
         ${description ? `<p style="color:rgba(255,255,255,0.7);font-size:14px;margin:16px 0;line-height:1.6;border-left:3px solid rgba(201,168,76,0.4);padding-left:12px;">${description.substring(0, 200)}</p>` : ''}
         <a href="https://gorealai.web.app/app" style="display:inline-block;margin-top:20px;padding:13px 28px;background:linear-gradient(135deg,#FFD47A,#C9A84C);color:#000;border-radius:12px;text-decoration:none;font-weight:800;font-size:14px;">Δες το αίτημα →</a>
-        <p style="color:rgba(255,255,255,0.2);font-size:11px;margin-top:24px;">GorealAI · gorealai.web.app · info@gorealai.gr</p>
+        <p style="color:rgba(255,255,255,0.2);font-size:11px;margin-top:24px;">GorealPro · gorealai.web.app · info@gorealai.gr</p>
       </div>
     `;
 
@@ -720,7 +720,7 @@ app.post('/email-pros-new-request', rateLimit(30, 60_000), async (req, res) => {
       }
       // Send SMS regardless of email success
       if (p.phone) {
-        const smsText = `🔔 Νέο αίτημα GorealAI${profession ? ` για ${profession}` : ''}!\n${description ? description.substring(0, 100) : ''}\nΔες το: gorealai.web.app/app`;
+        const smsText = `🔔 Νέο αίτημα GorealPro${profession ? ` για ${profession}` : ''}!\n${description ? description.substring(0, 100) : ''}\nΔες το: gorealai.web.app/app`;
         sendSms(p.phone, smsText); // fire-and-forget
       }
     }
@@ -788,12 +788,12 @@ app.post('/email-pro-new-message', rateLimit(60, 60_000), async (req, res) => {
         <p style="color:rgba(255,255,255,0.6);font-size:13px;margin:4px 0;">Από: <strong style="color:#FFD47A">${senderName || 'Χρήστης'}</strong></p>
         ${messagePreview ? `<p style="color:rgba(255,255,255,0.75);font-size:14px;margin:16px 0;line-height:1.6;border-left:3px solid rgba(201,168,76,0.4);padding-left:12px;">${String(messagePreview).substring(0, 200)}</p>` : ''}
         <a href="https://gorealai.web.app/app" style="display:inline-block;margin-top:20px;padding:13px 28px;background:linear-gradient(135deg,#FFD47A,#C9A84C);color:#000;border-radius:12px;text-decoration:none;font-weight:800;font-size:14px;">Απάντησε τώρα →</a>
-        <p style="color:rgba(255,255,255,0.2);font-size:11px;margin-top:24px;">GorealAI · gorealai.web.app · info@gorealai.gr</p>
+        <p style="color:rgba(255,255,255,0.2);font-size:11px;margin-top:24px;">GorealPro · gorealai.web.app · info@gorealai.gr</p>
       </div>
     `;
 
     if (proEmail) await sendEmail({ to: proEmail, subject, html });
-    if (proPhone) sendSms(proPhone, `💬 Νέο μήνυμα από ${senderName || 'χρήστη'} στο GorealAI!\n${messagePreview ? messagePreview.substring(0, 100) + '\n' : ''}Απάντησε: gorealai.web.app/app`);
+    if (proPhone) sendSms(proPhone, `💬 Νέο μήνυμα από ${senderName || 'χρήστη'} στο GorealPro!\n${messagePreview ? messagePreview.substring(0, 100) + '\n' : ''}Απάντησε: gorealai.web.app/app`);
     console.log(`📧📱 New-message notification to pro ${proId}`);
     res.json({ success: true });
   } catch (e) {
@@ -830,12 +830,12 @@ app.post('/email-user-new-message', rateLimit(60, 60_000), async (req, res) => {
         <p style="color:rgba(255,255,255,0.6);font-size:13px;margin:4px 0;">Από: <strong style="color:#FFD47A">${proName || 'Επαγγελματίας'}</strong></p>
         ${messagePreview ? `<p style="color:rgba(255,255,255,0.75);font-size:14px;margin:16px 0;line-height:1.6;border-left:3px solid rgba(201,168,76,0.4);padding-left:12px;">${String(messagePreview).substring(0, 200)}</p>` : ''}
         <a href="https://gorealai.web.app/app" style="display:inline-block;margin-top:20px;padding:13px 28px;background:linear-gradient(135deg,#FFD47A,#C9A84C);color:#000;border-radius:12px;text-decoration:none;font-weight:800;font-size:14px;">Απάντησε τώρα →</a>
-        <p style="color:rgba(255,255,255,0.2);font-size:11px;margin-top:24px;">GorealAI · gorealai.web.app · info@gorealai.gr</p>
+        <p style="color:rgba(255,255,255,0.2);font-size:11px;margin-top:24px;">GorealPro · gorealai.web.app · info@gorealai.gr</p>
       </div>
     `;
 
     if (userEmail) await sendEmail({ to: userEmail, subject, html });
-    if (userPhone) sendSms(userPhone, `💬 Νέο μήνυμα από ${proName || 'επαγγελματία'} στο GorealAI!\n${messagePreview ? messagePreview.substring(0, 100) + '\n' : ''}Απάντησε: gorealai.web.app/app`);
+    if (userPhone) sendSms(userPhone, `💬 Νέο μήνυμα από ${proName || 'επαγγελματία'} στο GorealPro!\n${messagePreview ? messagePreview.substring(0, 100) + '\n' : ''}Απάντησε: gorealai.web.app/app`);
     console.log(`📧📱 New-message notification to user ${userId}`);
     res.json({ success: true });
   } catch (e) {
@@ -1169,7 +1169,7 @@ async function sendExpiryNotification(requestId) {
               <p style="color:rgba(255,255,255,0.75);font-size:14px;line-height:1.6;">Γεια σου <strong>${userName}</strong>,</p>
               <p style="color:rgba(255,255,255,0.75);font-size:14px;line-height:1.6;">${body}</p>
               <a href="https://gorealai.web.app/app" style="display:inline-block;margin-top:20px;padding:13px 28px;background:linear-gradient(135deg,#FFD47A,#C9A84C);color:#000;border-radius:12px;text-decoration:none;font-weight:800;font-size:14px;">Άνοιξε την εφαρμογή →</a>
-              <p style="color:rgba(255,255,255,0.2);font-size:11px;margin-top:24px;">GorealAI · gorealai.web.app · info@gorealai.gr</p>
+              <p style="color:rgba(255,255,255,0.2);font-size:11px;margin-top:24px;">GorealPro · gorealai.web.app · info@gorealai.gr</p>
             </div>
           `,
         });
@@ -1248,5 +1248,5 @@ rehydrateExpiryTimers();
 // ── Start server ────────────────────────────────────────────────
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
-  console.log(`🚀 GorealAI backend running on port ${PORT}`);
+  console.log(`🚀 GorealPro backend running on port ${PORT}`);
 });
