@@ -59,7 +59,7 @@ class _SplashScreenState extends State<SplashScreen>
 
   Future<void> _runSequence() async {
     for (int i = 1; i <= _fullText.length; i++) {
-      await Future.delayed(const Duration(milliseconds: 120));
+      await Future.delayed(const Duration(milliseconds: 280));
       if (!mounted) return;
       setState(() => _text = _fullText.substring(0, i));
     }
