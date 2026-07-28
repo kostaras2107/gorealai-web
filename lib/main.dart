@@ -366,7 +366,7 @@ bool isValidGreekAfmFormat(String afm) {
 
 ({String text, String emoji}) _timeGreeting() {
   final hour = DateTime.now().hour;
-  return hour < 12 ? (text: 'Καλημέρα', emoji: '🌅') : (text: 'Καλησπέρα', emoji: '🌆');
+  return (hour >= 6 && hour < 12) ? (text: 'Καλημέρα', emoji: '🌅') : (text: 'Καλησπέρα', emoji: '🌆');
 }
 
 String _toVocative(String? fullName) {
@@ -2805,16 +2805,34 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
         // ΕΠΑΓΓΕΛΜΑΤΙΕΣ ΚΟΝΤΑ ΣΟΥ
         Padding(
           padding: const EdgeInsets.fromLTRB(20, 0, 20, 12),
-          child: Row(children: [
-            Container(width: 3, height: 20,
+          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Row(children: [
+              Container(width: 3, height: 20,
+                  decoration: BoxDecoration(
+                      color: kGold,
+                      borderRadius: BorderRadius.circular(2),
+                      boxShadow: [BoxShadow(color: kGold.withValues(alpha: 0.6), blurRadius: 6)])),
+              const SizedBox(width: 10),
+              const Text('Προτεινόμενοι Επαγγελματίες',
+                  style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.w700, letterSpacing: 0.3)),
+              const Spacer(),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                 decoration: BoxDecoration(
-                    color: kGold,
-                    borderRadius: BorderRadius.circular(2),
-                    boxShadow: [BoxShadow(color: kGold.withValues(alpha: 0.6), blurRadius: 6)])),
-            const SizedBox(width: 10),
-            const Text('Προτεινόμενοι Επαγγελματίες',
-                style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.w700, letterSpacing: 0.3)),
-            const SizedBox(width: 8),
+                  borderRadius: BorderRadius.circular(8),
+                  color: kGreen.withValues(alpha: 0.12),
+                  border: Border.all(color: kGreen.withValues(alpha: 0.4)),
+                  boxShadow: [BoxShadow(color: kGreen.withValues(alpha: 0.15), blurRadius: 8)],
+                ),
+                child: Row(mainAxisSize: MainAxisSize.min, children: [
+                  Container(width: 5, height: 5,
+                      decoration: const BoxDecoration(shape: BoxShape.circle, color: kGreen)),
+                  const SizedBox(width: 4),
+                  const Text('LIVE', style: TextStyle(color: kGreen, fontSize: 9, fontWeight: FontWeight.w800, letterSpacing: 1)),
+                ]),
+              ),
+            ]),
+            const SizedBox(height: 8),
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
               decoration: BoxDecoration(
@@ -2823,22 +2841,6 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                 border: Border.all(color: kGold.withValues(alpha: 0.4)),
               ),
               child: const Text('✓ Ολοκληρωμένο Προφίλ', style: TextStyle(color: kGold, fontSize: 9, fontWeight: FontWeight.w800, letterSpacing: 0.3)),
-            ),
-            const Spacer(),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(8),
-                color: kGreen.withValues(alpha: 0.12),
-                border: Border.all(color: kGreen.withValues(alpha: 0.4)),
-                boxShadow: [BoxShadow(color: kGreen.withValues(alpha: 0.15), blurRadius: 8)],
-              ),
-              child: Row(mainAxisSize: MainAxisSize.min, children: [
-                Container(width: 5, height: 5,
-                    decoration: const BoxDecoration(shape: BoxShape.circle, color: kGreen)),
-                const SizedBox(width: 4),
-                const Text('LIVE', style: TextStyle(color: kGreen, fontSize: 9, fontWeight: FontWeight.w800, letterSpacing: 1)),
-              ]),
             ),
           ]),
         ),
@@ -13505,7 +13507,7 @@ class _NearbyProsSectionState extends State<_NearbyProsSection> {
             (d['companyName'] as String? ?? '').isNotEmpty,
             ((d['yearsExperience'] as num?) ?? 0) > 0,
           ];
-          return fields.where((f) => f).length >= 2;
+          return fields.where((f) => f).length >= 3;
         }).toList();
         if (!snap.hasData) return const SizedBox(height: 260);
         if (docs.isEmpty) return const SizedBox(height: 260);
