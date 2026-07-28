@@ -2923,12 +2923,54 @@ class _LiveActivityFeedState extends State<_LiveActivityFeed>
     {'icon': '🎯', 'text': 'AI εκτίμησε κόστος 250€-380€ σε 0.3 sec', 'time': '28 λεπτά'},
   ];
 
+  String _timeAgo(DateTime dt) {
+    final diff = DateTime.now().difference(dt);
+    if (diff.inMinutes < 1) return 'μόλις τώρα';
+    if (diff.inMinutes < 60) return '${diff.inMinutes} λεπτά';
+    if (diff.inHours < 24) return '${diff.inHours} ώρες';
+    return '${diff.inDays} μέρες';
+  }
+
+  Future<void> _loadRealBookings() async {
+    try {
+      final snap = await FirebaseFirestore.instance
+          .collection('bookings')
+          .orderBy('createdAt', descending: true)
+          .limit(3)
+          .get();
+      final realActivities = snap.docs.map((doc) {
+        final d = doc.data();
+        final userName = d['userName'] as String? ?? 'Κάποιος χρήστης';
+        final proName = d['professionalName'] as String? ?? 'έναν επαγγελματία';
+        final price = (d['price'] as num?)?.toDouble() ?? 0;
+        final createdAt = d['createdAt'] as Timestamp?;
+        final text = price > 0
+            ? '$userName επέλεξε τον/την $proName — ${price.toStringAsFixed(0)}€'
+            : '$userName επέλεξε τον/την $proName';
+        return {
+          'icon': '🎉',
+          'text': text,
+          'time': createdAt != null ? _timeAgo(createdAt.toDate()) : '',
+        };
+      }).toList();
+      if (mounted && realActivities.isNotEmpty) {
+        setState(() {
+          _activities.insertAll(0, realActivities);
+          while (_activities.length > 5) {
+            _activities.removeLast();
+          }
+        });
+      }
+    } catch (_) {}
+  }
+
   @override
   void initState() {
     super.initState();
     _pulseCtrl = AnimationController(
         vsync: this, duration: const Duration(milliseconds: 1500))..repeat();
     _activities.addAll(_staticActivities.take(3));
+    _loadRealBookings();
     _timer = Timer.periodic(const Duration(seconds: 8), (_) {
       if (!mounted) return;
       setState(() {
