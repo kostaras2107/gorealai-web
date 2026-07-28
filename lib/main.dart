@@ -2021,6 +2021,49 @@ const List<_GorillaVariant> _gorillaVariants = [
   _GorillaVariant('DJ', Icons.headphones, Color(0xFF9B6BD9)),
 ];
 
+// ── Λογότυπο "GOREAL" με σκόρπια εικονίδια εργαλείων/επαγγελμάτων ──
+class _GorealWordmark extends StatelessWidget {
+  const _GorealWordmark();
+
+  static const _decorIcons = [
+    (Icons.build, 0.02, -0.32),
+    (Icons.construction, 0.86, -0.34),
+    (Icons.content_cut, 0.0, 0.86),
+    (Icons.brush, 0.92, 0.9),
+    (Icons.camera_alt, 0.42, -0.4),
+  ];
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      width: 128,
+      height: 36,
+      child: Stack(clipBehavior: Clip.none, children: [
+        Positioned(
+          left: 6, top: 8,
+          child: ShaderMask(
+            shaderCallback: (b) => const LinearGradient(
+                colors: [kGoldLight, kGold]).createShader(b),
+            child: const Text('GOREAL',
+                style: TextStyle(
+                    fontFamily: 'Raleway',
+                    fontSize: 14,
+                    letterSpacing: 5,
+                    fontWeight: FontWeight.w700,
+                    color: Colors.white)),
+          ),
+        ),
+        for (final (icon, fx, fy) in _decorIcons)
+          Positioned(
+            left: 6 + fx * 110,
+            top: 14 + fy * 14,
+            child: Icon(icon, size: 11, color: kGold.withValues(alpha: 0.85)),
+          ),
+      ]),
+    );
+  }
+}
+
 class _GorillaMascotBadge extends StatefulWidget {
   const _GorillaMascotBadge();
   @override
@@ -2483,17 +2526,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                   Row(children: [
                     const _GorillaMascotBadge(),
                     const SizedBox(width: 10),
-                    ShaderMask(
-                      shaderCallback: (b) => const LinearGradient(
-                          colors: [kGoldLight, kGold]).createShader(b),
-                      child: const Text('GOREALAI',
-                          style: TextStyle(
-                              fontFamily: 'Raleway',
-                              fontSize: 14,
-                              letterSpacing: 5,
-                              fontWeight: FontWeight.w700,
-                              color: Colors.white)),
-                    ),
+                    const _GorealWordmark(),
                   ]),
                   Row(children: [
                     if (_isPro) ...[
@@ -8514,7 +8547,7 @@ class _WaitingScreenState extends State<WaitingScreen>
               ShaderMask(
                 shaderCallback: (b) => const LinearGradient(
                     colors: [kGoldLight, kGold]).createShader(b),
-                child: const Text('GOREALAI',
+                child: const Text('GOREAL',
                     style: TextStyle(
                         fontFamily: 'Raleway',
                         fontSize: 13,
@@ -9297,7 +9330,7 @@ class _OffersScreenState extends State<OffersScreen>
               ShaderMask(
                 shaderCallback: (b) => const LinearGradient(
                     colors: [kGoldLight, kGold]).createShader(b),
-                child: const Text('GOREALAI',
+                child: const Text('GOREAL',
                     style: TextStyle(
                         fontFamily: 'Raleway',
                         fontSize: 13,
@@ -13165,7 +13198,7 @@ class _TopBar extends StatelessWidget {
           ShaderMask(
             shaderCallback: (b) => const LinearGradient(
                 colors: [kGoldLight, kGold]).createShader(b),
-            child: const Text('GOREALAI',
+            child: const Text('GOREAL',
                 style: TextStyle(
                     fontFamily: 'Raleway',
                     fontSize: 13,
@@ -14014,7 +14047,7 @@ class _ProPublicProfileScreenState extends State<_ProPublicProfileScreen> {
               // Centered logo — always full width, never clipped
               ShaderMask(
                 shaderCallback: (b) => const LinearGradient(colors: [kGoldLight, kGold]).createShader(b),
-                child: const Text('GOREALAI', style: TextStyle(fontFamily: 'Raleway', fontSize: 13, letterSpacing: 5, color: Colors.white, fontWeight: FontWeight.w800)),
+                child: const Text('GOREAL', style: TextStyle(fontFamily: 'Raleway', fontSize: 13, letterSpacing: 5, color: Colors.white, fontWeight: FontWeight.w800)),
               ),
               // Profile photo right
               Align(
@@ -14200,9 +14233,9 @@ class _ProPublicProfileScreenState extends State<_ProPublicProfileScreen> {
                       const SizedBox(height: 24),
 
                       // ══════════════════════════════════════
-                      // GOREALAI REVIEWS
+                      // GOREAL REVIEWS
                       // ══════════════════════════════════════
-                      _sectionHeader('ΑΞΙΟΛΟΓΗΣΕΙΣ GOREALAI'),
+                      _sectionHeader('ΑΞΙΟΛΟΓΗΣΕΙΣ GOREAL'),
                       Container(
                         width: double.infinity,
                         decoration: BoxDecoration(
