@@ -481,6 +481,7 @@ class _GorealAiAppState extends State<GorealAiApp> {
         brightness: theme.isLight ? Brightness.light : Brightness.dark,
         scaffoldBackgroundColor: theme.background,
         primaryColor: accent,
+        fontFamily: 'Raleway',
         appBarTheme: AppBarTheme(
           backgroundColor: theme.background,
           elevation: 0,
