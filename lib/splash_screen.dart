@@ -20,7 +20,8 @@ class _SplashScreenState extends State<SplashScreen>
   late Animation<double> _glow;
   late Animation<double> _shimmer;
 
-  String _text = "Go";
+  static const String _fullText = "GoReal";
+  String _text = "";
 
   @override
   void initState() {
@@ -57,13 +58,11 @@ class _SplashScreenState extends State<SplashScreen>
   }
 
   Future<void> _runSequence() async {
-    await Future.delayed(const Duration(milliseconds: 600));
-    if (!mounted) return;
-    setState(() => _text = "GoReal");
-
-    await Future.delayed(const Duration(milliseconds: 700));
-    if (!mounted) return;
-    setState(() => _text = "GoRealAI");
+    for (int i = 1; i <= _fullText.length; i++) {
+      await Future.delayed(const Duration(milliseconds: 120));
+      if (!mounted) return;
+      setState(() => _text = _fullText.substring(0, i));
+    }
 
     await Future.delayed(const Duration(milliseconds: 1000));
     if (!mounted) return;
@@ -162,7 +161,7 @@ class _SplashScreenState extends State<SplashScreen>
 
                         // Tagline fade in
                         Opacity(
-                          opacity: _text == "GoRealAI" ? _glow.value : 0.0,
+                          opacity: _text == _fullText ? _glow.value : 0.0,
                           child: Text(
                             'The first app with Reverse Auction',
                             style: TextStyle(
