@@ -59,6 +59,9 @@ flutter:
         - asset: fonts/Raleway-VariableFont_wght.ttf
         - asset: fonts/Raleway-Italic-VariableFont_wght.ttf
           style: italic
+    - family: Inter
+      fonts:
+        - asset: fonts/InterVariable.ttf
   assets:
     - assets/images/background.png
     - assets/images/background_chat.png

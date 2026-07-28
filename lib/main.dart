@@ -481,7 +481,7 @@ class _GorealAiAppState extends State<GorealAiApp> {
         brightness: theme.isLight ? Brightness.light : Brightness.dark,
         scaffoldBackgroundColor: theme.background,
         primaryColor: accent,
-        fontFamily: 'Raleway',
+        fontFamily: 'Inter',
         appBarTheme: AppBarTheme(
           backgroundColor: theme.background,
           elevation: 0,
@@ -1188,7 +1188,7 @@ class _LoginScreenState extends State<LoginScreen>
       builder: (ctx) => AlertDialog(
         backgroundColor: const Color(0xFF111111),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20), side: BorderSide(color: kGold.withValues(alpha: 0.2))),
-        title: const Text('Επαναφορά κωδικού', style: TextStyle(color: Colors.white, fontFamily: 'Raleway')),
+        title: const Text('Επαναφορά κωδικού', style: TextStyle(color: Colors.white, fontFamily: 'Inter')),
         content: Column(mainAxisSize: MainAxisSize.min, children: [
           const Text('Εισήγαγε το email σου και θα σου στείλουμε σύνδεσμο για επαναφορά κωδικού.', style: TextStyle(color: Colors.white60, fontSize: 13)),
           const SizedBox(height: 16),
@@ -1725,7 +1725,7 @@ class _MultiSubSpecialtyPickerState extends State<_MultiSubSpecialtyPicker> {
         return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
           Padding(
             padding: const EdgeInsets.fromLTRB(4, 16, 4, 8),
-            child: Text(cat['category'] as String, style: TextStyle(fontFamily: 'Raleway', fontSize: 9, letterSpacing: 3, color: kGold.withValues(alpha: 0.6))),
+            child: Text(cat['category'] as String, style: TextStyle(fontFamily: 'Inter', fontSize: 9, letterSpacing: 3, color: kGold.withValues(alpha: 0.6))),
           ),
           ...(cat['items'] as List<String>).map((item) {
             final isSel = _selected.contains(item);
@@ -2283,7 +2283,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                   borderRadius: BorderRadius.circular(2))),
           const SizedBox(height: 16),
           const Text('Τα αιτήματά σου', style: TextStyle(
-              fontFamily: 'Raleway', fontSize: 18,
+              fontFamily: 'Inter', fontSize: 18,
               fontWeight: FontWeight.w800, color: Colors.white)),
           const SizedBox(height: 4),
           Text('Επέλεξε ποιο θέλεις να δεις',
@@ -2639,13 +2639,13 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
               const TextSpan(
                   text: 'Γεια σου, ',
                   style: TextStyle(
-                      fontFamily: 'Raleway',
+                      fontFamily: 'Inter',
                       fontSize: 26,
                       color: Colors.white)),
               TextSpan(
                   text: _vocative(_userName),
                   style: const TextStyle(
-                      fontFamily: 'Raleway',
+                      fontFamily: 'Inter',
                       fontSize: 26,
                       fontStyle: FontStyle.italic,
                       color: kGold)),
@@ -3077,7 +3077,7 @@ class _EmptyHeroCard extends StatelessWidget {
         ]),
         const SizedBox(height: 18),
         const Text('Γνωρίζεις την ανάγκη σου;',
-            style: TextStyle(fontFamily: 'Raleway', fontSize: 28,
+            style: TextStyle(fontFamily: 'Inter', fontSize: 28,
                 fontWeight: FontWeight.w800, color: Colors.white, height: 1.2)),
         const SizedBox(height: 8),
         Text('Περίγραψέ την και οι επαγγελματίες θα ανταγωνιστούν για σένα.',
@@ -3253,7 +3253,7 @@ class _ActiveRequestHeroCardState extends State<_ActiveRequestHeroCard> {
                       child: CustomPaint(painter: _RingPainter(progress: progress))),
                   Column(mainAxisSize: MainAxisSize.min, children: [
                     Text(_fmt(secs), style: const TextStyle(
-                        fontFamily: 'Raleway', fontSize: 14,
+                        fontFamily: 'Inter', fontSize: 14,
                         fontWeight: FontWeight.w800, color: kGold, letterSpacing: 1)),
                     Text('λεπτά', style: TextStyle(fontSize: 7, color: _g(0.4))),
                   ]),
@@ -3287,7 +3287,7 @@ class _ActiveRequestHeroCardState extends State<_ActiveRequestHeroCard> {
                   ),
                   const SizedBox(width: 14),
                   Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                    const Text('Συγχαρητήρια!', style: TextStyle(color: kGold, fontSize: 13, fontWeight: FontWeight.w900, fontFamily: 'Raleway')),
+                    const Text('Συγχαρητήρια!', style: TextStyle(color: kGold, fontSize: 13, fontWeight: FontWeight.w900, fontFamily: 'Inter')),
                     const SizedBox(height: 3),
                     Text(
                       'Βρέθηκ${_offersCount == 1 ? 'ε' : 'αν'} $_offersCount επαγγελματί${_offersCount == 1 ? 'ας' : 'ες'}!',
@@ -3316,7 +3316,7 @@ class _ActiveRequestHeroCardState extends State<_ActiveRequestHeroCard> {
                   ),
                   const SizedBox(width: 14),
                   Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                    Text('Δυστυχώς...', style: TextStyle(color: _g(0.7), fontSize: 13, fontWeight: FontWeight.w900, fontFamily: 'Raleway')),
+                    Text('Δυστυχώς...', style: TextStyle(color: _g(0.7), fontSize: 13, fontWeight: FontWeight.w900, fontFamily: 'Inter')),
                     const SizedBox(height: 3),
                     Text('Δεν βρέθηκε κάποια προσφορά αυτή τη φορά.', style: TextStyle(color: _gw, fontSize: 13, fontWeight: FontWeight.w700)),
                     const SizedBox(height: 3),
@@ -3726,7 +3726,7 @@ class _BottomNav extends StatelessWidget {
                             blurRadius: 18, spreadRadius: 1)],
                       ),
                       child: const Center(child: Text('G', style: TextStyle(
-                          fontFamily: 'Raleway', fontSize: 30,
+                          fontFamily: 'Inter', fontSize: 30,
                           fontWeight: FontWeight.bold,
                           color: Colors.black, height: 1))),
                     ),
@@ -3790,7 +3790,7 @@ class _ProStatChip extends StatelessWidget {
         Text(label, style: TextStyle(
             color: highlight ? kGold : Colors.white,
             fontSize: 14, fontWeight: FontWeight.w800,
-            fontFamily: 'Raleway')),
+            fontFamily: 'Inter')),
         Text(sub, style: TextStyle(
             color: _g(0.4), fontSize: 9)),
       ]),
@@ -3806,7 +3806,7 @@ class _ProStatBox extends StatelessWidget {
   Widget build(BuildContext context) => Expanded(child: Column(children: [
     Text(value, style: TextStyle(
         color: highlight ? kGold : Colors.white,
-        fontSize: 20, fontWeight: FontWeight.w800, fontFamily: 'Raleway')),
+        fontSize: 20, fontWeight: FontWeight.w800, fontFamily: 'Inter')),
     const SizedBox(height: 2),
     Text(label, style: TextStyle(color: _g(0.35), fontSize: 10)),
   ]));
@@ -6096,7 +6096,7 @@ class _ProfessionalHomeScreenState extends State<ProfessionalHomeScreen> {
             const SizedBox(height: 16),
             Text('Κανένα ενεργό αίτημα',
                 style: TextStyle(color: _gw, fontSize: 16,
-                    fontWeight: FontWeight.w700, fontFamily: 'Raleway')),
+                    fontWeight: FontWeight.w700, fontFamily: 'Inter')),
             const SizedBox(height: 6),
             Text('Θα ειδοποιηθείς αμέσως όταν έρθει νέο αίτημα',
                 textAlign: TextAlign.center,
@@ -6342,7 +6342,7 @@ class _ProfessionalHomeScreenState extends State<ProfessionalHomeScreen> {
                 border: Border.all(color: kGold.withValues(alpha: 0.3))),
             child: Column(mainAxisSize: MainAxisSize.min, children: [
               const Text('💼 Στείλε Προσφορά',
-                  style: TextStyle(fontFamily: 'Raleway', fontSize: 18,
+                  style: TextStyle(fontFamily: 'Inter', fontSize: 18,
                       fontWeight: FontWeight.w800, color: Colors.white)),
               const SizedBox(height: 6),
               Text(requestData['description'] ?? '',
@@ -6912,7 +6912,7 @@ class _CategorySpecialtyPickerState extends State<_CategorySpecialtyPicker> {
               Padding(
                 padding: const EdgeInsets.fromLTRB(4, 16, 4, 8),
                 child: Text(catName, style: TextStyle(
-                  fontFamily: 'Raleway', fontSize: 10, letterSpacing: 2.5,
+                  fontFamily: 'Inter', fontSize: 10, letterSpacing: 2.5,
                   color: kGold.withValues(alpha: 0.7), fontWeight: FontWeight.w700)),
               ),
               ...items.map((item) {
@@ -6982,7 +6982,7 @@ class _SimpleListPickerState extends State<_SimpleListPicker> {
               borderRadius: BorderRadius.circular(2))),
       Text(widget.title, style: const TextStyle(
           color: Colors.white, fontSize: 16,
-          fontFamily: 'Raleway', fontWeight: FontWeight.w700)),
+          fontFamily: 'Inter', fontWeight: FontWeight.w700)),
       const SizedBox(height: 10),
       Padding(
         padding: const EdgeInsets.symmetric(horizontal: 16),
@@ -7822,7 +7822,7 @@ Future<void> _notifyProsDirectly(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   const Text('Τι χρειάζεσαι;', style: TextStyle(
-                      fontFamily: 'Raleway', fontSize: 26,
+                      fontFamily: 'Inter', fontSize: 26,
                       fontWeight: FontWeight.w800, color: Colors.white)),
                   const SizedBox(height: 4),
                   Text('Οι επαγγελματίες ανταγωνίζονται — το AI επιλέγει τους 3 καλύτερους.',
@@ -8356,7 +8356,7 @@ class _WaitingScreenState extends State<WaitingScreen>
             const Text('🚫', style: TextStyle(fontSize: 44)),
             const SizedBox(height: 12),
             const Text('Ακύρωση αιτήματος;', style: TextStyle(
-                fontFamily: 'Raleway', fontSize: 18,
+                fontFamily: 'Inter', fontSize: 18,
                 fontWeight: FontWeight.w800, color: Colors.white)),
             const SizedBox(height: 8),
             Text('Το αίτημα θα διαγραφεί και οι επαγγελματίες δεν θα μπορούν να στείλουν προσφορά.',
@@ -8483,7 +8483,7 @@ class _WaitingScreenState extends State<WaitingScreen>
                     colors: [kGoldLight, kGold]).createShader(b),
                 child: const Text('GOREALPRO',
                     style: TextStyle(
-                        fontFamily: 'Raleway',
+                        fontFamily: 'Inter',
                         fontSize: 13,
                         letterSpacing: 5,
                         fontWeight: FontWeight.w800,
@@ -8551,7 +8551,7 @@ class _WaitingScreenState extends State<WaitingScreen>
                     Column(mainAxisSize: MainAxisSize.min, children: [
                       Text(_timeStr,
                           style: const TextStyle(
-                              fontFamily: 'Raleway',
+                              fontFamily: 'Inter',
                               fontSize: 32,
                               fontWeight: FontWeight.w800,
                               color: kGold,
@@ -8568,7 +8568,7 @@ class _WaitingScreenState extends State<WaitingScreen>
                 const SizedBox(height: 20),
                 const Text('Αίτημα εστάλη! ✅',
                     style: TextStyle(
-                        fontFamily: 'Raleway',
+                        fontFamily: 'Inter',
                         fontSize: 18,
                         fontWeight: FontWeight.w700,
                         color: Colors.white)),
@@ -9210,7 +9210,7 @@ class _OffersScreenState extends State<OffersScreen>
                   Text('Επέλεξες τον\n$proName!',
                       textAlign: TextAlign.center,
                       style: const TextStyle(
-                          fontFamily: 'Raleway',
+                          fontFamily: 'Inter',
                           fontSize: 20,
                           fontWeight: FontWeight.w800,
                           color: Colors.white)),
@@ -9266,7 +9266,7 @@ class _OffersScreenState extends State<OffersScreen>
                     colors: [kGoldLight, kGold]).createShader(b),
                 child: const Text('GOREALPRO',
                     style: TextStyle(
-                        fontFamily: 'Raleway',
+                        fontFamily: 'Inter',
                         fontSize: 13,
                         letterSpacing: 5,
                         fontWeight: FontWeight.w800,
@@ -9329,7 +9329,7 @@ class _OffersScreenState extends State<OffersScreen>
                         const SizedBox(height: 4),
                         const Text('Οι καλύτερες\nπροσφορές 🏆',
                             style: TextStyle(
-                                fontFamily: 'Raleway',
+                                fontFamily: 'Inter',
                                 fontSize: 24,
                                 fontWeight: FontWeight.w800,
                                 color: Colors.white,
@@ -9551,7 +9551,7 @@ class _OfferCard extends StatelessWidget {
                       )
                     : Text('${_price.toInt()}€',
                         style: TextStyle(
-                            fontFamily: 'Raleway',
+                            fontFamily: 'Inter',
                             fontSize: isBest ? 32 : 26,
                             fontWeight: FontWeight.w900,
                             color: isBest ? kGold : kGold.withValues(alpha: 0.7))),
@@ -9861,7 +9861,7 @@ class _ProjectRequestScreenState extends State<ProjectRequestScreen>
               Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                 const Text('G — Projects Mode',
                     style: TextStyle(
-                        fontFamily: 'Raleway',
+                        fontFamily: 'Inter',
                         fontSize: 18,
                         fontWeight: FontWeight.w800,
                         color: Colors.white)),
@@ -10162,7 +10162,7 @@ class _RequestHistoryScreenState extends State<RequestHistoryScreen> {
               const SizedBox(width: 14),
               const Text('Επαγγελματίες που επέλεξες',
                   style: TextStyle(
-                      fontFamily: 'Raleway',
+                      fontFamily: 'Inter',
                       fontSize: 20,
                       fontWeight: FontWeight.bold,
                       color: Colors.white)),
@@ -10673,7 +10673,7 @@ class _AiMemoryScreenState extends State<AiMemoryScreen>
           const Expanded(
               child: Text('AI Σημειώσεις',
                   style: TextStyle(
-                      fontFamily: 'Raleway',
+                      fontFamily: 'Inter',
                       fontSize: 20,
                       fontWeight: FontWeight.bold,
                       color: Colors.white))),
@@ -10739,7 +10739,7 @@ class _AiMemoryScreenState extends State<AiMemoryScreen>
           unselectedLabelColor: Colors.white38,
           labelStyle: const TextStyle(
               fontSize: 11,
-              fontFamily: 'Raleway',
+              fontFamily: 'Inter',
               fontWeight: FontWeight.w600),
           padding: const EdgeInsets.all(4),
           dividerColor: Colors.transparent,
@@ -11096,7 +11096,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
           alignment: Alignment.centerLeft,
           child: Text(t,
               style: TextStyle(
-                  fontFamily: 'Raleway',
+                  fontFamily: 'Inter',
                   fontSize: 9,
                   letterSpacing: 3,
                   color: kGold.withValues(alpha: 0.4))),
@@ -11177,7 +11177,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
               done ? 'Κέρδισες δωρεάν συνδρομή!' : 'Δωρεάν συνδρομή με συστάσεις',
               style: TextStyle(
                 color: done ? kGreen : Colors.white,
-                fontSize: 15, fontWeight: FontWeight.w800, fontFamily: 'Raleway',
+                fontSize: 15, fontWeight: FontWeight.w800, fontFamily: 'Inter',
               ),
             ),
           ),
@@ -11284,7 +11284,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
           const SizedBox(width: 8),
           const Expanded(
             child: Text('Αναβάθμιση σε Premium',
-                style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.w800, fontFamily: 'Raleway')),
+                style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.w800, fontFamily: 'Inter')),
           ),
         ]),
         const SizedBox(height: 12),
@@ -11347,10 +11347,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
           ),
           child: Column(mainAxisSize: MainAxisSize.min, children: [
             const Text('💳 Ολοκλήρωση Συνδρομής',
-                style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.w800, fontFamily: 'Raleway')),
+                style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.w800, fontFamily: 'Inter')),
             const SizedBox(height: 6),
             Text('${price.toStringAsFixed(2).replaceAll('.', ',')}€ / μήνα',
-                style: const TextStyle(color: kGold, fontSize: 22, fontWeight: FontWeight.w900, fontFamily: 'Raleway')),
+                style: const TextStyle(color: kGold, fontSize: 22, fontWeight: FontWeight.w900, fontFamily: 'Inter')),
             const SizedBox(height: 16),
             Container(
               padding: const EdgeInsets.all(14),
@@ -11427,7 +11427,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   borderRadius: BorderRadius.circular(20),
                   side: BorderSide(color: kGold.withValues(alpha: 0.2))),
               title: const Text('Επεξεργασία',
-                  style: TextStyle(color: Colors.white, fontFamily: 'Raleway')),
+                  style: TextStyle(color: Colors.white, fontFamily: 'Inter')),
               content: Column(mainAxisSize: MainAxisSize.min, children: [
                 _GoldTextField(controller: _nameCtrl, label: 'Όνομα'),
                 const SizedBox(height: 12),
@@ -11512,7 +11512,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   borderRadius: BorderRadius.circular(20),
                   side: BorderSide(color: kGold.withValues(alpha: 0.2))),
               title: const Text('Αλλαγή κωδικού',
-                  style: TextStyle(color: Colors.white, fontFamily: 'Raleway')),
+                  style: TextStyle(color: Colors.white, fontFamily: 'Inter')),
               content: Column(mainAxisSize: MainAxisSize.min, children: [
                 TextField(
                   controller: _oldPassCtrl,
@@ -11599,7 +11599,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   borderRadius: BorderRadius.circular(20),
                   side: BorderSide(color: kGold.withValues(alpha: 0.2))),
               title: const Text('ΑΦΜ',
-                  style: TextStyle(color: Colors.white, fontFamily: 'Raleway')),
+                  style: TextStyle(color: Colors.white, fontFamily: 'Inter')),
               content: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
                 Text(
                   _afmValid ? 'Επιβεβαιωμένο ✓' : 'Προαιρετικό — ξεκλειδώνει το verified badge στο προφίλ σου',
@@ -11671,7 +11671,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
               const SizedBox(width: 14),
               const Text('Προφίλ & Ρυθμίσεις',
                   style: TextStyle(
-                      fontFamily: 'Raleway',
+                      fontFamily: 'Inter',
                       fontSize: 20,
                       fontWeight: FontWeight.bold,
                       color: Colors.white)),
@@ -11719,7 +11719,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                     ? _name![0].toUpperCase()
                                     : 'G',
                                 style: const TextStyle(
-                                    fontFamily: 'Raleway',
+                                    fontFamily: 'Inter',
                                     fontSize: 30,
                                     fontWeight: FontWeight.bold,
                                     color: kGold))),
@@ -11727,7 +11727,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       const SizedBox(height: 12),
                       Text(_name ?? '',
                           style: const TextStyle(
-                              fontFamily: 'Raleway',
+                              fontFamily: 'Inter',
                               fontSize: 20,
                               fontStyle: FontStyle.italic,
                               color: kGold)),
@@ -11910,7 +11910,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
       builder: (ctx) => StatefulBuilder(builder: (ctx, setSt) => AlertDialog(
         backgroundColor: const Color(0xFF111111),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20), side: BorderSide(color: Colors.red.withValues(alpha: 0.3))),
-        title: const Text('Διαγραφή λογαριασμού', style: TextStyle(color: Colors.red, fontFamily: 'Raleway')),
+        title: const Text('Διαγραφή λογαριασμού', style: TextStyle(color: Colors.red, fontFamily: 'Inter')),
         content: Column(mainAxisSize: MainAxisSize.min, children: [
           const Text('Αυτή η ενέργεια είναι μη αναστρέψιμη. Όλα τα δεδομένα σου θα διαγραφούν οριστικά.', style: TextStyle(color: Colors.white60, fontSize: 13)),
           const SizedBox(height: 16),
@@ -12007,7 +12007,7 @@ class NotificationsScreen extends StatelessWidget {
                 const Text('💼', style: TextStyle(fontSize: 22)),
                 const SizedBox(width: 10),
                 const Expanded(child: Text('Στείλε Προσφορά',
-                    style: TextStyle(fontFamily: 'Raleway', fontSize: 17,
+                    style: TextStyle(fontFamily: 'Inter', fontSize: 17,
                         fontWeight: FontWeight.w800, color: Colors.white))),
                 GestureDetector(
                   onTap: () => Navigator.pop(ctx),
@@ -12222,7 +12222,7 @@ class NotificationsScreen extends StatelessWidget {
             const SizedBox(height: 12),
             const Text('Αποδέχτηκαν την προσφορά σου!',
                 textAlign: TextAlign.center,
-                style: TextStyle(fontFamily: 'Raleway', fontSize: 20,
+                style: TextStyle(fontFamily: 'Inter', fontSize: 20,
                     fontWeight: FontWeight.w800, color: Colors.white)),
             const SizedBox(height: 16),
             Container(
@@ -12316,7 +12316,7 @@ class NotificationsScreen extends StatelessWidget {
               const Expanded(
                   child: Text('Ειδοποιήσεις',
                       style: TextStyle(
-                          fontFamily: 'Raleway',
+                          fontFamily: 'Inter',
                           fontSize: 20,
                           fontWeight: FontWeight.bold,
                           color: Colors.white))),
@@ -12599,7 +12599,7 @@ class _SpecialtyPickerState extends State<_SpecialtyPicker> {
                 padding: const EdgeInsets.fromLTRB(4, 16, 4, 8),
                 child: Text(cat['category'],
                     style: TextStyle(
-                        fontFamily: 'Raleway',
+                        fontFamily: 'Inter',
                         fontSize: 9,
                         letterSpacing: 3,
                         color: kGold.withValues(alpha: 0.6))),
@@ -12881,7 +12881,7 @@ class _PickerContainer extends StatelessWidget {
               style: const TextStyle(
                   color: Colors.white,
                   fontSize: 16,
-                  fontFamily: 'Raleway',
+                  fontFamily: 'Inter',
                   fontWeight: FontWeight.w600)),
           const SizedBox(height: 12),
           Expanded(child: child),
@@ -13086,7 +13086,7 @@ class _NoOffersWidget extends StatelessWidget {
         const SizedBox(height: 20),
         const Text('Δυστυχώς δεν βρέθηκαν προσφορές',
             textAlign: TextAlign.center,
-            style: TextStyle(fontFamily: 'Raleway', fontSize: 20,
+            style: TextStyle(fontFamily: 'Inter', fontSize: 20,
                 fontWeight: FontWeight.w800, color: Colors.white)),
         const SizedBox(height: 10),
         Text('Μπορεί να μην υπάρχουν διαθέσιμοι επαγγελματίες αυτή τη στιγμή. Προσπάθησε ξανά!',
@@ -13133,7 +13133,7 @@ class _TopBar extends StatelessWidget {
                 colors: [kGoldLight, kGold]).createShader(b),
             child: const Text('GOREALPRO',
                 style: TextStyle(
-                    fontFamily: 'Raleway',
+                    fontFamily: 'Inter',
                     fontSize: 13,
                     letterSpacing: 5,
                     fontWeight: FontWeight.w800,
@@ -13244,7 +13244,7 @@ class _HNavItem extends StatelessWidget {
             const SizedBox(height: 3),
             Text(label,
                 style: TextStyle(
-                    fontFamily: 'Raleway',
+                    fontFamily: 'Inter',
                     fontSize: 9,
                     color: active ? kGold : _g(0.3),
                     fontWeight: active ? FontWeight.w600 : FontWeight.w400)),
@@ -13976,7 +13976,7 @@ class _ProPublicProfileScreenState extends State<_ProPublicProfileScreen> {
               // Centered logo — always full width, never clipped
               ShaderMask(
                 shaderCallback: (b) => const LinearGradient(colors: [kGoldLight, kGold]).createShader(b),
-                child: const Text('GOREALPRO', style: TextStyle(fontFamily: 'Raleway', fontSize: 13, letterSpacing: 5, color: Colors.white, fontWeight: FontWeight.w800)),
+                child: const Text('GOREALPRO', style: TextStyle(fontFamily: 'Inter', fontSize: 13, letterSpacing: 5, color: Colors.white, fontWeight: FontWeight.w800)),
               ),
               // Profile photo right
               Align(
@@ -14062,7 +14062,7 @@ class _ProPublicProfileScreenState extends State<_ProPublicProfileScreen> {
                       ]),
                       const SizedBox(height: 14),
                       Text(name, textAlign: TextAlign.center,
-                          style: const TextStyle(color: Colors.white, fontSize: 22, fontWeight: FontWeight.w900, fontFamily: 'Raleway', letterSpacing: 0.3)),
+                          style: const TextStyle(color: Colors.white, fontSize: 22, fontWeight: FontWeight.w900, fontFamily: 'Inter', letterSpacing: 0.3)),
                       if (specialties.isNotEmpty) ...[
                         const SizedBox(height: 6),
                         Text(specialties.take(3).join('  ·  '),
@@ -14194,7 +14194,7 @@ class _ProPublicProfileScreenState extends State<_ProPublicProfileScreen> {
                                       ShaderMask(
                                         shaderCallback: (b) => const LinearGradient(colors: [kGoldLight, kGold]).createShader(b),
                                         child: Text(gorealaiRating.toStringAsFixed(1),
-                                            style: const TextStyle(color: Colors.white, fontSize: 42, fontWeight: FontWeight.w900, fontFamily: 'Raleway')),
+                                            style: const TextStyle(color: Colors.white, fontSize: 42, fontWeight: FontWeight.w900, fontFamily: 'Inter')),
                                       ),
                                       Row(children: List.generate(5, (i) => Icon(
                                         i < gorealaiRating.floor() ? Icons.star_rounded
@@ -14289,7 +14289,7 @@ class _ProPublicProfileScreenState extends State<_ProPublicProfileScreen> {
                             ? Padding(
                                 padding: const EdgeInsets.symmetric(vertical: 30),
                                 child: Column(children: [
-                                  Text('G', style: TextStyle(color: _g(0.15), fontSize: 42, fontWeight: FontWeight.w900, fontFamily: 'Raleway')),
+                                  Text('G', style: TextStyle(color: _g(0.15), fontSize: 42, fontWeight: FontWeight.w900, fontFamily: 'Inter')),
                                   const SizedBox(height: 8),
                                   Text('Δεν έχει συνδεθεί Google Business', style: TextStyle(color: _g(0.35), fontSize: 13)),
                                 ]),
@@ -14314,7 +14314,7 @@ class _ProPublicProfileScreenState extends State<_ProPublicProfileScreen> {
                                       border: Border.all(color: const Color(0xFF4285F4).withValues(alpha: 0.3)),
                                     ),
                                     child: Center(child: Text('G',
-                                        style: TextStyle(fontFamily: 'Raleway', fontSize: 26, fontWeight: FontWeight.w900,
+                                        style: TextStyle(fontFamily: 'Inter', fontSize: 26, fontWeight: FontWeight.w900,
                                             foreground: Paint()..shader = const LinearGradient(colors: [Color(0xFF4285F4), Color(0xFF34A853), Color(0xFFFBBC05), Color(0xFFEA4335)]).createShader(const Rect.fromLTWH(0, 0, 52, 52))))),
                                   ),
                                   const SizedBox(width: 16),
@@ -14327,7 +14327,7 @@ class _ProPublicProfileScreenState extends State<_ProPublicProfileScreen> {
                                         ShaderMask(
                                           shaderCallback: (b) => const LinearGradient(colors: [kGoldLight, kGold]).createShader(b),
                                           child: Text(googleRating.toStringAsFixed(1),
-                                              style: const TextStyle(color: Colors.white, fontSize: 28, fontWeight: FontWeight.w900, fontFamily: 'Raleway')),
+                                              style: const TextStyle(color: Colors.white, fontSize: 28, fontWeight: FontWeight.w900, fontFamily: 'Inter')),
                                         ),
                                         const SizedBox(width: 10),
                                         Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
@@ -14473,7 +14473,7 @@ class _ProPublicProfileScreenState extends State<_ProPublicProfileScreen> {
   Widget _statPill(String value, String label) => Column(children: [
     ShaderMask(
       shaderCallback: (b) => const LinearGradient(colors: [kGoldLight, kGold]).createShader(b),
-      child: Text(value, style: const TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.w900, fontFamily: 'Raleway')),
+      child: Text(value, style: const TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.w900, fontFamily: 'Inter')),
     ),
     const SizedBox(height: 2),
     Text(label, style: TextStyle(color: _g(0.4), fontSize: 10, fontWeight: FontWeight.w500)),
@@ -14628,7 +14628,7 @@ class _EventOrganizerSheet extends StatelessWidget {
         ]),
         const SizedBox(height: 20),
         const Text('Τι οργανώνεις;',
-            style: TextStyle(fontFamily: 'Raleway', fontSize: 26, color: Colors.white, fontWeight: FontWeight.w800)),
+            style: TextStyle(fontFamily: 'Inter', fontSize: 26, color: Colors.white, fontWeight: FontWeight.w800)),
         const SizedBox(height: 6),
         Text('Επέλεξε κατηγορία και το AI σου βρίσκει\nτους καλύτερους επαγγελματίες.',
             style: TextStyle(color: _g(0.45), fontSize: 13, height: 1.4)),
@@ -15693,7 +15693,7 @@ class _ProPortfolioScreenState extends State<ProPortfolioScreen> {
         Text(emoji, style: const TextStyle(fontSize: 16)),
         const SizedBox(height: 3),
         Text(value, style: const TextStyle(color: Colors.white, fontSize: 14,
-            fontWeight: FontWeight.w800, fontFamily: 'Raleway')),
+            fontWeight: FontWeight.w800, fontFamily: 'Inter')),
         Text(label, style: TextStyle(color: _g(0.35), fontSize: 9)),
       ]),
     ),
@@ -15822,7 +15822,7 @@ class _DirectRequestScreenState extends State<DirectRequestScreen> {
             const SizedBox(width: 14),
             Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
               Text('Αίτημα σε $name',
-                  style: const TextStyle(color: Colors.white, fontFamily: 'Raleway', fontSize: 16, fontWeight: FontWeight.w800)),
+                  style: const TextStyle(color: Colors.white, fontFamily: 'Inter', fontSize: 16, fontWeight: FontWeight.w800)),
               Text(specialty, style: TextStyle(color: _g(0.4), fontSize: 12)),
             ])),
           ]),
@@ -16002,7 +16002,7 @@ class _MessagesScreenState extends State<MessagesScreen> {
             const SizedBox(width: 14),
             Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
               const Text('Συνομιλίες', style: TextStyle(color: Colors.white,
-                  fontFamily: 'Raleway', fontSize: 20, fontWeight: FontWeight.w800)),
+                  fontFamily: 'Inter', fontSize: 20, fontWeight: FontWeight.w800)),
               Text('Οι επαγγελματίες σου', style: TextStyle(color: _g(0.35), fontSize: 11)),
             ])),
             Container(
@@ -16043,7 +16043,7 @@ class _MessagesScreenState extends State<MessagesScreen> {
                   child: const Center(child: Text('💬', style: TextStyle(fontSize: 34)))),
                 const SizedBox(height: 18),
                 const Text('Καμία συνομιλία ακόμα',
-                    style: TextStyle(color: Colors.white, fontFamily: 'Raleway', fontSize: 16, fontWeight: FontWeight.w700)),
+                    style: TextStyle(color: Colors.white, fontFamily: 'Inter', fontSize: 16, fontWeight: FontWeight.w700)),
                 const SizedBox(height: 8),
                 Text('Επέλεξε επαγγελματία και πάτα\n"💬 Chat" για να ξεκινήσεις.',
                     textAlign: TextAlign.center,
@@ -17049,7 +17049,7 @@ class _DirectReplyScreenState extends State<DirectReplyScreen> {
             const SizedBox(width: 14),
             Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
               Text('Αίτημα από $userName',
-                  style: const TextStyle(color: Colors.white, fontFamily: 'Raleway', fontSize: 15, fontWeight: FontWeight.w800)),
+                  style: const TextStyle(color: Colors.white, fontFamily: 'Inter', fontSize: 15, fontWeight: FontWeight.w800)),
               Text('Στείλε την προσφορά σου', style: TextStyle(color: _g(0.4), fontSize: 12)),
             ])),
           ]),
@@ -17246,7 +17246,7 @@ class _EventOrganizerScreenState extends State<EventOrganizerScreen> {
           ShaderMask(
             shaderCallback: (b) => const LinearGradient(colors: [kGoldLight, kGold]).createShader(b),
             child: const Text('Τι οργανώνεις;',
-                style: TextStyle(fontFamily: 'Raleway', fontSize: 30, fontWeight: FontWeight.w900, color: Colors.white)),
+                style: TextStyle(fontFamily: 'Inter', fontSize: 30, fontWeight: FontWeight.w900, color: Colors.white)),
           ),
           const SizedBox(height: 6),
           Text('Επέλεξε κατηγορία και το AI σου βρίσκει\nτους καλύτερους επαγγελματίες.',
@@ -17282,7 +17282,7 @@ class _EventOrganizerScreenState extends State<EventOrganizerScreen> {
               const SizedBox(width: 16),
               Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                 Text(cat['title'] as String, style: const TextStyle(color: Colors.white,
-                    fontSize: 20, fontWeight: FontWeight.w800, fontFamily: 'Raleway')),
+                    fontSize: 20, fontWeight: FontWeight.w800, fontFamily: 'Inter')),
                 const SizedBox(height: 4),
                 Text(cat['subtitle'] as String, style: TextStyle(color: _g(0.4), fontSize: 11, height: 1.4)),
               ])),
@@ -17306,7 +17306,7 @@ class _EventOrganizerScreenState extends State<EventOrganizerScreen> {
               child: Icon(Icons.arrow_back_ios_new, color: _g(0.6), size: 16))),
           const SizedBox(width: 12),
           Text('$_categoryEmoji $_categoryTitle',
-              style: const TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.w800, fontFamily: 'Raleway')),
+              style: const TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.w800, fontFamily: 'Inter')),
         ]),
         const SizedBox(height: 28),
         const Text('📅 Ημερομηνία', style: TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.w700)),
@@ -17435,7 +17435,7 @@ class _EventOrganizerScreenState extends State<EventOrganizerScreen> {
             shaderCallback: (b) => const LinearGradient(colors: [kGoldLight, kGold]).createShader(b),
             child: const Text('Το αίτημά σου στάλθηκε!',
                 textAlign: TextAlign.center,
-                style: TextStyle(fontFamily: 'Raleway', fontSize: 26, fontWeight: FontWeight.w900, color: Colors.white)),
+                style: TextStyle(fontFamily: 'Inter', fontSize: 26, fontWeight: FontWeight.w900, color: Colors.white)),
           ),
           const SizedBox(height: 12),
           Text('Οι επαγγελματίες θα σου στείλουν\nτις προσφορές τους σύντομα.',
