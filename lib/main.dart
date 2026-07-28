@@ -2002,6 +2002,106 @@ class _DropdownField extends StatelessWidget {
       );
 }
 
+// ── Γοριλάκι μασκότ — εναλλάσσει "επάγγελμα" κάθε λίγα δευτερόλεπτα ──
+class _GorillaVariant {
+  final String profession;
+  final IconData icon;
+  final Color accent;
+  const _GorillaVariant(this.profession, this.icon, this.accent);
+}
+
+const List<_GorillaVariant> _gorillaVariants = [
+  _GorillaVariant('Μάστορας', Icons.construction, Color(0xFFF2A93B)),
+  _GorillaVariant('Καθηγητής', Icons.school, Color(0xFF64B5F6)),
+  _GorillaVariant('Tattoo Artist', Icons.brush, Color(0xFFE1306C)),
+  _GorillaVariant('Ηλεκτρολόγος', Icons.bolt, Color(0xFFFFC107)),
+  _GorillaVariant('Φωτογράφος', Icons.camera_alt, Color(0xFF3DBA7E)),
+  _GorillaVariant('Κηπουρός', Icons.eco, Color(0xFF66BB6A)),
+  _GorillaVariant('Καθαρίστρια', Icons.cleaning_services, Color(0xFF64C4D8)),
+  _GorillaVariant('DJ', Icons.headphones, Color(0xFF9B6BD9)),
+];
+
+class _GorillaMascotBadge extends StatefulWidget {
+  const _GorillaMascotBadge();
+  @override
+  State<_GorillaMascotBadge> createState() => _GorillaMascotBadgeState();
+}
+
+class _GorillaMascotBadgeState extends State<_GorillaMascotBadge> {
+  int _index = 0;
+  Timer? _timer;
+
+  @override
+  void initState() {
+    super.initState();
+    _timer = Timer.periodic(const Duration(seconds: 3), (_) {
+      if (!mounted) return;
+      setState(() => _index = (_index + 1) % _gorillaVariants.length);
+    });
+  }
+
+  @override
+  void dispose() {
+    _timer?.cancel();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final variant = _gorillaVariants[_index];
+    return AnimatedSwitcher(
+      duration: const Duration(milliseconds: 400),
+      transitionBuilder: (child, anim) => FadeTransition(
+        opacity: anim,
+        child: ScaleTransition(scale: anim, child: child),
+      ),
+      child: SizedBox(
+        key: ValueKey(variant.profession),
+        width: 38,
+        height: 38,
+        child: Stack(children: [
+          CustomPaint(size: const Size(38, 38), painter: _GorillaFacePainter()),
+          Positioned(
+            right: 0, bottom: 0,
+            child: Container(
+              width: 17, height: 17,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: variant.accent,
+                border: Border.all(color: kBg, width: 2),
+              ),
+              child: Icon(variant.icon, size: 10, color: Colors.black),
+            ),
+          ),
+        ]),
+      ),
+    );
+  }
+}
+
+class _GorillaFacePainter extends CustomPainter {
+  @override
+  void paint(Canvas canvas, Size size) {
+    final w = size.width, h = size.height;
+    final darkFur = Paint()..color = const Color(0xFF4A4E57);
+    final snoutPaint = Paint()..color = const Color(0xFF8A7052);
+    final eyePaint = Paint()..color = const Color(0xFF20222A);
+    final nosePaint = Paint()..color = const Color(0xFF2B2D34);
+
+    canvas.drawCircle(Offset(w * 0.12, h * 0.42), w * 0.16, darkFur);
+    canvas.drawCircle(Offset(w * 0.88, h * 0.42), w * 0.16, darkFur);
+    canvas.drawOval(Rect.fromCenter(center: Offset(w * 0.5, h * 0.5), width: w * 0.9, height: h * 0.86), darkFur);
+    canvas.drawOval(Rect.fromCenter(center: Offset(w * 0.5, h * 0.66), width: w * 0.6, height: h * 0.38), snoutPaint);
+    canvas.drawOval(Rect.fromCenter(center: Offset(w * 0.36, h * 0.46), width: w * 0.14, height: h * 0.16), eyePaint);
+    canvas.drawOval(Rect.fromCenter(center: Offset(w * 0.64, h * 0.46), width: w * 0.14, height: h * 0.16), eyePaint);
+    canvas.drawCircle(Offset(w * 0.42, h * 0.64), w * 0.035, nosePaint);
+    canvas.drawCircle(Offset(w * 0.58, h * 0.64), w * 0.035, nosePaint);
+  }
+
+  @override
+  bool shouldRepaint(covariant _GorillaFacePainter oldDelegate) => false;
+}
+
 // ═══════════════════════════════════════
 // HOME SCREEN — Χρήστες
 // ═══════════════════════════════════════
@@ -2380,17 +2480,21 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
             child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  ShaderMask(
-                    shaderCallback: (b) => const LinearGradient(
-                        colors: [kGoldLight, kGold]).createShader(b),
-                    child: const Text('GOREALAI',
-                        style: TextStyle(
-                            fontFamily: 'Raleway',
-                            fontSize: 14,
-                            letterSpacing: 5,
-                            fontWeight: FontWeight.w700,
-                            color: Colors.white)),
-                  ),
+                  Row(children: [
+                    const _GorillaMascotBadge(),
+                    const SizedBox(width: 10),
+                    ShaderMask(
+                      shaderCallback: (b) => const LinearGradient(
+                          colors: [kGoldLight, kGold]).createShader(b),
+                      child: const Text('GOREALAI',
+                          style: TextStyle(
+                              fontFamily: 'Raleway',
+                              fontSize: 14,
+                              letterSpacing: 5,
+                              fontWeight: FontWeight.w700,
+                              color: Colors.white)),
+                    ),
+                  ]),
                   Row(children: [
                     if (_isPro) ...[
                       StreamBuilder<QuerySnapshot>(
