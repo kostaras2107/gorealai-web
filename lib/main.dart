@@ -2010,68 +2010,16 @@ class _GorealWordmark extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return SizedBox(
-      width: 178,
-      height: 46,
-      child: Stack(clipBehavior: Clip.none, children: [
-        Positioned(
-          left: 0, top: 16,
-          child: Row(crossAxisAlignment: CrossAxisAlignment.center, children: [
-            ShaderMask(
-              shaderCallback: (b) => const LinearGradient(
-                  colors: [kGoldLight, kGold]).createShader(b),
-              child: const Text('GOREAL',
-                  style: TextStyle(
-                      fontFamily: 'Raleway',
-                      fontSize: 14,
-                      letterSpacing: 5,
-                      fontWeight: FontWeight.w700,
-                      color: Colors.white)),
-            ),
-            const Text('PRO',
-                style: TextStyle(
-                    fontFamily: 'Raleway',
-                    fontSize: 14,
-                    letterSpacing: 5,
-                    fontWeight: FontWeight.w700,
-                    color: Colors.white)),
-          ]),
+      height: 40,
+      child: AspectRatio(
+        aspectRatio: 1197 / 480,
+        child: Image.asset(
+          'assets/images/gorealpro_wordmark.png',
+          fit: BoxFit.contain,
         ),
-        // Κράνος μάστορα πάνω από το "P" του PRO
-        const Positioned(
-          left: 93, top: -3,
-          child: Icon(Icons.engineering, size: 16, color: Color(0xFFF2A93B)),
-        ),
-        // Μπογιές που έχουν "πέσει" κάτω από το PRO
-        Positioned(
-          left: 92, top: 33,
-          child: CustomPaint(size: const Size(50, 13), painter: _PaintDripsPainter()),
-        ),
-      ]),
+      ),
     );
   }
-}
-
-class _PaintDripsPainter extends CustomPainter {
-  void _drip(Canvas canvas, double x, double w, double h, Color color) {
-    final paint = Paint()..color = color;
-    canvas.drawCircle(Offset(x, w * 0.5), w * 0.5, paint);
-    final path = Path()
-      ..moveTo(x - w * 0.32, w * 0.5)
-      ..quadraticBezierTo(x - w * 0.36, w * 0.5 + h * 0.6, x, w * 0.5 + h)
-      ..quadraticBezierTo(x + w * 0.36, w * 0.5 + h * 0.6, x + w * 0.32, w * 0.5)
-      ..close();
-    canvas.drawPath(path, paint);
-  }
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    _drip(canvas, 7, 8, 6, const Color(0xFFE1306C));
-    _drip(canvas, 24, 7, 5, const Color(0xFF64B5F6));
-    _drip(canvas, 40, 8, 7, const Color(0xFF3DBA7E));
-  }
-
-  @override
-  bool shouldRepaint(covariant _PaintDripsPainter oldDelegate) => false;
 }
 
 // ═══════════════════════════════════════
