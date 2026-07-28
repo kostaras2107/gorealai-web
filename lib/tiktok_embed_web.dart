@@ -14,8 +14,11 @@ Widget buildTikTokEmbed(String videoId) {
   if (!_registeredViewTypes.contains(viewType)) {
     _registeredViewTypes.add(viewType);
     ui_web.platformViewRegistry.registerViewFactory(viewType, (int viewId) {
+      // autoplay=1&muted=1 — παίζει αυτόματα σαν "ζωντανή" προεπισκόπηση.
+      // Muted είναι υποχρεωτικό για να επιτρέψουν οι browsers το autoplay·
+      // ο χρήστης μπορεί να το κάνει unmute από το ίδιο το TikTok player.
       final iframe = html.IFrameElement()
-        ..src = 'https://www.tiktok.com/player/v1/$videoId'
+        ..src = 'https://www.tiktok.com/player/v1/$videoId?autoplay=1&muted=1'
         ..style.border = 'none'
         ..style.width = '100%'
         ..style.height = '100%'

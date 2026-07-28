@@ -13774,7 +13774,7 @@ class _TikTokShortsCarousel extends StatefulWidget {
 }
 
 class _TikTokShortsCarouselState extends State<_TikTokShortsCarousel> {
-  final PageController _pageCtrl = PageController(viewportFraction: 0.6);
+  final PageController _pageCtrl = PageController(viewportFraction: 0.42);
 
   @override
   void dispose() {
@@ -13791,7 +13791,7 @@ class _TikTokShortsCarouselState extends State<_TikTokShortsCarousel> {
           .limit(50)
           .snapshots(),
       builder: (context, snap) {
-        if (!snap.hasData) return const SizedBox(height: 420);
+        if (!snap.hasData) return const SizedBox(height: 300);
         final items = <Map<String, dynamic>>[];
         for (final doc in snap.data!.docs) {
           final d = doc.data() as Map<String, dynamic>;
@@ -13817,56 +13817,51 @@ class _TikTokShortsCarouselState extends State<_TikTokShortsCarousel> {
           );
         }
         return SizedBox(
-          height: 420,
+          height: 300,
           child: PageView.builder(
             controller: _pageCtrl,
             // Με 1 μόνο βίντεο δεν χρειάζεται άπειρο loop — δείξε το μία φορά, ακίνητο.
             itemCount: items.length <= 1 ? items.length : 9999,
             itemBuilder: (_, i) {
               final item = items[i % items.length];
-              // Στη μικρή κάρτα ΔΕΝ βάζουμε ζωντανό iframe — μόνο στατική
-              // προεπισκόπηση. Ένα ζωντανό iframe εδώ «καταπίνει» πάντα το
-              // πάτημα (πραγματικό στοιχείο DOM, όχι κάτι της Flutter), οπότε
-              // το fullscreen δεν άνοιγε αξιόπιστα. Έτσι το tap πιάνεται 100%.
+              // Το iframe παίζει ζωντανά (autoplay+muted) σαν προεπισκόπηση,
+              // αλλά μέσα σε IgnorePointer — έτσι δεν δέχεται καθόλου άγγιγμα
+              // (pointer-events: none στο πραγματικό DOM στοιχείο) και δεν
+              // «κλέβει» ποτέ το tap. Το GestureDetector από πάνω το πιάνει 100%.
               return GestureDetector(
                 onTap: () => Navigator.push(context, PageRouteBuilder(
                   pageBuilder: (_, __, ___) => _FullscreenTikTokViewer(videoId: item['videoId'] as String),
                   transitionsBuilder: (_, a, __, c) => FadeTransition(opacity: a, child: c),
                 )),
                 child: Container(
-                  margin: const EdgeInsets.symmetric(horizontal: 6),
+                  margin: const EdgeInsets.symmetric(horizontal: 5),
                   clipBehavior: Clip.antiAlias,
                   decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(18),
+                    borderRadius: BorderRadius.circular(14),
                     gradient: LinearGradient(
                       begin: Alignment.topLeft, end: Alignment.bottomRight,
                       colors: [const Color(0xFF1A1A1A), const Color(0xFF0A0A0A)],
                     ),
                     border: Border.all(color: const Color(0xFF69C9D0).withValues(alpha: 0.3)),
-                    boxShadow: [BoxShadow(color: const Color(0xFF69C9D0).withValues(alpha: 0.1), blurRadius: 12)],
+                    boxShadow: [BoxShadow(color: const Color(0xFF69C9D0).withValues(alpha: 0.1), blurRadius: 10)],
                   ),
                   child: Stack(fit: StackFit.expand, children: [
-                    Center(
-                      child: Container(
-                        width: 56, height: 56,
-                        decoration: BoxDecoration(
-                          shape: BoxShape.circle,
-                          color: Colors.white.withValues(alpha: 0.12),
-                        ),
-                        child: const Icon(Icons.play_arrow_rounded, color: Colors.white, size: 34),
-                      ),
+                    IgnorePointer(
+                      child: Center(child: tiktok_embed.buildTikTokEmbed(item['videoId'] as String)),
                     ),
                     Positioned(
-                      left: 8, right: 8, bottom: 8,
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                        decoration: BoxDecoration(borderRadius: BorderRadius.circular(10), color: Colors.black.withValues(alpha: 0.65)),
-                        child: Row(mainAxisSize: MainAxisSize.min, children: [
-                          const Text('🎵', style: TextStyle(fontSize: 12)),
-                          const SizedBox(width: 5),
-                          Flexible(child: Text(item['proName'] as String, maxLines: 1, overflow: TextOverflow.ellipsis,
-                              style: const TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.w700))),
-                        ]),
+                      left: 6, right: 6, bottom: 6,
+                      child: IgnorePointer(
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
+                          decoration: BoxDecoration(borderRadius: BorderRadius.circular(8), color: Colors.black.withValues(alpha: 0.65)),
+                          child: Row(mainAxisSize: MainAxisSize.min, children: [
+                            const Text('🎵', style: TextStyle(fontSize: 10)),
+                            const SizedBox(width: 4),
+                            Flexible(child: Text(item['proName'] as String, maxLines: 1, overflow: TextOverflow.ellipsis,
+                                style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.w700))),
+                          ]),
+                        ),
                       ),
                     ),
                   ]),
@@ -15723,7 +15718,7 @@ class _ProPortfolioScreenState extends State<ProPortfolioScreen> {
                 ]),
                 const SizedBox(height: 12),
                 SizedBox(
-                  height: 480,
+                  height: 300,
                   child: ListView.builder(
                     scrollDirection: Axis.horizontal,
                     itemCount: tiktokShorts.length,
@@ -15736,22 +15731,18 @@ class _ProPortfolioScreenState extends State<ProPortfolioScreen> {
                           transitionsBuilder: (_, a, __, c) => FadeTransition(opacity: a, child: c),
                         )),
                         child: Container(
-                          width: 270,
-                          margin: EdgeInsets.only(right: i == tiktokShorts.length - 1 ? 0 : 12),
+                          width: 170,
+                          margin: EdgeInsets.only(right: i == tiktokShorts.length - 1 ? 0 : 10),
                           clipBehavior: Clip.antiAlias,
                           decoration: BoxDecoration(
-                            borderRadius: BorderRadius.circular(16),
+                            borderRadius: BorderRadius.circular(14),
                             gradient: LinearGradient(
                               begin: Alignment.topLeft, end: Alignment.bottomRight,
                               colors: [const Color(0xFF1A1A1A), const Color(0xFF0A0A0A)],
                             ),
                           ),
-                          child: Center(
-                            child: Container(
-                              width: 56, height: 56,
-                              decoration: BoxDecoration(shape: BoxShape.circle, color: Colors.white.withValues(alpha: 0.12)),
-                              child: const Icon(Icons.play_arrow_rounded, color: Colors.white, size: 34),
-                            ),
+                          child: IgnorePointer(
+                            child: Center(child: tiktok_embed.buildTikTokEmbed(videoId)),
                           ),
                         ),
                       );
