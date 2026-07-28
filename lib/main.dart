@@ -7,6 +7,7 @@ import 'tiktok_embed_stub.dart' if (dart.library.html) 'tiktok_embed_web.dart' a
 import 'package:image_picker/image_picker.dart';
 import 'dart:ui';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart' show Clipboard, ClipboardData;
 import 'package:http/http.dart' as http;
 import 'package:url_launcher/url_launcher.dart';
 import 'package:firebase_core/firebase_core.dart';
@@ -2025,41 +2026,18 @@ const List<_GorillaVariant> _gorillaVariants = [
 class _GorealWordmark extends StatelessWidget {
   const _GorealWordmark();
 
-  static const _decorIcons = [
-    (Icons.build, 0.02, -0.32),
-    (Icons.construction, 0.86, -0.34),
-    (Icons.content_cut, 0.0, 0.86),
-    (Icons.brush, 0.92, 0.9),
-    (Icons.camera_alt, 0.42, -0.4),
-  ];
-
   @override
   Widget build(BuildContext context) {
-    return SizedBox(
-      width: 128,
-      height: 36,
-      child: Stack(clipBehavior: Clip.none, children: [
-        Positioned(
-          left: 6, top: 8,
-          child: ShaderMask(
-            shaderCallback: (b) => const LinearGradient(
-                colors: [kGoldLight, kGold]).createShader(b),
-            child: const Text('GOREAL',
-                style: TextStyle(
-                    fontFamily: 'Raleway',
-                    fontSize: 14,
-                    letterSpacing: 5,
-                    fontWeight: FontWeight.w700,
-                    color: Colors.white)),
-          ),
-        ),
-        for (final (icon, fx, fy) in _decorIcons)
-          Positioned(
-            left: 6 + fx * 110,
-            top: 14 + fy * 14,
-            child: Icon(icon, size: 11, color: kGold.withValues(alpha: 0.85)),
-          ),
-      ]),
+    return ShaderMask(
+      shaderCallback: (b) => const LinearGradient(
+          colors: [kGoldLight, kGold]).createShader(b),
+      child: const Text('GOREAL',
+          style: TextStyle(
+              fontFamily: 'Raleway',
+              fontSize: 14,
+              letterSpacing: 5,
+              fontWeight: FontWeight.w700,
+              color: Colors.white)),
     );
   }
 }
@@ -6010,6 +5988,22 @@ class _ProfessionalHomeScreenState extends State<ProfessionalHomeScreen> {
               decoration: InputDecoration(
                 hintText: 'https://www.tiktok.com/@username/video/...',
                 hintStyle: TextStyle(color: _g(0.3), fontSize: 13),
+                // Σε iPhone/Safari το native paste μέσα σε web εφαρμογή συχνά
+                // δεν δουλεύει αξιόπιστα — βάζουμε δικό μας κουμπί επικόλλησης
+                // που διαβάζει απευθείας το clipboard.
+                suffixIcon: IconButton(
+                  icon: Icon(Icons.content_paste, color: _g(0.4), size: 18),
+                  tooltip: 'Επικόλληση',
+                  onPressed: () async {
+                    final data = await Clipboard.getData('text/plain');
+                    final text = data?.text?.trim();
+                    if (text != null && text.isNotEmpty) {
+                      _shortCtrl.text = text;
+                      _shortCtrl.selection = TextSelection.collapsed(offset: text.length);
+                      setState(() {});
+                    }
+                  },
+                ),
                 border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: _g(0.1))),
                 enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: _g(0.1))),
                 focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Color(0xFF69C9D0))),
@@ -13730,25 +13724,9 @@ class _TikTokShortsCarousel extends StatefulWidget {
 
 class _TikTokShortsCarouselState extends State<_TikTokShortsCarousel> {
   final PageController _pageCtrl = PageController(viewportFraction: 0.6);
-  Timer? _autoScrollTimer;
-  int _itemCount = 0;
-
-  @override
-  void initState() {
-    super.initState();
-    _autoScrollTimer = Timer.periodic(const Duration(seconds: 4), (_) {
-      // Αν υπάρχει μόνο 1 (ή 0) βίντεο, δεν χρειάζεται καθόλου κίνηση.
-      if (!mounted || !_pageCtrl.hasClients || _itemCount <= 1) return;
-      _pageCtrl.nextPage(
-        duration: const Duration(milliseconds: 700),
-        curve: Curves.easeInOut,
-      );
-    });
-  }
 
   @override
   void dispose() {
-    _autoScrollTimer?.cancel();
     _pageCtrl.dispose();
     super.dispose();
   }
@@ -13774,7 +13752,6 @@ class _TikTokShortsCarouselState extends State<_TikTokShortsCarousel> {
             }
           }
         }
-        _itemCount = items.length;
         if (items.isEmpty) {
           return Container(
             height: 160,
@@ -13796,20 +13773,40 @@ class _TikTokShortsCarouselState extends State<_TikTokShortsCarousel> {
             itemCount: items.length <= 1 ? items.length : 9999,
             itemBuilder: (_, i) {
               final item = items[i % items.length];
-              return Container(
-                margin: const EdgeInsets.symmetric(horizontal: 6),
-                clipBehavior: Clip.antiAlias,
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(18),
-                  border: Border.all(color: const Color(0xFF69C9D0).withValues(alpha: 0.3)),
-                  boxShadow: [BoxShadow(color: const Color(0xFF69C9D0).withValues(alpha: 0.1), blurRadius: 12)],
-                ),
-                child: Stack(fit: StackFit.expand, children: [
-                  Container(color: Colors.black),
-                  Center(child: tiktok_embed.buildTikTokEmbed(item['videoId'] as String)),
-                  Positioned(
-                    left: 8, right: 8, bottom: 8,
-                    child: IgnorePointer(
+              // Στη μικρή κάρτα ΔΕΝ βάζουμε ζωντανό iframe — μόνο στατική
+              // προεπισκόπηση. Ένα ζωντανό iframe εδώ «καταπίνει» πάντα το
+              // πάτημα (πραγματικό στοιχείο DOM, όχι κάτι της Flutter), οπότε
+              // το fullscreen δεν άνοιγε αξιόπιστα. Έτσι το tap πιάνεται 100%.
+              return GestureDetector(
+                onTap: () => Navigator.push(context, PageRouteBuilder(
+                  pageBuilder: (_, __, ___) => _FullscreenTikTokViewer(videoId: item['videoId'] as String),
+                  transitionsBuilder: (_, a, __, c) => FadeTransition(opacity: a, child: c),
+                )),
+                child: Container(
+                  margin: const EdgeInsets.symmetric(horizontal: 6),
+                  clipBehavior: Clip.antiAlias,
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(18),
+                    gradient: LinearGradient(
+                      begin: Alignment.topLeft, end: Alignment.bottomRight,
+                      colors: [const Color(0xFF1A1A1A), const Color(0xFF0A0A0A)],
+                    ),
+                    border: Border.all(color: const Color(0xFF69C9D0).withValues(alpha: 0.3)),
+                    boxShadow: [BoxShadow(color: const Color(0xFF69C9D0).withValues(alpha: 0.1), blurRadius: 12)],
+                  ),
+                  child: Stack(fit: StackFit.expand, children: [
+                    Center(
+                      child: Container(
+                        width: 56, height: 56,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          color: Colors.white.withValues(alpha: 0.12),
+                        ),
+                        child: const Icon(Icons.play_arrow_rounded, color: Colors.white, size: 34),
+                      ),
+                    ),
+                    Positioned(
+                      left: 8, right: 8, bottom: 8,
                       child: Container(
                         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                         decoration: BoxDecoration(borderRadius: BorderRadius.circular(10), color: Colors.black.withValues(alpha: 0.65)),
@@ -13821,22 +13818,8 @@ class _TikTokShortsCarouselState extends State<_TikTokShortsCarousel> {
                         ]),
                       ),
                     ),
-                  ),
-                  // Αόρατο κάλυμμα ΠΑΝΩ από το iframe — χωρίς αυτό, το πάτημα
-                  // το «καταπίνει» το ίδιο το TikTok iframe (πραγματικό DOM
-                  // στοιχείο) και ανοίγει άλλο βίντεο μέσα στο ίδιο το TikTok,
-                  // αντί να το πιάνει η εφαρμογή μας.
-                  Positioned.fill(
-                    child: GestureDetector(
-                      behavior: HitTestBehavior.opaque,
-                      onTap: () => Navigator.push(context, PageRouteBuilder(
-                        pageBuilder: (_, __, ___) => _FullscreenTikTokViewer(videoId: item['videoId'] as String),
-                        transitionsBuilder: (_, a, __, c) => FadeTransition(opacity: a, child: c),
-                      )),
-                      child: const ColoredBox(color: Colors.transparent),
-                    ),
-                  ),
-                ]),
+                  ]),
+                ),
               );
             },
           ),
@@ -15696,13 +15679,30 @@ class _ProPortfolioScreenState extends State<ProPortfolioScreen> {
                     itemBuilder: (_, i) {
                       final videoId = extractTikTokVideoId(tiktokShorts[i]);
                       if (videoId == null) return const SizedBox.shrink();
-                      return Container(
-                        width: 270,
-                        margin: EdgeInsets.only(right: i == tiktokShorts.length - 1 ? 0 : 12),
-                        clipBehavior: Clip.antiAlias,
-                        alignment: Alignment.center,
-                        decoration: BoxDecoration(borderRadius: BorderRadius.circular(16), color: Colors.black),
-                        child: tiktok_embed.buildTikTokEmbed(videoId),
+                      return GestureDetector(
+                        onTap: () => Navigator.push(context, PageRouteBuilder(
+                          pageBuilder: (_, __, ___) => _FullscreenTikTokViewer(videoId: videoId),
+                          transitionsBuilder: (_, a, __, c) => FadeTransition(opacity: a, child: c),
+                        )),
+                        child: Container(
+                          width: 270,
+                          margin: EdgeInsets.only(right: i == tiktokShorts.length - 1 ? 0 : 12),
+                          clipBehavior: Clip.antiAlias,
+                          decoration: BoxDecoration(
+                            borderRadius: BorderRadius.circular(16),
+                            gradient: LinearGradient(
+                              begin: Alignment.topLeft, end: Alignment.bottomRight,
+                              colors: [const Color(0xFF1A1A1A), const Color(0xFF0A0A0A)],
+                            ),
+                          ),
+                          child: Center(
+                            child: Container(
+                              width: 56, height: 56,
+                              decoration: BoxDecoration(shape: BoxShape.circle, color: Colors.white.withValues(alpha: 0.12)),
+                              child: const Icon(Icons.play_arrow_rounded, color: Colors.white, size: 34),
+                            ),
+                          ),
+                        ),
                       );
                     },
                   ),
