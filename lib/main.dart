@@ -364,6 +364,11 @@ bool isValidGreekAfmFormat(String afm) {
   return check == int.parse(a[8]);
 }
 
+({String text, String emoji}) _timeGreeting() {
+  final hour = DateTime.now().hour;
+  return hour < 12 ? (text: 'Καλημέρα', emoji: '🌅') : (text: 'Καλησπέρα', emoji: '🌆');
+}
+
 String _toVocative(String? fullName) {
   if (fullName == null || fullName.isEmpty) return '';
   // First name only
@@ -2807,7 +2812,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                     borderRadius: BorderRadius.circular(2),
                     boxShadow: [BoxShadow(color: kGold.withValues(alpha: 0.6), blurRadius: 6)])),
             const SizedBox(width: 10),
-            const Text('Επαγγελματίες κοντά σου',
+            const Text('Προτεινόμενοι Επαγγελματίες',
                 style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.w700, letterSpacing: 0.3)),
             const SizedBox(width: 8),
             Container(
@@ -2817,7 +2822,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                 color: kGold.withValues(alpha: 0.12),
                 border: Border.all(color: kGold.withValues(alpha: 0.4)),
               ),
-              child: const Text('BETA', style: TextStyle(color: kGold, fontSize: 9, fontWeight: FontWeight.w800, letterSpacing: 0.5)),
+              child: const Text('✓ Ολοκληρωμένο Προφίλ', style: TextStyle(color: kGold, fontSize: 9, fontWeight: FontWeight.w800, letterSpacing: 0.3)),
             ),
             const Spacer(),
             Container(
@@ -4363,8 +4368,8 @@ class _ProfessionalHomeScreenState extends State<ProfessionalHomeScreen> {
               const SizedBox(width: 12),
               Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                 Row(children: [
-                  const Text('Καλημέρα ', style: TextStyle(color: Colors.white70, fontSize: 13)),
-                  const Text('🌅', style: TextStyle(fontSize: 13)),
+                  Text('${_timeGreeting().text} ', style: const TextStyle(color: Colors.white70, fontSize: 13)),
+                  Text(_timeGreeting().emoji, style: const TextStyle(fontSize: 13)),
                 ]),
                 Text(_toVocative(_proName), style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.w800, height: 1.2)),
               ])),
@@ -13489,7 +13494,19 @@ class _NearbyProsSectionState extends State<_NearbyProsSection> {
           .limit(50)
           .snapshots(),
       builder: (context, snap) {
-        final docs = snap.hasData ? snap.data!.docs : <QueryDocumentSnapshot>[];
+        final allDocs = snap.hasData ? snap.data!.docs : <QueryDocumentSnapshot>[];
+        final docs = allDocs.where((doc) {
+          final d = doc.data() as Map<String, dynamic>;
+          final fields = [
+            (d['bio'] as String? ?? '').isNotEmpty,
+            (d['specialties'] as List?)?.isNotEmpty ?? false,
+            (d['subSpecialties'] as List?)?.isNotEmpty ?? false,
+            (d['areas'] as List?)?.isNotEmpty ?? false,
+            (d['companyName'] as String? ?? '').isNotEmpty,
+            ((d['yearsExperience'] as num?) ?? 0) > 0,
+          ];
+          return fields.where((f) => f).length >= 2;
+        }).toList();
         if (!snap.hasData) return const SizedBox(height: 260);
         if (docs.isEmpty) return const SizedBox(height: 260);
         return SizedBox(
