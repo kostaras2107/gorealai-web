@@ -13720,10 +13720,10 @@ class _TikTokShortsCarouselState extends State<_TikTokShortsCarousel> {
           height: 300,
           child: PageView.builder(
             controller: _pageCtrl,
-            // Με 1 μόνο βίντεο δεν χρειάζεται άπειρο loop — δείξε το μία φορά, ακίνητο.
-            itemCount: items.length <= 1 ? items.length : 9999,
+            // Πεπερασμένο swipe — δείξε ακριβώς όσα βίντεο υπάρχουν, χωρίς άπειρο loop.
+            itemCount: items.length,
             itemBuilder: (_, i) {
-              final item = items[i % items.length];
+              final item = items[i];
               // Στατικό preview (χωρίς ζωντανό iframe) — ένα πραγματικό
               // platform-view (iframe) εδώ, ακόμα και μέσα σε IgnorePointer,
               // μπλοκάρει το οριζόντιο swipe του PageView στο web (ενώ το
