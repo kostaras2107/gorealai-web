@@ -13724,10 +13724,11 @@ class _TikTokShortsCarouselState extends State<_TikTokShortsCarousel> {
             itemCount: items.length <= 1 ? items.length : 9999,
             itemBuilder: (_, i) {
               final item = items[i % items.length];
-              // Το iframe παίζει ζωντανά (autoplay+muted) σαν προεπισκόπηση,
-              // αλλά μέσα σε IgnorePointer — έτσι δεν δέχεται καθόλου άγγιγμα
-              // (pointer-events: none στο πραγματικό DOM στοιχείο) και δεν
-              // «κλέβει» ποτέ το tap. Το GestureDetector από πάνω το πιάνει 100%.
+              // Στατικό preview (χωρίς ζωντανό iframe) — ένα πραγματικό
+              // platform-view (iframe) εδώ, ακόμα και μέσα σε IgnorePointer,
+              // μπλοκάρει το οριζόντιο swipe του PageView στο web (ενώ το
+              // tap-to-fullscreen δούλευε κανονικά). Το ζωντανό βίντεο μένει
+              // μόνο στο fullscreen viewer, όπου δεν χρειάζεται swipe.
               return GestureDetector(
                 onTap: () => Navigator.push(context, PageRouteBuilder(
                   pageBuilder: (_, __, ___) => _FullscreenTikTokViewer(videoId: item['videoId'] as String),
@@ -13746,8 +13747,16 @@ class _TikTokShortsCarouselState extends State<_TikTokShortsCarousel> {
                     boxShadow: [BoxShadow(color: const Color(0xFF69C9D0).withValues(alpha: 0.1), blurRadius: 10)],
                   ),
                   child: Stack(fit: StackFit.expand, children: [
-                    IgnorePointer(
-                      child: Center(child: tiktok_embed.buildTikTokEmbed(item['videoId'] as String)),
+                    Center(
+                      child: Container(
+                        width: 52, height: 52,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          color: Colors.black.withValues(alpha: 0.4),
+                          border: Border.all(color: const Color(0xFF69C9D0).withValues(alpha: 0.5)),
+                        ),
+                        child: const Icon(Icons.play_arrow_rounded, color: Colors.white, size: 30),
+                      ),
                     ),
                     Positioned(
                       left: 6, right: 6, bottom: 6,
