@@ -13699,7 +13699,7 @@ class _TikTokShortsCarouselState extends State<_TikTokShortsCarousel> {
           for (final url in shorts) {
             final videoId = extractTikTokVideoId(url);
             if (videoId != null) {
-              items.add({'videoId': videoId, 'proName': d['name'] ?? 'Επαγγελματίας', 'proId': doc.id, 'proData': d});
+              items.add({'videoId': videoId, 'url': url, 'proName': d['name'] ?? 'Επαγγελματίας', 'proId': doc.id, 'proData': d});
             }
           }
         }
@@ -13747,6 +13747,13 @@ class _TikTokShortsCarouselState extends State<_TikTokShortsCarousel> {
                     boxShadow: [BoxShadow(color: const Color(0xFF69C9D0).withValues(alpha: 0.1), blurRadius: 10)],
                   ),
                   child: Stack(fit: StackFit.expand, children: [
+                    Image.network(
+                      '$kBackendUrl/tiktok-thumbnail?url=${Uri.encodeComponent(item['url'] as String)}',
+                      fit: BoxFit.cover,
+                      loadingBuilder: (_, child, progress) =>
+                          progress == null ? child : const SizedBox.shrink(),
+                      errorBuilder: (_, __, ___) => const SizedBox.shrink(),
+                    ),
                     Center(
                       child: Container(
                         width: 52, height: 52,
@@ -15632,7 +15639,8 @@ class _ProPortfolioScreenState extends State<ProPortfolioScreen> {
                     scrollDirection: Axis.horizontal,
                     itemCount: tiktokShorts.length,
                     itemBuilder: (_, i) {
-                      final videoId = extractTikTokVideoId(tiktokShorts[i]);
+                      final shortUrl = tiktokShorts[i] as String;
+                      final videoId = extractTikTokVideoId(shortUrl);
                       if (videoId == null) return const SizedBox.shrink();
                       return GestureDetector(
                         onTap: () => Navigator.push(context, PageRouteBuilder(
@@ -15650,9 +15658,26 @@ class _ProPortfolioScreenState extends State<ProPortfolioScreen> {
                               colors: [const Color(0xFF1A1A1A), const Color(0xFF0A0A0A)],
                             ),
                           ),
-                          child: IgnorePointer(
-                            child: Center(child: tiktok_embed.buildTikTokEmbed(videoId)),
-                          ),
+                          child: Stack(fit: StackFit.expand, children: [
+                            Image.network(
+                              '$kBackendUrl/tiktok-thumbnail?url=${Uri.encodeComponent(shortUrl)}',
+                              fit: BoxFit.cover,
+                              loadingBuilder: (_, child, progress) =>
+                                  progress == null ? child : const SizedBox.shrink(),
+                              errorBuilder: (_, __, ___) => const SizedBox.shrink(),
+                            ),
+                            Center(
+                              child: Container(
+                                width: 48, height: 48,
+                                decoration: BoxDecoration(
+                                  shape: BoxShape.circle,
+                                  color: Colors.black.withValues(alpha: 0.4),
+                                  border: Border.all(color: const Color(0xFF69C9D0).withValues(alpha: 0.5)),
+                                ),
+                                child: const Icon(Icons.play_arrow_rounded, color: Colors.white, size: 28),
+                              ),
+                            ),
+                          ]),
                         ),
                       );
                     },
