@@ -3669,13 +3669,12 @@ class _BottomNav extends StatelessWidget {
             alignment: Alignment.center,
             children: [
               Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceAround,
                   children: [
-                    _HNavItem(icon: Icons.home_rounded, label: 'Αρχική',
-                        active: navIndex == 0, onTap: onHome),
+                    Expanded(child: Center(child: _HNavItem(icon: Icons.home_rounded, label: 'Αρχική',
+                        active: navIndex == 0, onTap: onHome))),
 
                     // Μηνύματα με unread badge
-                    Stack(clipBehavior: Clip.none, children: [
+                    Expanded(child: Center(child: Stack(clipBehavior: Clip.none, children: [
                       _HNavItem(icon: Icons.chat_bubble_outline_rounded, label: 'Μηνύματα',
                           active: navIndex == 4, onTap: onMessages),
                       if (unreadMessages > 0)
@@ -3697,18 +3696,18 @@ class _BottomNav extends StatelessWidget {
                             ),
                           ),
                         ),
-                    ]),
+                    ]))),
 
                     // Θέση-κράτηση για το G FAB (το ίδιο το κουμπί κεντράρεται
                     // ξεχωριστά παρακάτω, ώστε να μην επηρεάζεται από την
                     // ασυμμετρία στο πλάτος avatar (38) vs υπόλοιπα εικονίδια).
                     const SizedBox(width: 64, height: 64),
 
-                    _HNavItem(icon: Icons.history_rounded, label: 'Ιστορικό',
-                        active: navIndex == 2, onTap: onHistory),
+                    Expanded(child: Center(child: _HNavItem(icon: Icons.history_rounded, label: 'Ιστορικό',
+                        active: navIndex == 2, onTap: onHistory))),
 
                     // Avatar profile
-                    GestureDetector(
+                    Expanded(child: Center(child: GestureDetector(
                       onTap: onProfile,
                       child: Container(
                         width: 38, height: 38,
@@ -3730,7 +3729,7 @@ class _BottomNav extends StatelessWidget {
                                 color: kGold,
                                 fontSize: 16, fontWeight: FontWeight.bold))),
                       ),
-                    ),
+                    ))),
                   ]),
 
               // ── G FAB — always Events (Γάμος/Βάφτιση/Πάρτι) ──
