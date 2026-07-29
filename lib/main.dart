@@ -3665,102 +3665,118 @@ class _BottomNav extends StatelessWidget {
               BoxShadow(color: kGold.withValues(alpha: 0.06), blurRadius: 30, offset: const Offset(0, -4)),
             ],
           ),
-          child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceAround,
-              children: [
-                _HNavItem(icon: Icons.home_rounded, label: 'Αρχική',
-                    active: navIndex == 0, onTap: onHome),
+          child: Stack(
+            alignment: Alignment.center,
+            children: [
+              Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceAround,
+                  children: [
+                    _HNavItem(icon: Icons.home_rounded, label: 'Αρχική',
+                        active: navIndex == 0, onTap: onHome),
 
-                // Μηνύματα με unread badge
-                Stack(clipBehavior: Clip.none, children: [
-                  _HNavItem(icon: Icons.chat_bubble_outline_rounded, label: 'Μηνύματα',
-                      active: navIndex == 4, onTap: onMessages),
-                  if (unreadMessages > 0)
-                    Positioned(
-                      top: 2, right: 6,
+                    // Μηνύματα με unread badge
+                    Stack(clipBehavior: Clip.none, children: [
+                      _HNavItem(icon: Icons.chat_bubble_outline_rounded, label: 'Μηνύματα',
+                          active: navIndex == 4, onTap: onMessages),
+                      if (unreadMessages > 0)
+                        Positioned(
+                          top: 2, right: 6,
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
+                            constraints: const BoxConstraints(minWidth: 16, minHeight: 16),
+                            decoration: BoxDecoration(
+                              color: Colors.red,
+                              borderRadius: BorderRadius.circular(8),
+                              boxShadow: [BoxShadow(color: Colors.red.withValues(alpha: 0.6), blurRadius: 6)],
+                            ),
+                            child: Text(
+                              unreadMessages > 99 ? '99+' : '$unreadMessages',
+                              textAlign: TextAlign.center,
+                              style: const TextStyle(color: Colors.white, fontSize: 9,
+                                  fontWeight: FontWeight.bold, height: 1.2),
+                            ),
+                          ),
+                        ),
+                    ]),
+
+                    // Θέση-κράτηση για το G FAB (το ίδιο το κουμπί κεντράρεται
+                    // ξεχωριστά παρακάτω, ώστε να μην επηρεάζεται από την
+                    // ασυμμετρία στο πλάτος avatar (38) vs υπόλοιπα εικονίδια).
+                    const SizedBox(width: 64, height: 64),
+
+                    _HNavItem(icon: Icons.history_rounded, label: 'Ιστορικό',
+                        active: navIndex == 2, onTap: onHistory),
+
+                    // Avatar profile
+                    GestureDetector(
+                      onTap: onProfile,
                       child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
-                        constraints: const BoxConstraints(minWidth: 16, minHeight: 16),
+                        width: 38, height: 38,
                         decoration: BoxDecoration(
-                          color: Colors.red,
-                          borderRadius: BorderRadius.circular(8),
-                          boxShadow: [BoxShadow(color: Colors.red.withValues(alpha: 0.6), blurRadius: 6)],
-                        ),
-                        child: Text(
-                          unreadMessages > 99 ? '99+' : '$unreadMessages',
-                          textAlign: TextAlign.center,
-                          style: const TextStyle(color: Colors.white, fontSize: 9,
-                              fontWeight: FontWeight.bold, height: 1.2),
-                        ),
-                      ),
-                    ),
-                ]),
-
-                // ── G FAB — always Events (Γάμος/Βάφτιση/Πάρτι) ──
-                GestureDetector(
-                  onTap: onFab,
-                  child: Stack(clipBehavior: Clip.none, children: [
-                    Positioned.fill(child: TweenAnimationBuilder<double>(
-                      tween: Tween(begin: 0.9, end: 1.12),
-                      duration: const Duration(milliseconds: 1200),
-                      curve: Curves.easeInOut,
-                      builder: (_, v, __) => Transform.scale(
-                        scale: v,
-                        child: Container(decoration: BoxDecoration(
                           shape: BoxShape.circle,
+                          color: navIndex == 3
+                              ? Colors.white.withValues(alpha: 0.12)
+                              : Colors.white.withValues(alpha: 0.05),
                           border: Border.all(
-                              color: kGold.withValues(alpha: 0.35 * (1.12 - v) * 7),
-                              width: 2),
-                        )),
+                            color: navIndex == 3 ? Colors.white.withValues(alpha: 0.5) : Colors.white.withValues(alpha: 0.12),
+                            width: navIndex == 3 ? 1.5 : 1,
+                          ),
+                          boxShadow: navIndex == 3 ? [BoxShadow(color: Colors.white.withValues(alpha: 0.1), blurRadius: 8)] : null,
+                        ),
+                        child: Center(child: Text(
+                            userName?.isNotEmpty == true
+                                ? userName![0].toUpperCase() : 'G',
+                            style: const TextStyle(
+                                color: kGold,
+                                fontSize: 16, fontWeight: FontWeight.bold))),
                       ),
-                      onEnd: () {},
-                    )),
-                    Container(
-                      width: 64, height: 64,
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        gradient: const RadialGradient(colors: [kGoldLight, kGold, kGoldDark]),
-                        border: Border.all(color: kGold.withValues(alpha: 0.9), width: 2),
-                        boxShadow: [BoxShadow(
-                            color: kGold.withValues(alpha: 0.55),
-                            blurRadius: 18, spreadRadius: 1)],
-                      ),
-                      child: const Center(child: Text('G', style: TextStyle(
-                          fontFamily: 'Inter', fontSize: 30,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.black, height: 1))),
                     ),
                   ]),
-                ),
 
-                _HNavItem(icon: Icons.history_rounded, label: 'Ιστορικό',
-                    active: navIndex == 2, onTap: onHistory),
-
-                // Avatar profile
-                GestureDetector(
-                  onTap: onProfile,
-                  child: Container(
-                    width: 38, height: 38,
+              // ── G FAB — always Events (Γάμος/Βάφτιση/Πάρτι) ──
+              // Κεντραρισμένο στη μέση ολόκληρης της μπάρας (όχι μέσα στο Row),
+              // ώστε να είναι πάντα ακριβώς στο κέντρο ανεξάρτητα από το πλάτος
+              // των υπόλοιπων εικονιδίων γύρω του.
+              GestureDetector(
+                onTap: onFab,
+                child: Stack(clipBehavior: Clip.none, children: [
+                  Positioned.fill(child: TweenAnimationBuilder<double>(
+                    tween: Tween(begin: 0.9, end: 1.12),
+                    duration: const Duration(milliseconds: 1200),
+                    curve: Curves.easeInOut,
+                    builder: (_, v, __) => Transform.scale(
+                      scale: v,
+                      child: Container(decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        border: Border.all(
+                            color: kGold.withValues(alpha: 0.35 * (1.12 - v) * 7),
+                            width: 2),
+                      )),
+                    ),
+                    onEnd: () {},
+                  )),
+                  Container(
+                    width: 64, height: 64,
                     decoration: BoxDecoration(
                       shape: BoxShape.circle,
-                      color: navIndex == 3
-                          ? Colors.white.withValues(alpha: 0.12)
-                          : Colors.white.withValues(alpha: 0.05),
-                      border: Border.all(
-                        color: navIndex == 3 ? Colors.white.withValues(alpha: 0.5) : Colors.white.withValues(alpha: 0.12),
-                        width: navIndex == 3 ? 1.5 : 1,
-                      ),
-                      boxShadow: navIndex == 3 ? [BoxShadow(color: Colors.white.withValues(alpha: 0.1), blurRadius: 8)] : null,
+                      gradient: const RadialGradient(colors: [kGoldLight, kGold, kGoldDark]),
+                      border: Border.all(color: kGold.withValues(alpha: 0.9), width: 2),
+                      boxShadow: [BoxShadow(
+                          color: kGold.withValues(alpha: 0.55),
+                          blurRadius: 18, spreadRadius: 1)],
                     ),
-                    child: Center(child: Text(
-                        userName?.isNotEmpty == true
-                            ? userName![0].toUpperCase() : 'G',
-                        style: const TextStyle(
-                            color: kGold,
-                            fontSize: 16, fontWeight: FontWeight.bold))),
+                    child: Center(child: Transform.translate(
+                      offset: const Offset(0, -1.5),
+                      child: const Text('G', style: TextStyle(
+                          fontFamily: 'Inter', fontSize: 30,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.black, height: 1)),
+                    )),
                   ),
-                ),
-              ]),
+                ]),
+              ),
+            ],
+          ),
         ),
       );
 }
