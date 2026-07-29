@@ -581,6 +581,34 @@ app.post('/resolve-tiktok-link', rateLimit(30, 60_000), async (req, res) => {
   }
 });
 
+// ── TikTok video thumbnail proxy ──────────────────────────────────────────
+// Το thumbnail_url του TikTok oEmbed δεν έχει CORS headers, οπότε ο browser
+// (Flutter Web/CanvasKit) δεν μπορεί να το φορτώσει απευθείας. Το φέρνουμε
+// server-side και το περνάμε στον client με δικά μας CORS headers.
+// GET /tiktok-thumbnail?url=<video url>
+app.get('/tiktok-thumbnail', rateLimit(120, 60_000), async (req, res) => {
+  const { url } = req.query;
+  if (!url) return res.status(400).send('url required');
+  try {
+    const oembedResp = await fetch(`https://www.tiktok.com/oembed?url=${encodeURIComponent(url)}`, {
+      signal: AbortSignal.timeout(10_000),
+    });
+    if (!oembedResp.ok) return res.status(404).send('oembed not found');
+    const oembed = await oembedResp.json();
+    if (!oembed.thumbnail_url) return res.status(404).send('no thumbnail');
+    const imgResp = await fetch(oembed.thumbnail_url, { signal: AbortSignal.timeout(10_000) });
+    if (!imgResp.ok) return res.status(404).send('thumbnail fetch failed');
+    res.set('Content-Type', imgResp.headers.get('content-type') || 'image/jpeg');
+    res.set('Cache-Control', 'public, max-age=3600');
+    res.set('Access-Control-Allow-Origin', '*');
+    const buf = Buffer.from(await imgResp.arrayBuffer());
+    res.send(buf);
+  } catch (e) {
+    console.error('tiktok-thumbnail error:', e.message);
+    res.status(500).send('error');
+  }
+});
+
 // ── Password reset email (via our own Zoho sender, better deliverability) ──
 // POST /forgot-password
 // Body: { email }
