@@ -2018,7 +2018,7 @@ class _GorealWordmark extends StatelessWidget {
     return SizedBox(
       height: 58,
       child: AspectRatio(
-        aspectRatio: 1197 / 480,
+        aspectRatio: 1504 / 565,
         child: Image.asset(
           'assets/images/gorealpro_wordmark.png',
           fit: BoxFit.contain,

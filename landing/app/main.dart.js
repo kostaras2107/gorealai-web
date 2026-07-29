@@ -105913,7 +105913,7 @@ s.w=A.a([],t.g)
 s.x=null},
 $S:0}
 A.a0V.prototype={
-K(a){return A.cN(new A.Cw(2.49375,A.b3N("assets/images/gorealpro_wordmark.png",B.ha,null),null),58,null)}}
+K(a){return A.cN(new A.Cw(2.661946902654867,A.b3N("assets/images/gorealpro_wordmark.png",B.ha,null),null),58,null)}}
 A.EE.prototype={
 a9(){return new A.KT(A.a([],t.s),A.a([],t.g))}}
 A.KT.prototype={
