@@ -69,6 +69,7 @@ flutter:
     - assets/images/gorilla_left.png
     - assets/images/gorilla_right.png
     - assets/images/gorealpro_wordmark.png
+    - assets/images/gorealpro_pro_only.png
 
 flutter_launcher_icons:
   android: true

@@ -3,10 +3,11 @@ const MANIFEST = 'flutter-app-manifest';
 const TEMP = 'flutter-temp-cache';
 const CACHE_NAME = 'flutter-app-cache';
 
-const RESOURCES = {"assets/AssetManifest.bin": "6f7c49e9569ea9218120483b21b6305e",
-"assets/AssetManifest.bin.json": "7b8d4abbb4719e30cf9c9260fce345ce",
+const RESOURCES = {"assets/AssetManifest.bin": "ff2aa7f7db47fa8b06af5ec00b770560",
+"assets/AssetManifest.bin.json": "a5a6959d7ecbcd93e95883f6c9b6e475",
 "assets/assets/images/background.png": "114b29053224f6b08c8e3bee65ced2a0",
 "assets/assets/images/background_chat.png": "b7ddabc6787d8a3e9a6cea50fd458685",
+"assets/assets/images/gorealpro_pro_only.png": "a4970731211b32a9329430a1247d7cea",
 "assets/assets/images/gorealpro_wordmark.png": "3dc3a2fd802de5655681148cf0960a89",
 "assets/assets/images/gorilla_head.png": "af83378f718e82c44fe5409f2d21e7ce",
 "assets/assets/images/gorilla_left.png": "0efff5ebe6c47ac4dfa252f041663133",
@@ -39,7 +40,7 @@ const RESOURCES = {"assets/AssetManifest.bin": "6f7c49e9569ea9218120483b21b6305e
 "favicon.png": "5dcef449791fa27946b3d35ad8803796",
 "firebase-messaging-sw.js": "c273b500781a50712c21eae615c37c3c",
 "flutter.js": "24bc71911b75b5f8135c949e27a2984e",
-"flutter_bootstrap.js": "928aadb5a91861ddad277b2c3ad1d92c",
+"flutter_bootstrap.js": "2a31a3e46a12cb8acc8fc58673801551",
 "icons/gorealai.svg": "f999b497865e10df2098aa97c6aee492",
 "icons/Icon-192-maskable.png": "92d267396b56382e759e34c40e080c5c",
 "icons/Icon-192.png": "92d267396b56382e759e34c40e080c5c",
@@ -47,7 +48,7 @@ const RESOURCES = {"assets/AssetManifest.bin": "6f7c49e9569ea9218120483b21b6305e
 "icons/Icon-512.png": "92d267396b56382e759e34c40e080c5c",
 "index.html": "f1a73ce119e6a420af120fea8519390f",
 "/": "f1a73ce119e6a420af120fea8519390f",
-"main.dart.js": "96b51d8a70e98149746f461f8a3964cb",
+"main.dart.js": "6ea5be38b81c834d916ff7c83eaf1aa4",
 "manifest.json": "f84a8b39f6532c51f4d6afd971fc0266",
 "privacy.html": "3c91d49ca53fed12956d56048ec72784",
 "version.json": "f3bf09b66e259201ab003360d1732232"};

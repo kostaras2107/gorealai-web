@@ -13675,6 +13675,7 @@ class _TikTokShortsCarousel extends StatefulWidget {
 
 class _TikTokShortsCarouselState extends State<_TikTokShortsCarousel> {
   final PageController _pageCtrl = PageController(viewportFraction: 0.42);
+  int _activePage = 0;
 
   @override
   void dispose() {
@@ -13722,13 +13723,15 @@ class _TikTokShortsCarouselState extends State<_TikTokShortsCarousel> {
             controller: _pageCtrl,
             // Πεπερασμένο swipe — δείξε ακριβώς όσα βίντεο υπάρχουν, χωρίς άπειρο loop.
             itemCount: items.length,
+            onPageChanged: (i) => setState(() => _activePage = i),
             itemBuilder: (_, i) {
               final item = items[i];
-              // Στατικό preview (χωρίς ζωντανό iframe) — ένα πραγματικό
-              // platform-view (iframe) εδώ, ακόμα και μέσα σε IgnorePointer,
-              // μπλοκάρει το οριζόντιο swipe του PageView στο web (ενώ το
-              // tap-to-fullscreen δούλευε κανονικά). Το ζωντανό βίντεο μένει
-              // μόνο στο fullscreen viewer, όπου δεν χρειάζεται swipe.
+              final isActive = i == _activePage;
+              // Μόνο η ενεργή (κεντρική) κάρτα παίζει ζωντανά το βίντεο, μέσα
+              // σε IgnorePointer ώστε να μην μπλοκάρει το swipe — το tap πάνω
+              // της ανοίγει το fullscreen. Οι υπόλοιπες δείχνουν στατικό
+              // thumbnail (πραγματικό iframe σε μη-ενεργή κάρτα θα μπλόκαρε
+              // πάλι το οριζόντιο swipe του PageView στο web).
               return GestureDetector(
                 onTap: () => Navigator.push(context, PageRouteBuilder(
                   pageBuilder: (_, __, ___) => _FullscreenTikTokViewer(videoId: item['videoId'] as String),
@@ -13747,24 +13750,30 @@ class _TikTokShortsCarouselState extends State<_TikTokShortsCarousel> {
                     boxShadow: [BoxShadow(color: const Color(0xFF69C9D0).withValues(alpha: 0.1), blurRadius: 10)],
                   ),
                   child: Stack(fit: StackFit.expand, children: [
-                    Image.network(
-                      '$kBackendUrl/tiktok-thumbnail?url=${Uri.encodeComponent(item['url'] as String)}',
-                      fit: BoxFit.cover,
-                      loadingBuilder: (_, child, progress) =>
-                          progress == null ? child : const SizedBox.shrink(),
-                      errorBuilder: (_, __, ___) => const SizedBox.shrink(),
-                    ),
-                    Center(
-                      child: Container(
-                        width: 52, height: 52,
-                        decoration: BoxDecoration(
-                          shape: BoxShape.circle,
-                          color: Colors.black.withValues(alpha: 0.4),
-                          border: Border.all(color: const Color(0xFF69C9D0).withValues(alpha: 0.5)),
-                        ),
-                        child: const Icon(Icons.play_arrow_rounded, color: Colors.white, size: 30),
+                    if (isActive)
+                      IgnorePointer(
+                        child: Center(child: tiktok_embed.buildTikTokEmbed(item['videoId'] as String)),
+                      )
+                    else
+                      Image.network(
+                        '$kBackendUrl/tiktok-thumbnail?url=${Uri.encodeComponent(item['url'] as String)}',
+                        fit: BoxFit.cover,
+                        loadingBuilder: (_, child, progress) =>
+                            progress == null ? child : const SizedBox.shrink(),
+                        errorBuilder: (_, __, ___) => const SizedBox.shrink(),
                       ),
-                    ),
+                    if (!isActive)
+                      Center(
+                        child: Container(
+                          width: 52, height: 52,
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            color: Colors.black.withValues(alpha: 0.4),
+                            border: Border.all(color: const Color(0xFF69C9D0).withValues(alpha: 0.5)),
+                          ),
+                          child: const Icon(Icons.play_arrow_rounded, color: Colors.white, size: 30),
+                        ),
+                      ),
                     Positioned(
                       left: 6, right: 6, bottom: 6,
                       child: IgnorePointer(

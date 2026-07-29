@@ -14,14 +14,18 @@ class _SplashScreenState extends State<SplashScreen>
 
   late AnimationController _mainCtrl;
   late AnimationController _shimmerCtrl;
+  late AnimationController _proCtrl;
 
   late Animation<double> _fade;
   late Animation<double> _scale;
   late Animation<double> _glow;
   late Animation<double> _shimmer;
+  late Animation<double> _proScale;
+  late Animation<double> _proOpacity;
 
   static const String _fullText = "GoReal";
   String _text = "";
+  bool _showPro = false;
 
   @override
   void initState() {
@@ -53,6 +57,19 @@ class _SplashScreenState extends State<SplashScreen>
       CurvedAnimation(parent: _shimmerCtrl, curve: Curves.easeInOut),
     );
 
+    _proCtrl = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 700),
+    );
+
+    _proScale = Tween<double>(begin: 2.6, end: 1.0).animate(
+      CurvedAnimation(parent: _proCtrl, curve: Curves.elasticOut),
+    );
+
+    _proOpacity = Tween<double>(begin: 0.0, end: 1.0).animate(
+      CurvedAnimation(parent: _proCtrl, curve: const Interval(0.0, 0.25, curve: Curves.easeIn)),
+    );
+
     _mainCtrl.forward();
     _runSequence();
   }
@@ -64,7 +81,12 @@ class _SplashScreenState extends State<SplashScreen>
       setState(() => _text = _fullText.substring(0, i));
     }
 
-    await Future.delayed(const Duration(milliseconds: 1000));
+    await Future.delayed(const Duration(milliseconds: 200));
+    if (!mounted) return;
+    setState(() => _showPro = true);
+    _proCtrl.forward();
+
+    await Future.delayed(const Duration(milliseconds: 1200));
     if (!mounted) return;
 
     Navigator.pushReplacement(
@@ -82,6 +104,7 @@ class _SplashScreenState extends State<SplashScreen>
   void dispose() {
     _mainCtrl.dispose();
     _shimmerCtrl.dispose();
+    _proCtrl.dispose();
     super.dispose();
   }
 
@@ -113,7 +136,7 @@ class _SplashScreenState extends State<SplashScreen>
           // Main content
           Center(
             child: AnimatedBuilder(
-              animation: Listenable.merge([_mainCtrl, _shimmerCtrl]),
+              animation: Listenable.merge([_mainCtrl, _shimmerCtrl, _proCtrl]),
               builder: (_, __) {
                 return FadeTransition(
                   opacity: _fade,
@@ -123,45 +146,90 @@ class _SplashScreenState extends State<SplashScreen>
                       mainAxisSize: MainAxisSize.min,
                       children: [
 
-                        // Shimmer text
-                        ShaderMask(
-                          shaderCallback: (bounds) {
-                            return LinearGradient(
-                              begin: Alignment.centerLeft,
-                              end: Alignment.centerRight,
-                              colors: const [
-                                Color(0xFFD4A843),
-                                Color(0xFFFFF0A0),
-                                Color(0xFFD4A843),
-                                Color(0xFF8A6010),
-                                Color(0xFFD4A843),
-                              ],
-                              stops: [
-                                0.0,
-                                (_shimmer.value - 0.1).clamp(0.0, 1.0),
-                                _shimmer.value.clamp(0.0, 1.0),
-                                (_shimmer.value + 0.1).clamp(0.0, 1.0),
-                                1.0,
-                              ],
-                            ).createShader(bounds);
-                          },
-                          child: Text(
-                            _text,
-                            style: const TextStyle(
-                              fontSize: 46,
-                              fontWeight: FontWeight.w700,
-                              fontFamily: 'Georgia',
-                              color: Colors.white,
-                              letterSpacing: 1.5,
+                        Row(
+                          mainAxisSize: MainAxisSize.min,
+                          crossAxisAlignment: CrossAxisAlignment.end,
+                          children: [
+                            // Shimmer text
+                            ShaderMask(
+                              shaderCallback: (bounds) {
+                                return LinearGradient(
+                                  begin: Alignment.centerLeft,
+                                  end: Alignment.centerRight,
+                                  colors: const [
+                                    Color(0xFFD4A843),
+                                    Color(0xFFFFF0A0),
+                                    Color(0xFFD4A843),
+                                    Color(0xFF8A6010),
+                                    Color(0xFFD4A843),
+                                  ],
+                                  stops: [
+                                    0.0,
+                                    (_shimmer.value - 0.1).clamp(0.0, 1.0),
+                                    _shimmer.value.clamp(0.0, 1.0),
+                                    (_shimmer.value + 0.1).clamp(0.0, 1.0),
+                                    1.0,
+                                  ],
+                                ).createShader(bounds);
+                              },
+                              child: Text(
+                                _text,
+                                style: const TextStyle(
+                                  fontSize: 46,
+                                  fontWeight: FontWeight.w700,
+                                  fontFamily: 'Georgia',
+                                  color: Colors.white,
+                                  letterSpacing: 1.5,
+                                ),
+                              ),
                             ),
-                          ),
+                            if (_showPro)
+                              Padding(
+                                padding: const EdgeInsets.only(left: 4, bottom: 4),
+                                child: SizedBox(
+                                  width: 108,
+                                  height: 90,
+                                  child: Stack(
+                                    clipBehavior: Clip.none,
+                                    alignment: Alignment.center,
+                                    children: [
+                                      // Flash/shockwave burst on impact
+                                      Opacity(
+                                        opacity: (1 - _proCtrl.value).clamp(0.0, 1.0),
+                                        child: Container(
+                                          width: 60 + 70 * _proCtrl.value,
+                                          height: 60 + 70 * _proCtrl.value,
+                                          decoration: BoxDecoration(
+                                            shape: BoxShape.circle,
+                                            gradient: RadialGradient(colors: [
+                                              Colors.white.withOpacity(0.85),
+                                              Colors.white.withOpacity(0.0),
+                                            ]),
+                                          ),
+                                        ),
+                                      ),
+                                      Opacity(
+                                        opacity: _proOpacity.value,
+                                        child: Transform.scale(
+                                          scale: _proScale.value,
+                                          child: Image.asset(
+                                            'assets/images/gorealpro_pro_only.png',
+                                            height: 90,
+                                          ),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                          ],
                         ),
 
                         const SizedBox(height: 10),
 
                         // Tagline fade in
                         Opacity(
-                          opacity: _text == _fullText ? _glow.value : 0.0,
+                          opacity: _showPro ? _glow.value : 0.0,
                           child: Text(
                             'The first app with Reverse Auction',
                             style: TextStyle(
