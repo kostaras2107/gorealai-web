@@ -3676,7 +3676,7 @@ class _BottomNav extends StatelessWidget {
                     // Μηνύματα με unread badge
                     Expanded(child: Center(child: Stack(clipBehavior: Clip.none, children: [
                       _HNavItem(icon: Icons.chat_bubble_outline_rounded, label: 'Μηνύματα',
-                          active: navIndex == 4, onTap: onMessages),
+                          active: navIndex == 4, onTap: onMessages, showLabel: false),
                       if (unreadMessages > 0)
                         Positioned(
                           top: 2, right: 6,
@@ -3704,7 +3704,7 @@ class _BottomNav extends StatelessWidget {
                     const SizedBox(width: 64, height: 64),
 
                     Expanded(child: Center(child: _HNavItem(icon: Icons.history_rounded, label: 'Ιστορικό',
-                        active: navIndex == 2, onTap: onHistory))),
+                        active: navIndex == 2, onTap: onHistory, showLabel: false))),
 
                     // Avatar profile
                     Expanded(child: Center(child: GestureDetector(
@@ -13240,11 +13240,13 @@ class _HNavItem extends StatelessWidget {
   final String label;
   final bool active;
   final VoidCallback onTap;
+  final bool showLabel;
   const _HNavItem(
       {required this.icon,
       required this.label,
       required this.active,
-      required this.onTap});
+      required this.onTap,
+      this.showLabel = true});
   @override
   Widget build(BuildContext context) => GestureDetector(
         onTap: onTap,
@@ -13256,13 +13258,15 @@ class _HNavItem extends StatelessWidget {
           ),
           child: Column(mainAxisSize: MainAxisSize.min, children: [
             Icon(icon, color: active ? kGold : _g(0.3), size: 22),
-            const SizedBox(height: 3),
-            Text(label,
-                style: TextStyle(
-                    fontFamily: 'Inter',
-                    fontSize: 9,
-                    color: active ? kGold : _g(0.3),
-                    fontWeight: active ? FontWeight.w600 : FontWeight.w400)),
+            if (showLabel) ...[
+              const SizedBox(height: 3),
+              Text(label,
+                  style: TextStyle(
+                      fontFamily: 'Inter',
+                      fontSize: 9,
+                      color: active ? kGold : _g(0.3),
+                      fontWeight: active ? FontWeight.w600 : FontWeight.w400)),
+            ],
             if (active) ...[
               const SizedBox(height: 3),
               Container(
