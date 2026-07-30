@@ -28,7 +28,7 @@
     </queries>
 
     <application
-        android:label="GorealAi"
+        android:label="GorealPro"
         android:icon="@mipmap/ic_launcher">
 
         <activity
