@@ -2921,20 +2921,9 @@ class _LiveActivityFeed extends StatefulWidget {
 class _LiveActivityFeedState extends State<_LiveActivityFeed>
     with SingleTickerProviderStateMixin {
   late AnimationController _pulseCtrl;
-  final List<Map<String, dynamic>> _activities = [];
-  Timer? _timer;
-  int _tick = 0;
-
-  // Simulated live activities (real ones would come from Firestore)
-  final _staticActivities = [
-    {'icon': '🤖', 'text': 'AI ειδοποίησε 8 Ηλεκτρολόγους στην Αθήνα', 'time': '2 λεπτά'},
-    {'icon': '💰', 'text': 'Νέα προσφορά 180€ — κατά 20€ χαμηλότερα', 'time': '4 λεπτά'},
-    {'icon': '⭐', 'text': 'Verified επαγγελματίας βρέθηκε (4.9★)', 'time': '7 λεπτά'},
-    {'icon': '🏆', 'text': 'Χρήστης επέλεξε την καλύτερη τιμή (320€)', 'time': '11 λεπτά'},
-    {'icon': '🔥', 'text': '5 προσφορές σε ένα αίτημα — ρεκόρ!', 'time': '15 λεπτά'},
-    {'icon': '⚡', 'text': 'Εργασία ολοκληρώθηκε σε 3 ώρες', 'time': '22 λεπτά'},
-    {'icon': '🎯', 'text': 'AI εκτίμησε κόστος 250€-380€ σε 0.3 sec', 'time': '28 λεπτά'},
-  ];
+  List<Map<String, dynamic>> _activities = [];
+  Timer? _refreshTimer;
+  bool _loading = true;
 
   String _timeAgo(DateTime dt) {
     final diff = DateTime.now().difference(dt);
@@ -2944,37 +2933,94 @@ class _LiveActivityFeedState extends State<_LiveActivityFeed>
     return '${diff.inDays} μέρες';
   }
 
-  Future<void> _loadRealBookings() async {
+  // Συγκεντρώνει πραγματική δραστηριότητα από 5 πηγές (bookings, offers,
+  // επαληθεύσεις ΑΦΜ, νέα TikTok shorts, ενημερώσεις προφίλ) και δείχνει
+  // τις πιο πρόσφατες — καθόλου προσομοιωμένα δεδομένα.
+  Future<void> _loadRealActivities() async {
+    final entries = <Map<String, dynamic>>[]; // {icon, text, ts}
     try {
-      final snap = await FirebaseFirestore.instance
-          .collection('bookings')
-          .orderBy('createdAt', descending: true)
-          .limit(3)
-          .get();
-      final realActivities = snap.docs.map((doc) {
+      final results = await Future.wait([
+        FirebaseFirestore.instance.collection('bookings')
+            .orderBy('createdAt', descending: true).limit(3).get(),
+        FirebaseFirestore.instance.collection('offers')
+            .orderBy('createdAt', descending: true).limit(3).get(),
+        FirebaseFirestore.instance.collection('professionals')
+            .where('lastActivityType', isEqualTo: 'verified')
+            .orderBy('updatedAt', descending: true).limit(2).get(),
+        FirebaseFirestore.instance.collection('professionals')
+            .where('lastActivityType', isEqualTo: 'tiktok_added')
+            .orderBy('updatedAt', descending: true).limit(2).get(),
+        FirebaseFirestore.instance.collection('professionals')
+            .where('lastActivityType', isEqualTo: 'profile_updated')
+            .orderBy('updatedAt', descending: true).limit(2).get(),
+      ]);
+
+      for (final doc in results[0].docs) {
         final d = doc.data();
+        final ts = (d['createdAt'] as Timestamp?)?.toDate();
+        if (ts == null) continue;
         final userName = d['userName'] as String? ?? 'Κάποιος χρήστης';
         final proName = d['professionalName'] as String? ?? 'έναν επαγγελματία';
         final price = (d['price'] as num?)?.toDouble() ?? 0;
-        final createdAt = d['createdAt'] as Timestamp?;
-        final text = price > 0
-            ? '$userName επέλεξε τον/την $proName — ${price.toStringAsFixed(0)}€'
-            : '$userName επέλεξε τον/την $proName';
-        return {
+        entries.add({
           'icon': '🎉',
-          'text': text,
-          'time': createdAt != null ? _timeAgo(createdAt.toDate()) : '',
-        };
-      }).toList();
-      if (mounted && realActivities.isNotEmpty) {
-        setState(() {
-          _activities.insertAll(0, realActivities);
-          while (_activities.length > 5) {
-            _activities.removeLast();
-          }
+          'text': price > 0
+              ? '$userName επέλεξε τον/την $proName — ${price.toStringAsFixed(0)}€'
+              : '$userName επέλεξε τον/την $proName',
+          'ts': ts,
         });
       }
-    } catch (_) {}
+
+      for (final doc in results[1].docs) {
+        final d = doc.data();
+        final ts = (d['createdAt'] as Timestamp?)?.toDate();
+        if (ts == null) continue;
+        final proName = d['professionalName'] as String? ?? 'Επαγγελματίας';
+        final price = (d['price'] as num?)?.toDouble() ?? 0;
+        entries.add({
+          'icon': '💰',
+          'text': price > 0
+              ? '$proName έστειλε προσφορά ${price.toStringAsFixed(0)}€'
+              : '$proName έστειλε νέα προσφορά',
+          'ts': ts,
+        });
+      }
+
+      for (final doc in results[2].docs) {
+        final d = doc.data();
+        final ts = (d['updatedAt'] as Timestamp?)?.toDate();
+        if (ts == null) continue;
+        final name = d['name'] as String? ?? 'Επαγγελματίας';
+        entries.add({'icon': '⭐', 'text': 'Ο/Η $name επαληθεύτηκε (Verified)', 'ts': ts});
+      }
+
+      for (final doc in results[3].docs) {
+        final d = doc.data();
+        final ts = (d['updatedAt'] as Timestamp?)?.toDate();
+        if (ts == null) continue;
+        final name = d['name'] as String? ?? 'Επαγγελματίας';
+        entries.add({'icon': '🎵', 'text': 'Ο/Η $name πρόσθεσε νέο TikTok Short', 'ts': ts});
+      }
+
+      for (final doc in results[4].docs) {
+        final d = doc.data();
+        final ts = (d['updatedAt'] as Timestamp?)?.toDate();
+        if (ts == null) continue;
+        final name = d['name'] as String? ?? 'Επαγγελματίας';
+        entries.add({'icon': '✏️', 'text': 'Ο/Η $name ενημέρωσε το προφίλ του', 'ts': ts});
+      }
+
+      entries.sort((a, b) => (b['ts'] as DateTime).compareTo(a['ts'] as DateTime));
+      final top = entries.take(6).map((e) => {
+        'icon': e['icon'],
+        'text': e['text'],
+        'time': _timeAgo(e['ts'] as DateTime),
+      }).toList();
+
+      if (mounted) setState(() { _activities = top; _loading = false; });
+    } catch (_) {
+      if (mounted) setState(() => _loading = false);
+    }
   }
 
   @override
@@ -2982,27 +3028,35 @@ class _LiveActivityFeedState extends State<_LiveActivityFeed>
     super.initState();
     _pulseCtrl = AnimationController(
         vsync: this, duration: const Duration(milliseconds: 1500))..repeat();
-    _activities.addAll(_staticActivities.take(3));
-    _loadRealBookings();
-    _timer = Timer.periodic(const Duration(seconds: 8), (_) {
-      if (!mounted) return;
-      setState(() {
-        _tick = (_tick + 1) % _staticActivities.length;
-        if (_activities.length >= 5) _activities.removeLast();
-        _activities.insert(0, _staticActivities[_tick]);
-      });
-    });
+    _loadRealActivities();
+    // Ξαναφόρτωσε περιοδικά ώστε να πιάνει νέα πραγματικά γεγονότα.
+    _refreshTimer = Timer.periodic(const Duration(seconds: 45), (_) => _loadRealActivities());
   }
 
   @override
   void dispose() {
     _pulseCtrl.dispose();
-    _timer?.cancel();
+    _refreshTimer?.cancel();
     super.dispose();
   }
 
   @override
-  Widget build(BuildContext context) => Column(
+  Widget build(BuildContext context) {
+    if (!_loading && _activities.isEmpty) {
+      return Container(
+        margin: const EdgeInsets.symmetric(horizontal: 20),
+        padding: const EdgeInsets.all(20),
+        decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(16),
+            color: _g(0.03),
+            border: Border.all(color: _g(0.06))),
+        child: Center(
+          child: Text('Δεν υπάρχει ακόμα δραστηριότητα',
+              style: TextStyle(color: _g(0.35), fontSize: 12)),
+        ),
+      );
+    }
+    return Column(
     children: _activities.asMap().entries.map((e) {
       final idx = e.key;
       final act = e.value;
@@ -3037,6 +3091,7 @@ class _LiveActivityFeedState extends State<_LiveActivityFeed>
       );
     }).toList(),
   );
+  }
 }
 
 // ── Empty Hero Card (no active requests) ──
@@ -4967,7 +5022,7 @@ class _ProfessionalHomeScreenState extends State<ProfessionalHomeScreen> {
                 final val = _bioCtrl.text.trim();
                 if (_proDocId == null) return;
                 try {
-                  await FirebaseFirestore.instance.collection('professionals').doc(_proDocId).set({'bio': val}, SetOptions(merge: true));
+                  await FirebaseFirestore.instance.collection('professionals').doc(_proDocId).set({'bio': val, 'updatedAt': FieldValue.serverTimestamp(), 'lastActivityType': 'profile_updated'}, SetOptions(merge: true));
                   await FirebaseFirestore.instance.collection('users').doc(uid).set({'bio': val}, SetOptions(merge: true));
                   if (mounted) {
                     setState(() => _bio = val);
@@ -5016,7 +5071,7 @@ class _ProfessionalHomeScreenState extends State<ProfessionalHomeScreen> {
                     final primary = updated.isNotEmpty ? updated.first : '';
                     await FirebaseFirestore.instance.collection('users').doc(uid).set({'specialties': updated, 'specialty': primary}, SetOptions(merge: true));
                     if (_proDocId != null) {
-                      await FirebaseFirestore.instance.collection('professionals').doc(_proDocId).set({'specialties': updated, 'specialty': primary}, SetOptions(merge: true));
+                      await FirebaseFirestore.instance.collection('professionals').doc(_proDocId).set({'specialties': updated, 'specialty': primary, 'updatedAt': FieldValue.serverTimestamp(), 'lastActivityType': 'profile_updated'}, SetOptions(merge: true));
                     }
                     if (mounted) setState(() { _specialties = updated; _specialty = primary; });
                   },
@@ -5049,7 +5104,7 @@ class _ProfessionalHomeScreenState extends State<ProfessionalHomeScreen> {
                 final primary = result.isNotEmpty ? result.first : '';
                 await FirebaseFirestore.instance.collection('users').doc(uid).set({'specialties': result, 'specialty': primary}, SetOptions(merge: true));
                 if (_proDocId != null) {
-                  await FirebaseFirestore.instance.collection('professionals').doc(_proDocId).set({'specialties': result, 'specialty': primary}, SetOptions(merge: true));
+                  await FirebaseFirestore.instance.collection('professionals').doc(_proDocId).set({'specialties': result, 'specialty': primary, 'updatedAt': FieldValue.serverTimestamp(), 'lastActivityType': 'profile_updated'}, SetOptions(merge: true));
                 }
                 if (mounted) setState(() { _specialties = result; _specialty = primary; });
               },
@@ -5079,7 +5134,7 @@ class _ProfessionalHomeScreenState extends State<ProfessionalHomeScreen> {
                     final updated = List<String>.from(_subSpecialties)..remove(s);
                     await FirebaseFirestore.instance.collection('users').doc(uid).set({'subSpecialties': updated}, SetOptions(merge: true));
                     if (_proDocId != null) {
-                      await FirebaseFirestore.instance.collection('professionals').doc(_proDocId).set({'subSpecialties': updated}, SetOptions(merge: true));
+                      await FirebaseFirestore.instance.collection('professionals').doc(_proDocId).set({'subSpecialties': updated, 'updatedAt': FieldValue.serverTimestamp(), 'lastActivityType': 'profile_updated'}, SetOptions(merge: true));
                     }
                     if (mounted) setState(() => _subSpecialties = updated);
                   },
@@ -5111,7 +5166,7 @@ class _ProfessionalHomeScreenState extends State<ProfessionalHomeScreen> {
                 if (uid == null) return;
                 await FirebaseFirestore.instance.collection('users').doc(uid).set({'subSpecialties': result}, SetOptions(merge: true));
                 if (_proDocId != null) {
-                  await FirebaseFirestore.instance.collection('professionals').doc(_proDocId).set({'subSpecialties': result}, SetOptions(merge: true));
+                  await FirebaseFirestore.instance.collection('professionals').doc(_proDocId).set({'subSpecialties': result, 'updatedAt': FieldValue.serverTimestamp(), 'lastActivityType': 'profile_updated'}, SetOptions(merge: true));
                 }
                 if (mounted) setState(() => _subSpecialties = result);
               },
@@ -5141,7 +5196,7 @@ class _ProfessionalHomeScreenState extends State<ProfessionalHomeScreen> {
                     final updated = List<String>.from(_areas)..remove(a);
                     await FirebaseFirestore.instance.collection('users').doc(uid).set({'areas': updated}, SetOptions(merge: true));
                     if (_proDocId != null) {
-                      await FirebaseFirestore.instance.collection('professionals').doc(_proDocId).set({'areas': updated}, SetOptions(merge: true));
+                      await FirebaseFirestore.instance.collection('professionals').doc(_proDocId).set({'areas': updated, 'updatedAt': FieldValue.serverTimestamp(), 'lastActivityType': 'profile_updated'}, SetOptions(merge: true));
                     }
                     if (mounted) setState(() => _areas = updated);
                   },
@@ -5173,7 +5228,7 @@ class _ProfessionalHomeScreenState extends State<ProfessionalHomeScreen> {
                 if (uid == null) return;
                 await FirebaseFirestore.instance.collection('users').doc(uid).set({'areas': result}, SetOptions(merge: true));
                 if (_proDocId != null) {
-                  await FirebaseFirestore.instance.collection('professionals').doc(_proDocId).set({'areas': result}, SetOptions(merge: true));
+                  await FirebaseFirestore.instance.collection('professionals').doc(_proDocId).set({'areas': result, 'updatedAt': FieldValue.serverTimestamp(), 'lastActivityType': 'profile_updated'}, SetOptions(merge: true));
                 }
                 if (mounted) setState(() => _areas = result);
               },
@@ -5209,7 +5264,9 @@ class _ProfessionalHomeScreenState extends State<ProfessionalHomeScreen> {
               };
               await FirebaseFirestore.instance.collection('users').doc(uid).set(data, SetOptions(merge: true));
               if (_proDocId != null) {
-                await FirebaseFirestore.instance.collection('professionals').doc(_proDocId).set(data, SetOptions(merge: true));
+                await FirebaseFirestore.instance.collection('professionals').doc(_proDocId).set(
+                    {...data, 'updatedAt': FieldValue.serverTimestamp(), 'lastActivityType': 'profile_updated'},
+                    SetOptions(merge: true));
               }
               if (mounted) setState(() {
                 _companyName = name;
@@ -5254,7 +5311,7 @@ class _ProfessionalHomeScreenState extends State<ProfessionalHomeScreen> {
                     final val = int.tryParse(_yearsCtrl.text.trim()) ?? 0;
                     await FirebaseFirestore.instance.collection('users').doc(uid).update({'yearsExperience': val});
                     if (_proDocId != null) {
-                      await FirebaseFirestore.instance.collection('professionals').doc(_proDocId).set({'yearsExperience': val}, SetOptions(merge: true));
+                      await FirebaseFirestore.instance.collection('professionals').doc(_proDocId).set({'yearsExperience': val, 'updatedAt': FieldValue.serverTimestamp(), 'lastActivityType': 'profile_updated'}, SetOptions(merge: true));
                     }
                     if (mounted) setState(() { _yearsExperience = val; _editingYears = false; });
                   },
@@ -6024,7 +6081,11 @@ class _ProfessionalHomeScreenState extends State<ProfessionalHomeScreen> {
     final uid = FirebaseAuth.instance.currentUser?.uid;
     if (uid == null || _proDocId == null) return;
     final updated = [..._tiktokShorts, urlToSave];
-    await FirebaseFirestore.instance.collection('professionals').doc(_proDocId).set({'tiktokShorts': updated}, SetOptions(merge: true));
+    await FirebaseFirestore.instance.collection('professionals').doc(_proDocId).set({
+      'tiktokShorts': updated,
+      'updatedAt': FieldValue.serverTimestamp(),
+      'lastActivityType': 'tiktok_added',
+    }, SetOptions(merge: true));
     await FirebaseFirestore.instance.collection('users').doc(uid).set({'tiktokShorts': updated}, SetOptions(merge: true));
     if (mounted) {
       setState(() { _tiktokShorts = updated; _shortCtrl.clear(); });
@@ -11060,7 +11121,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
         await FirebaseFirestore.instance.collection('users').doc(user.uid)
             .set({'afmValid': afmValid, if (afmVerifiedName != null) 'afmVerifiedName': afmVerifiedName}, SetOptions(merge: true));
         await FirebaseFirestore.instance.collection('professionals').doc(proDocId)
-            .set({'afmValid': afmValid, if (afmVerifiedName != null) 'afmVerifiedName': afmVerifiedName}, SetOptions(merge: true));
+            .set({
+              'afmValid': afmValid,
+              if (afmVerifiedName != null) 'afmVerifiedName': afmVerifiedName,
+              if (afmValid) 'updatedAt': FieldValue.serverTimestamp(),
+              if (afmValid) 'lastActivityType': 'verified',
+            }, SetOptions(merge: true));
       }
       if (mounted) {
         setState(() { _afm = afm; _afmValid = afmValid; _afmSaving = false; });
