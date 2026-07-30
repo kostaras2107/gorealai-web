@@ -2,9 +2,17 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
+    // True admin check via custom claim (set on the owner's account through
+    // the Admin SDK), NOT anonymous sign-in — anonymous auth requires zero
+    // credentials, so trusting it as "admin" let anyone grant themselves
+    // elevated access from the browser console.
+    function isAdmin() {
+      return request.auth != null && request.auth.token.admin == true;
+    }
+
     // ─── USERS ────────────────────────────────────────────
     match /users/{userId} {
-      // Any logged-in user can read profiles; anonymous admin can list all
+      // Any logged-in user can read profiles; real admin can list all
       allow read: if request.auth != null;
       // Owner can create their profile
       allow create: if request.auth != null && request.auth.uid == userId;
@@ -39,12 +47,13 @@ service cloud.firestore {
     // ─── REQUESTS ─────────────────────────────────────────
     match /requests/{requestId} {
       allow create: if request.auth != null;
-      // Admin panel needs to list all requests (anonymous sign-in may fail)
-      allow list: if true;
+      // Professionals list active requests matching their profession; real
+      // admin panel lists everything. No longer public/unauthenticated.
+      allow list: if request.auth != null;
       allow get: if request.auth != null
                   && (resource.data.userId == request.auth.uid
                       || resource.data.status == 'active'
-                      || request.auth.token.firebase.sign_in_provider == 'anonymous');
+                      || isAdmin());
       // Owner can update anything; others can only touch specific fields
       allow update: if request.auth != null
                     && (resource.data.userId == request.auth.uid
@@ -68,19 +77,16 @@ service cloud.firestore {
       allow read: if true;
       // Any authenticated user can create (self-registration via app)
       allow create: if request.auth != null;
-      // Only the owner or anonymous admin panel can update/delete
+      // Only the owner or the real admin can update/delete
       allow update: if request.auth != null
-                    && (resource.data.userId == request.auth.uid
-                        || request.auth.token.firebase.sign_in_provider == 'anonymous');
+                    && (resource.data.userId == request.auth.uid || isAdmin());
       allow delete: if request.auth != null
-                    && (resource.data.userId == request.auth.uid
-                        || request.auth.token.firebase.sign_in_provider == 'anonymous');
+                    && (resource.data.userId == request.auth.uid || isAdmin());
     }
 
     // ─── ADMIN ANALYTICS ──────────────────────────────────
     match /admin_analytics/{docId} {
-      allow read: if request.auth != null;
-      allow write: if request.auth != null;
+      allow read, write: if isAdmin();
     }
 
     // ─── SUBSCRIPTIONS (admin writes, user reads own) ──────
@@ -131,7 +137,10 @@ service cloud.firestore {
       allow create: if request.auth != null
                     && request.resource.data.userId == request.auth.uid;
       allow read: if request.auth != null;
-      allow update: if request.auth != null;
+      // Only the owner (or real admin) can update the request itself —
+      // professionals participate via the event_offers subcollection below.
+      allow update: if request.auth != null
+                    && (resource.data.userId == request.auth.uid || isAdmin());
       allow delete: if request.auth != null
                     && resource.data.userId == request.auth.uid;
 

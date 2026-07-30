@@ -91,9 +91,10 @@
   <div class="login-box">
     <div class="login-logo">GorealPro</div>
     <div class="login-sub">Admin Panel</div>
+    <input type="email" id="email-input" placeholder="Email" onkeydown="if(event.key==='Enter')doLogin()">
     <input type="password" id="pwd-input" placeholder="Password" onkeydown="if(event.key==='Enter')doLogin()">
     <button class="btn-gold" onclick="doLogin()">Είσοδος</button>
-    <div class="login-error" id="login-error">Λάθος password</div>
+    <div class="login-error" id="login-error">Λάθος στοιχεία σύνδεσης ή μη εξουσιοδοτημένος λογαριασμός</div>
   </div>
 </div>
 
@@ -224,7 +225,7 @@
 
 <script type="module">
   import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-  import { getAuth, signInAnonymously, signOut, onAuthStateChanged, createUserWithEmailAndPassword, sendPasswordResetEmail, updateProfile } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
+  import { getAuth, signOut, onAuthStateChanged, signInWithEmailAndPassword, createUserWithEmailAndPassword, sendPasswordResetEmail, updateProfile } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
   import { getFirestore, collection, addDoc, getDoc, getDocs, doc, updateDoc, deleteDoc, serverTimestamp, onSnapshot, getCountFromServer, query, where, orderBy, limit } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
   const firebaseConfig = {
@@ -235,7 +236,6 @@
     messagingSenderId:"451660365555",
     appId:"1:451660365555:web:c340e9650c38bb37888186"
   };
-  const ADMIN_PASSWORD = "Kosbos2107";
   const app = initializeApp(firebaseConfig);
   const auth = getAuth(app);
   const db = getFirestore(app);
@@ -351,32 +351,47 @@
     return `<span style="display:inline-flex;align-items:center;justify-content:center;width:36px;height:36px;border-radius:50%;background:#1a1200;border:1px solid #2a2000;color:var(--gold);font-weight:700;font-size:15px;margin-right:8px;vertical-align:middle">${initial}</span>`;
   }
 
-  // Auto-restore admin session on page refresh
-  if (sessionStorage.getItem('adminAuth') === 'true') {
-    try { await signInAnonymously(auth); } catch(_) {}
-    document.getElementById('login-screen').style.display = 'none';
-    document.getElementById('app').style.display = 'block';
-    initChips();
-    startProsListener();
-  }
-
-  window.doLogin = async function() {
-    if (document.getElementById('pwd-input').value === ADMIN_PASSWORD) {
-      try { await signInAnonymously(auth); } catch(_) {}
-      sessionStorage.setItem('adminAuth', 'true');
+  // Real admin check: a Firebase custom claim (admin:true) set on the
+  // owner's account via the Admin SDK — not a client-side password check.
+  // Firebase persists the login itself, so this also restores the session
+  // on page refresh.
+  onAuthStateChanged(auth, async (user) => {
+    let isAdmin = false;
+    if (user) {
+      try {
+        const token = await user.getIdTokenResult();
+        isAdmin = token.claims.admin === true;
+      } catch (_) {}
+    }
+    if (isAdmin) {
       document.getElementById('login-screen').style.display = 'none';
       document.getElementById('app').style.display = 'block';
       initChips();
       startProsListener();
-    } else { document.getElementById('login-error').style.display = 'block'; }
+    } else {
+      if (unsubPros) { unsubPros(); unsubPros = null; }
+      document.getElementById('login-screen').style.display = 'flex';
+      document.getElementById('app').style.display = 'none';
+    }
+  });
+
+  window.doLogin = async function() {
+    const email = document.getElementById('email-input').value.trim();
+    const password = document.getElementById('pwd-input').value;
+    document.getElementById('login-error').style.display = 'none';
+    try {
+      await signInWithEmailAndPassword(auth, email, password);
+      // onAuthStateChanged above handles showing the panel once the
+      // admin claim is confirmed; if this account isn't an admin it
+      // will sign in fine but the panel will stay hidden.
+    } catch (e) {
+      document.getElementById('login-error').style.display = 'block';
+    }
   };
 
   window.doLogout = function() {
-    sessionStorage.removeItem('adminAuth');
     if (unsubPros) { unsubPros(); unsubPros = null; }
     signOut(auth).catch(()=>{});
-    document.getElementById('login-screen').style.display = 'flex';
-    document.getElementById('app').style.display = 'none';
     document.getElementById('pwd-input').value = '';
   };
 
