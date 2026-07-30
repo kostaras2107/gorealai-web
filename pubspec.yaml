@@ -33,6 +33,7 @@ dependencies:
   flutter_local_notifications: ^17.2.4
   timezone: ^0.9.4
   cupertino_icons: ^1.0.8
+  app_badge_plus: ^1.3.2
 
   # Αυτά δεν χρησιμοποιούνται πλέον — μπορείς να τα αφαιρέσεις
   # flutter_markdown: ^0.7.3

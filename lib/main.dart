@@ -22,6 +22,8 @@ import 'package:speech_to_text/speech_to_text.dart' as stt;
 import 'package:record/record.dart';
 import 'package:audioplayers/audioplayers.dart';
 import 'package:firebase_storage/firebase_storage.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
+import 'package:app_badge_plus/app_badge_plus.dart';
 
 // ═══════════════════════════════════════
 // CONSTANTS
@@ -2397,7 +2399,9 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
-      body: SafeArea(
+      body: Stack(children: [
+        if (_userId != null) _AppBadgeSync(userId: _userId!, isPro: _isPro),
+        SafeArea(
         child: Column(children: [
           // TOP BAR
           Padding(
@@ -2620,6 +2624,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
             }),
         ]),
       ),
+      ]),
     );
   }
 
@@ -13280,6 +13285,68 @@ class _HNavItem extends StatelessWidget {
           ]),
         ),
       );
+}
+
+// ── App icon badge (native only — no-op on web) ──
+// Συνδυάζει τα αδιάβαστα μηνύματα chat με τις αδιάβαστες ειδοποιήσεις
+// (users/{uid}/notifications) και ενημερώνει τον αριθμό πάνω στο εικονίδιο.
+class _AppBadgeSync extends StatefulWidget {
+  final String userId;
+  final bool isPro;
+  const _AppBadgeSync({required this.userId, required this.isPro});
+  @override
+  State<_AppBadgeSync> createState() => _AppBadgeSyncState();
+}
+
+class _AppBadgeSyncState extends State<_AppBadgeSync> {
+  StreamSubscription<QuerySnapshot>? _chatSub;
+  StreamSubscription<QuerySnapshot>? _notifSub;
+  int _chatUnread = 0;
+  int _notifUnread = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    if (kIsWeb || widget.userId.isEmpty) return;
+    final chatField = widget.isPro ? 'unreadPro' : 'unreadUser';
+    final chatKey = widget.isPro ? 'proId' : 'userId';
+    _chatSub = FirebaseFirestore.instance
+        .collection('chats')
+        .where(chatKey, isEqualTo: widget.userId)
+        .snapshots()
+        .listen((snap) {
+      int total = 0;
+      for (final d in snap.docs) {
+        total += ((d.data() as Map)[chatField] as int? ?? 0);
+      }
+      _chatUnread = total;
+      _updateBadge();
+    });
+    _notifSub = FirebaseFirestore.instance
+        .collection('users')
+        .doc(widget.userId)
+        .collection('notifications')
+        .where('isRead', isEqualTo: false)
+        .snapshots()
+        .listen((snap) {
+      _notifUnread = snap.docs.length;
+      _updateBadge();
+    });
+  }
+
+  void _updateBadge() {
+    AppBadgePlus.updateBadge(_chatUnread + _notifUnread);
+  }
+
+  @override
+  void dispose() {
+    _chatSub?.cancel();
+    _notifSub?.cancel();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) => const SizedBox.shrink();
 }
 
 class _NotificationBell extends StatelessWidget {
