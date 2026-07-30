@@ -693,7 +693,7 @@ app.post('/email-pros-new-request', rateLimit(30, 60_000), async (req, res) => {
     }
 
     const matching = [];
-    proMap.forEach((d) => {
+    proMap.forEach((d, uid) => {
       if (!d.email) return;
 
       // Match specialty — check both singular and array
@@ -716,8 +716,16 @@ app.post('/email-pros-new-request', rateLimit(30, 60_000), async (req, res) => {
       // Verified-only filter
       if (filterVerifiedOnly && !(d.afm || '').trim()) return;
 
-      matching.push({ email: d.email, phone: d.phone || '', name: d.displayName || d.name || 'Επαγγελματία' });
+      matching.push({ uid, email: d.email, phone: d.phone || '', name: d.displayName || d.name || 'Επαγγελματία' });
     });
+
+    // Fetch FCM tokens for push notifications (batched)
+    await Promise.all(matching.map(async p => {
+      try {
+        const userDoc = await admin.firestore().collection('users').doc(p.uid).get();
+        p.fcmToken = userDoc.exists ? (userDoc.data().fcmToken || null) : null;
+      } catch (_) { p.fcmToken = null; }
+    }));
 
     if (matching.length === 0) {
       return res.json({ success: true, sent: 0 });
@@ -751,6 +759,29 @@ app.post('/email-pros-new-request', rateLimit(30, 60_000), async (req, res) => {
         const smsText = `🔔 Νέο αίτημα GorealPro${profession ? ` για ${profession}` : ''}!\n${description ? description.substring(0, 100) : ''}\nΔες το: gorealai.web.app/app`;
         sendSms(p.phone, smsText); // fire-and-forget
       }
+      // Push notification + in-app badge entry (fire-and-forget, doesn't block the loop)
+      if (p.fcmToken) {
+        const pushTitle = `🔔 Νέο αίτημα${profession ? ` για ${profession}` : ''}!`;
+        const pushBody = description ? description.substring(0, 100) : 'Δες το αίτημα στην εφαρμογή';
+        admin.messaging().send({
+          token: p.fcmToken,
+          notification: { title: pushTitle, body: pushBody },
+          android: {
+            priority: 'high',
+            notification: { channelId: 'gorealai_channel', priority: 'high', sound: 'default', icon: 'ic_launcher', title: pushTitle, body: pushBody },
+          },
+          apns: { payload: { aps: { alert: { title: pushTitle, body: pushBody }, sound: 'default', badge: 1 } } },
+          data: { type: 'new_request', requestId: requestId || '' },
+        }).catch(e => console.error('new-request push error:', e.message));
+      }
+      admin.firestore().collection('users').doc(p.uid).collection('notifications').add({
+        title: `🔔 Νέο αίτημα${profession ? ` για ${profession}` : ''}!`,
+        body: description ? description.substring(0, 100) : '',
+        isRead: false,
+        type: 'new_request',
+        requestId: requestId || '',
+        createdAt: admin.firestore.FieldValue.serverTimestamp(),
+      }).catch(() => {});
     }
 
     // Update request doc with who was notified
@@ -809,6 +840,30 @@ app.post('/email-pro-new-message', rateLimit(60, 60_000), async (req, res) => {
 
     if (!proEmail && !proPhone) return res.json({ success: false, reason: 'pro contact not found' });
 
+    // Push notification + in-app badge entry
+    try {
+      const userDoc = await admin.firestore().collection('users').doc(proId).get();
+      const fcmToken = userDoc.exists ? userDoc.data().fcmToken : null;
+      const pushTitle = `💬 ${senderName || 'Νέο μήνυμα'}`;
+      const pushBody = messagePreview ? String(messagePreview).substring(0, 100) : 'Νέο μήνυμα';
+      if (fcmToken) {
+        admin.messaging().send({
+          token: fcmToken,
+          notification: { title: pushTitle, body: pushBody },
+          android: {
+            priority: 'high',
+            notification: { channelId: 'gorealai_channel', priority: 'high', sound: 'default', icon: 'ic_launcher', title: pushTitle, body: pushBody },
+          },
+          apns: { payload: { aps: { alert: { title: pushTitle, body: pushBody }, sound: 'default', badge: 1 } } },
+          data: { type: 'chat_message' },
+        }).catch(e => console.error('pro chat push error:', e.message));
+      }
+      admin.firestore().collection('users').doc(proId).collection('notifications').add({
+        title: pushTitle, body: pushBody, isRead: false, type: 'chat_message',
+        createdAt: admin.firestore.FieldValue.serverTimestamp(),
+      }).catch(() => {});
+    } catch (_) {}
+
     const subject = `💬 Νέο μήνυμα από ${senderName || 'χρήστη'}`;
     const html = `
       <div style="font-family:Arial,sans-serif;max-width:480px;margin:0 auto;background:#0A0800;color:#fff;border-radius:16px;padding:32px;border:1px solid rgba(201,168,76,0.3)">
@@ -850,6 +905,29 @@ app.post('/email-user-new-message', rateLimit(60, 60_000), async (req, res) => {
     }
 
     if (!userEmail && !userPhone) return res.json({ success: false, reason: 'user contact not found' });
+
+    // Push notification + in-app badge entry
+    try {
+      const pushTitle = `💬 ${proName || 'Νέο μήνυμα'}`;
+      const pushBody = messagePreview ? String(messagePreview).substring(0, 100) : 'Νέο μήνυμα';
+      const fcmToken = userDoc.exists ? userDoc.data().fcmToken : null;
+      if (fcmToken) {
+        admin.messaging().send({
+          token: fcmToken,
+          notification: { title: pushTitle, body: pushBody },
+          android: {
+            priority: 'high',
+            notification: { channelId: 'gorealai_channel', priority: 'high', sound: 'default', icon: 'ic_launcher', title: pushTitle, body: pushBody },
+          },
+          apns: { payload: { aps: { alert: { title: pushTitle, body: pushBody }, sound: 'default', badge: 1 } } },
+          data: { type: 'chat_message' },
+        }).catch(e => console.error('user chat push error:', e.message));
+      }
+      admin.firestore().collection('users').doc(userId).collection('notifications').add({
+        title: pushTitle, body: pushBody, isRead: false, type: 'chat_message',
+        createdAt: admin.firestore.FieldValue.serverTimestamp(),
+      }).catch(() => {});
+    } catch (_) {}
 
     const subject = `💬 Νέο μήνυμα από ${proName || 'επαγγελματία'}`;
     const html = `
@@ -1217,6 +1295,12 @@ async function sendExpiryNotification(requestId) {
         });
       } catch (e) { console.error('expiry push error:', e.message); }
     }
+    try {
+      await admin.firestore().collection('users').doc(userId).collection('notifications').add({
+        title, body, isRead: false, type: 'offers_ready', requestId,
+        createdAt: admin.firestore.FieldValue.serverTimestamp(),
+      });
+    } catch (_) {}
     console.log(`⏰ Expiry notification sent for request ${requestId} (found=${found}, offers=${offersCount})`);
   } catch (e) {
     console.error('sendExpiryNotification error:', e.message);
