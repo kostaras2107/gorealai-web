@@ -45,6 +45,7 @@ dev_dependencies:
     sdk: flutter
   flutter_launcher_icons: ^0.13.1
   flutter_lints: ^5.0.0
+  flutter_native_splash: ^2.4.7
 
 flutter:
   uses-material-design: true
@@ -77,3 +78,14 @@ flutter_launcher_icons:
   android: true
   ios: true
   image_path: "assets/gorealai.png"
+
+flutter_native_splash:
+  color: "#000000"
+  image: assets/gorealai.png
+  android_12:
+    color: "#000000"
+    image: assets/gorealai.png
+    icon_background_color: "#000000"
+  android: true
+  ios: true
+  web: false
