@@ -25,6 +25,7 @@ import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:app_badge_plus/app_badge_plus.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 
 // ═══════════════════════════════════════
 // CONSTANTS
@@ -50,6 +51,19 @@ Future<Uint8List> _readFileBytes(String path) async {
 // ═══════════════════════════════════════
 class NotificationService {
   static final FirebaseMessaging _fcm = FirebaseMessaging.instance;
+  static final FlutterLocalNotificationsPlugin _localNotifs =
+      FlutterLocalNotificationsPlugin();
+
+  // Ίδιο channel id με αυτό που στέλνει το backend (gorealai_channel).
+  // Importance.max = heads-up popup + ήχος, σαν το Viber, αντί για ήσυχη
+  // ειδοποίηση που κάθεται μόνο στη γραμμή κατάστασης.
+  static const _channel = AndroidNotificationChannel(
+    'gorealai_channel',
+    'GorealPro Ειδοποιήσεις',
+    description: 'Νέα αιτήματα, προσφορές και μηνύματα',
+    importance: Importance.max,
+    playSound: true,
+  );
 
   static Future<void> init() async {
     await _fcm.requestPermission(alert: true, badge: true, sound: true);
@@ -72,8 +86,39 @@ class NotificationService {
             .update({'fcmToken': newToken});
       }
     });
+
+    if (!kIsWeb) {
+      await _localNotifs.initialize(const InitializationSettings(
+        android: AndroidInitializationSettings('@mipmap/ic_launcher'),
+      ));
+      await _localNotifs
+          .resolvePlatformSpecificImplementation<
+              AndroidFlutterLocalNotificationsPlugin>()
+          ?.createNotificationChannel(_channel);
+    }
+
+    // Το FCM δεν εμφανίζει αυτόματα ειδοποίηση όταν η εφαρμογή είναι ήδη
+    // ανοιχτή (foreground) — το κάνουμε χειροκίνητα εδώ, ώστε να έρχεται
+    // πάντα banner+ήχος όπως το Viber, ό,τι κατάσταση κι αν έχει η εφαρμογή.
     FirebaseMessaging.onMessage.listen((RemoteMessage message) {
       debugPrint('📬 FCM: ${message.notification?.title}');
+      final notif = message.notification;
+      if (notif != null && !kIsWeb) {
+        _localNotifs.show(
+          notif.hashCode,
+          notif.title,
+          notif.body,
+          NotificationDetails(
+            android: AndroidNotificationDetails(
+              _channel.id, _channel.name,
+              channelDescription: _channel.description,
+              importance: Importance.max,
+              priority: Priority.high,
+              icon: '@mipmap/ic_launcher',
+            ),
+          ),
+        );
+      }
     });
   }
 
@@ -4442,12 +4487,6 @@ class _ProfessionalHomeScreenState extends State<ProfessionalHomeScreen> {
 
   Future<void> _respondBooking(String bookingId, String action) async {
     try {
-      final bookingDoc = await FirebaseFirestore.instance
-          .collection('bookings')
-          .doc(bookingId)
-          .get();
-      final userId = bookingDoc.data()?['userId'] as String?;
-
       await FirebaseFirestore.instance
           .collection('bookings')
           .doc(bookingId)
@@ -4455,23 +4494,6 @@ class _ProfessionalHomeScreenState extends State<ProfessionalHomeScreen> {
         'status': action == 'accept' ? 'accepted' : 'rejected',
         'respondedAt': FieldValue.serverTimestamp(),
       });
-
-      if (userId != null) {
-        final isAccepted = action == 'accept';
-        await FirebaseFirestore.instance
-            .collection('users')
-            .doc(userId)
-            .collection('notifications')
-            .add({
-          'title': isAccepted ? '✅ Αίτημα αποδεκτό!' : '❌ Αίτημα απορρίφθηκε',
-          'body': isAccepted
-              ? 'Ο $_proName αποδέχτηκε το αίτημά σου!'
-              : 'Ο $_proName δεν είναι διαθέσιμος αυτή τη στιγμή.',
-          'isRead': false,
-          'bookingId': bookingId,
-          'createdAt': FieldValue.serverTimestamp(),
-        });
-      }
 
       try {
         await http.post(
@@ -7955,10 +7977,11 @@ Future<void> _notifyProsDirectly(
               !professionLower.contains(specialty)) continue;
         }
         if (location.isNotEmpty && location != 'Κοντά μου') {
-          final area = (d['area'] as String? ?? '').toLowerCase();
-          if (area.isNotEmpty &&
-              !area.contains(locationLower) &&
-              !locationLower.contains(area)) continue;
+          final areasArr = ((d['areas'] as List?) ?? []).whereType<String>().map((a) => a.toLowerCase());
+          final areaSingle = (d['area'] as String? ?? '').toLowerCase();
+          final areas = [...areasArr, if (areaSingle.isNotEmpty) areaSingle];
+          if (areas.isNotEmpty &&
+              !areas.any((a) => a.contains(locationLower) || locationLower.contains(a))) continue;
         }
         await FirebaseFirestore.instance
             .collection('users')

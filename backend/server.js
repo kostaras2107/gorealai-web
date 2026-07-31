@@ -206,7 +206,8 @@ app.post('/send-push', rateLimit(30, 60_000), async (req, res) => {
 // POST /booking-response
 // Body: { bookingId, action, proName, userEmail, userName, userFcmToken? }
 app.post('/booking-response', rateLimit(20, 60_000), async (req, res) => {
-  const { bookingId, action, proName, userEmail, userName, userFcmToken } = req.body;
+  const { bookingId, action } = req.body;
+  let { proName, userEmail, userName, userFcmToken } = req.body;
 
   if (!bookingId || !action) {
     return res.status(400).json({ error: 'bookingId and action required' });
@@ -214,6 +215,29 @@ app.post('/booking-response', rateLimit(20, 60_000), async (req, res) => {
 
   const isAccepted = action === 'accept';
   const results = { email: null, push: null };
+
+  // ── Look up booking + user contact info server-side (client doesn't reliably send it) ──
+  let userId = null;
+  if (firebaseReady) {
+    try {
+      const bookingDoc = await admin.firestore().collection('bookings').doc(bookingId).get();
+      if (bookingDoc.exists) {
+        const b = bookingDoc.data();
+        userId = b.userId || null;
+        proName = proName || b.professionalName || '';
+        if (userId) {
+          const userDoc = await admin.firestore().collection('users').doc(userId).get();
+          if (userDoc.exists) {
+            userEmail = userEmail || userDoc.data().email;
+            userName = userName || userDoc.data().name;
+            userFcmToken = userFcmToken || userDoc.data().fcmToken;
+          }
+        }
+      }
+    } catch (e) {
+      console.error('booking-response lookup error:', e.message);
+    }
+  }
 
   // ── Send email ──
   if (userEmail) {
@@ -280,6 +304,18 @@ app.post('/booking-response', rateLimit(20, 60_000), async (req, res) => {
       console.error('Push error:', e.message);
       results.push = `error: ${e.message}`;
     }
+  }
+
+  // ── In-app notification + badge entry ──
+  if (userId && firebaseReady) {
+    const pushTitle = isAccepted ? '✅ Αποδέχτηκαν το αίτημά σου!' : '❌ Δεν ήταν διαθέσιμος';
+    const pushBody = isAccepted
+      ? `Ο ${proName} αποδέχτηκε την κράτησή σου!`
+      : `Ο ${proName} δεν είναι διαθέσιμος αυτή τη στιγμή.`;
+    admin.firestore().collection('users').doc(userId).collection('notifications').add({
+      title: pushTitle, body: pushBody, isRead: false, type: 'booking_response', bookingId,
+      createdAt: admin.firestore.FieldValue.serverTimestamp(),
+    }).catch(() => {});
   }
 
   res.json({ success: true, bookingId, action, results });
