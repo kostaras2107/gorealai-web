@@ -2973,17 +2973,13 @@ class _LiveActivityFeedState extends State<_LiveActivityFeed>
   Future<void> _loadRealActivities() async {
     final entries = <Map<String, dynamic>>[]; // {icon, text, ts}
     try {
-      final proTypeQueries = _activityLabels.keys.map((type) =>
-          FirebaseFirestore.instance.collection('professionals')
-              .where('lastActivityType', isEqualTo: type)
-              .orderBy('updatedAt', descending: true).limit(5).get());
-
       final results = await Future.wait([
         FirebaseFirestore.instance.collection('bookings')
             .orderBy('createdAt', descending: true).limit(8).get(),
         FirebaseFirestore.instance.collection('offers')
             .orderBy('createdAt', descending: true).limit(8).get(),
-        ...proTypeQueries,
+        FirebaseFirestore.instance.collection('professionals')
+            .where('is_active', isEqualTo: true).limit(60).get(),
       ]);
 
       for (final doc in results[0].docs) {
@@ -3017,20 +3013,49 @@ class _LiveActivityFeedState extends State<_LiveActivityFeed>
         });
       }
 
-      final types = _activityLabels.keys.toList();
-      for (int i = 0; i < types.length; i++) {
-        final type = types[i];
-        for (final doc in results[2 + i].docs) {
-          final d = doc.data();
-          final ts = (d['updatedAt'] as Timestamp?)?.toDate();
-          if (ts == null) continue;
-          final name = d['name'] as String? ?? 'Επαγγελματίας';
+      // Για κάθε επαγγελματία, δες την ΤΡΕΧΟΥΣΑ κατάσταση του προφίλ του και
+      // βγάλε από ένα γεγονός ανά κατηγορία που ισχύει — έτσι υπάρχουν
+      // δεδομένα αμέσως και για παλιούς επαγγελματίες, όχι μόνο για όσους
+      // έκαναν αλλαγή μετά την προσθήκη του lastActivityType tracking.
+      // Χρονοσήμανση: updatedAt αν ταιριάζει το lastActivityType, αλλιώς η
+      // ημερομηνία εγγραφής (createdAt) — πάντα πραγματική, ποτέ εικασία.
+      for (final doc in results[2].docs) {
+        final d = doc.data();
+        final name = d['name'] as String? ?? 'Επαγγελματίας';
+        final updatedAt = (d['updatedAt'] as Timestamp?)?.toDate();
+        final createdAt = (d['createdAt'] as Timestamp?)?.toDate();
+        final lastType = d['lastActivityType'] as String?;
+
+        DateTime? tsFor(String type) =>
+            (lastType == type && updatedAt != null) ? updatedAt : createdAt;
+
+        void addIfPresent(String type, bool condition) {
+          if (!condition) return;
+          final ts = tsFor(type);
+          if (ts == null) return;
           entries.add({
             'icon': _activityIcons[type],
             'text': 'Ο/Η $name ${_activityLabels[type]}',
             'ts': ts,
           });
         }
+
+        addIfPresent('verified', d['afmValid'] == true);
+        addIfPresent('tiktok_added',
+            (d['tiktokShorts'] as List?)?.isNotEmpty == true);
+        addIfPresent('portfolio_updated',
+            (d['portfolioProjects'] as List?)?.isNotEmpty == true);
+        addIfPresent('social_updated',
+            (d['instagram'] as String? ?? '').isNotEmpty ||
+            (d['tiktok'] as String? ?? '').isNotEmpty);
+        addIfPresent('profile_updated',
+            (d['bio'] as String? ?? '').isNotEmpty ||
+            (d['specialties'] as List?)?.isNotEmpty == true ||
+            (d['companyName'] as String? ?? '').isNotEmpty ||
+            ((d['yearsExperience'] as num?) ?? 0) > 0);
+        // Η φωτογραφία προφίλ δεν μετράει αναδρομικά (σχεδόν όλοι έχουν μία
+        // από την εγγραφή) — μόνο όταν έγινε ρητή πρόσφατη αλλαγή.
+        addIfPresent('photo_updated', lastType == 'photo_updated' && updatedAt != null);
       }
 
       entries.sort((a, b) => (b['ts'] as DateTime).compareTo(a['ts'] as DateTime));
