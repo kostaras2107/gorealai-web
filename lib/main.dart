@@ -24,6 +24,7 @@ import 'package:audioplayers/audioplayers.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:app_badge_plus/app_badge_plus.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
 // ═══════════════════════════════════════
 // CONSTANTS
@@ -179,6 +180,8 @@ class ReminderService {
 // AUTH SERVICE
 // ═══════════════════════════════════════
 class AuthService {
+  static const _secureStorage = FlutterSecureStorage();
+
   static Future<void> saveUser(String email) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString('email', email);
@@ -189,17 +192,22 @@ class AuthService {
   static Future<String?> getUser() async =>
       (await SharedPreferences.getInstance()).getString('email');
 
+  // Ο κωδικός αποθηκεύεται κρυπτογραφημένος (Keychain/Keystore μέσω
+  // flutter_secure_storage), όχι σε απλό κείμενο στο SharedPreferences —
+  // χρειάζεται μόνο για την αυτόματη βιομετρική επανασύνδεση.
   static Future<void> savePassword(String password) async =>
-      (await SharedPreferences.getInstance()).setString('password', password);
+      _secureStorage.write(key: 'password', value: password);
 
   static Future<String?> getPassword() async =>
-      (await SharedPreferences.getInstance()).getString('password');
+      _secureStorage.read(key: 'password');
 
   static Future<bool> hasAccount() async =>
       (await SharedPreferences.getInstance()).getBool('hasAccount') ?? false;
 
-  static Future<void> logout() async =>
-      (await SharedPreferences.getInstance()).clear();
+  static Future<void> logout() async {
+    await (await SharedPreferences.getInstance()).clear();
+    await _secureStorage.delete(key: 'password');
+  }
 }
 
 // ═══════════════════════════════════════
@@ -16836,23 +16844,11 @@ class _ChatScreenState extends State<ChatScreen> {
         'proName': widget.isPro ? widget.currentUserName : widget.otherName,
       }, SetOptions(merge: true));
 
-      // Notification to user when pro sends a message
-      if (widget.isPro) {
-        final chatParts = widget.chatId.split('_');
-        final targetUserId = chatParts.isNotEmpty ? chatParts[0] : '';
-        if (targetUserId.isNotEmpty) {
-          FirebaseFirestore.instance
-              .collection('users').doc(targetUserId)
-              .collection('notifications').add({
-            'title': '💬 Νέο μήνυμα από ${widget.currentUserName}',
-            'body': previewText.length > 100 ? '${previewText.substring(0, 100)}...' : previewText,
-            'type': 'chat',
-            'chatId': widget.chatId,
-            'isRead': false,
-            'createdAt': FieldValue.serverTimestamp(),
-          }).catchError((_) {});
-        }
-      }
+      // Σημείωση: η ειδοποίηση (push + notifications doc) για το μήνυμα
+      // στέλνεται πλέον ΜΟΝΟ server-side, μέσα στο /email-pro-new-message ή
+      // /email-user-new-message παρακάτω — πριν έγραφε και εδώ ΚΑΙ εκεί,
+      // με αποτέλεσμα διπλή ειδοποίηση (και λάθος αριθμό στο badge) για το
+      // ίδιο μήνυμα.
 
       // Email notification when message is sent (fire-and-forget)
       final _emailChatParts = widget.chatId.split('_');
