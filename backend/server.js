@@ -707,9 +707,14 @@ app.post('/email-pros-new-request', rateLimit(30, 60_000), async (req, res) => {
         }
       }
 
-      // Match area
+      // Match area — συνδυάζει το array (areas) ΚΑΙ το single πεδίο (area),
+      // γιατί μπορεί να διαφέρουν (π.χ. το areas να μην έχει ενημερωθεί ποτέ
+      // ενώ το area να είναι σωστό) — αγνοώντας μόνο ένα από τα δύο έχανε
+      // πραγματικά matches.
       if (locLower && locLower !== 'κοντά μου') {
-        const areas = Array.isArray(d.areas) ? d.areas.map(a => a.toLowerCase()) : [];
+        const areasArr = Array.isArray(d.areas) ? d.areas.map(a => a.toLowerCase()) : [];
+        const areaSingle = (d.area || '').toLowerCase();
+        const areas = areaSingle ? [...areasArr, areaSingle] : areasArr;
         if (areas.length > 0 && !areas.some(a => a.includes(locLower) || locLower.includes(a))) return;
       }
 
