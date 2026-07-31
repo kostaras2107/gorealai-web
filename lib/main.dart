@@ -2857,24 +2857,37 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
         // TIK TOK SHORTS
         Padding(
           padding: const EdgeInsets.fromLTRB(20, 0, 20, 12),
-          child: Row(children: [
-            Container(width: 3, height: 20,
+          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Row(children: [
+              Container(width: 3, height: 20,
+                  decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(2),
+                      gradient: const LinearGradient(begin: Alignment.topCenter, end: Alignment.bottomCenter,
+                          colors: [Color(0xFFEE1D52), Color(0xFF69C9D0)]),
+                      boxShadow: [BoxShadow(color: const Color(0xFF69C9D0).withValues(alpha: 0.5), blurRadius: 6)])),
+              const SizedBox(width: 10),
+              const Text('TikTok Shorts',
+                  style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.w700, letterSpacing: 0.3)),
+              const SizedBox(width: 8),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
                 decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(2),
-                    gradient: const LinearGradient(begin: Alignment.topCenter, end: Alignment.bottomCenter,
-                        colors: [Color(0xFFEE1D52), Color(0xFF69C9D0)]),
-                    boxShadow: [BoxShadow(color: const Color(0xFF69C9D0).withValues(alpha: 0.5), blurRadius: 6)])),
-            const SizedBox(width: 10),
-            const Text('TikTok Shorts',
-                style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.w700, letterSpacing: 0.3)),
-            const SizedBox(width: 8),
+                  borderRadius: BorderRadius.circular(20),
+                  gradient: const LinearGradient(colors: [Color(0xFFEE1D52), Color(0xFF69C9D0)]),
+                ),
+                child: const Text('✨ ULTRA', style: TextStyle(color: Colors.white, fontSize: 9, fontWeight: FontWeight.w900, letterSpacing: 0.5)),
+              ),
+            ]),
+            const SizedBox(height: 8),
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
               decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(20),
-                gradient: const LinearGradient(colors: [Color(0xFFEE1D52), Color(0xFF69C9D0)]),
+                borderRadius: BorderRadius.circular(8),
+                color: kGold.withValues(alpha: 0.12),
+                border: Border.all(color: kGold.withValues(alpha: 0.4)),
               ),
-              child: const Text('✨ ULTRA', style: TextStyle(color: Colors.white, fontSize: 9, fontWeight: FontWeight.w900, letterSpacing: 0.5)),
+              child: const Text('🎬 Παρουσίασε τη δουλειά σου μέσω βίντεο',
+                  style: TextStyle(color: kGold, fontSize: 9, fontWeight: FontWeight.w800, letterSpacing: 0.3)),
             ),
           ]),
         ),
@@ -2921,9 +2934,29 @@ class _LiveActivityFeed extends StatefulWidget {
 class _LiveActivityFeedState extends State<_LiveActivityFeed>
     with SingleTickerProviderStateMixin {
   late AnimationController _pulseCtrl;
-  List<Map<String, dynamic>> _activities = [];
+  List<Map<String, dynamic>> _pool = []; // ολόκληρη η δεξαμενή πραγματικών γεγονότων
+  List<Map<String, dynamic>> _activities = []; // αυτά που δείχνονται τώρα
+  Timer? _cycleTimer;
   Timer? _refreshTimer;
+  int _cycleIndex = 0;
   bool _loading = true;
+
+  static const Map<String, String> _activityLabels = {
+    'verified': 'επαληθεύτηκε (Verified) ⭐',
+    'tiktok_added': 'πρόσθεσε νέο TikTok Short 🎵',
+    'profile_updated': 'ενημέρωσε το προφίλ του ✏️',
+    'photo_updated': 'άλλαξε τη φωτογραφία προφίλ 📸',
+    'portfolio_updated': 'πρόσθεσε φωτογραφίες portfolio 🖼️',
+    'social_updated': 'ενημέρωσε τα social media του 📱',
+  };
+  static const Map<String, String> _activityIcons = {
+    'verified': '⭐',
+    'tiktok_added': '🎵',
+    'profile_updated': '✏️',
+    'photo_updated': '📸',
+    'portfolio_updated': '🖼️',
+    'social_updated': '📱',
+  };
 
   String _timeAgo(DateTime dt) {
     final diff = DateTime.now().difference(dt);
@@ -2933,26 +2966,24 @@ class _LiveActivityFeedState extends State<_LiveActivityFeed>
     return '${diff.inDays} μέρες';
   }
 
-  // Συγκεντρώνει πραγματική δραστηριότητα από 5 πηγές (bookings, offers,
-  // επαληθεύσεις ΑΦΜ, νέα TikTok shorts, ενημερώσεις προφίλ) και δείχνει
-  // τις πιο πρόσφατες — καθόλου προσομοιωμένα δεδομένα.
+  // Συγκεντρώνει μια μεγάλη δεξαμενή πραγματικής δραστηριότητας (bookings,
+  // προσφορές, και κάθε ενέργεια επαγγελματία — verified, TikTok, social,
+  // φωτογραφία, portfolio, προφίλ) — καθόλου προσομοιωμένα δεδομένα. Μετά
+  // «κυλάει» ανάμεσά τους ώστε να δείχνει ζωντανή ροή.
   Future<void> _loadRealActivities() async {
     final entries = <Map<String, dynamic>>[]; // {icon, text, ts}
     try {
+      final proTypeQueries = _activityLabels.keys.map((type) =>
+          FirebaseFirestore.instance.collection('professionals')
+              .where('lastActivityType', isEqualTo: type)
+              .orderBy('updatedAt', descending: true).limit(5).get());
+
       final results = await Future.wait([
         FirebaseFirestore.instance.collection('bookings')
-            .orderBy('createdAt', descending: true).limit(3).get(),
+            .orderBy('createdAt', descending: true).limit(8).get(),
         FirebaseFirestore.instance.collection('offers')
-            .orderBy('createdAt', descending: true).limit(3).get(),
-        FirebaseFirestore.instance.collection('professionals')
-            .where('lastActivityType', isEqualTo: 'verified')
-            .orderBy('updatedAt', descending: true).limit(2).get(),
-        FirebaseFirestore.instance.collection('professionals')
-            .where('lastActivityType', isEqualTo: 'tiktok_added')
-            .orderBy('updatedAt', descending: true).limit(2).get(),
-        FirebaseFirestore.instance.collection('professionals')
-            .where('lastActivityType', isEqualTo: 'profile_updated')
-            .orderBy('updatedAt', descending: true).limit(2).get(),
+            .orderBy('createdAt', descending: true).limit(8).get(),
+        ...proTypeQueries,
       ]);
 
       for (final doc in results[0].docs) {
@@ -2986,41 +3017,49 @@ class _LiveActivityFeedState extends State<_LiveActivityFeed>
         });
       }
 
-      for (final doc in results[2].docs) {
-        final d = doc.data();
-        final ts = (d['updatedAt'] as Timestamp?)?.toDate();
-        if (ts == null) continue;
-        final name = d['name'] as String? ?? 'Επαγγελματίας';
-        entries.add({'icon': '⭐', 'text': 'Ο/Η $name επαληθεύτηκε (Verified)', 'ts': ts});
-      }
-
-      for (final doc in results[3].docs) {
-        final d = doc.data();
-        final ts = (d['updatedAt'] as Timestamp?)?.toDate();
-        if (ts == null) continue;
-        final name = d['name'] as String? ?? 'Επαγγελματίας';
-        entries.add({'icon': '🎵', 'text': 'Ο/Η $name πρόσθεσε νέο TikTok Short', 'ts': ts});
-      }
-
-      for (final doc in results[4].docs) {
-        final d = doc.data();
-        final ts = (d['updatedAt'] as Timestamp?)?.toDate();
-        if (ts == null) continue;
-        final name = d['name'] as String? ?? 'Επαγγελματίας';
-        entries.add({'icon': '✏️', 'text': 'Ο/Η $name ενημέρωσε το προφίλ του', 'ts': ts});
+      final types = _activityLabels.keys.toList();
+      for (int i = 0; i < types.length; i++) {
+        final type = types[i];
+        for (final doc in results[2 + i].docs) {
+          final d = doc.data();
+          final ts = (d['updatedAt'] as Timestamp?)?.toDate();
+          if (ts == null) continue;
+          final name = d['name'] as String? ?? 'Επαγγελματίας';
+          entries.add({
+            'icon': _activityIcons[type],
+            'text': 'Ο/Η $name ${_activityLabels[type]}',
+            'ts': ts,
+          });
+        }
       }
 
       entries.sort((a, b) => (b['ts'] as DateTime).compareTo(a['ts'] as DateTime));
-      final top = entries.take(6).map((e) => {
-        'icon': e['icon'],
-        'text': e['text'],
-        'time': _timeAgo(e['ts'] as DateTime),
-      }).toList();
 
-      if (mounted) setState(() { _activities = top; _loading = false; });
+      if (mounted) {
+        setState(() {
+          _pool = entries;
+          _loading = false;
+          if (_activities.isEmpty && _pool.isNotEmpty) {
+            _cycleIndex = 0;
+            _activities = _pool.take(5).toList();
+          }
+        });
+      }
     } catch (_) {
       if (mounted) setState(() => _loading = false);
     }
+  }
+
+  void _cycleTick() {
+    if (_pool.isEmpty) return;
+    _cycleIndex = (_cycleIndex + 1) % _pool.length;
+    final next = _pool[_cycleIndex];
+    setState(() {
+      _activities.insert(0, next);
+      while (_activities.length > 5) {
+        _activities.removeLast();
+      }
+    });
   }
 
   @override
@@ -3029,13 +3068,17 @@ class _LiveActivityFeedState extends State<_LiveActivityFeed>
     _pulseCtrl = AnimationController(
         vsync: this, duration: const Duration(milliseconds: 1500))..repeat();
     _loadRealActivities();
-    // Ξαναφόρτωσε περιοδικά ώστε να πιάνει νέα πραγματικά γεγονότα.
-    _refreshTimer = Timer.periodic(const Duration(seconds: 45), (_) => _loadRealActivities());
+    // Κυλάει ανάμεσα στη δεξαμενή πραγματικών γεγονότων — δίνει ροή χωρίς να
+    // επινοεί τίποτα.
+    _cycleTimer = Timer.periodic(const Duration(seconds: 6), (_) => _cycleTick());
+    // Ξαναφόρτωσε τη δεξαμενή περιοδικά ώστε να πιάνει νέα πραγματικά γεγονότα.
+    _refreshTimer = Timer.periodic(const Duration(seconds: 60), (_) => _loadRealActivities());
   }
 
   @override
   void dispose() {
     _pulseCtrl.dispose();
+    _cycleTimer?.cancel();
     _refreshTimer?.cancel();
     super.dispose();
   }
@@ -4075,7 +4118,11 @@ class _ProfessionalHomeScreenState extends State<ProfessionalHomeScreen> {
       await Future.wait([
         FirebaseFirestore.instance.collection('users').doc(uid).set({'profilePhotoUrl': url}, SetOptions(merge: true)),
         if (_proDocId != null)
-          FirebaseFirestore.instance.collection('professionals').doc(_proDocId).set({'profilePhotoUrl': url}, SetOptions(merge: true)),
+          FirebaseFirestore.instance.collection('professionals').doc(_proDocId).set({
+            'profilePhotoUrl': url,
+            'updatedAt': FieldValue.serverTimestamp(),
+            'lastActivityType': 'photo_updated',
+          }, SetOptions(merge: true)),
       ]);
       if (mounted) setState(() { _proPhotoUrl = url; _uploadingPhoto = false; });
     } catch (e) {
@@ -5459,7 +5506,11 @@ class _ProfessionalHomeScreenState extends State<ProfessionalHomeScreen> {
       'photos': p['photos'] ?? [],
     }).toList();
     if (_proDocId == null) return;
-    await FirebaseFirestore.instance.collection('professionals').doc(_proDocId).set({'portfolioProjects': data}, SetOptions(merge: true));
+    await FirebaseFirestore.instance.collection('professionals').doc(_proDocId).set({
+      'portfolioProjects': data,
+      'updatedAt': FieldValue.serverTimestamp(),
+      'lastActivityType': 'portfolio_updated',
+    }, SetOptions(merge: true));
     await FirebaseFirestore.instance.collection('users').doc(uid).set({'portfolioProjects': data}, SetOptions(merge: true));
   }
 
@@ -5897,7 +5948,9 @@ class _ProfessionalHomeScreenState extends State<ProfessionalHomeScreen> {
                     final tt = _ttCtrl.text.trim().replaceAll('@', '');
                     final data = {'instagram': ig, 'tiktok': tt};
                     if (_proDocId == null) return;
-                    await FirebaseFirestore.instance.collection('professionals').doc(_proDocId).set(data, SetOptions(merge: true));
+                    await FirebaseFirestore.instance.collection('professionals').doc(_proDocId).set(
+                        {...data, 'updatedAt': FieldValue.serverTimestamp(), 'lastActivityType': 'social_updated'},
+                        SetOptions(merge: true));
                     await FirebaseFirestore.instance.collection('users').doc(uid).set(data, SetOptions(merge: true));
                     if (mounted) {
                       setState(() { _instagramUrl = ig; _tiktokUrl = tt; _editingSocial = false; });
@@ -11162,7 +11215,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
       if (_role == 'professional') {
         final proQuery = await FirebaseFirestore.instance.collection('professionals').where('userId', isEqualTo: uid).limit(1).get();
         final proDocId = proQuery.docs.isNotEmpty ? proQuery.docs.first.id : uid;
-        await FirebaseFirestore.instance.collection('professionals').doc(proDocId).set({'profilePhotoUrl': url}, SetOptions(merge: true));
+        await FirebaseFirestore.instance.collection('professionals').doc(proDocId).set({
+          'profilePhotoUrl': url,
+          'updatedAt': FieldValue.serverTimestamp(),
+          'lastActivityType': 'photo_updated',
+        }, SetOptions(merge: true));
       }
       if (mounted) setState(() { _photoUrl = url; _uploadingPhoto = false; });
       if (mounted) ScaffoldMessenger.of(context).showSnackBar(
