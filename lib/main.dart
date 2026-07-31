@@ -3041,7 +3041,7 @@ class _LiveActivityFeedState extends State<_LiveActivityFeed>
           _loading = false;
           if (_activities.isEmpty && _pool.isNotEmpty) {
             _cycleIndex = 0;
-            _activities = _pool.take(5).toList();
+            _activities = _pool.take(5).map(_withTimeString).toList();
           }
         });
       }
@@ -3050,10 +3050,16 @@ class _LiveActivityFeedState extends State<_LiveActivityFeed>
     }
   }
 
+  Map<String, dynamic> _withTimeString(Map<String, dynamic> e) => {
+        'icon': e['icon'],
+        'text': e['text'],
+        'time': _timeAgo(e['ts'] as DateTime),
+      };
+
   void _cycleTick() {
     if (_pool.isEmpty) return;
     _cycleIndex = (_cycleIndex + 1) % _pool.length;
-    final next = _pool[_cycleIndex];
+    final next = _withTimeString(_pool[_cycleIndex]);
     setState(() {
       _activities.insert(0, next);
       while (_activities.length > 5) {
@@ -3779,7 +3785,7 @@ class _BottomNav extends StatelessWidget {
                     // Μηνύματα με unread badge
                     Expanded(child: Center(child: Stack(clipBehavior: Clip.none, children: [
                       _HNavItem(icon: Icons.chat_bubble_outline_rounded, label: 'Μηνύματα',
-                          active: navIndex == 4, onTap: onMessages, showLabel: false),
+                          active: navIndex == 4, onTap: onMessages, showLabel: false, goldIcon: true),
                       if (unreadMessages > 0)
                         Positioned(
                           top: 2, right: 6,
@@ -3807,7 +3813,7 @@ class _BottomNav extends StatelessWidget {
                     const SizedBox(width: 64, height: 64),
 
                     Expanded(child: Center(child: _HNavItem(icon: Icons.history_rounded, label: 'Ιστορικό',
-                        active: navIndex == 2, onTap: onHistory, showLabel: false))),
+                        active: navIndex == 2, onTap: onHistory, showLabel: false, goldIcon: true))),
 
                     // Avatar profile
                     Expanded(child: Center(child: GestureDetector(
@@ -11452,6 +11458,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
             ),
           ),
         ),
+        const SizedBox(height: 10),
+        Center(
+          child: Text('Οι συνδρομές ξεκινούν 1/1/2027',
+              style: TextStyle(color: _g(0.4), fontSize: 11, fontStyle: FontStyle.italic)),
+        ),
       ]),
     );
   }
@@ -11515,6 +11526,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
             Text('Μετά την κατάθεση στείλε απόδειξη στο: info@gorealai.gr\nΗ συνδρομή ενεργοποιείται εντός 24ωρών.',
                 textAlign: TextAlign.center,
                 style: TextStyle(color: _g(0.45), fontSize: 11, height: 1.6)),
+            const SizedBox(height: 8),
+            Text('⚠️ Οι συνδρομές ξεκινούν 1/1/2027 — μην κάνεις κατάθεση νωρίτερα.',
+                textAlign: TextAlign.center,
+                style: TextStyle(color: Colors.orange.withValues(alpha: 0.85), fontSize: 11, fontWeight: FontWeight.w600, height: 1.5)),
             const SizedBox(height: 16),
             Row(children: [
               Expanded(
@@ -13369,12 +13384,14 @@ class _HNavItem extends StatelessWidget {
   final bool active;
   final VoidCallback onTap;
   final bool showLabel;
+  final bool goldIcon;
   const _HNavItem(
       {required this.icon,
       required this.label,
       required this.active,
       required this.onTap,
-      this.showLabel = true});
+      this.showLabel = true,
+      this.goldIcon = false});
   @override
   Widget build(BuildContext context) => GestureDetector(
         onTap: onTap,
@@ -13385,7 +13402,7 @@ class _HNavItem extends StatelessWidget {
             color: active ? kGold.withValues(alpha: 0.12) : Colors.transparent,
           ),
           child: Column(mainAxisSize: MainAxisSize.min, children: [
-            Icon(icon, color: active ? kGold : _g(0.3), size: 22),
+            Icon(icon, color: (active || goldIcon) ? kGold : _g(0.3), size: 22),
             if (showLabel) ...[
               const SizedBox(height: 3),
               Text(label,
