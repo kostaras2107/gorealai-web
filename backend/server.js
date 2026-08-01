@@ -680,7 +680,7 @@ app.post('/forgot-password', rateLimit(5, 60_000), async (req, res) => {
 // POST /email-pros-new-request
 // Body: { profession, location, description, requestId }
 app.post('/email-pros-new-request', rateLimit(30, 60_000), async (req, res) => {
-  const { profession, location, description, requestId, filterVerifiedOnly } = req.body;
+  const { profession, location, description, requestId, filterVerifiedOnly, exactSpecialty } = req.body;
   if (!firebaseReady) return res.json({ success: false, reason: 'firebase not ready' });
   if (!zohoTransporter && !process.env.SENDGRID_API_KEY) return res.json({ success: false, reason: 'no email provider configured' });
 
@@ -738,7 +738,13 @@ app.post('/email-pros-new-request', rateLimit(30, 60_000), async (req, res) => {
         const specialties = Array.isArray(d.specialties) ? d.specialties.map(s => s.toLowerCase()) : [];
         const allSpecs = specialties.length > 0 ? specialties : (specialty ? [specialty] : []);
         if (allSpecs.length > 0) {
-          const matches = allSpecs.some(s => s.includes(profLower) || profLower.includes(s));
+          // exactSpecialty (π.χ. αιτήματα εκδηλώσεων): μόνο ακριβές match,
+          // ώστε ένας γενικός "Φωτογράφος" να ΜΗΝ ταιριάζει με
+          // "Φωτογράφος Εκδηλώσεων" — μόνο όσοι έχουν δηλώσει ρητά τη
+          // συγκεκριμένη ειδικότητα εκδήλωσης ειδοποιούνται.
+          const matches = exactSpecialty
+            ? allSpecs.some(s => s.trim() === profLower.trim())
+            : allSpecs.some(s => s.includes(profLower) || profLower.includes(s));
           if (!matches) return;
         }
       }
@@ -769,6 +775,13 @@ app.post('/email-pros-new-request', rateLimit(30, 60_000), async (req, res) => {
     }));
 
     if (matching.length === 0) {
+      if (requestId) {
+        try {
+          await admin.firestore().collection('requests').doc(requestId).update({
+            prosNotified: 0, notifiedProNames: [],
+          });
+        } catch (_) {}
+      }
       return res.json({ success: true, sent: 0 });
     }
 

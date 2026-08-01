@@ -424,6 +424,20 @@ bool isValidGreekAfmFormat(String afm) {
   return (hour >= 6 && hour < 12) ? (text: 'Καλημέρα', emoji: '🌅') : (text: 'Καλησπέρα', emoji: '🌆');
 }
 
+// Ταιριάζει το επάγγελμα ενός αιτήματος με τις ειδικότητες ενός επαγγελματία.
+// exact=false (default, κλασικά αιτήματα): partial/substring match — ένας
+// γενικός "Φωτογράφος" ταιριάζει και με "Φωτογράφος Εκδηλώσεων".
+// exact=true (event requests): ακριβές match μόνο — μόνο όσοι έχουν δηλώσει
+// ρητά την ειδικότητα εκδήλωσης ειδοποιούνται, όχι γενικοί επαγγελματίες.
+bool _matchesProfession(Iterable<String> proSpecialties, String reqProfession, {bool exact = false}) {
+  if (reqProfession.isEmpty) return true;
+  final specs = proSpecialties.toList();
+  if (specs.isEmpty) return true;
+  final req = reqProfession.trim().toLowerCase();
+  if (exact) return specs.any((s) => s.trim().toLowerCase() == req);
+  return specs.any((s) => s.contains(req) || req.contains(s));
+}
+
 String _toVocative(String? fullName) {
   if (fullName == null || fullName.isEmpty) return '';
   // First name only
@@ -2098,6 +2112,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   bool _isPro = false;
   int _navIndex = 0;
   String _proSpecialty = '';
+  List<String> _proSpecialties = [];
   List<String> _proAreas = [];
   String? _proPhotoUrlHome;
   double _proAvgRatingHome = 0.0;
@@ -2107,6 +2122,13 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   List<Map<String, dynamic>> _activeRequests = []; // list of {id, status, desc, criteria, expiresAt}
 
   String _vocative(String? n) => _toVocative(n);
+
+  // Ταιριάζει το επάγγελμα ενός αιτήματος με ΟΛΕΣ τις ειδικότητες του pro
+  // (όχι μόνο τη μία singular 'specialty') — π.χ. ένας φωτογράφος με
+  // ειδικότητες ['Φωτογράφος','Φωτογράφος Εκδηλώσεων'] πρέπει να μετράει
+  // και τα δύο, αλλιώς το badge δείχνει 0 ενώ έχει ήδη ειδοποιηθεί με push.
+  bool _proMatchesProfession(String reqProf, {bool exact = false}) =>
+      _matchesProfession(_proSpecialties, reqProf, exact: exact);
 
   @override
   void initState() {
@@ -2152,7 +2174,10 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
         return bTs.compareTo(aTs);
       });
 
-      final limited = activeReqs.take(2).toList();
+      // Μέχρι 6 (όχι 2) — ένα αίτημα εκδήλωσης (Γάμος/Βάφτιση/Πάρτυ) δημιουργεί
+      // πολλαπλά ταυτόχρονα αιτήματα (ένα ανά σχετικό επάγγελμα), οπότε το
+      // παλιό όριο 2 τα έκρυβε σιωπηλά από την αρχική οθόνη.
+      final limited = activeReqs.take(6).toList();
 
       if (limited.isNotEmpty) {
         setState(() => _activeRequests = limited);
@@ -2228,8 +2253,14 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     String proPhotoUrl = '';
     double proAvgRating = 0.0;
     bool proIsVerified = false;
+    List<String> specialties = [];
     if (isPro) {
       specialty = (data['specialty'] as String? ?? '').toLowerCase();
+      final rawSpecialties = data['specialties'];
+      specialties = rawSpecialties is List
+          ? List<String>.from(rawSpecialties.map((e) => e.toString().toLowerCase()))
+          : [];
+      if (specialties.isEmpty && specialty.isNotEmpty) specialties = [specialty];
       final rawAreas = data['areas'];
       areas = rawAreas is List ? List<String>.from(rawAreas.map((e) => e.toString().toLowerCase())) : [];
       try {
@@ -2246,6 +2277,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       _userId = u.uid;
       _isPro = isPro;
       _proSpecialty = specialty;
+      _proSpecialties = specialties;
       _proAreas = areas;
       _proPhotoUrlHome = proPhotoUrl.isNotEmpty ? proPhotoUrl : null;
       _proAvgRatingHome = proAvgRating;
@@ -2505,9 +2537,10 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                               ? snapReq.data!.docs.where((d) {
                                   if (respondedIds.contains(d.id)) return false;
                                   final data = d.data() as Map<String, dynamic>;
-                                  if (_proSpecialty.isNotEmpty) {
+                                  {
                                     final reqProf = (data['profession'] as String? ?? '').toLowerCase();
-                                    if (reqProf.isNotEmpty && !_proSpecialty.contains(reqProf) && !reqProf.contains(_proSpecialty)) return false;
+                                    final isEvent = (data['eventType'] as String? ?? '').isNotEmpty;
+                                    if (!_proMatchesProfession(reqProf, exact: isEvent)) return false;
                                   }
                                   if (_proAreas.isNotEmpty) {
                                     final reqLoc = (data['location'] as String? ?? '').toLowerCase();
@@ -2540,9 +2573,10 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                                   final data = d.data() as Map<String, dynamic>;
                                   final createdAt = (data['createdAt'] as Timestamp?)?.toDate();
                                   if (createdAt != null && !createdAt.isAfter(lastSeenTs)) return false;
-                                  if (_proSpecialty.isNotEmpty) {
+                                  {
                                     final reqProf = (data['profession'] as String? ?? '').toLowerCase();
-                                    if (reqProf.isNotEmpty && !_proSpecialty.contains(reqProf) && !reqProf.contains(_proSpecialty)) return false;
+                                    final isEvent = (data['eventType'] as String? ?? '').isNotEmpty;
+                                    if (!_proMatchesProfession(reqProf, exact: isEvent)) return false;
                                   }
                                   if (_proAreas.isNotEmpty) {
                                     final reqLoc = (data['location'] as String? ?? '').toLowerCase();
@@ -4765,7 +4799,8 @@ class _ProfessionalHomeScreenState extends State<ProfessionalHomeScreen> {
                 if (expiresAt != null && expiresAt.toDate().isBefore(DateTime.now())) return false;
                 if (proSpecialties.isNotEmpty) {
                   final reqProf = (data['profession'] as String? ?? '').toLowerCase();
-                  if (reqProf.isNotEmpty && !proSpecialties.any((s) => s.contains(reqProf) || reqProf.contains(s))) return false;
+                  final isEvent = (data['eventType'] as String? ?? '').isNotEmpty;
+                  if (reqProf.isNotEmpty && !_matchesProfession(proSpecialties, reqProf, exact: isEvent)) return false;
                 }
                 if (proAreas.isNotEmpty) {
                   final reqLoc = (data['location'] as String? ?? '').toLowerCase();
@@ -6258,7 +6293,8 @@ class _ProfessionalHomeScreenState extends State<ProfessionalHomeScreen> {
               // Filter by profession
               final reqProfession = (data['profession'] as String? ?? '').toLowerCase();
               if (proSpecialties.isNotEmpty && reqProfession.isNotEmpty) {
-                if (!proSpecialties.any((s) => s.contains(reqProfession) || reqProfession.contains(s))) return false;
+                final isEvent = (data['eventType'] as String? ?? '').isNotEmpty;
+                if (!_matchesProfession(proSpecialties, reqProfession, exact: isEvent)) return false;
               }
               // Filter by location
               final reqLocation = (data['location'] as String? ?? '').toLowerCase();
@@ -6529,7 +6565,13 @@ class _ProfessionalHomeScreenState extends State<ProfessionalHomeScreen> {
       builder: (ctx) => StatefulBuilder(
         builder: (ctx, setS) => Dialog(
           backgroundColor: Colors.transparent,
-          child: Container(
+          insetPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
+          child: ConstrainedBox(
+            constraints: BoxConstraints(
+              maxHeight: MediaQuery.of(ctx).size.height - MediaQuery.of(ctx).viewInsets.bottom - 48,
+            ),
+            child: SingleChildScrollView(
+              child: Container(
             padding: const EdgeInsets.all(24),
             decoration: BoxDecoration(
                 borderRadius: BorderRadius.circular(24),
@@ -6828,6 +6870,8 @@ class _ProfessionalHomeScreenState extends State<ProfessionalHomeScreen> {
                 )),
               ]),
             ]),
+          ),
+            ),
           ),
         ),
       ),
@@ -12217,7 +12261,13 @@ class NotificationsScreen extends StatelessWidget {
       builder: (ctx) => StatefulBuilder(
         builder: (ctx, setS) => Dialog(
           backgroundColor: Colors.transparent,
-          child: Container(
+          insetPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
+          child: ConstrainedBox(
+            constraints: BoxConstraints(
+              maxHeight: MediaQuery.of(ctx).size.height - MediaQuery.of(ctx).viewInsets.bottom - 48,
+            ),
+            child: SingleChildScrollView(
+              child: Container(
             padding: const EdgeInsets.all(22),
             decoration: BoxDecoration(
               borderRadius: BorderRadius.circular(24),
@@ -12373,6 +12423,8 @@ class NotificationsScreen extends StatelessWidget {
                 )),
               ]),
             ]),
+          ),
+            ),
           ),
         ),
       ),
@@ -15019,13 +15071,14 @@ class _EventFormSheetState extends State<_EventFormSheet> {
     super.dispose();
   }
 
-  // Σχετικά επαγγέλματα ανά τύπο εκδήλωσης — ίδια ονόματα specialty
-  // με αυτά που επιλέγουν οι επαγγελματίες στο προφίλ τους, ώστε το
-  // matching στο backend να δουλεύει.
-  static const Map<String, List<String>> _eventProsMap = {
-    'Γάμος': ['Εκδηλώσεις Γάμου', 'Φωτογράφος Εκδηλώσεων', 'DJ / Μουσική Εκδηλώσεων', 'Catering'],
-    'Βάφτιση': ['Εκδηλώσεις Βάφτισης', 'Φωτογράφος Εκδηλώσεων', 'Catering'],
-    'Πάρτυ': ['Διοργάνωση Πάρτυ', 'DJ / Μουσική Εκδηλώσεων', 'Catering', 'Φωτογράφος Εκδηλώσεων'],
+  // Ένα και μοναδικό, ρητό επάγγελμα ανά τύπο εκδήλωσης — ίδιο όνομα specialty
+  // με αυτό που επιλέγουν οι επαγγελματίες στο προφίλ τους. Ειδοποιούνται ΜΟΝΟ
+  // όσοι έχουν δηλώσει ρητά αυτή την ειδικότητα (exactSpecialty στο backend),
+  // όχι π.χ. γενικοί φωτογράφοι/DJ που δεν έχουν καν σχέση με εκδηλώσεις.
+  static const Map<String, String> _eventProfession = {
+    'Γάμος': 'Εκδηλώσεις Γάμου',
+    'Βάφτιση': 'Εκδηλώσεις Βάφτισης',
+    'Πάρτυ': 'Διοργάνωση Πάρτυ',
   };
 
   Future<void> _submit() async {
@@ -15035,52 +15088,51 @@ class _EventFormSheetState extends State<_EventFormSheet> {
       return;
     }
     setState(() => _sending = true);
-    // Ένα κλασσικό αίτημα ανά σχετικό επάγγελμα (π.χ. για Γάμο: φωτογράφος,
-    // DJ, catering...), ώστε να περνάει από το ΙΔΙΟ, ήδη δοκιμασμένο pipeline
-    // με τα κλασσικά αιτήματα (1ωρο countdown, matching pros, push/badge/email) —
-    // αντί για το ξεχωριστό event_requests που δεν το έβλεπε κανένας επαγγελματίας.
+    // Ένα κλασσικό αίτημα, στην ειδικότητα διοργάνωσης εκδηλώσεων, ώστε να
+    // περνάει από το ΙΔΙΟ, ήδη δοκιμασμένο pipeline με τα κλασσικά αιτήματα
+    // (1ωρο countdown, matching pros, push/badge/email) — αντί για το
+    // ξεχωριστό event_requests που δεν το έβλεπε κανένας επαγγελματίας.
     final description = 'Διοργάνωση ${widget.eventType}'
         '${_date != null ? ' στις ${_date!.day}/${_date!.month}/${_date!.year}' : ''} '
         'για ${_people.round()} άτομα, budget ~${_budget.round()}€.'
         '${_detailsCtrl.text.trim().isNotEmpty ? ' ${_detailsCtrl.text.trim()}' : ''}';
-    final pros = _eventProsMap[widget.eventType] ?? const <String>[];
+    final profession = _eventProfession[widget.eventType] ?? widget.eventType;
     final fs = FirebaseFirestore.instance;
     int createdCount = 0;
-    for (final profession in pros) {
-      try {
-        final docRef = await fs.collection('requests').add({
-          'userId': widget.userId,
-          'userName': widget.userName,
-          'description': description,
-          'criteria': 'value',
+    try {
+      final docRef = await fs.collection('requests').add({
+        'userId': widget.userId,
+        'userName': widget.userName,
+        'description': description,
+        'criteria': 'value',
+        'profession': profession,
+        'location': _location ?? '',
+        'status': 'active',
+        'offersCount': 0,
+        'createdAt': FieldValue.serverTimestamp(),
+        'expiresAt': Timestamp.fromDate(DateTime.now().add(const Duration(hours: 1))),
+        'imageCount': 0,
+        'eventType': widget.eventType,
+      });
+      createdCount++;
+      http.post(
+        Uri.parse('$kBackendUrl/email-pros-new-request'),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({
           'profession': profession,
           'location': _location ?? '',
-          'status': 'active',
-          'offersCount': 0,
-          'createdAt': FieldValue.serverTimestamp(),
-          'expiresAt': Timestamp.fromDate(DateTime.now().add(const Duration(hours: 1))),
-          'imageCount': 0,
-          'eventType': widget.eventType,
-        });
-        createdCount++;
-        http.post(
-          Uri.parse('$kBackendUrl/email-pros-new-request'),
-          headers: {'Content-Type': 'application/json'},
-          body: jsonEncode({
-            'profession': profession,
-            'location': _location ?? '',
-            'description': description,
-            'requestId': docRef.id,
-          }),
-        ).timeout(const Duration(seconds: 60)).catchError((_) {});
-      } catch (_) {}
-    }
+          'description': description,
+          'requestId': docRef.id,
+          'exactSpecialty': true,
+        }),
+      ).timeout(const Duration(seconds: 60)).catchError((_) {});
+    } catch (_) {}
 
     if (!mounted) return;
     Navigator.pop(context);
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(
         content: Text(createdCount > 0
-            ? '✅ Στάλθηκαν $createdCount αιτήματα σε επαγγελματίες! Δες τα στα ενεργά αιτήματά σου.'
+            ? '✅ Το αίτημά σου στάλθηκε σε επαγγελματίες! Δες το στα ενεργά αιτήματά σου.'
             : '⚠️ Κάτι πήγε στραβά, δοκίμασε ξανά.'),
         backgroundColor: createdCount > 0 ? const Color(0xFF00D4AA) : Colors.red));
   }
