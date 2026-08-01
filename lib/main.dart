@@ -15019,30 +15019,70 @@ class _EventFormSheetState extends State<_EventFormSheet> {
     super.dispose();
   }
 
+  // Σχετικά επαγγέλματα ανά τύπο εκδήλωσης — ίδια ονόματα specialty
+  // με αυτά που επιλέγουν οι επαγγελματίες στο προφίλ τους, ώστε το
+  // matching στο backend να δουλεύει.
+  static const Map<String, List<String>> _eventProsMap = {
+    'Γάμος': ['Εκδηλώσεις Γάμου', 'Φωτογράφος Εκδηλώσεων', 'DJ / Μουσική Εκδηλώσεων', 'Catering'],
+    'Βάφτιση': ['Εκδηλώσεις Βάφτισης', 'Φωτογράφος Εκδηλώσεων', 'Catering'],
+    'Πάρτυ': ['Διοργάνωση Πάρτυ', 'DJ / Μουσική Εκδηλώσεων', 'Catering', 'Φωτογράφος Εκδηλώσεων'],
+  };
+
   Future<void> _submit() async {
-    setState(() => _sending = true);
-    try {
-      await FirebaseFirestore.instance.collection('event_requests').add({
-        'userId': widget.userId,
-        'userName': widget.userName,
-        'eventType': widget.eventType,
-        'date': _date != null ? _date!.toIso8601String() : null,
-        'location': _location ?? '',
-        'people': _people.round(),
-        'budget': _budget.round(),
-        'details': _detailsCtrl.text.trim(),
-        'status': 'active',
-        'createdAt': FieldValue.serverTimestamp(),
-      });
-      if (!mounted) return;
-      Navigator.pop(context);
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-          content: Text('✅ Το αίτημά σου στάλθηκε!'),
-          backgroundColor: Color(0xFF00D4AA)));
-    } catch (e) {
-      setState(() => _sending = false);
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Σφάλμα: $e')));
+    if (_location == null || _location!.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('⚠️ Επίλεξε περιοχή!'), backgroundColor: Colors.orange));
+      return;
     }
+    setState(() => _sending = true);
+    // Ένα κλασσικό αίτημα ανά σχετικό επάγγελμα (π.χ. για Γάμο: φωτογράφος,
+    // DJ, catering...), ώστε να περνάει από το ΙΔΙΟ, ήδη δοκιμασμένο pipeline
+    // με τα κλασσικά αιτήματα (1ωρο countdown, matching pros, push/badge/email) —
+    // αντί για το ξεχωριστό event_requests που δεν το έβλεπε κανένας επαγγελματίας.
+    final description = 'Διοργάνωση ${widget.eventType}'
+        '${_date != null ? ' στις ${_date!.day}/${_date!.month}/${_date!.year}' : ''} '
+        'για ${_people.round()} άτομα, budget ~${_budget.round()}€.'
+        '${_detailsCtrl.text.trim().isNotEmpty ? ' ${_detailsCtrl.text.trim()}' : ''}';
+    final pros = _eventProsMap[widget.eventType] ?? const <String>[];
+    final fs = FirebaseFirestore.instance;
+    int createdCount = 0;
+    for (final profession in pros) {
+      try {
+        final docRef = await fs.collection('requests').add({
+          'userId': widget.userId,
+          'userName': widget.userName,
+          'description': description,
+          'criteria': 'value',
+          'profession': profession,
+          'location': _location ?? '',
+          'status': 'active',
+          'offersCount': 0,
+          'createdAt': FieldValue.serverTimestamp(),
+          'expiresAt': Timestamp.fromDate(DateTime.now().add(const Duration(hours: 1))),
+          'imageCount': 0,
+          'eventType': widget.eventType,
+        });
+        createdCount++;
+        http.post(
+          Uri.parse('$kBackendUrl/email-pros-new-request'),
+          headers: {'Content-Type': 'application/json'},
+          body: jsonEncode({
+            'profession': profession,
+            'location': _location ?? '',
+            'description': description,
+            'requestId': docRef.id,
+          }),
+        ).timeout(const Duration(seconds: 60)).catchError((_) {});
+      } catch (_) {}
+    }
+
+    if (!mounted) return;
+    Navigator.pop(context);
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text(createdCount > 0
+            ? '✅ Στάλθηκαν $createdCount αιτήματα σε επαγγελματίες! Δες τα στα ενεργά αιτήματά σου.'
+            : '⚠️ Κάτι πήγε στραβά, δοκίμασε ξανά.'),
+        backgroundColor: createdCount > 0 ? const Color(0xFF00D4AA) : Colors.red));
   }
 
   @override
@@ -15119,34 +15159,9 @@ class _EventFormSheetState extends State<_EventFormSheet> {
               Text('Περιοχή', style: TextStyle(color: _g(0.6), fontSize: 13, fontWeight: FontWeight.w600)),
             ]),
             const SizedBox(height: 8),
-            GestureDetector(
-              onTap: () async {
-                final areas = ['Αθήνα', 'Θεσσαλονίκη', 'Πάτρα', 'Ηράκλειο', 'Λάρισα',
-                    'Βόλος', 'Ιωάννινα', 'Χανιά', 'Ρόδος', 'Κέρκυρα',
-                    'Καβάλα', 'Χρυσούπολη', 'Ελευθερούπολη', 'Νέα Καρβάλη', 'Παγγαίο',
-                    'Σέρρες', 'Δράμα', 'Ξάνθη', 'Κομοτηνή', 'Αλεξανδρούπολη'];
-                final result = await showModalBottomSheet<String>(
-                  context: context,
-                  backgroundColor: Colors.transparent,
-                  builder: (_) => _SimpleListPicker(title: 'Επίλεξε περιοχή', items: areas, selected: _location),
-                );
-                if (result != null) setState(() => _location = result);
-              },
-              child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(14),
-                  color: _g(0.04),
-                  border: Border.all(color: _location != null ? kGold.withValues(alpha: 0.4) : _g(0.1)),
-                ),
-                child: Row(children: [
-                  Icon(Icons.location_on_outlined, color: _g(0.4), size: 16),
-                  const SizedBox(width: 10),
-                  Expanded(child: Text(_location ?? 'Επίλεξε περιοχή...',
-                      style: TextStyle(color: _location != null ? _gw : _g(0.3), fontSize: 14))),
-                  Icon(Icons.keyboard_arrow_down, color: _g(0.3), size: 18),
-                ]),
-              ),
+            _RequestLocationPicker(
+              value: _location,
+              onChanged: (v) => setState(() => _location = v),
             ),
             const SizedBox(height: 16),
 
