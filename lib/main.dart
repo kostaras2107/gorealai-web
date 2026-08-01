@@ -12164,8 +12164,18 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 if (ctx.mounted) Navigator.pop(ctx);
                 if (mounted) Navigator.of(context).popUntil((r) => r.isFirst);
               } catch (e) {
+                String msg = 'Λάθος κωδικός ή σφάλμα. Δοκίμασε ξανά.';
+                if (e is FirebaseAuthException) {
+                  msg = switch (e.code) {
+                    'wrong-password' || 'invalid-credential' => 'Λάθος κωδικός.',
+                    'too-many-requests' => 'Πολλές αποτυχημένες προσπάθειες. Δοκίμασε ξανά σε λίγο.',
+                    'requires-recent-login' => 'Χρειάζεται νέα σύνδεση. Κάνε logout/login και ξαναδοκίμασε.',
+                    'network-request-failed' => 'Πρόβλημα σύνδεσης δικτύου.',
+                    _ => 'Σφάλμα (${e.code}): ${e.message ?? ''}',
+                  };
+                }
                 if (ctx.mounted) ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Λάθος κωδικός ή σφάλμα. Δοκίμασε ξανά.'), backgroundColor: Colors.red));
+                  SnackBar(content: Text(msg), backgroundColor: Colors.red));
               }
             },
             child: const Text('Διαγραφή', style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold)),
