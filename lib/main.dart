@@ -2485,7 +2485,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     return Scaffold(
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       body: Stack(children: [
-        if (_userId != null) _AppBadgeSync(userId: _userId!, isPro: _isPro),
+        if (_userId != null) _AppBadgeSync(userId: _userId!),
         SafeArea(
         child: Column(children: [
           // TOP BAR
@@ -2641,7 +2641,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                       ),
                       const SizedBox(width: 8),
                     ],
-                    if (!_isPro) _NotificationBell(userId: _userId ?? ''),
+                    _NotificationBell(userId: _userId ?? ''),
                   ]),
                 ]),
           ),
@@ -13546,38 +13546,52 @@ class _HNavItem extends StatelessWidget {
 }
 
 // ── App icon badge (native only — no-op on web) ──
-// Συνδυάζει τα αδιάβαστα μηνύματα chat με τις αδιάβαστες ειδοποιήσεις
-// (users/{uid}/notifications) και ενημερώνει τον αριθμό πάνω στο εικονίδιο.
+// Συνδυάζει τα αδιάβαστα μηνύματα chat (και ΩΣ πελάτης ΚΑΙ ως επαγγελματίας
+// — ένας επαγγελματίας μπορεί να στείλει και ο ίδιος αίτημα σαν πελάτης,
+// οπότε δεν πρέπει να μετράει μόνο τη μία πλευρά) με τις αδιάβαστες
+// ειδοποιήσεις (users/{uid}/notifications) και ενημερώνει τον αριθμό πάνω
+// στο εικονίδιο.
 class _AppBadgeSync extends StatefulWidget {
   final String userId;
-  final bool isPro;
-  const _AppBadgeSync({required this.userId, required this.isPro});
+  const _AppBadgeSync({required this.userId});
   @override
   State<_AppBadgeSync> createState() => _AppBadgeSyncState();
 }
 
 class _AppBadgeSyncState extends State<_AppBadgeSync> {
-  StreamSubscription<QuerySnapshot>? _chatSub;
+  StreamSubscription<QuerySnapshot>? _chatUserSub;
+  StreamSubscription<QuerySnapshot>? _chatProSub;
   StreamSubscription<QuerySnapshot>? _notifSub;
-  int _chatUnread = 0;
+  int _chatUserUnread = 0;
+  int _chatProUnread = 0;
   int _notifUnread = 0;
 
   @override
   void initState() {
     super.initState();
     if (kIsWeb || widget.userId.isEmpty) return;
-    final chatField = widget.isPro ? 'unreadPro' : 'unreadUser';
-    final chatKey = widget.isPro ? 'proId' : 'userId';
-    _chatSub = FirebaseFirestore.instance
+    _chatUserSub = FirebaseFirestore.instance
         .collection('chats')
-        .where(chatKey, isEqualTo: widget.userId)
+        .where('userId', isEqualTo: widget.userId)
         .snapshots()
         .listen((snap) {
       int total = 0;
       for (final d in snap.docs) {
-        total += ((d.data() as Map)[chatField] as int? ?? 0);
+        total += ((d.data() as Map)['unreadUser'] as int? ?? 0);
       }
-      _chatUnread = total;
+      _chatUserUnread = total;
+      _updateBadge();
+    });
+    _chatProSub = FirebaseFirestore.instance
+        .collection('chats')
+        .where('proId', isEqualTo: widget.userId)
+        .snapshots()
+        .listen((snap) {
+      int total = 0;
+      for (final d in snap.docs) {
+        total += ((d.data() as Map)['unreadPro'] as int? ?? 0);
+      }
+      _chatProUnread = total;
       _updateBadge();
     });
     _notifSub = FirebaseFirestore.instance
@@ -13593,12 +13607,13 @@ class _AppBadgeSyncState extends State<_AppBadgeSync> {
   }
 
   void _updateBadge() {
-    AppBadgePlus.updateBadge(_chatUnread + _notifUnread);
+    AppBadgePlus.updateBadge(_chatUserUnread + _chatProUnread + _notifUnread);
   }
 
   @override
   void dispose() {
-    _chatSub?.cancel();
+    _chatUserSub?.cancel();
+    _chatProSub?.cancel();
     _notifSub?.cancel();
     super.dispose();
   }
