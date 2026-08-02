@@ -7979,7 +7979,7 @@ class _RequestScreenState extends State<RequestScreen>
 } catch (_) {
   await _notifyProsDirectly(docRef.id, _textCtrl.text.trim(),
     _selectedProfession ?? '', _selectedLocation ?? '',
-    widget.userName, _images.length);
+    widget.userName, _images.length, widget.userId);
 }
 
         // Email όλους τους ταιριαστούς επαγγελματίες (fire-and-forget)
@@ -7992,6 +7992,7 @@ class _RequestScreenState extends State<RequestScreen>
             'description': _textCtrl.text.trim(),
             'requestId': docRef.id,
             'filterVerifiedOnly': _filterVerifiedOnly,
+            'requesterUserId': widget.userId,
           }),
         ).timeout(const Duration(seconds: 60)).catchError((_) {});
 
@@ -8024,6 +8025,7 @@ Future<void> _notifyProsDirectly(
     String location,
     String userName,
     int imageCount,
+    String requesterUserId,
   ) async {
     try {
       final professionLower = profession.toLowerCase();
@@ -8037,6 +8039,9 @@ Future<void> _notifyProsDirectly(
         final d = doc.data();
         final proUserId = d['userId'] as String? ?? '';
         if (proUserId.isEmpty) continue;
+        // Μην ειδοποιείς τον ίδιο τον αιτούντα — μπορεί να είναι επαγγελματίας
+        // με ειδικότητα που ταιριάζει με το δικό του αίτημα.
+        if (proUserId == requesterUserId) continue;
         final specialty = (d['specialty'] as String? ?? '').toLowerCase();
         if (specialty.isNotEmpty && professionLower.isNotEmpty) {
           if (!specialty.contains(professionLower) &&
@@ -13880,10 +13885,15 @@ class _NearbyProsSectionState extends State<_NearbyProsSection> {
   @override
   Widget build(BuildContext context) {
     return StreamBuilder<QuerySnapshot>(
+      // orderBy(createdAt) — χωρίς αυτό, το limit(50) έκοβε αυθαίρετα ποιοι
+      // 50 από τους ενεργούς επαγγελματίες γυρνάνε (η Firestore δεν εγγυάται
+      // σειρά χωρίς orderBy), με αποτέλεσμα νέες εγγραφές να μένουν εκτός
+      // ακόμα κι όταν έχουν πλήρες προφίλ.
       stream: FirebaseFirestore.instance
           .collection('professionals')
           .where('is_active', isEqualTo: true)
-          .limit(50)
+          .orderBy('createdAt', descending: true)
+          .limit(200)
           .snapshots(),
       builder: (context, snap) {
         final allDocs = snap.hasData ? snap.data!.docs : <QueryDocumentSnapshot>[];
@@ -15169,6 +15179,7 @@ class _EventFormSheetState extends State<_EventFormSheet> {
           'description': description,
           'requestId': docRef.id,
           'exactSpecialty': true,
+          'requesterUserId': widget.userId,
         }),
       ).timeout(const Duration(seconds: 60)).catchError((_) {});
     } catch (_) {}

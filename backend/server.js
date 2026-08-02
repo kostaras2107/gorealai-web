@@ -680,7 +680,7 @@ app.post('/forgot-password', rateLimit(5, 60_000), async (req, res) => {
 // POST /email-pros-new-request
 // Body: { profession, location, description, requestId }
 app.post('/email-pros-new-request', rateLimit(30, 60_000), async (req, res) => {
-  const { profession, location, description, requestId, filterVerifiedOnly, exactSpecialty } = req.body;
+  const { profession, location, description, requestId, filterVerifiedOnly, exactSpecialty, requesterUserId } = req.body;
   if (!firebaseReady) return res.json({ success: false, reason: 'firebase not ready' });
   if (!zohoTransporter && !process.env.SENDGRID_API_KEY) return res.json({ success: false, reason: 'no email provider configured' });
 
@@ -731,6 +731,11 @@ app.post('/email-pros-new-request', rateLimit(30, 60_000), async (req, res) => {
     const matching = [];
     proMap.forEach((d, uid) => {
       if (!d.email) return;
+      // Μην ειδοποιείς τον ίδιο τον αιτούντα — μπορεί να είναι επαγγελματίας
+      // με ειδικότητα που ταιριάζει με το δικό του αίτημα (π.χ. ο ίδιος
+      // στέλνει αίτημα για "Συντήρηση Κλιματιστικών" ενώ έχει αυτή την
+      // ειδικότητα στο προφίλ του).
+      if (requesterUserId && uid === requesterUserId) return;
 
       // Match specialty — check both singular and array
       if (profLower) {
