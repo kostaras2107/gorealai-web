@@ -20,6 +20,7 @@ import 'package:local_auth/local_auth.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:speech_to_text/speech_to_text.dart' as stt;
 import 'package:record/record.dart';
+import 'package:path_provider/path_provider.dart';
 import 'package:audioplayers/audioplayers.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
@@ -429,6 +430,16 @@ bool isValidGreekAfmFormat(String afm) {
 // γενικός "Φωτογράφος" ταιριάζει και με "Φωτογράφος Εκδηλώσεων".
 // exact=true (event requests): ακριβές match μόνο — μόνο όσοι έχουν δηλώσει
 // ρητά την ειδικότητα εκδήλωσης ειδοποιούνται, όχι γενικοί επαγγελματίες.
+// Το πακέτο ηχογράφησης (record) απαιτεί πραγματικό file path σε όλες τις
+// IO πλατφόρμες (Android/iOS) — μόνο στο web αγνοείται. Ένα κενό string
+// δούλευε "τυχαία" στο web αλλά έκανε crash την εφαρμογή στο Android όταν
+// ο πλατφόρμα-plugin προσπαθούσε να ανοίξει αρχείο σε άκυρο path.
+Future<String> _newRecordingPath() async {
+  if (kIsWeb) return '';
+  final dir = await getTemporaryDirectory();
+  return '${dir.path}/rec_${DateTime.now().millisecondsSinceEpoch}.m4a';
+}
+
 bool _matchesProfession(Iterable<String> proSpecialties, String reqProfession, {bool exact = false}) {
   if (reqProfession.isEmpty) return true;
   final specs = proSpecialties.toList();
@@ -6787,7 +6798,7 @@ class _ProfessionalHomeScreenState extends State<ProfessionalHomeScreen> {
                       } else {
                         final ok = await offerRec.hasPermission();
                         if (!ok) return;
-                        await offerRec.start(const RecordConfig(), path: '');
+                        await offerRec.start(const RecordConfig(), path: await _newRecordingPath());
                         setS(() { offerRecording = true; offerDur = Duration.zero; });
                         offerTimer = Timer.periodic(const Duration(seconds: 1), (_) {
                           setS(() => offerDur += const Duration(seconds: 1));
@@ -7760,7 +7771,7 @@ class _RequestScreenState extends State<RequestScreen>
   Future<void> _startAudio() async {
     final hasPermission = await _audioRec.hasPermission();
     if (!hasPermission) return;
-    await _audioRec.start(const RecordConfig(), path: '');
+    await _audioRec.start(const RecordConfig(), path: await _newRecordingPath());
     setState(() {
       _audioRecording = true;
       _audioDur = Duration.zero;
@@ -13613,7 +13624,11 @@ class _AppBadgeSyncState extends State<_AppBadgeSync> {
         .where('isRead', isEqualTo: false)
         .snapshots()
         .listen((snap) {
-      _notifUnread = snap.docs.length;
+      // Τα notifications τύπου 'new_request' (νέα ταιριαστή δουλειά για
+      // επαγγελματία) μετριούνται ήδη στο badge "Επαγγελματίας" μέσω
+      // απευθείας query στο requests — αν τα μετρήσουμε ΚΑΙ εδώ, το ίδιο
+      // αίτημα εμφανίζεται διπλά σε δύο διαφορετικά badges.
+      _notifUnread = snap.docs.where((d) => (d.data())['type'] != 'new_request').length;
       _updateBadge();
     });
   }
@@ -13648,7 +13663,10 @@ class _NotificationBell extends StatelessWidget {
           .where('isRead', isEqualTo: false)
           .snapshots(),
       builder: (context, snap) {
-        final count = snap.hasData ? snap.data!.docs.length : 0;
+        // Εξαίρεση 'new_request' — μετριέται ήδη στο badge "Επαγγελματίας".
+        final count = snap.hasData
+            ? snap.data!.docs.where((d) => (d.data() as Map)['type'] != 'new_request').length
+            : 0;
         return GestureDetector(
           onTap: () => Navigator.push(
               context,
@@ -16777,7 +16795,7 @@ class _ChatScreenState extends State<ChatScreen> {
   Future<void> _startChatAudio() async {
     final hasPermission = await _audioRec.hasPermission();
     if (!hasPermission) return;
-    await _audioRec.start(const RecordConfig(), path: '');
+    await _audioRec.start(const RecordConfig(), path: await _newRecordingPath());
     setState(() { _chatAudioRecording = true; _chatAudioDur = Duration.zero; });
     _chatAudioTimer = Timer.periodic(const Duration(seconds: 1), (_) {
       if (mounted) setState(() => _chatAudioDur += const Duration(seconds: 1));

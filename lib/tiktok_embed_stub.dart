@@ -35,6 +35,16 @@ class _TikTokWebViewEmbedState extends State<_TikTokWebViewEmbed> {
       (_controller.platform as AndroidWebViewController)
           .setMediaPlaybackRequiresUserGesture(false);
     }
+    if (!widget.muted) {
+      // Ο ίδιος ο TikTok player μπορεί να αγνοεί το ?muted=0 στο URL και να
+      // επιβάλλει δικό του "tap για ήχο" — το παρακάμπτουμε κάνοντας άμεσο
+      // unmute στο <video> element μέσω JS αφού φορτώσει η σελίδα.
+      _controller.setNavigationDelegate(NavigationDelegate(
+        onPageFinished: (_) => _controller.runJavaScript(
+          'document.querySelectorAll("video").forEach(function(v){v.muted=false;v.volume=1;v.play().catch(function(){});});',
+        ),
+      ));
+    }
     _controller.loadRequest(Uri.parse(
         'https://www.tiktok.com/player/v1/${widget.videoId}?autoplay=1&muted=${widget.muted ? 1 : 0}'));
   }
