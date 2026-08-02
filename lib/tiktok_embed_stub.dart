@@ -3,14 +3,18 @@
 // TikTok Embed Player, ώστε η προεπισκόπηση/fullscreen αναπαραγωγή να
 // δουλεύει το ίδιο με το web (εκεί χρησιμοποιείται iframe — δες
 // tiktok_embed_web.dart).
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:webview_flutter/webview_flutter.dart';
+import 'package:webview_flutter_android/webview_flutter_android.dart';
 
-Widget buildTikTokEmbed(String videoId) => _TikTokWebViewEmbed(videoId: videoId);
+Widget buildTikTokEmbed(String videoId, {bool muted = true}) =>
+    _TikTokWebViewEmbed(videoId: videoId, muted: muted);
 
 class _TikTokWebViewEmbed extends StatefulWidget {
   final String videoId;
-  const _TikTokWebViewEmbed({required this.videoId});
+  final bool muted;
+  const _TikTokWebViewEmbed({required this.videoId, required this.muted});
   @override
   State<_TikTokWebViewEmbed> createState() => _TikTokWebViewEmbedState();
 }
@@ -23,11 +27,16 @@ class _TikTokWebViewEmbedState extends State<_TikTokWebViewEmbed> {
     super.initState();
     _controller = WebViewController()
       ..setJavaScriptMode(JavaScriptMode.unrestricted)
-      ..setBackgroundColor(Colors.black)
-      // autoplay=1&muted=1 — παίζει αυτόματα σαν "ζωντανή" προεπισκόπηση·
-      // muted είναι υποχρεωτικό ώστε να επιτρέπεται το autoplay.
-      ..loadRequest(Uri.parse(
-          'https://www.tiktok.com/player/v1/${widget.videoId}?autoplay=1&muted=1'));
+      ..setBackgroundColor(Colors.black);
+    // Στο Android το native WebView απαιτεί από προεπιλογή χειρονομία
+    // χρήστη για να παίξει ήχος — το απενεργοποιούμε ώστε το ενεργό/κεντρικό
+    // βίντεο να παίζει αυτόματα ΚΑΙ με ήχο, χωρίς tap.
+    if (!widget.muted && defaultTargetPlatform == TargetPlatform.android) {
+      (_controller.platform as AndroidWebViewController)
+          .setMediaPlaybackRequiresUserGesture(false);
+    }
+    _controller.loadRequest(Uri.parse(
+        'https://www.tiktok.com/player/v1/${widget.videoId}?autoplay=1&muted=${widget.muted ? 1 : 0}'));
   }
 
   @override

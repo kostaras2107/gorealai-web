@@ -2537,6 +2537,9 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                               ? snapReq.data!.docs.where((d) {
                                   if (respondedIds.contains(d.id)) return false;
                                   final data = d.data() as Map<String, dynamic>;
+                                  // Μην μετράς το ίδιο σου το αίτημα σαν "νέα δουλειά" — μπορεί ένας
+                                  // επαγγελματίας να στείλει αίτημα και ο ίδιος σαν πελάτης.
+                                  if (data['userId'] == _userId) return false;
                                   {
                                     final reqProf = (data['profession'] as String? ?? '').toLowerCase();
                                     final isEvent = (data['eventType'] as String? ?? '').isNotEmpty;
@@ -2573,6 +2576,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                                   final data = d.data() as Map<String, dynamic>;
                                   final createdAt = (data['createdAt'] as Timestamp?)?.toDate();
                                   if (createdAt != null && !createdAt.isAfter(lastSeenTs)) return false;
+                                  if (data['userId'] == _userId) return false;
                                   {
                                     final reqProf = (data['profession'] as String? ?? '').toLowerCase();
                                     final isEvent = (data['eventType'] as String? ?? '').isNotEmpty;
@@ -4795,6 +4799,9 @@ class _ProfessionalHomeScreenState extends State<ProfessionalHomeScreen> {
             ? snapReq.data!.docs.where((d) {
                 if (_submittedIds.contains(d.id) || offeredIds.contains(d.id)) return false;
                 final data = d.data() as Map<String, dynamic>;
+                // Μην μετράς το ίδιο σου το αίτημα σαν "νέα δουλειά" — μπορεί ο
+                // επαγγελματίας να στείλει αίτημα και ο ίδιος σαν πελάτης.
+                if (data['userId'] == _proId) return false;
                 final expiresAt = data['expiresAt'] as Timestamp?;
                 if (expiresAt != null && expiresAt.toDate().isBefore(DateTime.now())) return false;
                 if (proSpecialties.isNotEmpty) {
@@ -6287,6 +6294,9 @@ class _ProfessionalHomeScreenState extends State<ProfessionalHomeScreen> {
             .where((d) => !_submittedIds.contains(d.id) && !offeredIds.contains(d.id))
             .where((d) {
               final data = d.data() as Map<String, dynamic>;
+              // Μην δείχνεις το ίδιο σου το αίτημα σαν δουλειά προς ανάληψη —
+              // μπορεί ο επαγγελματίας να στείλει αίτημα και ο ίδιος σαν πελάτης.
+              if (data['userId'] == _proId) return false;
               // Κρύψε ληγμένα αιτήματα (πέρασε η 1 ώρα)
               final expiresAt = data['expiresAt'] as Timestamp?;
               if (expiresAt != null && expiresAt.toDate().isBefore(DateTime.now())) return false;
@@ -6568,7 +6578,8 @@ class _ProfessionalHomeScreenState extends State<ProfessionalHomeScreen> {
           insetPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
           child: ConstrainedBox(
             constraints: BoxConstraints(
-              maxHeight: MediaQuery.of(ctx).size.height - MediaQuery.of(ctx).viewInsets.bottom - 48,
+              maxHeight: (MediaQuery.of(ctx).size.height - MediaQuery.of(ctx).viewInsets.bottom - 48)
+                  .clamp(200.0, double.infinity),
             ),
             child: SingleChildScrollView(
               child: Container(
@@ -12264,7 +12275,8 @@ class NotificationsScreen extends StatelessWidget {
           insetPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
           child: ConstrainedBox(
             constraints: BoxConstraints(
-              maxHeight: MediaQuery.of(ctx).size.height - MediaQuery.of(ctx).viewInsets.bottom - 48,
+              maxHeight: (MediaQuery.of(ctx).size.height - MediaQuery.of(ctx).viewInsets.bottom - 48)
+                  .clamp(200.0, double.infinity),
             ),
             child: SingleChildScrollView(
               child: Container(
@@ -14111,7 +14123,7 @@ class _TikTokShortsCarouselState extends State<_TikTokShortsCarousel> {
                   child: Stack(fit: StackFit.expand, children: [
                     if (isActive)
                       IgnorePointer(
-                        child: Center(child: tiktok_embed.buildTikTokEmbed(item['videoId'] as String)),
+                        child: Center(child: tiktok_embed.buildTikTokEmbed(item['videoId'] as String, muted: false)),
                       )
                     else
                       Image.network(
@@ -14169,7 +14181,7 @@ class _FullscreenTikTokViewer extends StatelessWidget {
       backgroundColor: Colors.black,
       body: SafeArea(
         child: Stack(children: [
-          Positioned.fill(child: Center(child: tiktok_embed.buildTikTokEmbed(videoId))),
+          Positioned.fill(child: Center(child: tiktok_embed.buildTikTokEmbed(videoId, muted: false))),
           Positioned(
             top: 8, left: 8,
             child: GestureDetector(

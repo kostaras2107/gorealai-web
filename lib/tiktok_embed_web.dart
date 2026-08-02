@@ -9,21 +9,24 @@ import 'package:flutter/material.dart';
 
 final Set<String> _registeredViewTypes = {};
 
-Widget buildTikTokEmbed(String videoId) {
-  final viewType = 'tiktok-embed-$videoId';
+Widget buildTikTokEmbed(String videoId, {bool muted = true}) {
+  // Το muted μπαίνει στο viewType key γιατί το registerViewFactory γίνεται
+  // ΜΙΑ φορά ανά viewType (η επόμενη κλήση με το ίδιο key αγνοείται) — αν
+  // δεν το ξεχώριζε, η πρώτη τιμή muted που φτιάχτηκε θα "κολλούσε" για
+  // πάντα σε αυτό το videoId.
+  final viewType = 'tiktok-embed-$videoId-$muted';
   if (!_registeredViewTypes.contains(viewType)) {
     _registeredViewTypes.add(viewType);
     ui_web.platformViewRegistry.registerViewFactory(viewType, (int viewId) {
-      // autoplay=1&muted=1 — παίζει αυτόματα σαν "ζωντανή" προεπισκόπηση.
-      // Muted είναι υποχρεωτικό για να επιτρέψουν οι browsers το autoplay·
-      // ο χρήστης μπορεί να το κάνει unmute από το ίδιο το TikTok player.
+      // autoplay=1 πάντα· muted μόνο όταν ζητηθεί ρητά (π.χ. background
+      // preview) — το ενεργό/κεντρικό βίντεο παίζει με ήχο.
       final iframe = html.IFrameElement()
-        ..src = 'https://www.tiktok.com/player/v1/$videoId?autoplay=1&muted=1'
+        ..src = 'https://www.tiktok.com/player/v1/$videoId?autoplay=1&muted=${muted ? 1 : 0}'
         ..style.border = 'none'
         ..style.width = '100%'
         ..style.height = '100%'
         ..allowFullscreen = true;
-      iframe.setAttribute('allow', 'fullscreen');
+      iframe.setAttribute('allow', 'fullscreen; autoplay');
       return iframe;
     });
   }
