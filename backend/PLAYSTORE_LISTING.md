@@ -1,16 +1,16 @@
-# GorealAI — Play Store Listing
+# GorealPro — Play Store Listing
 
 ## App Title (30 chars max)
-GorealAI — Βρες Επαγγελματία
+GorealPro — Βρες Επαγγελματία
 
 ## Short Description (80 chars max)
 Βρες τον καλύτερο επαγγελματία σε λεπτά με AI αντιστοίχιση & reverse auction.
 
 ## Full Description (4000 chars max)
 
-🏆 **GorealAI — Ο έξυπνος τρόπος να βρεις επαγγελματία**
+🏆 **GorealPro — Ο έξυπνος τρόπος να βρεις επαγγελματία**
 
-Ξέχνα το άγχος να ψάχνεις επαγγελματίες ώρες. Με το GorealAI, **οι επαγγελματίες έρχονται σε εσένα** με τις καλύτερες προσφορές τους!
+Ξέχνα το άγχος να ψάχνεις επαγγελματίες ώρες. Με το GorealPro, **οι επαγγελματίες έρχονται σε εσένα** με τις καλύτερες προσφορές τους!
 
 ---
 
@@ -30,22 +30,12 @@ GorealAI — Βρες Επαγγελματία
 🎉 **Εκδηλώσεις** — Γάμος, βάφτιση, πάρτυ; Βρες οργανωτή γεγονότων σε 1 ώρα
 📸 **Portfolio επαγγελματιών** — Δες δείγματα εργασίας πριν επιλέξεις
 🤖 **AI αντιστοίχιση** — Ο αλγόριθμός μας βρίσκει τον καταλληλότερο επαγγελματία για εσένα
-🔒 **Ασφαλείς πληρωμές** — Stripe PCI-DSS για Premium συνδρομές
 
 ---
 
 ### 👷 Κατηγορίες επαγγελματιών
 
 Υδραυλικοί · Ηλεκτρολόγοι · Ελαιοχρωματιστές · Καθαρισμός · Μετακομίσεις · Κλιματισμός · Αλουμινοκατασκευές · Ξυλουργοί · Κηπουροί · Personal Trainers · Φωτογράφοι · DJs · Catering · Οργανωτές εκδηλώσεων · και πολλά άλλα!
-
----
-
-### 💎 Premium για Επαγγελματίες
-
-Είσαι επαγγελματίας; Αναβάθμισε σε **Premium** για μόλις **1,99€/μήνα** και:
-- Εμφανίσου πρώτος στα αποτελέσματα
-- Λάβε απεριόριστα αιτήματα
-- Κέρδισε σήμα "✓ Verified"
 
 ---
 
@@ -58,9 +48,9 @@ GorealAI — Βρες Επαγγελματία
 Κατέβασε δωρεάν και βρες τον επαγγελματία που χρειάζεσαι σήμερα! 🚀
 
 ---
-*Για υποστήριξη: support@gorealai.app*
-*Πολιτική Απορρήτου: https://gorealai.web.app/privacy.html*
-*Όροι Χρήσης: https://gorealai.web.app/terms.html*
+*Για υποστήριξη: info@gorealai.gr*
+*Πολιτική Απορρήτου: https://gorealai.web.app/privacy*
+*Όροι Χρήσης: https://gorealai.web.app/terms*
 
 ## Category
 Business / Tools (ή Lifestyle)
@@ -79,10 +69,15 @@ Everyone (3+)
 5. Login screen
 
 ## Privacy Policy URL
-https://gorealai.web.app/privacy.html
+https://gorealai.web.app/privacy
 
 ## Support Email
-support@gorealai.app
+info@gorealai.gr
 
 ## Website
 https://gorealai.web.app
+
+## In-app purchases
+Καμία προς το παρόν — οι συνδρομές (Premium για επαγγελματίες) δεν είναι ακόμα live.
+Ενημέρωσε αυτή τη σελίδα ΚΑΙ τη δήλωση Data Safety/In-app products στο Play Console
+όταν ενεργοποιηθούν (αρχές 2027).
