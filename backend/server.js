@@ -88,29 +88,6 @@ if (process.env.ZOHO_USER && process.env.ZOHO_PASS) {
   console.warn('⚠️  ZOHO_USER/ZOHO_PASS not set');
 }
 
-// ── SMS via InfiniReach ──────────────────────────────────────────
-async function sendSms(phone, message) {
-  const apiKey = process.env.INFINIREACH_API_KEY;
-  const fromPhone = process.env.INFINIREACH_PHONE; // your Android number e.g. +306944048588
-  if (!apiKey || !fromPhone || !phone) return;
-  let p = phone.replace(/\s+/g, '');
-  if (p.startsWith('00')) p = '+' + p.slice(2);
-  else if (p.startsWith('0')) p = '+30' + p.slice(1);
-  else if (/^[62]/.test(p)) p = '+30' + p;
-  else if (!p.startsWith('+')) p = '+30' + p;
-  try {
-    const r = await fetch('https://api.infinireach.io/api/v1/messages', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'X-API-Key': apiKey },
-      body: JSON.stringify({ to: p, from: fromPhone, message, channel: 'sms' }),
-    });
-    const j = await r.json();
-    console.log(`📱 SMS to ${p}:`, j.success ? 'OK' : JSON.stringify(j));
-  } catch (e) {
-    console.error(`SMS error for ${p}:`, e.message);
-  }
-}
-
 // Helper: send email via Zoho (primary) or SendGrid (fallback)
 async function sendEmail({ to, subject, html }) {
   if (zohoTransporter) {
@@ -813,11 +790,6 @@ app.post('/email-pros-new-request', rateLimit(30, 60_000), async (req, res) => {
       } catch (e) {
         console.error(`Email error for ${p.email}:`, e.message);
       }
-      // Send SMS regardless of email success
-      if (p.phone) {
-        const smsText = `🔔 Νέο αίτημα GorealPro${profession ? ` για ${profession}` : ''}!\n${description ? description.substring(0, 100) : ''}\nΔες το: gorealai.web.app/app`;
-        sendSms(p.phone, smsText); // fire-and-forget
-      }
       // Push notification + in-app badge entry (fire-and-forget, doesn't block the loop)
       if (p.fcmToken) {
         const pushTitle = `🔔 Νέο αίτημα${profession ? ` για ${profession}` : ''}!`;
@@ -935,8 +907,7 @@ app.post('/email-pro-new-message', rateLimit(60, 60_000), async (req, res) => {
     `;
 
     if (proEmail) await sendEmail({ to: proEmail, subject, html });
-    if (proPhone) sendSms(proPhone, `💬 Νέο μήνυμα από ${senderName || 'χρήστη'} στο GorealPro!\n${messagePreview ? messagePreview.substring(0, 100) + '\n' : ''}Απάντησε: gorealai.web.app/app`);
-    console.log(`📧📱 New-message notification to pro ${proId}`);
+    console.log(`📧 New-message notification to pro ${proId}`);
     res.json({ success: true });
   } catch (e) {
     console.error('email-pro-new-message error:', e.message);
@@ -1000,8 +971,7 @@ app.post('/email-user-new-message', rateLimit(60, 60_000), async (req, res) => {
     `;
 
     if (userEmail) await sendEmail({ to: userEmail, subject, html });
-    if (userPhone) sendSms(userPhone, `💬 Νέο μήνυμα από ${proName || 'επαγγελματία'} στο GorealPro!\n${messagePreview ? messagePreview.substring(0, 100) + '\n' : ''}Απάντησε: gorealai.web.app/app`);
-    console.log(`📧📱 New-message notification to user ${userId}`);
+    console.log(`📧 New-message notification to user ${userId}`);
     res.json({ success: true });
   } catch (e) {
     console.error('email-user-new-message error:', e.message);
