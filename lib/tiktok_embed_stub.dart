@@ -3,6 +3,7 @@
 // TikTok Embed Player, ώστε η προεπισκόπηση/fullscreen αναπαραγωγή να
 // δουλεύει το ίδιο με το web (εκεί χρησιμοποιείται iframe — δες
 // tiktok_embed_web.dart).
+import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:webview_flutter/webview_flutter.dart';
@@ -10,6 +11,24 @@ import 'package:webview_flutter_android/webview_flutter_android.dart';
 
 Widget buildTikTokEmbed(String videoId, {bool muted = true}) =>
     _TikTokWebViewEmbed(videoId: videoId, muted: muted);
+
+// Στέλνεται στο ίδιο το window του player — μιμείται το επίσημο TikTok
+// Player SDK postMessage API (developers.tiktok.com/doc/embed-player),
+// για την περίπτωση που ο player ακούει events σε αυτό αντί για απευθείας
+// χειρισμό του <video>. Τρέχει ΚΑΙ τα δύο, επαναληπτικά, γιατί το <video>
+// element μπορεί να μπει στο DOM με καθυστέρηση ή ο player να το ξανα-κάνει
+// muted μόνος του μετά το πρώτο unmute.
+const String _unmuteJs = '''
+try {
+  window.postMessage(JSON.stringify({type: "unMute", value: ""}), "*");
+  window.postMessage(JSON.stringify({type: "play", value: ""}), "*");
+} catch (e) {}
+document.querySelectorAll("video").forEach(function(v){
+  v.muted = false;
+  v.volume = 1;
+  v.play().catch(function(){});
+});
+''';
 
 class _TikTokWebViewEmbed extends StatefulWidget {
   final String videoId;
@@ -21,6 +40,8 @@ class _TikTokWebViewEmbed extends StatefulWidget {
 
 class _TikTokWebViewEmbedState extends State<_TikTokWebViewEmbed> {
   late final WebViewController _controller;
+  Timer? _unmuteRetryTimer;
+  int _unmuteAttempts = 0;
 
   @override
   void initState() {
@@ -36,17 +57,28 @@ class _TikTokWebViewEmbedState extends State<_TikTokWebViewEmbed> {
           .setMediaPlaybackRequiresUserGesture(false);
     }
     if (!widget.muted) {
-      // Ο ίδιος ο TikTok player μπορεί να αγνοεί το ?muted=0 στο URL και να
-      // επιβάλλει δικό του "tap για ήχο" — το παρακάμπτουμε κάνοντας άμεσο
-      // unmute στο <video> element μέσω JS αφού φορτώσει η σελίδα.
       _controller.setNavigationDelegate(NavigationDelegate(
-        onPageFinished: (_) => _controller.runJavaScript(
-          'document.querySelectorAll("video").forEach(function(v){v.muted=false;v.volume=1;v.play().catch(function(){});});',
-        ),
+        onPageFinished: (_) => _startUnmuteRetries(),
       ));
     }
     _controller.loadRequest(Uri.parse(
         'https://www.tiktok.com/player/v1/${widget.videoId}?autoplay=1&muted=${widget.muted ? 1 : 0}'));
+  }
+
+  void _startUnmuteRetries() {
+    _unmuteAttempts = 0;
+    _unmuteRetryTimer?.cancel();
+    _unmuteRetryTimer = Timer.periodic(const Duration(milliseconds: 600), (t) {
+      _unmuteAttempts++;
+      _controller.runJavaScript(_unmuteJs);
+      if (_unmuteAttempts >= 10) t.cancel();
+    });
+  }
+
+  @override
+  void dispose() {
+    _unmuteRetryTimer?.cancel();
+    super.dispose();
   }
 
   @override
