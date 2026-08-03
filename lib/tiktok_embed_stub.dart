@@ -15,15 +15,17 @@ Widget buildTikTokEmbed(String videoId, {bool muted = true}) =>
 // Στέλνεται στο ίδιο το window του player — μιμείται το επίσημο TikTok
 // Player SDK postMessage API (developers.tiktok.com/doc/embed-player),
 // για την περίπτωση που ο player ακούει events σε αυτό αντί για απευθείας
-// χειρισμό του <video>. Τρέχει ΚΑΙ τα δύο, επαναληπτικά, γιατί το <video>
+// χειρισμό του media element. Τρέχει ΚΑΙ τα δύο, επαναληπτικά, γιατί το
 // element μπορεί να μπει στο DOM με καθυστέρηση ή ο player να το ξανα-κάνει
-// muted μόνος του μετά το πρώτο unmute.
+// muted μόνος του μετά το πρώτο unmute. Καλύπτει ΚΑΙ <video> (κανονικό
+// βίντεο) ΚΑΙ <audio> (TikTok "photo mode" — carousel φωτογραφιών με
+// μουσική· δεν έχει καθόλου <video> tag, μόνο <audio>).
 const String _unmuteJs = '''
 try {
   window.postMessage(JSON.stringify({type: "unMute", value: ""}), "*");
   window.postMessage(JSON.stringify({type: "play", value: ""}), "*");
 } catch (e) {}
-document.querySelectorAll("video").forEach(function(v){
+document.querySelectorAll("video, audio").forEach(function(v){
   v.muted = false;
   v.volume = 1;
   v.play().catch(function(){});
