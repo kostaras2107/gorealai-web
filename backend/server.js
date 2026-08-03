@@ -1267,6 +1267,7 @@ async function sendExpiryNotification(requestId) {
     const d = doc.data();
     if (d.expiryNotified) return; // already sent
     if (d.status === 'completed') return; // ο πελάτης διάλεξε ήδη επαγγελματία, το ξέρει
+    if (d.status === 'cancelled') return; // ο πελάτης το ακύρωσε μόνος του, δεν χρειάζεται ειδοποίηση
 
     await ref.update({ expiryNotified: true });
 
