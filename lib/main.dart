@@ -13907,7 +13907,11 @@ class _NearbyProsSectionState extends State<_NearbyProsSection> {
             (d['companyName'] as String? ?? '').isNotEmpty,
             ((d['yearsExperience'] as num?) ?? 0) > 0,
           ];
-          return fields.where((f) => f).length >= 3;
+          final completed = fields.where((f) => f).length;
+          // Στο 2/6 μπαίνει επίσης αν έχει φωτογραφίες portfolio — δείχνει
+          // πραγματική δουλειά ακόμα κι αν δεν έχει συμπληρώσει όλο το Mini CV.
+          final hasPortfolio = (d['portfolioProjects'] as List?)?.isNotEmpty ?? false;
+          return completed >= 3 || (completed >= 2 && hasPortfolio);
         }).toList();
         if (!snap.hasData) return const SizedBox(height: 260);
         if (docs.isEmpty) return const SizedBox(height: 260);
@@ -14175,7 +14179,15 @@ class _TikTokShortsCarouselState extends State<_TikTokShortsCarousel> {
                       ),
                     Positioned(
                       left: 6, right: 6, bottom: 6,
-                      child: IgnorePointer(
+                      // Tap στο όνομα ανοίγει το προφίλ του επαγγελματία (μήνυμα/καρτέλα) —
+                      // ξεχωριστό GestureDetector από την κάρτα (που ανοίγει fullscreen video),
+                      // ώστε το tap εδώ να κερδίζει και να μην ανοίγει κατά λάθος το βίντεο.
+                      child: GestureDetector(
+                        onTap: () => Navigator.push(context, PageRouteBuilder(
+                          pageBuilder: (_, __, ___) => _ProPublicProfileScreen(
+                              proId: item['proId'] as String, proData: item['proData'] as Map<String, dynamic>),
+                          transitionsBuilder: (_, a, __, c) => FadeTransition(opacity: a, child: c),
+                        )),
                         child: Container(
                           padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
                           decoration: BoxDecoration(borderRadius: BorderRadius.circular(8), color: Colors.black.withValues(alpha: 0.65)),
@@ -14183,7 +14195,7 @@ class _TikTokShortsCarouselState extends State<_TikTokShortsCarousel> {
                             const Text('🎵', style: TextStyle(fontSize: 10)),
                             const SizedBox(width: 4),
                             Flexible(child: Text(item['proName'] as String, maxLines: 1, overflow: TextOverflow.ellipsis,
-                                style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.w700))),
+                                style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.w700, decoration: TextDecoration.underline))),
                           ]),
                         ),
                       ),
