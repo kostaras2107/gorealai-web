@@ -457,28 +457,32 @@ const List<Map<String, Object>> _requestDurationOptions = [
   {'label': '24 ώρες', 'minutes': 1440},
 ];
 
-// Μορφοποιεί μια εναπομένουσα διάρκεια για countdown UI. Πάντα δείχνει
-// δευτερόλεπτα που κυλάνε (ώστε να φαίνεται ζωντανό ανά πάσα στιγμή, ακόμα
-// και σε 24ωρο αίτημα) — κάτω από 1 ώρα: "λλ:δδ", από 1 ώρα και πάνω:
-// "Χω λλ:δδ" (όχι raw λεπτά, ώστε ένα 24ωρο να μη δείχνει π.χ. "1439:59").
+// Μορφοποιεί μια εναπομένουσα διάρκεια για countdown UI. Κάτω από 1 ώρα
+// δείχνει λεπτά:δευτερόλεπτα (όπως πάντα)· από 1 ώρα και πάνω δείχνει
+// ώρες+λεπτά (χωρίς δευτερόλεπτα — δεν χωράνε στον κυκλικό μετρητή), ώστε
+// ένα 24ωρο αίτημα να μη δείχνει π.χ. "1439:59".
 String _formatCountdown(Duration d) {
   if (d.isNegative) return 'Έληξε';
-  final m = (d.inMinutes % 60).toString().padLeft(2, '0');
+  if (d.inHours >= 1) {
+    final m = (d.inMinutes % 60).toString().padLeft(2, '0');
+    return '${d.inHours}ω ${m}λ';
+  }
+  final m = d.inMinutes;
   final s = (d.inSeconds % 60).toString().padLeft(2, '0');
-  if (d.inHours >= 1) return '${d.inHours}ω $m:$s';
-  return '${d.inMinutes}:$s';
+  return '$m:$s';
 }
 
 // Ίδιο με το _formatCountdown αλλά με "λ"/"δ" ετικέτες αντί για ":" —
 // ταιριάζει στο στυλ των μικρών badge/chip εμφανίσεων.
 String _formatCountdownLabeled(Duration d) {
   if (d.isNegative) return 'Έληξε';
-  final s = (d.inSeconds % 60).toString().padLeft(2, '0');
   if (d.inHours >= 1) {
-    final m = (d.inMinutes % 60).toString().padLeft(2, '0');
-    return '${d.inHours}ω ${m}λ ${s}δ';
+    final m = d.inMinutes % 60;
+    return '${d.inHours}ω ${m}λ';
   }
-  return '${d.inMinutes}λ ${s}δ';
+  final m = d.inMinutes;
+  final s = (d.inSeconds % 60).toString().padLeft(2, '0');
+  return '${m}λ ${s}δ';
 }
 
 String _toVocative(String? fullName) {
