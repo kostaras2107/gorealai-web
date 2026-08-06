@@ -8525,24 +8525,25 @@ Future<void> _notifyProsDirectly(
                   Row(children: [
                     const Text('⏱️', style: TextStyle(fontSize: 12)),
                     const SizedBox(width: 6),
-                    Text('Πόση ώρα να περιμένουν οι επαγγελματίες;',
+                    Text('Πόση ώρα να είναι ενεργό το αίτημα;',
                         style: TextStyle(fontSize: 11,
                             color: _g(0.5),
                             fontWeight: FontWeight.w600)),
                   ]),
                   const SizedBox(height: 10),
-                  Row(children: _requestDurationOptions.map((opt) {
-                    final mins = opt['minutes'] as int;
-                    return Padding(
-                      padding: EdgeInsets.only(right: opt == _requestDurationOptions.last ? 0 : 8),
-                      child: _CriteriaChip(
-                        emoji: mins == 60 ? '⚡' : mins == 240 ? '🕓' : '📅',
-                        label: opt['label'] as String,
-                        selected: _durationMinutes == mins,
-                        onTap: () => setState(() => _durationMinutes = mins),
+                  Row(children: [
+                    for (int i = 0; i < _requestDurationOptions.length; i++) ...[
+                      if (i > 0) const SizedBox(width: 8),
+                      _CriteriaChip(
+                        emoji: (_requestDurationOptions[i]['minutes'] as int) == 60
+                            ? '⚡'
+                            : (_requestDurationOptions[i]['minutes'] as int) == 240 ? '🕓' : '📅',
+                        label: _requestDurationOptions[i]['label'] as String,
+                        selected: _durationMinutes == (_requestDurationOptions[i]['minutes'] as int),
+                        onTap: () => setState(() => _durationMinutes = _requestDurationOptions[i]['minutes'] as int),
                       ),
-                    );
-                  }).toList()),
+                    ],
+                  ]),
                   const SizedBox(height: 8),
                   Row(children: [
                     _CriteriaChip(emoji: '📷', label: 'Με φωτο',
@@ -15360,7 +15361,7 @@ class _EventFormSheetState extends State<_EventFormSheet> {
             // Διάρκεια countdown
             Row(children: [
               Text('⏱️ ', style: const TextStyle(fontSize: 14)),
-              Text('Πόση ώρα να περιμένουν οι επαγγελματίες;', style: TextStyle(color: _g(0.6), fontSize: 13, fontWeight: FontWeight.w600)),
+              Text('Πόση ώρα να είναι ενεργό το αίτημα;', style: TextStyle(color: _g(0.6), fontSize: 13, fontWeight: FontWeight.w600)),
             ]),
             const SizedBox(height: 8),
             Row(children: _requestDurationOptions.map((opt) {
