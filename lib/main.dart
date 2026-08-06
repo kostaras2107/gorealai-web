@@ -457,33 +457,28 @@ const List<Map<String, Object>> _requestDurationOptions = [
   {'label': '24 ώρες', 'minutes': 1440},
 ];
 
-// Μορφοποιεί μια εναπομένουσα διάρκεια για countdown UI. Κάτω από 1 ώρα
-// δείχνει λεπτά:δευτερόλεπτα (όπως πάντα)· από 1 ώρα και πάνω δείχνει
-// ώρες+λεπτά, ώστε ένα 24ωρο αίτημα να μη δείχνει π.χ. "1439:59".
+// Μορφοποιεί μια εναπομένουσα διάρκεια για countdown UI. Πάντα δείχνει
+// δευτερόλεπτα που κυλάνε (ώστε να φαίνεται ζωντανό ανά πάσα στιγμή, ακόμα
+// και σε 24ωρο αίτημα) — κάτω από 1 ώρα: "λλ:δδ", από 1 ώρα και πάνω:
+// "Χω λλ:δδ" (όχι raw λεπτά, ώστε ένα 24ωρο να μη δείχνει π.χ. "1439:59").
 String _formatCountdown(Duration d) {
   if (d.isNegative) return 'Έληξε';
-  if (d.inHours >= 1) {
-    final h = d.inHours;
-    final m = d.inMinutes % 60;
-    return '${h}ω ${m.toString().padLeft(2, '0')}λ';
-  }
-  final m = d.inMinutes;
-  final s = d.inSeconds % 60;
-  return '$m:${s.toString().padLeft(2, '0')}';
+  final m = (d.inMinutes % 60).toString().padLeft(2, '0');
+  final s = (d.inSeconds % 60).toString().padLeft(2, '0');
+  if (d.inHours >= 1) return '${d.inHours}ω $m:$s';
+  return '${d.inMinutes}:$s';
 }
 
 // Ίδιο με το _formatCountdown αλλά με "λ"/"δ" ετικέτες αντί για ":" —
 // ταιριάζει στο στυλ των μικρών badge/chip εμφανίσεων.
 String _formatCountdownLabeled(Duration d) {
   if (d.isNegative) return 'Έληξε';
+  final s = (d.inSeconds % 60).toString().padLeft(2, '0');
   if (d.inHours >= 1) {
-    final h = d.inHours;
-    final m = d.inMinutes % 60;
-    return '${h}ω ${m}λ';
+    final m = (d.inMinutes % 60).toString().padLeft(2, '0');
+    return '${d.inHours}ω ${m}λ ${s}δ';
   }
-  final m = d.inMinutes;
-  final s = d.inSeconds % 60;
-  return '${m}λ ${s.toString().padLeft(2, '0')}δ';
+  return '${d.inMinutes}λ ${s}δ';
 }
 
 String _toVocative(String? fullName) {
@@ -8521,6 +8516,24 @@ Future<void> _notifyProsDirectly(
                         selected: _selectedCriteria == 'fast',
                         onTap: () => setState(() => _selectedCriteria = 'fast')),
                   ]),
+                  const SizedBox(height: 8),
+                  Row(children: [
+                    _CriteriaChip(emoji: '📷', label: 'Με φωτο',
+                        selected: _filterWithPhoto,
+                        onTap: () => setState(() => _filterWithPhoto = !_filterWithPhoto)),
+                    const SizedBox(width: 8),
+                    _CriteriaChip(emoji: '4★+', label: '4+',
+                        selected: _filterMinRating == 4.0,
+                        onTap: () => setState(() => _filterMinRating = _filterMinRating == 4.0 ? 0.0 : 4.0)),
+                    const SizedBox(width: 8),
+                    _CriteriaChip(emoji: '4.5★', label: '4.5+',
+                        selected: _filterMinRating == 4.5,
+                        onTap: () => setState(() => _filterMinRating = _filterMinRating == 4.5 ? 0.0 : 4.5)),
+                    const SizedBox(width: 8),
+                    _CriteriaChip(emoji: '✓', label: 'Verified',
+                        selected: _filterVerifiedOnly,
+                        onTap: () => setState(() => _filterVerifiedOnly = !_filterVerifiedOnly)),
+                  ]),
                   const SizedBox(height: 14),
                   Row(children: [
                     const Text('⏱️', style: TextStyle(fontSize: 12)),
@@ -8543,24 +8556,6 @@ Future<void> _notifyProsDirectly(
                         onTap: () => setState(() => _durationMinutes = _requestDurationOptions[i]['minutes'] as int),
                       ),
                     ],
-                  ]),
-                  const SizedBox(height: 8),
-                  Row(children: [
-                    _CriteriaChip(emoji: '📷', label: 'Με φωτο',
-                        selected: _filterWithPhoto,
-                        onTap: () => setState(() => _filterWithPhoto = !_filterWithPhoto)),
-                    const SizedBox(width: 8),
-                    _CriteriaChip(emoji: '4★+', label: '4+',
-                        selected: _filterMinRating == 4.0,
-                        onTap: () => setState(() => _filterMinRating = _filterMinRating == 4.0 ? 0.0 : 4.0)),
-                    const SizedBox(width: 8),
-                    _CriteriaChip(emoji: '4.5★', label: '4.5+',
-                        selected: _filterMinRating == 4.5,
-                        onTap: () => setState(() => _filterMinRating = _filterMinRating == 4.5 ? 0.0 : 4.5)),
-                    const SizedBox(width: 8),
-                    _CriteriaChip(emoji: '✓', label: 'Verified',
-                        selected: _filterVerifiedOnly,
-                        onTap: () => setState(() => _filterVerifiedOnly = !_filterVerifiedOnly)),
                   ]),
                   const SizedBox(height: 10),
                   Row(mainAxisAlignment: MainAxisAlignment.center, children: [
