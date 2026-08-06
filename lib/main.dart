@@ -449,6 +449,43 @@ bool _matchesProfession(Iterable<String> proSpecialties, String reqProfession, {
   return specs.any((s) => s.contains(req) || req.contains(s));
 }
 
+// Διαθέσιμες διάρκειες countdown για αιτήματα (κλασικά + G/εκδηλώσεις).
+// Ώρες σε λεπτά, ώστε να μπαίνουν κατευθείαν σε Duration(minutes: ...).
+const List<Map<String, Object>> _requestDurationOptions = [
+  {'label': '1 ώρα', 'minutes': 60},
+  {'label': '4 ώρες', 'minutes': 240},
+  {'label': '24 ώρες', 'minutes': 1440},
+];
+
+// Μορφοποιεί μια εναπομένουσα διάρκεια για countdown UI. Κάτω από 1 ώρα
+// δείχνει λεπτά:δευτερόλεπτα (όπως πάντα)· από 1 ώρα και πάνω δείχνει
+// ώρες+λεπτά, ώστε ένα 24ωρο αίτημα να μη δείχνει π.χ. "1439:59".
+String _formatCountdown(Duration d) {
+  if (d.isNegative) return 'Έληξε';
+  if (d.inHours >= 1) {
+    final h = d.inHours;
+    final m = d.inMinutes % 60;
+    return '${h}ω ${m.toString().padLeft(2, '0')}λ';
+  }
+  final m = d.inMinutes;
+  final s = d.inSeconds % 60;
+  return '$m:${s.toString().padLeft(2, '0')}';
+}
+
+// Ίδιο με το _formatCountdown αλλά με "λ"/"δ" ετικέτες αντί για ":" —
+// ταιριάζει στο στυλ των μικρών badge/chip εμφανίσεων.
+String _formatCountdownLabeled(Duration d) {
+  if (d.isNegative) return 'Έληξε';
+  if (d.inHours >= 1) {
+    final h = d.inHours;
+    final m = d.inMinutes % 60;
+    return '${h}ω ${m}λ';
+  }
+  final m = d.inMinutes;
+  final s = d.inSeconds % 60;
+  return '${m}λ ${s.toString().padLeft(2, '0')}δ';
+}
+
 String _toVocative(String? fullName) {
   if (fullName == null || fullName.isEmpty) return '';
   // First name only
@@ -2173,6 +2210,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
           'desc': d['description'] ?? '',
           'criteria': d['criteria'] ?? 'cheap',
           'expiresAt': d['expiresAt'],
+          'createdAt': d['createdAt'],
         };
       }).toList();
 
@@ -2396,13 +2434,9 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
               try {
                 final exp = (req['expiresAt'] as dynamic).toDate() as DateTime;
                 final diff = exp.difference(DateTime.now());
-                if (diff.isNegative) {
-                  timeLeft = 'Έληξε';
-                } else {
-                  final m = diff.inMinutes;
-                  final s = diff.inSeconds % 60;
-                  timeLeft = '${m}:${s.toString().padLeft(2, '0')} απομένουν';
-                }
+                timeLeft = diff.isNegative
+                    ? 'Έληξε'
+                    : '${_formatCountdown(diff)} απομένουν';
               } catch (_) {}
             }
             return GestureDetector(
@@ -3354,6 +3388,7 @@ class _ActiveRequestHeroCardState extends State<_ActiveRequestHeroCard> {
   Timer? _timer;
   // Track seconds left per request
   final Map<String, int> _secondsLeft = {};
+  final Map<String, int> _totalSeconds = {};
   int _offersCount = 0;
   int _prosNotified = 0;
 
@@ -3380,11 +3415,20 @@ class _ActiveRequestHeroCardState extends State<_ActiveRequestHeroCard> {
           final expDate = (exp as dynamic).toDate() as DateTime;
           final diff = expDate.difference(DateTime.now()).inSeconds;
           _secondsLeft[req['id']] = diff > 0 ? diff : 0;
+          // Συνολική διάρκεια (για το progress ring) από createdAt→expiresAt,
+          // ώστε να δουλεύει σωστά με οποιαδήποτε επιλεγμένη διάρκεια
+          // (1/4/24 ώρες), όχι μόνο με το παλιό σταθερό 1ωρο.
+          final createdTs = req['createdAt'];
+          final createdDate = createdTs != null ? (createdTs as dynamic).toDate() as DateTime? : null;
+          final total = createdDate != null ? expDate.difference(createdDate).inSeconds : diff;
+          _totalSeconds[req['id']] = total > 0 ? total : (diff > 0 ? diff : 60 * 60);
         } catch (_) {
           _secondsLeft[req['id']] = 60 * 60;
+          _totalSeconds[req['id']] = 60 * 60;
         }
       } else {
         _secondsLeft[req['id']] = 0;
+        _totalSeconds[req['id']] = 60 * 60;
       }
     }
   }
@@ -3414,18 +3458,14 @@ class _ActiveRequestHeroCardState extends State<_ActiveRequestHeroCard> {
     super.dispose();
   }
 
-  String _fmt(int secs) {
-    final m = (secs ~/ 60).toString().padLeft(2, '0');
-    final s = (secs % 60).toString().padLeft(2, '0');
-    return '$m:$s';
-  }
+  String _fmt(int secs) => _formatCountdown(Duration(seconds: secs));
 
   @override
   Widget build(BuildContext context) {
     final req = widget.requests.first;
     final secs = _secondsLeft[req['id']] ?? 0;
-    final totalSecs = 60 * 60;
-    final progress = secs / totalSecs;
+    final totalSecs = _totalSeconds[req['id']] ?? (60 * 60);
+    final progress = totalSecs > 0 ? secs / totalSecs : 0.0;
     final isCompleted = req['status'] == 'completed';
 
     return GestureDetector(
@@ -3491,7 +3531,7 @@ class _ActiveRequestHeroCardState extends State<_ActiveRequestHeroCard> {
                     Text(_fmt(secs), style: const TextStyle(
                         fontFamily: 'Inter', fontSize: 14,
                         fontWeight: FontWeight.w800, color: kGold, letterSpacing: 1)),
-                    Text('λεπτά', style: TextStyle(fontSize: 7, color: _g(0.4))),
+                    Text('απομένουν', style: TextStyle(fontSize: 7, color: _g(0.4))),
                   ]),
                 ]),
               ),
@@ -6371,11 +6411,7 @@ class _ProfessionalHomeScreenState extends State<ProfessionalHomeScreen> {
             final remaining = expiresAt != null
                 ? expiresAt.toDate().difference(now)
                 : null;
-            final remainingStr = remaining != null && remaining.isNegative
-                ? 'Έληξε'
-                : remaining != null
-                    ? '${remaining.inMinutes}λ ${(remaining.inSeconds % 60).toString().padLeft(2, '0')}δ'
-                    : '';
+            final remainingStr = remaining != null ? _formatCountdownLabeled(remaining) : '';
             final offersCountInCard = d['offersCount'] as int? ?? 0;
             return Container(
               margin: const EdgeInsets.only(bottom: 14),
@@ -7610,6 +7646,7 @@ class _RequestScreenState extends State<RequestScreen>
   bool _filterWithPhoto = false;
   double _filterMinRating = 0.0;
   bool _filterVerifiedOnly = false;
+  int _durationMinutes = 60;
   final List<XFile> _images = [];
   XFile? _video;
   final _picker = ImagePicker();
@@ -7874,7 +7911,7 @@ class _RequestScreenState extends State<RequestScreen>
         'offersCount': 0,
         'createdAt': FieldValue.serverTimestamp(),
         'expiresAt': Timestamp.fromDate(
-            DateTime.now().add(const Duration(hours: 1))),
+            DateTime.now().add(Duration(minutes: _durationMinutes))),
         'imageCount': _images.length,
         'filterWithPhoto': _filterWithPhoto,
         'filterMinRating': _filterMinRating,
@@ -8484,6 +8521,28 @@ Future<void> _notifyProsDirectly(
                         selected: _selectedCriteria == 'fast',
                         onTap: () => setState(() => _selectedCriteria = 'fast')),
                   ]),
+                  const SizedBox(height: 14),
+                  Row(children: [
+                    const Text('⏱️', style: TextStyle(fontSize: 12)),
+                    const SizedBox(width: 6),
+                    Text('Πόση ώρα να περιμένουν οι επαγγελματίες;',
+                        style: TextStyle(fontSize: 11,
+                            color: _g(0.5),
+                            fontWeight: FontWeight.w600)),
+                  ]),
+                  const SizedBox(height: 10),
+                  Row(children: _requestDurationOptions.map((opt) {
+                    final mins = opt['minutes'] as int;
+                    return Padding(
+                      padding: EdgeInsets.only(right: opt == _requestDurationOptions.last ? 0 : 8),
+                      child: _CriteriaChip(
+                        emoji: mins == 60 ? '⚡' : mins == 240 ? '🕓' : '📅',
+                        label: opt['label'] as String,
+                        selected: _durationMinutes == mins,
+                        onTap: () => setState(() => _durationMinutes = mins),
+                      ),
+                    );
+                  }).toList()),
                   const SizedBox(height: 8),
                   Row(children: [
                     _CriteriaChip(emoji: '📷', label: 'Με φωτο',
@@ -8541,6 +8600,7 @@ class _WaitingScreenState extends State<WaitingScreen>
     with TickerProviderStateMixin {
   Timer? _timer;
   int _secondsLeft = 15 * 60;
+  int _totalSeconds = 15 * 60;
   int _offersCount = 0;
   int _prosNotified = 0;
   List<String> _notifiedProNames = [];
@@ -8569,7 +8629,17 @@ class _WaitingScreenState extends State<WaitingScreen>
           _goToOffers();
           return;
         }
-        setState(() => _secondsLeft = diff);
+        // Συνολική διάρκεια για το progress ring — από το createdAt αν
+        // υπάρχει (ακριβές), αλλιώς το ίδιο diff σαν προσέγγιση (η οθόνη
+        // ανοίγει σχεδόν αμέσως μετά τη δημιουργία του αιτήματος).
+        final createdAtTs = data['createdAt'] as Timestamp?;
+        final total = createdAtTs != null
+            ? expiresAt.difference(createdAtTs.toDate()).inSeconds
+            : diff;
+        setState(() {
+          _secondsLeft = diff;
+          _totalSeconds = total > 0 ? total : diff;
+        });
       }
     } catch (_) {}
     _startTimer();
@@ -8716,13 +8786,9 @@ class _WaitingScreenState extends State<WaitingScreen>
     super.dispose();
   }
 
-  String get _timeStr {
-    final m = (_secondsLeft ~/ 60).toString().padLeft(2, '0');
-    final s = (_secondsLeft % 60).toString().padLeft(2, '0');
-    return '$m:$s';
-  }
+  String get _timeStr => _formatCountdown(Duration(seconds: _secondsLeft));
 
-  double get _progress => _secondsLeft / (15 * 60);
+  double get _progress => _totalSeconds > 0 ? _secondsLeft / _totalSeconds : 0;
 
   @override
   Widget build(BuildContext context) {
@@ -15134,6 +15200,7 @@ class _EventFormSheetState extends State<_EventFormSheet> {
   String? _location;
   double _people = 50;
   double _budget = 3000;
+  int _durationMinutes = 60;
   final _detailsCtrl = TextEditingController();
   bool _sending = false;
 
@@ -15182,7 +15249,7 @@ class _EventFormSheetState extends State<_EventFormSheet> {
         'status': 'active',
         'offersCount': 0,
         'createdAt': FieldValue.serverTimestamp(),
-        'expiresAt': Timestamp.fromDate(DateTime.now().add(const Duration(hours: 1))),
+        'expiresAt': Timestamp.fromDate(DateTime.now().add(Duration(minutes: _durationMinutes))),
         'imageCount': 0,
         'eventType': widget.eventType,
       });
@@ -15288,6 +15355,38 @@ class _EventFormSheetState extends State<_EventFormSheet> {
               value: _location,
               onChanged: (v) => setState(() => _location = v),
             ),
+            const SizedBox(height: 16),
+
+            // Διάρκεια countdown
+            Row(children: [
+              Text('⏱️ ', style: const TextStyle(fontSize: 14)),
+              Text('Πόση ώρα να περιμένουν οι επαγγελματίες;', style: TextStyle(color: _g(0.6), fontSize: 13, fontWeight: FontWeight.w600)),
+            ]),
+            const SizedBox(height: 8),
+            Row(children: _requestDurationOptions.map((opt) {
+              final mins = opt['minutes'] as int;
+              return Expanded(
+                child: Padding(
+                  padding: EdgeInsets.only(right: opt == _requestDurationOptions.last ? 0 : 8),
+                  child: GestureDetector(
+                    onTap: () => setState(() => _durationMinutes = mins),
+                    child: AnimatedContainer(
+                      duration: const Duration(milliseconds: 150),
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(14),
+                        color: _durationMinutes == mins ? kGold.withValues(alpha: 0.15) : _g(0.04),
+                        border: Border.all(color: _durationMinutes == mins ? kGold : _g(0.1)),
+                      ),
+                      child: Center(child: Text(opt['label'] as String,
+                          style: TextStyle(
+                              color: _durationMinutes == mins ? kGold : _g(0.5),
+                              fontSize: 12, fontWeight: FontWeight.w700))),
+                    ),
+                  ),
+                ),
+              );
+            }).toList()),
             const SizedBox(height: 16),
 
             // Αριθμός ατόμων
