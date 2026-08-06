@@ -3527,9 +3527,15 @@ class _ActiveRequestHeroCardState extends State<_ActiveRequestHeroCard> {
                   SizedBox(width: 70, height: 70,
                       child: CustomPaint(painter: _RingPainter(progress: progress))),
                   Column(mainAxisSize: MainAxisSize.min, children: [
-                    Text(_fmt(secs), style: const TextStyle(
-                        fontFamily: 'Inter', fontSize: 14,
-                        fontWeight: FontWeight.w800, color: kGold, letterSpacing: 1)),
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 6),
+                      child: FittedBox(
+                        fit: BoxFit.scaleDown,
+                        child: Text(_fmt(secs), style: const TextStyle(
+                            fontFamily: 'Inter', fontSize: 14,
+                            fontWeight: FontWeight.w800, color: kGold)),
+                      ),
+                    ),
                     Text('απομένουν', style: TextStyle(fontSize: 7, color: _g(0.4))),
                   ]),
                 ]),
@@ -8882,13 +8888,18 @@ class _WaitingScreenState extends State<WaitingScreen>
                             painter:
                                 _RingPainter(progress: _progress))),
                     Column(mainAxisSize: MainAxisSize.min, children: [
-                      Text(_timeStr,
-                          style: const TextStyle(
-                              fontFamily: 'Inter',
-                              fontSize: 32,
-                              fontWeight: FontWeight.w800,
-                              color: kGold,
-                              letterSpacing: 2)),
+                      Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 12),
+                        child: FittedBox(
+                          fit: BoxFit.scaleDown,
+                          child: Text(_timeStr,
+                              style: const TextStyle(
+                                  fontFamily: 'Inter',
+                                  fontSize: 32,
+                                  fontWeight: FontWeight.w800,
+                                  color: kGold)),
+                        ),
+                      ),
                       const SizedBox(height: 2),
                       Text('απομένουν',
                           style: TextStyle(
