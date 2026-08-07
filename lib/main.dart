@@ -14002,15 +14002,11 @@ class _NearbyProsSectionState extends State<_NearbyProsSection> {
             ((d['yearsExperience'] as num?) ?? 0) > 0,
           ];
           final completed = fields.where((f) => f).length;
-          // Στο 2/6 μπαίνει επίσης αν έχει φωτογραφίες portfolio — δείχνει
-          // πραγματική δουλειά ακόμα κι αν δεν έχει συμπληρώσει όλο το Mini CV.
-          // Δεν αρκεί να υπάρχει ένα portfolio project — πρέπει να έχει
-          // όντως φωτογραφίες μέσα του (μπορεί κάποιος να έφτιαξε project
-          // αλλά να μην ολοκλήρωσε ποτέ το ανέβασμα φωτογραφιών).
-          final projects = (d['portfolioProjects'] as List?) ?? [];
-          final hasPortfolio = projects.any((p) =>
-              p is Map && (p['photos'] as List?)?.isNotEmpty == true);
-          return completed >= 3 || (completed >= 2 && hasPortfolio);
+          // Στο 2/6 μπαίνει επίσης αν έχει φωτογραφία προφίλ — δείχνει
+          // πραγματικό πρόσωπο/επιχείρηση ακόμα κι αν δεν έχει συμπληρώσει
+          // όλο το Mini CV.
+          final hasProfilePhoto = (d['profilePhotoUrl'] as String? ?? '').isNotEmpty;
+          return completed >= 3 || (completed >= 2 && hasProfilePhoto);
         }).toList();
         if (!snap.hasData) return const SizedBox(height: 260);
         if (docs.isEmpty) return const SizedBox(height: 260);
