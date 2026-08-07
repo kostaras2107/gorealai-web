@@ -2201,7 +2201,16 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
         .snapshots()
         .listen((snap) {
       if (!mounted) return;
-      final activeReqs = snap.docs.map((doc) {
+      final now = DateTime.now();
+      final activeReqs = snap.docs
+          .where((doc) {
+            // Το status δεν αλλάζει ποτέ αυτόματα μετά τη λήξη — απόκρυψε
+            // εδώ ό,τι έχει ήδη λήξει χρονικά, ώστε να μη μένει για πάντα
+            // σαν "ενεργό αίτημα" στην αρχική οθόνη.
+            final expiresAt = doc.data()['expiresAt'] as Timestamp?;
+            return expiresAt == null || expiresAt.toDate().isAfter(now);
+          })
+          .map((doc) {
         final d = doc.data();
         return {
           'id': doc.id,
@@ -7887,7 +7896,10 @@ class _RequestScreenState extends State<RequestScreen>
       return;
     }
     _submitLock = true;
-    // Έλεγξε αν υπάρχουν ήδη 2 ενεργά αιτήματα
+    // Έλεγξε αν υπάρχουν ήδη 2 ενεργά αιτήματα — εξαιρώντας όσα έχουν ήδη
+    // λήξει χρονικά (το status δεν αλλάζει ποτέ αυτόματα σε κάτι άλλο μετά
+    // τη λήξη, οπότε ένα ξεχασμένο ληγμένο αίτημα θα μπλόκαρε μόνιμα τον
+    // πελάτη από νέα αιτήματα αν το μετρούσαμε).
     final user = FirebaseAuth.instance.currentUser;
     if (user != null) {
       final existing = await FirebaseFirestore.instance
@@ -7895,7 +7907,12 @@ class _RequestScreenState extends State<RequestScreen>
           .where('userId', isEqualTo: user.uid)
           .where('status', isEqualTo: 'active')
           .get();
-      if (existing.docs.length >= 2) {
+      final now = DateTime.now();
+      final stillLive = existing.docs.where((doc) {
+        final expiresAt = doc.data()['expiresAt'] as Timestamp?;
+        return expiresAt == null || expiresAt.toDate().isAfter(now);
+      }).length;
+      if (stillLive >= 2) {
         ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(content: Text('Μπορείς να έχεις μέχρι 2 ενεργά αιτήματα!')));
         return;
