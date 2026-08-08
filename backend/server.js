@@ -298,6 +298,77 @@ app.post('/booking-response', rateLimit(20, 60_000), async (req, res) => {
   res.json({ success: true, bookingId, action, results });
 });
 
+// ── Smart offer ranking ──────────────────────────────────────────
+// GET /get-offers/:requestId
+// Επιστρέφει τις 3 καλύτερες προσφορές, με κατάταξη που εξαρτάται από το
+// κριτήριο που επέλεξε ο πελάτης όταν έστειλε το αίτημα (criteria:
+// 'cheap' | 'value' | 'fast') — όχι απλά "ό,τι είναι φθηνότερο" πάντα.
+// - cheap: κυρίως τιμή (φθηνότερα πρώτα), rating σαν tie-breaker
+// - value: ισορροπία τιμής/rating/verified — καλύτερη σχέση ποιότητας-τιμής
+// - fast: κυρίως διαθεσιμότητα (σήμερα > αύριο > αργότερα), rating δεύτερο
+app.get('/get-offers/:requestId', rateLimit(60, 60_000), async (req, res) => {
+  const { requestId } = req.params;
+  if (!firebaseReady) return res.json({ offers: [] });
+  try {
+    const reqDoc = await admin.firestore().collection('requests').doc(requestId).get();
+    const criteria = reqDoc.exists ? (reqDoc.data().criteria || 'cheap') : 'cheap';
+
+    const offersSnap = await admin.firestore().collection('offers')
+      .where('requestId', '==', requestId).limit(50).get();
+    if (offersSnap.empty) return res.json({ offers: [], criteria });
+
+    const offers = await Promise.all(offersSnap.docs.map(async doc => {
+      const o = { id: doc.id, ...doc.data() };
+      if (o.professionalId) {
+        try {
+          const proDoc = await admin.firestore().collection('professionals').doc(o.professionalId).get();
+          if (proDoc.exists) {
+            const p = proDoc.data();
+            o.rating = (typeof p.averageRating === 'number') ? p.averageRating : (o.rating || 0);
+            o.reviewCount = p.reviewCount || 0;
+            o.verified = !!(p.afm && String(p.afm).trim());
+          }
+        } catch (_) {}
+      }
+      return o;
+    }));
+
+    const availabilityRank = (avail) => {
+      const a = (avail || '').toLowerCase();
+      if (a.includes('σήμερα')) return 3;
+      if (a.includes('αύριο')) return 2;
+      return 1;
+    };
+
+    const scored = offers.map(o => {
+      const hasPrice = !o.priceAfterVisit && typeof o.price === 'number' && o.price > 0;
+      const price = hasPrice ? o.price : null;
+      const rating = typeof o.rating === 'number' ? o.rating : 0;
+      let score;
+      if (criteria === 'fast') {
+        score = availabilityRank(o.availableFrom) * 1000 + rating * 10 - (price != null ? price * 0.05 : 0);
+      } else if (criteria === 'value') {
+        const normPrice = price != null ? Math.max(price, 1) : 300; // ουδέτερη υπόθεση αν "τιμή μετά από αυτοψία"
+        score = (rating * 200) - normPrice + (o.verified ? 50 : 0);
+      } else {
+        // 'cheap' (default) — κυρίως τιμή, rating σαν tie-breaker.
+        // "Τιμή μετά από αυτοψία" (χωρίς σταθερή τιμή) πάει τελευταία εδώ,
+        // αφού ο πελάτης ζήτησε ρητά το φθηνότερο συγκεκριμένο νούμερο.
+        score = (price != null ? -price : -999999) + rating * 5;
+      }
+      return { ...o, _score: score };
+    });
+
+    scored.sort((a, b) => b._score - a._score);
+    const top = scored.slice(0, 3).map(({ _score, ...rest }) => rest);
+
+    res.json({ offers: top, criteria, totalOffers: offers.length });
+  } catch (e) {
+    console.error('get-offers error:', e.message);
+    res.status(500).json({ offers: [] });
+  }
+});
+
 // ── New Offer notification ────────────────────────────────────────
 // POST /new-offer
 // Body: { userEmail, userName, userFcmToken, proName, price, requestDesc }
