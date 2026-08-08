@@ -14137,8 +14137,6 @@ class _NearbyProsSectionState extends State<_NearbyProsSection> {
                             Row(children: [
                               Text(rating > 0 ? '⭐ ${rating.toStringAsFixed(1)}' : (isNew ? '⭐ Νέος' : '⭐ —'),
                                   style: const TextStyle(color: kGold, fontSize: 10, fontWeight: FontWeight.w600)),
-                              const Spacer(),
-                              Text('~30λ', style: TextStyle(color: _g(0.5), fontSize: 9)),
                             ]),
                           ]),
                         ),
