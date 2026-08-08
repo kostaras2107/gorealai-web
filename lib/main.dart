@@ -9277,6 +9277,33 @@ class _RingPainter extends CustomPainter {
 // ═══════════════════════════════════════
 // OFFERS SCREEN — Βήμα 3
 // ═══════════════════════════════════════
+// Ίδια λογική scoring με το backend (/get-offers/:requestId) — χρησιμοποιείται
+// μόνο ως fallback αν το endpoint δεν απαντήσει, ώστε να σέβεται το criteria
+// αντί για απλή ταξινόμηση με τιμή.
+double _offerAvailabilityRank(dynamic avail) {
+  final a = (avail ?? '').toString().toLowerCase();
+  if (a.contains('σήμερα')) return 3;
+  if (a.contains('αύριο')) return 2;
+  return 1;
+}
+
+double _offerScore(Map<String, dynamic> o, String criteria) {
+  final hasPrice =
+      o['priceAfterVisit'] != true && (o['price'] is num) && (o['price'] as num) > 0;
+  final price = hasPrice ? (o['price'] as num).toDouble() : null;
+  final rating = (o['rating'] is num) ? (o['rating'] as num).toDouble() : 0.0;
+  final verified = o['verified'] == true;
+  if (criteria == 'fast') {
+    return _offerAvailabilityRank(o['availableFrom']) * 1000 +
+        rating * 10 -
+        (price != null ? price * 0.05 : 0);
+  } else if (criteria == 'value') {
+    final normPrice = price != null ? (price < 1 ? 1 : price) : 300.0;
+    return (rating * 200) - normPrice + (verified ? 50 : 0);
+  }
+  return (price != null ? -price : -999999.0) + rating * 5;
+}
+
 class OffersScreen extends StatefulWidget {
   final String requestId, userId, description, criteria;
   const OffersScreen(
@@ -9392,13 +9419,18 @@ class _OffersScreenState extends State<OffersScreen>
           if (proId == null || proId.isEmpty) return;
           try {
             final proDoc = await FirebaseFirestore.instance.collection('professionals').doc(proId).get();
-            if (proDoc.exists) o['rating'] = _combinedRating(proDoc.data()!);
+            if (proDoc.exists) {
+              final p = proDoc.data()!;
+              o['rating'] = _combinedRating(p);
+              o['verified'] = (p['afm'] ?? '').toString().trim().isNotEmpty;
+            }
           } catch (_) {}
         }));
         if (mounted) {
           setState(() {
-            final sorted = rawOffers
-              ..sort((a, b) => ((a['price'] ?? 0) as num).compareTo((b['price'] ?? 0) as num));
+            final sorted = rawOffers.toList()
+              ..sort((a, b) =>
+                  _offerScore(b, widget.criteria).compareTo(_offerScore(a, widget.criteria)));
             _offers = sorted.take(3).toList();
             _loading = false;
           });
