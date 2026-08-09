@@ -2820,7 +2820,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                   onTap: _openMyOffers,
                   onNewRequest: _openRequest,
                 )
-              : _EmptyHeroCard(onTap: _openRequest),
+              : _EmptyHeroCard(onTap: _openRequest, isPro: _isPro),
         ),
         const SizedBox(height: 28),
 
@@ -3315,7 +3315,8 @@ class _LiveActivityFeedState extends State<_LiveActivityFeed>
 // ── Empty Hero Card (no active requests) ──
 class _EmptyHeroCard extends StatelessWidget {
   final VoidCallback onTap;
-  const _EmptyHeroCard({required this.onTap});
+  final bool isPro;
+  const _EmptyHeroCard({required this.onTap, this.isPro = false});
   @override
   Widget build(BuildContext context) => GestureDetector(
     onTap: onTap,
@@ -3354,14 +3355,18 @@ class _EmptyHeroCard extends StatelessWidget {
               ])),
         ]),
         const SizedBox(height: 18),
-        const Text('Γνωρίζεις την ανάγκη σου;',
-            style: TextStyle(fontFamily: 'Inter', fontSize: 28,
+        Text(isPro ? 'Χρειάζεσαι έναν άλλον επαγγελματία;' : 'Γνωρίζεις την ανάγκη σου;',
+            style: const TextStyle(fontFamily: 'Inter', fontSize: 28,
                 fontWeight: FontWeight.w800, color: Colors.white, height: 1.2)),
         const SizedBox(height: 8),
-        Text('Περίγραψέ την και οι επαγγελματίες θα ανταγωνιστούν για σένα.',
+        Text(isPro
+              ? 'Αν χρειάζεσαι εσύ κάποιον άλλον επαγγελματία, περίγραψέ το και θα ανταγωνιστούν για σένα.'
+              : 'Περίγραψέ την και οι επαγγελματίες θα ανταγωνιστούν για σένα.',
             style: TextStyle(fontSize: 13, color: _g(0.7), fontWeight: FontWeight.w600, height: 1.4)),
         const SizedBox(height: 6),
-        Text('Στείλε αίτημα → το AI ειδοποιεί επαγγελματίες ή συνεργεία → παίρνεις τις 3 καλύτερες προσφορές σε 1 ώρα.',
+        Text(isPro
+              ? 'Οι πελάτες σε βρίσκουν αυτόματα μέσω του προφίλ σου — δεν χρειάζεται να στείλεις αίτημα για αυτό.'
+              : 'Στείλε αίτημα → το AI ειδοποιεί επαγγελματίες ή συνεργεία → παίρνεις τις 3 καλύτερες προσφορές σε 1 ώρα.',
             style: TextStyle(fontSize: 12, color: _g(0.5), height: 1.5)),
         const SizedBox(height: 20),
         Container(
