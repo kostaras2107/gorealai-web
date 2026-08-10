@@ -12989,7 +12989,7 @@ const List<Map<String, dynamic>> _specialtyCategories = [
   },
   {
     'category': 'Ομορφιά & Αισθητική',
-    'items': ['Tattoo Artist', 'Τεχνίτρια Νυχιών']
+    'items': ['Makeup Artist', 'Tattoo Artist', 'Τεχνίτρια Νυχιών']
   },
   {
     'category': 'Άλλα',
