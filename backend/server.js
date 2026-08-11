@@ -363,11 +363,16 @@ app.get('/get-offers/:requestId', rateLimit(60, 60_000), async (req, res) => {
         // αφού ο πελάτης ζήτησε ρητά το φθηνότερο συγκεκριμένο νούμερο.
         score = (price != null ? -price : -999999) + rating * 5 + tieBreak;
       }
-      return { ...o, _score: score };
+      const createdAtMs = o.createdAt && typeof o.createdAt.toMillis === 'function'
+        ? o.createdAt.toMillis() : Infinity;
+      return { ...o, _score: score, _createdAtMs: createdAtMs };
     });
 
-    scored.sort((a, b) => b._score - a._score);
-    const top = scored.slice(0, 3).map(({ _score, ...rest }) => rest);
+    // Αν δύο προσφορές ισοπαλήσουν ακριβώς σε score (π.χ. όλοι καινούριοι,
+    // χωρίς reviews, χωρίς verified, όλοι "τιμή μετά από αυτοψία"), κερδίζει
+    // όποιος έστειλε προσφορά πρώτος — πάντα διαθέσιμο, δίκαιο σήμα ταχύτητας.
+    scored.sort((a, b) => b._score - a._score || a._createdAtMs - b._createdAtMs);
+    const top = scored.slice(0, 3).map(({ _score, _createdAtMs, ...rest }) => rest);
 
     res.json({ offers: top, criteria, totalOffers: offers.length });
   } catch (e) {
