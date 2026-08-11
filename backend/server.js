@@ -344,17 +344,24 @@ app.get('/get-offers/:requestId', rateLimit(60, 60_000), async (req, res) => {
       const hasPrice = !o.priceAfterVisit && typeof o.price === 'number' && o.price > 0;
       const price = hasPrice ? o.price : null;
       const rating = typeof o.rating === 'number' ? o.rating : 0;
+      // Όταν πολλές προσφορές είναι όλες "τιμή μετά από αυτοψία" (χωρίς
+      // σταθερό νούμερο), το rating μόνο του συχνά ισοπαλεί (πολλοί
+      // καινούριοι επαγγελματίες με 0 reviews) — αυτό δίνει μια αλυσίδα
+      // tie-breakers ώστε να μην καταλήγει σε τυχαία σειρά: rating →
+      // αριθμός αξιολογήσεων (πόσο αξιόπιστο είναι το rating) → verified.
+      const reviewCount = typeof o.reviewCount === 'number' ? o.reviewCount : 0;
+      const tieBreak = Math.log10(reviewCount + 1) * 3 + (o.verified ? 1 : 0);
       let score;
       if (criteria === 'fast') {
-        score = availabilityRank(o.availableFrom) * 1000 + rating * 10 - (price != null ? price * 0.05 : 0);
+        score = availabilityRank(o.availableFrom) * 1000 + rating * 10 - (price != null ? price * 0.05 : 0) + tieBreak;
       } else if (criteria === 'value') {
         const normPrice = price != null ? Math.max(price, 1) : 300; // ουδέτερη υπόθεση αν "τιμή μετά από αυτοψία"
-        score = (rating * 200) - normPrice + (o.verified ? 50 : 0);
+        score = (rating * 200) - normPrice + (o.verified ? 50 : 0) + tieBreak;
       } else {
         // 'cheap' (default) — κυρίως τιμή, rating σαν tie-breaker.
         // "Τιμή μετά από αυτοψία" (χωρίς σταθερή τιμή) πάει τελευταία εδώ,
         // αφού ο πελάτης ζήτησε ρητά το φθηνότερο συγκεκριμένο νούμερο.
-        score = (price != null ? -price : -999999) + rating * 5;
+        score = (price != null ? -price : -999999) + rating * 5 + tieBreak;
       }
       return { ...o, _score: score };
     });
