@@ -84,6 +84,18 @@ service cloud.firestore {
                     && (resource.data.userId == request.auth.uid || isAdmin());
     }
 
+    // ─── DELETED ACCOUNTS (audit log) ──────────────────────
+    // Written once by a user right before they delete their own account —
+    // the only record left once the users/professionals docs and Auth
+    // account are gone. Write-only for the user (can't read/alter it back),
+    // only the real admin can read the log.
+    match /deletedAccounts/{docId} {
+      allow create: if request.auth != null
+                    && request.resource.data.uid == request.auth.uid;
+      allow read: if isAdmin();
+      allow update, delete: if false;
+    }
+
     // ─── ADMIN ANALYTICS ──────────────────────────────────
     match /admin_analytics/{docId} {
       allow read, write: if isAdmin();

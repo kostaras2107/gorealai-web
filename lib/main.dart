@@ -12356,8 +12356,19 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 final cred = EmailAuthProvider.credential(email: _email!, password: passCtrl.text.trim());
                 await user.reauthenticateWithCredential(cred);
                 final uid = user.uid;
-                // Διαγραφή Firestore docs
                 final fs = FirebaseFirestore.instance;
+                // Ελάχιστο log πριν διαγραφούν όλα τα ίχνη — αλλιώς μετά τη
+                // διαγραφή δεν υπάρχει κανένας τρόπος να μάθουμε ποιος ήταν.
+                try {
+                  await fs.collection('deletedAccounts').add({
+                    'uid': uid,
+                    'name': _name ?? '',
+                    'email': _email ?? '',
+                    'role': _role,
+                    'deletedAt': FieldValue.serverTimestamp(),
+                  });
+                } catch (_) {}
+                // Διαγραφή Firestore docs
                 await fs.collection('users').doc(uid).delete();
                 try { await fs.collection('professionals').doc(uid).delete(); } catch (_) {}
                 // Διαγραφή Auth account
