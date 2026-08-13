@@ -326,7 +326,7 @@ app.get('/get-offers/:requestId', rateLimit(60, 60_000), async (req, res) => {
             const p = proDoc.data();
             o.rating = (typeof p.averageRating === 'number') ? p.averageRating : (o.rating || 0);
             o.reviewCount = p.reviewCount || 0;
-            o.verified = !!(p.afm && String(p.afm).trim());
+            o.verified = p.afmValid === true;
           }
         } catch (_) {}
       }
@@ -825,8 +825,9 @@ app.post('/email-pros-new-request', rateLimit(30, 60_000), async (req, res) => {
         if (areas.length > 0 && !areas.some(a => a.includes(locLower) || locLower.includes(a))) return;
       }
 
-      // Verified-only filter
-      if (filterVerifiedOnly && !(d.afm || '').trim()) return;
+      // Verified-only filter — πρέπει να έχει επιβεβαιωθεί πραγματικά από το
+      // VIES (afmValid), όχι απλά να έχει γραφτεί κάποιο κείμενο στο πεδίο.
+      if (filterVerifiedOnly && d.afmValid !== true) return;
 
       matching.push({ uid, email: d.email, phone: d.phone || '', name: d.displayName || d.name || 'Επαγγελματία' });
     });

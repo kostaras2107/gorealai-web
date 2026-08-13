@@ -2325,8 +2325,9 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
         final pd = proDoc.data() ?? {};
         proPhotoUrl = (pd['profilePhotoUrl'] as String? ?? data['profilePhotoUrl'] as String? ?? '');
         proAvgRating = (pd['averageRating'] as num? ?? data['averageRating'] as num? ?? 0).toDouble();
-        final afm = (pd['afm'] as String? ?? data['afm'] as String? ?? '').trim();
-        proIsVerified = afm.isNotEmpty;
+        // "Verified" σημαίνει ότι το VIES επιβεβαίωσε πραγματικά το ΑΦΜ —
+        // όχι απλά ότι υπάρχει κάποιο κείμενο στο πεδίο.
+        proIsVerified = (pd['afmValid'] ?? data['afmValid']) == true;
       } catch (_) {}
     }
     setState(() {
@@ -2855,7 +2856,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
             _HowItWorksStep(
                 num: '2',
                 emoji: '⏱️',
-                title: 'Περίμενε 1 ώρα',
+                title: 'Περίμενε λίγο',
                 subtitle: 'Οι επαγγελματίες ετοιμάζουν προσφορές',
                 active: false),
             const SizedBox(height: 10),
@@ -3366,7 +3367,7 @@ class _EmptyHeroCard extends StatelessWidget {
         const SizedBox(height: 6),
         Text(isPro
               ? 'Οι πελάτες σε βρίσκουν αυτόματα μέσω του προφίλ σου — δεν χρειάζεται να στείλεις αίτημα για αυτό.'
-              : 'Στείλε αίτημα → το AI ειδοποιεί επαγγελματίες ή συνεργεία → παίρνεις τις 3 καλύτερες προσφορές σε 1 ώρα.',
+              : 'Στείλε αίτημα → το AI ειδοποιεί επαγγελματίες ή συνεργεία → παίρνεις τις 3 καλύτερες προσφορές στον χρόνο που εσύ επιλέγεις.',
             style: TextStyle(fontSize: 12, color: _g(0.5), height: 1.5)),
         const SizedBox(height: 20),
         Container(
@@ -4333,6 +4334,7 @@ class _ProfessionalHomeScreenState extends State<ProfessionalHomeScreen> {
   List<String> _subSpecialties = [];
   List<String> _areas = [];
   String _proAfm = '';
+  bool _proAfmValid = false;
   String _companyName = '';
   String _googlePlaceUrl = '';
   String _googlePlaceId = '';
@@ -4502,6 +4504,7 @@ class _ProfessionalHomeScreenState extends State<ProfessionalHomeScreen> {
       _tiktokShorts = ((merged['tiktokShorts'] as List?) ?? []).whereType<String>().toList();
       _proAverageRating = (merged['averageRating'] as num?)?.toDouble() ?? 0.0;
       _proAfm = (merged['afm'] as String? ?? '').trim();
+      _proAfmValid = merged['afmValid'] == true;
       _portfolioProjects = projects;
       _bioCtrl.text = _bio;
     });
@@ -4888,7 +4891,7 @@ class _ProfessionalHomeScreenState extends State<ProfessionalHomeScreen> {
                 if (data['filterWithPhoto'] == true && (_proPhotoUrl == null || _proPhotoUrl!.isEmpty)) return false;
                 final minRating = (data['filterMinRating'] as num? ?? 0).toDouble();
                 if (minRating > 0 && _proAverageRating < minRating) return false;
-                if (data['filterVerifiedOnly'] == true && _proAfm.isEmpty) return false;
+                if (data['filterVerifiedOnly'] == true && !_proAfmValid) return false;
                 return true;
               }).length
             : 0;
@@ -6389,8 +6392,8 @@ class _ProfessionalHomeScreenState extends State<ProfessionalHomeScreen> {
               // Filter by filterMinRating: pro's rating must meet minimum
               final minRating = (data['filterMinRating'] as num? ?? 0).toDouble();
               if (minRating > 0 && _proAverageRating < minRating) return false;
-              // Filter by filterVerifiedOnly: pro must have AFM (verified)
-              if (data['filterVerifiedOnly'] == true && _proAfm.isEmpty) return false;
+              // Filter by filterVerifiedOnly: pro must be VIES-verified (afmValid), not just have typed an AFM
+              if (data['filterVerifiedOnly'] == true && !_proAfmValid) return false;
               return true;
             })
             .toList();
@@ -9427,7 +9430,7 @@ class _OffersScreenState extends State<OffersScreen>
             if (proDoc.exists) {
               final p = proDoc.data()!;
               o['rating'] = _combinedRating(p);
-              o['verified'] = (p['afm'] ?? '').toString().trim().isNotEmpty;
+              o['verified'] = p['afmValid'] == true;
             }
           } catch (_) {}
         }));
