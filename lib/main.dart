@@ -9852,6 +9852,7 @@ class _OfferCard extends StatelessWidget {
   double get _rating => (offer['rating'] is num) ? (offer['rating'] as num).toDouble() : 4.8;
   String get _available => (offer['available'] ?? offer['availableFrom'] ?? 'Σύντομα').toString();
   int get _rank => (offer['rank'] is num) ? (offer['rank'] as num).toInt() : 1;
+  String get _proId => (offer['professionalId'] ?? offer['proId'] ?? '').toString();
 
   @override
   Widget build(BuildContext context) => Container(
@@ -9903,38 +9904,48 @@ class _OfferCard extends StatelessWidget {
 
               const SizedBox(height: 10),
 
-              Row(children: [
-                Container(
-                    width: 50, height: 50,
-                    decoration: BoxDecoration(borderRadius: BorderRadius.circular(15),
-                        color: kGold.withValues(alpha: 0.08)),
-                    child: Center(child: Text(_emoji,
-                        style: const TextStyle(fontSize: 26)))),
-                const SizedBox(width: 12),
-                Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                  Text(_name,
-                      style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 15,
-                          fontWeight: FontWeight.w700)),
-                  const SizedBox(height: 2),
-                  Text(_specialty,
-                      style: TextStyle(
-                          color: _g(0.4),
-                          fontSize: 10)),
-                  const SizedBox(height: 3),
-                  Row(children: [
-                    const Text('⭐',
-                        style: TextStyle(fontSize: 10)),
-                    const SizedBox(width: 2),
-                    Text(
-                        '${_rating} · ${(offer['reviews'] ?? 0)} κριτικές',
+              GestureDetector(
+                onTap: _proId.isEmpty ? null : () {
+                  Navigator.push(context, PageRouteBuilder(
+                    transitionDuration: const Duration(milliseconds: 300),
+                    pageBuilder: (_, __, ___) => _ProPublicProfileScreen(proId: _proId, proData: offer),
+                  ));
+                },
+                child: Row(children: [
+                  Container(
+                      width: 50, height: 50,
+                      decoration: BoxDecoration(borderRadius: BorderRadius.circular(15),
+                          color: kGold.withValues(alpha: 0.08)),
+                      child: Center(child: Text(_emoji,
+                          style: const TextStyle(fontSize: 26)))),
+                  const SizedBox(width: 12),
+                  Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                    Text(_name,
+                        style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 15,
+                            fontWeight: FontWeight.w700)),
+                    const SizedBox(height: 2),
+                    Text(_specialty,
                         style: TextStyle(
-                            color: _g(0.5),
+                            color: _g(0.4),
                             fontSize: 10)),
-                  ]),
-                ])),
-              ]),
+                    const SizedBox(height: 3),
+                    Row(children: [
+                      const Text('⭐',
+                          style: TextStyle(fontSize: 10)),
+                      const SizedBox(width: 2),
+                      Text(
+                          '${_rating} · ${(offer['reviews'] ?? 0)} κριτικές',
+                          style: TextStyle(
+                              color: _g(0.5),
+                              fontSize: 10)),
+                    ]),
+                  ])),
+                  if (_proId.isNotEmpty)
+                    Icon(Icons.chevron_right_rounded, color: _g(0.25), size: 20),
+                ]),
+              ),
 
               const SizedBox(height: 14),
 
