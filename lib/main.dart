@@ -66,18 +66,31 @@ class NotificationService {
     playSound: true,
   );
 
+  // Παίρνει το τρέχον FCM token και το αποθηκεύει στο users/{uid} — μόνο αν
+  // υπάρχει ήδη συνδεδεμένος χρήστης. Καλείται και από το init() (καλύπτει
+  // όποιον ήταν ήδη συνδεδεμένος όταν άνοιξε η εφαρμογή) και ξανά από το
+  // AuthGate αμέσως μόλις επιβεβαιωθεί ένας χρήστης (καλύπτει το login).
+  static Future<void> saveTokenForCurrentUser() async {
+    final token = await _fcm.getToken(vapidKey: 'BJsbku1gXCS_uLwKrDcSJ9hIDGEUdthxe7wc_dfbeIcwq4aE1SqK3IdMPZ6j1vj0or-SWNloikIXmzWfW0_YqTY');
+    if (token == null) return;
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) return;
+    try {
+      await FirebaseFirestore.instance
+          .collection('users')
+          .doc(user.uid)
+          .update({'fcmToken': token});
+    } catch (_) {}
+  }
+
   static Future<void> init() async {
     await _fcm.requestPermission(alert: true, badge: true, sound: true);
-    final token = await _fcm.getToken(vapidKey: 'BJsbku1gXCS_uLwKrDcSJ9hIDGEUdthxe7wc_dfbeIcwq4aE1SqK3IdMPZ6j1vj0or-SWNloikIXmzWfW0_YqTY');
-    if (token != null) {
-      final user = FirebaseAuth.instance.currentUser;
-      if (user != null) {
-        await FirebaseFirestore.instance
-            .collection('users')
-            .doc(user.uid)
-            .update({'fcmToken': token});
-      }
-    }
+    // Τη στιγμή που τρέχει αυτό (μέσα στο main(), πριν καν φορτώσει το UI),
+    // ο χρήστης είναι σχεδόν πάντα ακόμα null — δεν έχει προλάβει να συνδεθεί.
+    // Το token παίρνεται εδώ όμως ΔΕΝ αποθηκεύεται αν δεν υπάρχει ήδη
+    // συνδεδεμένος χρήστης· γι' αυτό το saveTokenForCurrentUser() καλείται
+    // ΞΑΝΑ αμέσως μετά από κάθε επιτυχή login/register (βλ. AuthGate).
+    await saveTokenForCurrentUser();
     _fcm.onTokenRefresh.listen((newToken) async {
       final user = FirebaseAuth.instance.currentUser;
       if (user != null) {
@@ -703,6 +716,10 @@ class _AuthGateRoleCheckState extends State<_AuthGateRoleCheck> {
         .doc(widget.user.uid)
         .get()
       ..then(_maybeSendWelcomeEmail);
+    // Ξαναπροσπαθεί να αποθηκεύσει το FCM token εδώ — το NotificationService.init()
+    // στο main() τρέχει πριν υπάρχει συνδεδεμένος χρήστης, οπότε δεν αρκεί μόνο
+    // αυτό (βλ. σχόλιο στο saveTokenForCurrentUser()).
+    NotificationService.saveTokenForCurrentUser();
   }
 
   // Το welcome email στέλνεται εδώ, την πρώτη φορά που ο AuthGate βλέπει τον
