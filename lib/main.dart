@@ -2221,11 +2221,18 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       final now = DateTime.now();
       final activeReqs = snap.docs
           .where((doc) {
-            // Το status δεν αλλάζει ποτέ αυτόματα μετά τη λήξη — απόκρυψε
-            // εδώ ό,τι έχει ήδη λήξει χρονικά, ώστε να μη μένει για πάντα
-            // σαν "ενεργό αίτημα" στην αρχική οθόνη.
+            // Το status δεν αλλάζει ποτέ αυτόματα μετά τη λήξη — αλλά ΜΗΝ
+            // κρύβεις αμέσως μόλις λήξει το countdown: η κάρτα έχει δικό
+            // της "Βρέθηκε επαγγελματίας!" state ακριβώς για αυτή τη στιγμή
+            // (βλ. _ActiveRequestHeroCardState), οπότε αν το κρύψουμε αμέσως
+            // ο χρήστης χάνει τελείως αυτή την οθόνη. Το κρύβουμε μόνο αν
+            // έχει λήξει εδώ και πολύ ώρα (εγκαταλελειμμένο αίτημα), ώστε να
+            // μη μένει για πάντα σαν "ενεργό αίτημα" στην αρχική οθόνη.
             final expiresAt = doc.data()['expiresAt'] as Timestamp?;
-            return expiresAt == null || expiresAt.toDate().isAfter(now);
+            if (expiresAt == null) return true;
+            final exp = expiresAt.toDate();
+            if (exp.isAfter(now)) return true;
+            return now.difference(exp) < const Duration(hours: 48);
           })
           .map((doc) {
         final d = doc.data();
