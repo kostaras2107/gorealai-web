@@ -2874,22 +2874,19 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                 num: '1',
                 emoji: '📝',
                 title: 'Περίγραψε το αίτημα',
-                subtitle: 'Γράψε ή μίλα για αυτό που χρειάζεσαι',
-                active: true),
+                subtitle: 'Γράψε ή μίλα για αυτό που χρειάζεσαι'),
             const SizedBox(height: 10),
             _HowItWorksStep(
                 num: '2',
                 emoji: '⏱️',
                 title: 'Περίμενε λίγο',
-                subtitle: 'Οι επαγγελματίες ετοιμάζουν προσφορές',
-                active: false),
+                subtitle: 'Οι επαγγελματίες ετοιμάζουν προσφορές'),
             const SizedBox(height: 10),
             _HowItWorksStep(
                 num: '3',
                 emoji: '🏆',
                 title: 'Επέλεξε την καλύτερη',
-                subtitle: 'Το AI σου προτείνει τις 3 κορυφαίες',
-                active: false),
+                subtitle: 'Το AI σου προτείνει τις 3 κορυφαίες'),
           ]),
         ),
 
@@ -3729,90 +3726,66 @@ class _StatRow extends StatelessWidget {
 // ── How It Works Step ──
 class _HowItWorksStep extends StatelessWidget {
   final String num, emoji, title, subtitle;
-  final bool active;
   const _HowItWorksStep(
       {required this.num,
       required this.emoji,
       required this.title,
-      required this.subtitle,
-      required this.active});
+      required this.subtitle});
   @override
-  Widget build(BuildContext context) => Container(
-        padding: const EdgeInsets.all(14),
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(16),
-          gradient: active
-              ? LinearGradient(
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                  colors: [kGold.withValues(alpha: 0.10), kGold.withValues(alpha: 0.03)])
-              : LinearGradient(
-                  colors: [_g(0.04), _g(0.02)],
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight),
-          border: Border.all(
-              color: active ? kGold.withValues(alpha: 0.35) : _g(0.07),
-              width: 1),
-          boxShadow: active
-              ? [
-                  BoxShadow(color: kGold.withValues(alpha: 0.15), blurRadius: 6, offset: const Offset(0, 2)),
-                  BoxShadow(color: Colors.black.withValues(alpha: 0.4), blurRadius: 8),
-                ]
-              : [BoxShadow(color: Colors.black.withValues(alpha: 0.3), blurRadius: 6)],
-        ),
-        child: Row(children: [
+  Widget build(BuildContext context) => Row(
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: [
           Container(
-            width: 44,
-            height: 44,
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(12),
-              gradient: active
-                  ? LinearGradient(colors: [kGold.withValues(alpha: 0.25), kGold.withValues(alpha: 0.10)])
-                  : null,
-              color: active ? null : _g(0.06),
-              border: Border.all(
-                  color: active ? kGold.withValues(alpha: 0.5) : _g(0.1),
-                  width: 1),
-              boxShadow: active
-                  ? [BoxShadow(color: kGold.withValues(alpha: 0.25), blurRadius: 4)]
-                  : null,
-            ),
-            child:
-                Center(child: Text(emoji, style: const TextStyle(fontSize: 22))),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-              child:
-                  Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            Text(title,
-                style: TextStyle(
-                    color: active
-                        ? Colors.white
-                        : _g(0.6),
-                    fontSize: 13,
-                    fontWeight: FontWeight.w600)),
-            const SizedBox(height: 2),
-            Text(subtitle,
-                style: TextStyle(
-                    color: _g(0.35), fontSize: 11)),
-          ])),
-          Container(
-            width: 24,
-            height: 24,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              color: active ? kGold : _g(0.05),
-            ),
+            width: 26,
+            height: 26,
+            decoration: const BoxDecoration(shape: BoxShape.circle, color: kGold),
             child: Center(
                 child: Text(num,
-                    style: TextStyle(
-                        fontSize: 11,
+                    style: const TextStyle(
+                        fontSize: 12,
                         fontWeight: FontWeight.w800,
-                        color: active
-                            ? Colors.black
-                            : _g(0.3)))),
+                        color: Colors.black))),
           ),
-        ]),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Container(
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(14),
+                gradient: LinearGradient(
+                    colors: [_g(0.04), _g(0.02)],
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight),
+                border: Border.all(color: _g(0.07), width: 1),
+                boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.3), blurRadius: 6)],
+              ),
+              child: Row(children: [
+                Container(
+                  width: 36,
+                  height: 36,
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(10),
+                    color: _g(0.06),
+                    border: Border.all(color: _g(0.1), width: 1),
+                  ),
+                  child: Center(child: Text(emoji, style: const TextStyle(fontSize: 18))),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                    child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                  Text(title,
+                      style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600)),
+                  const SizedBox(height: 2),
+                  Text(subtitle,
+                      style: TextStyle(color: _g(0.35), fontSize: 10)),
+                ])),
+              ]),
+            ),
+          ),
+        ],
       );
 }
 
