@@ -327,6 +327,7 @@ app.get('/get-offers/:requestId', rateLimit(60, 60_000), async (req, res) => {
             o.rating = (typeof p.averageRating === 'number') ? p.averageRating : (o.rating || 0);
             o.reviewCount = p.reviewCount || 0;
             o.verified = p.afmValid === true;
+            if (p.profilePhotoUrl) o.profilePhotoUrl = p.profilePhotoUrl;
           }
         } catch (_) {}
       }

@@ -8659,12 +8659,32 @@ class _WaitingScreenState extends State<WaitingScreen>
   int _offersCount = 0;
   int _prosNotified = 0;
   List<String> _notifiedProNames = [];
+  Set<String> _respondedProNames = {};
 
   @override
   void initState() {
     super.initState();
     _initFromFirestore();
     _listenOffers();
+    _listenRespondedPros();
+  }
+
+  // Ποιοι από τους ειδοποιημένους επαγγελματίες έχουν όντως στείλει
+  // προσφορά — το offersCount μόνο του δεν λέει ΠΟΙΟΣ απάντησε.
+  void _listenRespondedPros() {
+    FirebaseFirestore.instance
+        .collection('offers')
+        .where('requestId', isEqualTo: widget.requestId)
+        .snapshots()
+        .listen((snap) {
+      if (!mounted) return;
+      setState(() {
+        _respondedProNames = snap.docs
+            .map((d) => (d.data()['professionalName'] as String? ?? '').trim())
+            .where((n) => n.isNotEmpty)
+            .toSet();
+      });
+    });
   }
 
   Future<void> _initFromFirestore() async {
@@ -9038,14 +9058,14 @@ class _WaitingScreenState extends State<WaitingScreen>
                 ]),
                 const SizedBox(height: 10),
                 if (_notifiedProNames.isNotEmpty)
-                  ..._notifiedProNames.asMap().entries.map((e) => _ProWaitingCard(
+                  ..._notifiedProNames.map((name) => _ProWaitingCard(
                       emoji: '🔍',
-                      name: e.value,
-                      typing: e.key < _offersCount))
+                      name: name,
+                      responded: _respondedProNames.contains(name.trim())))
                 else ...[
                   _ProWaitingCard(emoji: '🔍',
                       name: widget.profession.isNotEmpty ? widget.profession : 'Επαγγελματίας',
-                      typing: false),
+                      responded: false),
                 ],
 
                 const SizedBox(height: 20),
@@ -9090,30 +9110,14 @@ class _WaitingScreenState extends State<WaitingScreen>
 // ── Pro Waiting Card ──
 class _ProWaitingCard extends StatefulWidget {
   final String emoji, name;
-  final bool typing;
+  final bool responded;
   const _ProWaitingCard(
-      {required this.emoji, required this.name, required this.typing});
+      {required this.emoji, required this.name, required this.responded});
   @override
   State<_ProWaitingCard> createState() => _ProWaitingCardState();
 }
 
-class _ProWaitingCardState extends State<_ProWaitingCard>
-    with TickerProviderStateMixin {
-  late AnimationController _dotsCtrl;
-  @override
-  void initState() {
-    super.initState();
-    _dotsCtrl = AnimationController(
-        vsync: this, duration: const Duration(milliseconds: 900))
-      ..repeat();
-  }
-
-  @override
-  void dispose() {
-    _dotsCtrl.dispose();
-    super.dispose();
-  }
-
+class _ProWaitingCardState extends State<_ProWaitingCard> {
   @override
   Widget build(BuildContext context) => Container(
         margin: const EdgeInsets.only(bottom: 8),
@@ -9142,12 +9146,12 @@ class _ProWaitingCardState extends State<_ProWaitingCard>
                     fontSize: 13,
                     fontWeight: FontWeight.w600)),
             const SizedBox(height: 3),
-            if (widget.typing)
+            if (widget.responded)
               Row(children: [
-                _TypingDots(ctrl: _dotsCtrl),
+                const Icon(Icons.check_circle_rounded, color: kGreen, size: 12),
                 const SizedBox(width: 6),
-                const Text('Γράφει προσφορά...',
-                    style: TextStyle(color: kGreen, fontSize: 10)),
+                const Text('Έστειλε προσφορά',
+                    style: TextStyle(color: kGreen, fontSize: 10, fontWeight: FontWeight.w700)),
               ])
             else
               Text('⏳ Δεν έχει απαντήσει',
@@ -9156,29 +9160,6 @@ class _ProWaitingCardState extends State<_ProWaitingCard>
                       color: _g(0.25))),
           ])),
         ]),
-      );
-}
-
-class _TypingDots extends StatelessWidget {
-  final AnimationController ctrl;
-  const _TypingDots({required this.ctrl});
-  @override
-  Widget build(BuildContext context) => AnimatedBuilder(
-        animation: ctrl,
-        builder: (_, __) => Row(
-            children: List.generate(3, (i) {
-          final phase = (ctrl.value - i * 0.2).clamp(0.0, 1.0);
-          final y = (phase < 0.5 ? phase : 1.0 - phase) * 6;
-          return Transform.translate(
-            offset: Offset(0, -y),
-            child: Container(
-                width: 4,
-                height: 4,
-                margin: const EdgeInsets.only(right: 3),
-                decoration: const BoxDecoration(
-                    shape: BoxShape.circle, color: kGreen)),
-          );
-        })),
       );
 }
 
@@ -9455,6 +9436,9 @@ class _OffersScreenState extends State<OffersScreen>
               final p = proDoc.data()!;
               o['rating'] = _combinedRating(p);
               o['verified'] = p['afmValid'] == true;
+              if ((p['profilePhotoUrl'] as String? ?? '').isNotEmpty) {
+                o['profilePhotoUrl'] = p['profilePhotoUrl'];
+              }
             }
           } catch (_) {}
         }));
@@ -9877,6 +9861,7 @@ class _OfferCard extends StatelessWidget {
   String get _available => (offer['available'] ?? offer['availableFrom'] ?? 'Σύντομα').toString();
   int get _rank => (offer['rank'] is num) ? (offer['rank'] as num).toInt() : 1;
   String get _proId => (offer['professionalId'] ?? offer['proId'] ?? '').toString();
+  String get _photoUrl => (offer['profilePhotoUrl'] ?? '').toString();
 
   @override
   Widget build(BuildContext context) => Container(
@@ -9938,10 +9923,15 @@ class _OfferCard extends StatelessWidget {
                 child: Row(children: [
                   Container(
                       width: 50, height: 50,
+                      clipBehavior: Clip.antiAlias,
                       decoration: BoxDecoration(borderRadius: BorderRadius.circular(15),
                           color: kGold.withValues(alpha: 0.08)),
-                      child: Center(child: Text(_emoji,
-                          style: const TextStyle(fontSize: 26)))),
+                      child: _photoUrl.isNotEmpty
+                          ? Image.network(_photoUrl, fit: BoxFit.cover,
+                              errorBuilder: (_, __, ___) => Center(child: Text(_emoji,
+                                  style: const TextStyle(fontSize: 26))))
+                          : Center(child: Text(_emoji,
+                              style: const TextStyle(fontSize: 26)))),
                   const SizedBox(width: 12),
                   Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                     Text(_name,
@@ -9991,15 +9981,6 @@ class _OfferCard extends StatelessWidget {
                             fontSize: isBest ? 32 : 26,
                             fontWeight: FontWeight.w900,
                             color: isBest ? kGold : kGold.withValues(alpha: 0.7))),
-                if (!_priceAfterVisit) ...[
-                  const SizedBox(width: 8),
-                  Padding(
-                      padding: const EdgeInsets.only(bottom: 4),
-                      child: Text((_specialty.isNotEmpty ? _specialty : 'Διαθέσιμος $_available'),
-                          style: TextStyle(
-                              fontSize: 10,
-                              color: _g(0.35)))),
-                ],
               ]),
 
               const SizedBox(height: 10),
