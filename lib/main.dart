@@ -9306,6 +9306,7 @@ class _OffersScreenState extends State<OffersScreen>
     with TickerProviderStateMixin {
   List<Map<String, dynamic>> _offers = [];
   bool _loading = true;
+  bool _selecting = false;
   late AnimationController _fadeCtrl;
 
   static const _demoOffers = [
@@ -9444,6 +9445,12 @@ class _OffersScreenState extends State<OffersScreen>
   }
 
   Future<void> _selectOffer(Map<String, dynamic> offer) async {
+    // Αποτρέπει διπλή/τριπλή εγγραφή αν ο χρήστης πατήσει το κουμπί
+    // πολλές φορές γρήγορα όσο η επιλογή είναι ακόμα σε εξέλιξη — χωρίς
+    // αυτό, κάθε tap ξανατρέχει όλη τη ροή (booking, ιστορικό, ειδοποιήσεις)
+    // από την αρχή.
+    if (_selecting) return;
+    setState(() => _selecting = true);
     // Δημιουργία booking στη Firestore
     try {
       final user = FirebaseAuth.instance.currentUser;
@@ -9573,6 +9580,7 @@ class _OffersScreenState extends State<OffersScreen>
     }
 
     if (!mounted) return;
+    setState(() => _selecting = false);
     // Safe name από offer map
     final proName = (offer['name'] ?? offer['professionalName'] ?? 'τον επαγγελματία').toString();
     final proEmoji = (offer['emoji'] ?? '🔧').toString();
@@ -10747,6 +10755,65 @@ class _HistoryProCardState extends State<_HistoryProCard> {
     if (mounted) setState(() { _saving = false; _expanded = false; });
   }
 
+  void _showRequestReplyDialog(BuildContext context) {
+    final requestDesc = widget.requestDesc.trim();
+    final reply = (widget.data['message'] as String? ?? '').trim();
+    showDialog(
+      context: context,
+      builder: (ctx) => Dialog(
+        backgroundColor: Colors.transparent,
+        child: Container(
+          padding: const EdgeInsets.all(20),
+          constraints: const BoxConstraints(maxHeight: 480),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(20),
+            color: const Color(0xFF111111),
+            border: Border.all(color: kGold.withValues(alpha: 0.3)),
+          ),
+          child: Column(mainAxisSize: MainAxisSize.min, children: [
+            Flexible(
+              child: SingleChildScrollView(
+                child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                  Text('ΤΟ ΑΙΤΗΜΑ ΣΟΥ',
+                      style: TextStyle(color: kGold, fontSize: 11, fontWeight: FontWeight.w800, letterSpacing: 1)),
+                  const SizedBox(height: 6),
+                  Text(requestDesc.isNotEmpty ? requestDesc : 'Δεν υπάρχει περιγραφή.',
+                      style: TextStyle(
+                          color: requestDesc.isNotEmpty ? Colors.white : Colors.white38,
+                          fontSize: 14, height: 1.5)),
+                  const SizedBox(height: 20),
+                  Text('ΑΠΑΝΤΗΣΗ ΤΟΥ ${widget.proName.split(' ').first.toUpperCase()}',
+                      style: TextStyle(color: kGold, fontSize: 11, fontWeight: FontWeight.w800, letterSpacing: 1)),
+                  const SizedBox(height: 6),
+                  Text(reply.isNotEmpty ? reply : 'Δεν άφησε μήνυμα με την προσφορά του.',
+                      style: TextStyle(
+                          color: reply.isNotEmpty ? Colors.white : Colors.white38,
+                          fontSize: 14, height: 1.5)),
+                ]),
+              ),
+            ),
+            const SizedBox(height: 18),
+            SizedBox(
+              width: double.infinity,
+              child: GestureDetector(
+                onTap: () => Navigator.pop(ctx),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(vertical: 12),
+                  decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(12),
+                      color: kGold.withValues(alpha: 0.1),
+                      border: Border.all(color: kGold.withValues(alpha: 0.3))),
+                  child: const Center(child: Text('Κλείσιμο',
+                      style: TextStyle(color: kGold, fontWeight: FontWeight.w700))),
+                ),
+              ),
+            ),
+          ]),
+        ),
+      ),
+    );
+  }
+
   Future<void> _openChat(BuildContext context) async {
     final proId = widget.data['professionalId'] as String? ?? '';
     if (proId.isEmpty) return;
@@ -10792,33 +10859,45 @@ class _HistoryProCardState extends State<_HistoryProCard> {
         Padding(
           padding: const EdgeInsets.fromLTRB(14, 14, 14, 10),
           child: Row(children: [
-            Container(
-              width: 48, height: 48,
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(14),
-                color: kGold.withValues(alpha: 0.12),
-                border: Border.all(color: kGold.withValues(alpha: 0.25)),
-              ),
-              child: ClipRRect(
-                borderRadius: BorderRadius.circular(13),
-                child: _photoUrl != null
-                    ? Image.network(_photoUrl!, fit: BoxFit.cover,
-                        errorBuilder: (_, __, ___) => Center(child: Text(widget.emoji, style: const TextStyle(fontSize: 24))))
-                    : Center(child: Text(widget.emoji, style: const TextStyle(fontSize: 24))),
-              ),
+            GestureDetector(
+              onTap: () {
+                final proId = widget.data['professionalId'] as String? ?? '';
+                if (proId.isEmpty) return;
+                Navigator.push(context, PageRouteBuilder(
+                  transitionDuration: const Duration(milliseconds: 300),
+                  pageBuilder: (_, __, ___) => _ProPublicProfileScreen(proId: proId, proData: widget.data),
+                ));
+              },
+              child: Row(children: [
+                Container(
+                  width: 48, height: 48,
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(14),
+                    color: kGold.withValues(alpha: 0.12),
+                    border: Border.all(color: kGold.withValues(alpha: 0.25)),
+                  ),
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(13),
+                    child: _photoUrl != null
+                        ? Image.network(_photoUrl!, fit: BoxFit.cover,
+                            errorBuilder: (_, __, ___) => Center(child: Text(widget.emoji, style: const TextStyle(fontSize: 24))))
+                        : Center(child: Text(widget.emoji, style: const TextStyle(fontSize: 24))),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                  Text(widget.proName, maxLines: 1, overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(color: Colors.white, fontSize: 15, fontWeight: FontWeight.w800)),
+                  const SizedBox(height: 3),
+                  Text(widget.requestDesc, maxLines: 1, overflow: TextOverflow.ellipsis,
+                      style: TextStyle(fontSize: 11, color: Colors.white.withValues(alpha: 0.4))),
+                  const SizedBox(height: 3),
+                  Text('${widget.dateStr}${widget.priceStr.isNotEmpty ? ' · ${widget.priceStr}' : ''}',
+                      style: TextStyle(fontSize: 10, color: kGold.withValues(alpha: 0.8), fontWeight: FontWeight.w600)),
+                ])),
+              ]),
             ),
-            const SizedBox(width: 12),
-            Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              Text(widget.proName, maxLines: 1, overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(color: Colors.white, fontSize: 15, fontWeight: FontWeight.w800)),
-              const SizedBox(height: 3),
-              Text(widget.requestDesc, maxLines: 1, overflow: TextOverflow.ellipsis,
-                  style: TextStyle(fontSize: 11, color: Colors.white.withValues(alpha: 0.4))),
-              const SizedBox(height: 3),
-              Text('${widget.dateStr}${widget.priceStr.isNotEmpty ? ' · ${widget.priceStr}' : ''}',
-                  style: TextStyle(fontSize: 10, color: kGold.withValues(alpha: 0.8), fontWeight: FontWeight.w600)),
-            ])),
-            const SizedBox(width: 8),
+            const Spacer(),
             Container(
               width: 28, height: 28,
               decoration: BoxDecoration(shape: BoxShape.circle,
@@ -10911,6 +10990,29 @@ class _HistoryProCardState extends State<_HistoryProCard> {
               ),
             ],
           ]),
+        ),
+
+        // ── ΑΙΤΗΜΑ & ΑΠΑΝΤΗΣΗ ──
+        Padding(
+          padding: const EdgeInsets.fromLTRB(14, 10, 14, 0),
+          child: GestureDetector(
+            onTap: () => _showRequestReplyDialog(context),
+            child: Container(
+              width: double.infinity,
+              padding: const EdgeInsets.symmetric(vertical: 11),
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(12),
+                color: _g(0.05),
+                border: Border.all(color: _g(0.15)),
+              ),
+              child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [
+                Icon(Icons.description_outlined, color: _g(0.6), size: 16),
+                const SizedBox(width: 8),
+                Text('Δες το αίτημα & την απάντηση',
+                    style: TextStyle(color: _g(0.7), fontSize: 13, fontWeight: FontWeight.w700)),
+              ]),
+            ),
+          ),
         ),
 
         // ── BOTTOM ACTION ──
