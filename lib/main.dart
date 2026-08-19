@@ -10860,11 +10860,10 @@ class _HistoryProCardState extends State<_HistoryProCard> {
         borderRadius: BorderRadius.circular(20),
         gradient: LinearGradient(
           begin: Alignment.topLeft, end: Alignment.bottomRight,
-          colors: [kGold.withValues(alpha: 0.08), const Color(0xFF0A0A18)],
+          colors: [kGold.withValues(alpha: 0.025), const Color(0xFF0A0A18)],
         ),
-        border: Border.all(color: kGold.withValues(alpha: 0.22)),
+        border: Border.all(color: kGold.withValues(alpha: 0.1)),
         boxShadow: [
-          BoxShadow(color: kGold.withValues(alpha: 0.08), blurRadius: 16, offset: const Offset(0, 4)),
           BoxShadow(color: Colors.black.withValues(alpha: 0.4), blurRadius: 8, offset: const Offset(0, 2)),
         ],
       ),
@@ -11021,17 +11020,17 @@ class _HistoryProCardState extends State<_HistoryProCard> {
               child: GestureDetector(
                 onTap: () => _showRequestReplyDialog(context),
                 child: Container(
-                  padding: const EdgeInsets.symmetric(vertical: 11, horizontal: 6),
+                  padding: const EdgeInsets.symmetric(vertical: 7, horizontal: 6),
                   decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(12),
+                    borderRadius: BorderRadius.circular(10),
                     color: _g(0.05),
                     border: Border.all(color: _g(0.15)),
                   ),
                   child: Column(mainAxisSize: MainAxisSize.min, children: [
-                    Icon(Icons.description_outlined, color: _g(0.6), size: 16),
-                    const SizedBox(height: 4),
+                    Icon(Icons.description_outlined, color: _g(0.6), size: 14),
+                    const SizedBox(height: 3),
                     Text('Δες το αίτημα\n& την απάντηση', textAlign: TextAlign.center,
-                        style: TextStyle(color: _g(0.7), fontSize: 11, fontWeight: FontWeight.w700, height: 1.3)),
+                        style: TextStyle(color: _g(0.7), fontSize: 10, fontWeight: FontWeight.w700, height: 1.25)),
                   ]),
                 ),
               ),
@@ -11041,17 +11040,17 @@ class _HistoryProCardState extends State<_HistoryProCard> {
               child: GestureDetector(
                 onTap: () => _openChat(context),
                 child: Container(
-                  padding: const EdgeInsets.symmetric(vertical: 11, horizontal: 6),
+                  padding: const EdgeInsets.symmetric(vertical: 7, horizontal: 6),
                   decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(12),
+                    borderRadius: BorderRadius.circular(10),
                     gradient: const LinearGradient(colors: [kGoldLight, kGold]),
                     boxShadow: [BoxShadow(color: kGold.withValues(alpha: 0.25), blurRadius: 6)],
                   ),
                   child: Column(mainAxisSize: MainAxisSize.min, children: [
-                    const Icon(Icons.edit_note_rounded, color: Colors.black, size: 18),
-                    const SizedBox(height: 4),
+                    const Icon(Icons.edit_note_rounded, color: Colors.black, size: 15),
+                    const SizedBox(height: 3),
                     Text('Στείλε μήνυμα\nστον ${widget.proName.split(' ').first}', textAlign: TextAlign.center,
-                        style: const TextStyle(color: Colors.black, fontSize: 11, fontWeight: FontWeight.w800, height: 1.3)),
+                        style: const TextStyle(color: Colors.black, fontSize: 10, fontWeight: FontWeight.w800, height: 1.25)),
                   ]),
                 ),
               ),
