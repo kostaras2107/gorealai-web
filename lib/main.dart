@@ -14027,7 +14027,6 @@ class _NearbyProsSectionState extends State<_NearbyProsSection> {
           .collection('professionals')
           .where('is_active', isEqualTo: true)
           .orderBy('createdAt', descending: true)
-          .limit(200)
           .snapshots(),
       builder: (context, snap) {
         final allDocs = snap.hasData ? snap.data!.docs : <QueryDocumentSnapshot>[];
