@@ -10558,12 +10558,20 @@ class _RequestHistoryScreenState extends State<RequestHistoryScreen> {
                         color: kGold, size: 16)),
               ),
               const SizedBox(width: 14),
-              const Text('Επαγγελματίες που επέλεξες',
-                  style: TextStyle(
-                      fontFamily: 'Inter',
-                      fontSize: 20,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.white)),
+              Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                const Text('Επαγγελματίες που επέλεξες',
+                    style: TextStyle(
+                        fontFamily: 'Inter',
+                        fontSize: 20,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.white)),
+                const SizedBox(height: 4),
+                Container(width: 40, height: 3,
+                    decoration: BoxDecoration(
+                        color: kGold,
+                        borderRadius: BorderRadius.circular(2),
+                        boxShadow: [BoxShadow(color: kGold.withValues(alpha: 0.6), blurRadius: 6)])),
+              ]),
             ]),
           ),
           const SizedBox(height: 16),
@@ -10685,6 +10693,7 @@ class _HistoryProCardState extends State<_HistoryProCard> {
   bool _expanded = false;
   bool _saving = false;
   String? _photoUrl;
+  String? _specialty;
 
   @override
   void initState() {
@@ -10699,8 +10708,13 @@ class _HistoryProCardState extends State<_HistoryProCard> {
     if (proId.isEmpty) return;
     try {
       final doc = await FirebaseFirestore.instance.collection('professionals').doc(proId).get();
-      final url = (doc.data() as Map?)?['profilePhotoUrl'] as String?;
-      if (url != null && url.isNotEmpty && mounted) setState(() => _photoUrl = url);
+      final data = doc.data() as Map?;
+      final url = data?['profilePhotoUrl'] as String?;
+      final spec = data?['specialty'] as String?;
+      if (mounted) setState(() {
+        if (url != null && url.isNotEmpty) _photoUrl = url;
+        if (spec != null && spec.isNotEmpty) _specialty = spec;
+      });
     } catch (_) {}
   }
 
@@ -10859,51 +10873,58 @@ class _HistoryProCardState extends State<_HistoryProCard> {
         Padding(
           padding: const EdgeInsets.fromLTRB(14, 14, 14, 10),
           child: Row(children: [
-            GestureDetector(
-              onTap: () {
-                final proId = widget.data['professionalId'] as String? ?? '';
-                if (proId.isEmpty) return;
-                Navigator.push(context, PageRouteBuilder(
-                  transitionDuration: const Duration(milliseconds: 300),
-                  pageBuilder: (_, __, ___) => _ProPublicProfileScreen(proId: proId, proData: widget.data),
-                ));
-              },
-              child: Row(children: [
-                Container(
-                  width: 48, height: 48,
-                  decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(14),
-                    color: kGold.withValues(alpha: 0.12),
-                    border: Border.all(color: kGold.withValues(alpha: 0.25)),
+            Expanded(
+              child: GestureDetector(
+                onTap: () {
+                  final proId = widget.data['professionalId'] as String? ?? '';
+                  if (proId.isEmpty) return;
+                  Navigator.push(context, PageRouteBuilder(
+                    transitionDuration: const Duration(milliseconds: 300),
+                    pageBuilder: (_, __, ___) => _ProPublicProfileScreen(proId: proId, proData: widget.data),
+                  ));
+                },
+                child: Row(children: [
+                  Container(
+                    width: 48, height: 48,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: kGold.withValues(alpha: 0.12),
+                      border: Border.all(color: kGold.withValues(alpha: 0.35)),
+                    ),
+                    child: ClipOval(
+                      child: _photoUrl != null
+                          ? Image.network(_photoUrl!, fit: BoxFit.cover,
+                              errorBuilder: (_, __, ___) => Center(child: Text(widget.emoji, style: const TextStyle(fontSize: 24))))
+                          : Center(child: Text(widget.emoji, style: const TextStyle(fontSize: 24))),
+                    ),
                   ),
-                  child: ClipRRect(
-                    borderRadius: BorderRadius.circular(13),
-                    child: _photoUrl != null
-                        ? Image.network(_photoUrl!, fit: BoxFit.cover,
-                            errorBuilder: (_, __, ___) => Center(child: Text(widget.emoji, style: const TextStyle(fontSize: 24))))
-                        : Center(child: Text(widget.emoji, style: const TextStyle(fontSize: 24))),
-                  ),
+                  const SizedBox(width: 12),
+                  Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                    Text(widget.proName, maxLines: 1, overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(color: Colors.white, fontSize: 15, fontWeight: FontWeight.w800)),
+                    const SizedBox(height: 3),
+                    Text(widget.requestDesc, maxLines: 1, overflow: TextOverflow.ellipsis,
+                        style: TextStyle(fontSize: 11, color: Colors.white.withValues(alpha: 0.4))),
+                    const SizedBox(height: 3),
+                    Text('${widget.dateStr}${widget.priceStr.isNotEmpty ? ' · ${widget.priceStr}' : ''}',
+                        style: TextStyle(fontSize: 10, color: kGold.withValues(alpha: 0.8), fontWeight: FontWeight.w600)),
+                  ])),
+                ]),
+              ),
+            ),
+            if (_specialty != null && _specialty!.isNotEmpty) ...[
+              const SizedBox(width: 8),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(20),
+                  color: kGold.withValues(alpha: 0.14),
+                  border: Border.all(color: kGold.withValues(alpha: 0.4)),
                 ),
-                const SizedBox(width: 12),
-                Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                  Text(widget.proName, maxLines: 1, overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(color: Colors.white, fontSize: 15, fontWeight: FontWeight.w800)),
-                  const SizedBox(height: 3),
-                  Text(widget.requestDesc, maxLines: 1, overflow: TextOverflow.ellipsis,
-                      style: TextStyle(fontSize: 11, color: Colors.white.withValues(alpha: 0.4))),
-                  const SizedBox(height: 3),
-                  Text('${widget.dateStr}${widget.priceStr.isNotEmpty ? ' · ${widget.priceStr}' : ''}',
-                      style: TextStyle(fontSize: 10, color: kGold.withValues(alpha: 0.8), fontWeight: FontWeight.w600)),
-                ])),
-              ]),
-            ),
-            const Spacer(),
-            Container(
-              width: 28, height: 28,
-              decoration: BoxDecoration(shape: BoxShape.circle,
-                  color: kGold.withValues(alpha: 0.12), border: Border.all(color: kGold.withValues(alpha: 0.3))),
-              child: const Center(child: Icon(Icons.check_rounded, color: kGold, size: 14)),
-            ),
+                child: Text(_specialty!.toUpperCase(),
+                    style: const TextStyle(color: kGold, fontSize: 9, fontWeight: FontWeight.w800, letterSpacing: 0.4)),
+              ),
+            ],
           ]),
         ),
 
@@ -10992,50 +11013,50 @@ class _HistoryProCardState extends State<_HistoryProCard> {
           ]),
         ),
 
-        // ── ΑΙΤΗΜΑ & ΑΠΑΝΤΗΣΗ ──
-        Padding(
-          padding: const EdgeInsets.fromLTRB(14, 10, 14, 0),
-          child: GestureDetector(
-            onTap: () => _showRequestReplyDialog(context),
-            child: Container(
-              width: double.infinity,
-              padding: const EdgeInsets.symmetric(vertical: 11),
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(12),
-                color: _g(0.05),
-                border: Border.all(color: _g(0.15)),
-              ),
-              child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [
-                Icon(Icons.description_outlined, color: _g(0.6), size: 16),
-                const SizedBox(width: 8),
-                Text('Δες το αίτημα & την απάντηση',
-                    style: TextStyle(color: _g(0.7), fontSize: 13, fontWeight: FontWeight.w700)),
-              ]),
-            ),
-          ),
-        ),
-
-        // ── BOTTOM ACTION ──
+        // ── ΕΝΕΡΓΕΙΕΣ (δίπλα-δίπλα) ──
         Padding(
           padding: const EdgeInsets.fromLTRB(14, 10, 14, 14),
-          child: GestureDetector(
-            onTap: () => _openChat(context),
-            child: Container(
-              width: double.infinity,
-              padding: const EdgeInsets.symmetric(vertical: 11),
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(12),
-                color: kGold.withValues(alpha: 0.08),
-                border: Border.all(color: kGold.withValues(alpha: 0.3)),
+          child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Expanded(
+              child: GestureDetector(
+                onTap: () => _showRequestReplyDialog(context),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(vertical: 11, horizontal: 6),
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(12),
+                    color: _g(0.05),
+                    border: Border.all(color: _g(0.15)),
+                  ),
+                  child: Column(mainAxisSize: MainAxisSize.min, children: [
+                    Icon(Icons.description_outlined, color: _g(0.6), size: 16),
+                    const SizedBox(height: 4),
+                    Text('Δες το αίτημα\n& την απάντηση', textAlign: TextAlign.center,
+                        style: TextStyle(color: _g(0.7), fontSize: 11, fontWeight: FontWeight.w700, height: 1.3)),
+                  ]),
+                ),
               ),
-              child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [
-                const Icon(Icons.chat_bubble_outline_rounded, color: kGold, size: 16),
-                const SizedBox(width: 8),
-                Text('Στείλε μήνυμα στον ${widget.proName.split(' ').first}',
-                    style: const TextStyle(color: kGold, fontSize: 13, fontWeight: FontWeight.w700)),
-              ]),
             ),
-          ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: GestureDetector(
+                onTap: () => _openChat(context),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(vertical: 11, horizontal: 6),
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(12),
+                    gradient: const LinearGradient(colors: [kGoldLight, kGold]),
+                    boxShadow: [BoxShadow(color: kGold.withValues(alpha: 0.25), blurRadius: 6)],
+                  ),
+                  child: Column(mainAxisSize: MainAxisSize.min, children: [
+                    const Icon(Icons.edit_note_rounded, color: Colors.black, size: 18),
+                    const SizedBox(height: 4),
+                    Text('Στείλε μήνυμα\nστον ${widget.proName.split(' ').first}', textAlign: TextAlign.center,
+                        style: const TextStyle(color: Colors.black, fontSize: 11, fontWeight: FontWeight.w800, height: 1.3)),
+                  ]),
+                ),
+              ),
+            ),
+          ]),
         ),
       ]),
     );
