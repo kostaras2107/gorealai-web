@@ -17018,6 +17018,7 @@ class _ChatScreenState extends State<ChatScreen> {
   bool _sending = false;
   final List<Uint8List> _selectedImages = [];
   XFile? _selectedVideo;
+  int? _lastMsgCount;
 
   // Read receipts
   DateTime? _otherLastRead;
@@ -17160,6 +17161,37 @@ class _ChatScreenState extends State<ChatScreen> {
         'userName': widget.isPro ? widget.otherName : widget.currentUserName,
         'proName': widget.isPro ? widget.currentUserName : widget.otherName,
       }, SetOptions(merge: true));
+
+      // Email notification (fire-and-forget) — ίδιο μοτίβο με το _sendMessage,
+      // έλειπε εντελώς εδώ οπότε τα ηχητικά δεν έστελναν ποτέ email ειδοποίηση.
+      final chatParts2 = widget.chatId.split('_');
+      if (!widget.isPro) {
+        final proId = chatParts2.length > 1 ? chatParts2[1] : '';
+        if (proId.isNotEmpty) {
+          http.post(
+            Uri.parse('$kBackendUrl/email-pro-new-message'),
+            headers: {'Content-Type': 'application/json'},
+            body: jsonEncode({
+              'proId': proId,
+              'senderName': widget.currentUserName,
+              'messagePreview': '🎤 Ηχητικό μήνυμα',
+            }),
+          ).timeout(const Duration(seconds: 30)).catchError((_) {});
+        }
+      } else {
+        final userId = chatParts2.isNotEmpty ? chatParts2[0] : '';
+        if (userId.isNotEmpty) {
+          http.post(
+            Uri.parse('$kBackendUrl/email-user-new-message'),
+            headers: {'Content-Type': 'application/json'},
+            body: jsonEncode({
+              'userId': userId,
+              'proName': widget.currentUserName,
+              'messagePreview': '🎤 Ηχητικό μήνυμα',
+            }),
+          ).timeout(const Duration(seconds: 30)).catchError((_) {});
+        }
+      }
     } catch (e) {
       // ignore
     }
@@ -17409,7 +17441,15 @@ class _ChatScreenState extends State<ChatScreen> {
                 ]));
               }
               WidgetsBinding.instance.addPostFrameCallback((_) {
-                if (_scrollCtrl.hasClients) _scrollCtrl.jumpTo(_scrollCtrl.position.maxScrollExtent);
+                // Πήγαινε κάτω μόνο στην πρώτη φόρτωση ή όταν αλλάξει ο
+                // αριθμός μηνυμάτων (νέο μήνυμα ήρθε/διαγράφηκε) — αλλιώς
+                // κάθε ασήμαντο snapshot rebuild (π.χ. από το _markAsRead
+                // παρακάτω) πετούσε τον χρήστη πίσω στο τέλος ενώ προσπαθούσε
+                // να σκρολάρει προς τα πάνω να διαβάσει παλιά μηνύματα.
+                if (_scrollCtrl.hasClients && msgs.length != _lastMsgCount) {
+                  _scrollCtrl.jumpTo(_scrollCtrl.position.maxScrollExtent);
+                }
+                _lastMsgCount = msgs.length;
                 _markAsRead();
               });
               return ListView.builder(
