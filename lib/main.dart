@@ -2874,14 +2874,14 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
             _HowItWorksStep(
                 num: '1',
                 emoji: '📝',
-                title: 'Περίγραψε το αίτημα',
+                title: 'Περιέγραψε το αίτημα',
                 subtitle: 'Γράψε ή μίλα για αυτό που χρειάζεσαι'),
             const SizedBox(height: 10),
             _HowItWorksStep(
                 num: '2',
                 emoji: '⏱️',
-                title: 'Περίμενε λίγο',
-                subtitle: 'Οι επαγγελματίες ετοιμάζουν προσφορές'),
+                title: 'Οι επαγγελματίες ετοιμάζουν προσφορές',
+                subtitle: 'Λαμβάνεις τις προσφορές στον χρόνο που επέλεξες'),
             const SizedBox(height: 10),
             _HowItWorksStep(
                 num: '3',
