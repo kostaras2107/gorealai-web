@@ -741,7 +741,7 @@ app.post('/forgot-password', rateLimit(5, 60_000), async (req, res) => {
 // POST /email-pros-new-request
 // Body: { profession, location, description, requestId }
 app.post('/email-pros-new-request', rateLimit(30, 60_000), async (req, res) => {
-  const { profession, location, description, requestId, filterVerifiedOnly, exactSpecialty, requesterUserId } = req.body;
+  const { profession, location, description, requestId, filterVerifiedOnly, exactSpecialty, requesterUserId, urgent } = req.body;
   if (!firebaseReady) return res.json({ success: false, reason: 'firebase not ready' });
   if (!zohoTransporter && !process.env.SENDGRID_API_KEY) return res.json({ success: false, reason: 'no email provider configured' });
 
@@ -852,9 +852,10 @@ app.post('/email-pros-new-request', rateLimit(30, 60_000), async (req, res) => {
       return res.json({ success: true, sent: 0 });
     }
 
-    const subject = `🔔 Νέο αίτημα${profession ? ` για ${profession}` : ''}${location ? ` — ${location}` : ''}`;
+    const subject = `${urgent ? '🚨 ΕΠΕΙΓΟΝ — ' : ''}🔔 Νέο αίτημα${profession ? ` για ${profession}` : ''}${location ? ` — ${location}` : ''}`;
     const html = `
       <div style="font-family:Arial,sans-serif;max-width:480px;margin:0 auto;background:#0A0800;color:#fff;border-radius:16px;padding:32px;border:1px solid rgba(201,168,76,0.3)">
+        ${urgent ? `<p style="display:inline-block;background:#ff4d4d;color:#fff;font-size:12px;font-weight:800;padding:4px 12px;border-radius:20px;margin-bottom:10px;">🚨 ΕΠΕΙΓΟΝ — απαντά μέσα σε 15 λεπτά</p>` : ''}
         <h1 style="color:#FFD47A;font-size:22px;margin-bottom:4px;">🔔 Νέο Αίτημα!</h1>
         ${profession ? `<p style="color:#C9A84C;font-size:15px;margin:4px 0;font-weight:700;">${profession}</p>` : ''}
         ${location ? `<p style="color:rgba(255,255,255,0.5);font-size:13px;margin:4px 0;">📍 ${location}</p>` : ''}
@@ -877,7 +878,7 @@ app.post('/email-pros-new-request', rateLimit(30, 60_000), async (req, res) => {
       }
       // Push notification + in-app badge entry (fire-and-forget, doesn't block the loop)
       if (p.fcmToken) {
-        const pushTitle = `🔔 Νέο αίτημα${profession ? ` για ${profession}` : ''}!`;
+        const pushTitle = `${urgent ? '🚨 ΕΠΕΙΓΟΝ — ' : ''}🔔 Νέο αίτημα${profession ? ` για ${profession}` : ''}!`;
         const pushBody = description ? description.substring(0, 100) : 'Δες το αίτημα στην εφαρμογή';
         admin.messaging().send({
           token: p.fcmToken,
@@ -891,7 +892,7 @@ app.post('/email-pros-new-request', rateLimit(30, 60_000), async (req, res) => {
         }).catch(e => console.error('new-request push error:', e.message));
       }
       admin.firestore().collection('users').doc(p.uid).collection('notifications').add({
-        title: `🔔 Νέο αίτημα${profession ? ` για ${profession}` : ''}!`,
+        title: `${urgent ? '🚨 ΕΠΕΙΓΟΝ — ' : ''}🔔 Νέο αίτημα${profession ? ` για ${profession}` : ''}!`,
         body: description ? description.substring(0, 100) : '',
         isRead: false,
         type: 'new_request',

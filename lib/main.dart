@@ -465,6 +465,7 @@ bool _matchesProfession(Iterable<String> proSpecialties, String reqProfession, {
 // Διαθέσιμες διάρκειες countdown για αιτήματα (κλασικά + G/εκδηλώσεις).
 // Ώρες σε λεπτά, ώστε να μπαίνουν κατευθείαν σε Duration(minutes: ...).
 const List<Map<String, Object>> _requestDurationOptions = [
+  {'label': 'Επείγον 15\'', 'minutes': 15},
   {'label': '1 ώρα', 'minutes': 60},
   {'label': '4 ώρες', 'minutes': 240},
   {'label': '24 ώρες', 'minutes': 1440},
@@ -7943,6 +7944,7 @@ class _RequestScreenState extends State<RequestScreen>
         'filterWithPhoto': _filterWithPhoto,
         'filterMinRating': _filterMinRating,
         'filterVerifiedOnly': _filterVerifiedOnly,
+        'urgent': _durationMinutes == 15,
         if (_requestAudioUrl != null) 'audioUrl': _requestAudioUrl,
       });
 
@@ -8057,6 +8059,7 @@ class _RequestScreenState extends State<RequestScreen>
             'requestId': docRef.id,
             'filterVerifiedOnly': _filterVerifiedOnly,
             'requesterUserId': widget.userId,
+            'urgent': _durationMinutes == 15,
           }),
         ).timeout(const Duration(seconds: 60)).catchError((_) {});
 
@@ -8543,10 +8546,6 @@ Future<void> _notifyProsDirectly(
                     _CriteriaChip(emoji: '⭐', label: 'Value',
                         selected: _selectedCriteria == 'value',
                         onTap: () => setState(() => _selectedCriteria = 'value')),
-                    const SizedBox(width: 8),
-                    _CriteriaChip(emoji: '⚡', label: 'Άμεσα',
-                        selected: _selectedCriteria == 'fast',
-                        onTap: () => setState(() => _selectedCriteria = 'fast')),
                   ]),
                   const SizedBox(height: 8),
                   Row(children: [
@@ -8580,12 +8579,21 @@ Future<void> _notifyProsDirectly(
                     for (int i = 0; i < _requestDurationOptions.length; i++) ...[
                       if (i > 0) const SizedBox(width: 8),
                       _CriteriaChip(
-                        emoji: (_requestDurationOptions[i]['minutes'] as int) == 60
-                            ? '⚡'
-                            : (_requestDurationOptions[i]['minutes'] as int) == 240 ? '🕓' : '📅',
+                        emoji: switch (_requestDurationOptions[i]['minutes'] as int) {
+                          15 => '🚨',
+                          60 => '⚡',
+                          240 => '🕓',
+                          _ => '📅',
+                        },
                         label: _requestDurationOptions[i]['label'] as String,
                         selected: _durationMinutes == (_requestDurationOptions[i]['minutes'] as int),
-                        onTap: () => setState(() => _durationMinutes = _requestDurationOptions[i]['minutes'] as int),
+                        onTap: () => setState(() {
+                          _durationMinutes = _requestDurationOptions[i]['minutes'] as int;
+                          // "Επείγον 15'" αντικατέστησε το παλιό κριτήριο "Άμεσα" —
+                          // η επιλογή του σημαίνει αυτόματα ότι θέλει τις πιο
+                          // γρήγορα διαθέσιμες προσφορές, όχι ό,τι είχε ήδη επιλέξει.
+                          if (_durationMinutes == 15) _selectedCriteria = 'fast';
+                        }),
                       ),
                     ],
                   ]),
