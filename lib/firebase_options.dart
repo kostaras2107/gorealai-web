@@ -23,10 +23,7 @@ class DefaultFirebaseOptions {
       case TargetPlatform.android:
         return android;
       case TargetPlatform.iOS:
-        throw UnsupportedError(
-          'DefaultFirebaseOptions have not been configured for ios - '
-          'you can reconfigure this by running the FlutterFire CLI again.',
-        );
+        return ios;
       case TargetPlatform.macOS:
         throw UnsupportedError(
           'DefaultFirebaseOptions have not been configured for macos - '
@@ -64,5 +61,13 @@ class DefaultFirebaseOptions {
     messagingSenderId: '451660365555',
     projectId: 'shoppilot-app-e4104',
     storageBucket: 'shoppilot-app-e4104.firebasestorage.app',
+  );
+  static const FirebaseOptions ios = FirebaseOptions(
+    apiKey: 'AIzaSyDdK65emeX4-CwYos-iw_RADg30bRwkQEo',
+    appId: '1:451660365555:ios:56c55c8e3d04f5f6888186',
+    messagingSenderId: '451660365555',
+    projectId: 'shoppilot-app-e4104',
+    storageBucket: 'shoppilot-app-e4104.firebasestorage.app',
+    iosBundleId: 'gr.gorealai.app',
   );
 }

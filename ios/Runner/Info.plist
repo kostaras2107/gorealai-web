@@ -5,7 +5,7 @@
 		<key>CFBundleDevelopmentRegion</key>
 		<string>$(DEVELOPMENT_LANGUAGE)</string>
 		<key>CFBundleDisplayName</key>
-		<string>Shoppilot</string>
+		<string>GorealPro</string>
 		<key>CFBundleExecutable</key>
 		<string>$(EXECUTABLE_NAME)</string>
 		<key>CFBundleIdentifier</key>
@@ -13,7 +13,7 @@
 		<key>CFBundleInfoDictionaryVersion</key>
 		<string>6.0</string>
 		<key>CFBundleName</key>
-		<string>shoppilot</string>
+		<string>GorealPro</string>
 		<key>CFBundlePackageType</key>
 		<string>APPL</string>
 		<key>CFBundleShortVersionString</key>
@@ -47,5 +47,17 @@
 		<true/>
 		<key>UIStatusBarHidden</key>
 		<false/>
+		<key>NSCameraUsageDescription</key>
+		<string>Το GorealPro χρειάζεται πρόσβαση στην κάμερα για να φωτογραφίσεις/βιντεοσκοπήσεις το πρόβλημά σου στα αιτήματα και στις συνομιλίες.</string>
+		<key>NSPhotoLibraryUsageDescription</key>
+		<string>Το GorealPro χρειάζεται πρόσβαση στη βιβλιοθήκη φωτογραφιών για να επισυνάψεις φωτογραφίες/βίντεο σε αιτήματα, προσφορές και συνομιλίες.</string>
+		<key>NSPhotoLibraryAddUsageDescription</key>
+		<string>Το GorealPro αποθηκεύει φωτογραφίες στη βιβλιοθήκη σου όταν το επιλέγεις.</string>
+		<key>NSMicrophoneUsageDescription</key>
+		<string>Το GorealPro χρειάζεται πρόσβαση στο μικρόφωνο για να στέλνεις ηχητικά μηνύματα και να χρησιμοποιείς την αναγνώριση φωνής.</string>
+		<key>NSSpeechRecognitionUsageDescription</key>
+		<string>Το GorealPro χρησιμοποιεί αναγνώριση φωνής ώστε να μπορείς να υπαγορεύεις το αίτημά σου αντί να το πληκτρολογείς.</string>
+		<key>NSFaceIDUsageDescription</key>
+		<string>Το GorealPro χρησιμοποιεί το Face ID για γρήγορη και ασφαλή σύνδεση στον λογαριασμό σου.</string>
 	</dict>
 </plist>
