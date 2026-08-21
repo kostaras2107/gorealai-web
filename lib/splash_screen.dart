@@ -187,7 +187,7 @@ class _SplashScreenState extends State<SplashScreen>
                               Padding(
                                 padding: const EdgeInsets.only(left: 4, bottom: 4),
                                 child: SizedBox(
-                                  width: 110,
+                                  width: 105,
                                   height: 90,
                                   child: Stack(
                                     clipBehavior: Clip.none,
