@@ -11676,7 +11676,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   double get _subscriptionPrice {
     final s = _specialty.toLowerCase();
-    if (s.contains('συνεργείο') || s.contains('γάμο') || s.contains('βάφτιση') || s.contains('πάρτ')) return 59.99;
+    if (s.contains('συνεργείο')) return 59.99;
+    if (s.contains('γάμο') || s.contains('βάφτιση') || s.contains('πάρτ')) return 29.99;
     return 19.99;
   }
 
@@ -11818,7 +11819,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
         ]),
         const SizedBox(height: 12),
         Text(
-          'Η μηνιαία συνδρομή ανέρχεται σε ${price.toStringAsFixed(2).replaceAll('.', ',')}€.',
+          'Η μηνιαία συνδρομή ανέρχεται σε ${price.toStringAsFixed(2).replaceAll('.', ',')}€ πλέον ΦΠΑ.',
           style: TextStyle(color: _g(0.65), fontSize: 13, height: 1.5),
         ),
         const SizedBox(height: 16),
@@ -11833,7 +11834,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
               boxShadow: [BoxShadow(color: kGold.withValues(alpha: 0.35), blurRadius: 12, offset: const Offset(0, 4))],
             ),
             child: Center(
-              child: Text('Συνδρομή — ${price.toStringAsFixed(2).replaceAll('.', ',')}€/μήνα',
+              child: Text('Συνδρομή — ${price.toStringAsFixed(2).replaceAll('.', ',')}€/μήνα +ΦΠΑ',
                   style: const TextStyle(color: Colors.black, fontSize: 14, fontWeight: FontWeight.w800)),
             ),
           ),
@@ -11883,7 +11884,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
             const Text('💳 Ολοκλήρωση Συνδρομής',
                 style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.w800, fontFamily: 'Inter')),
             const SizedBox(height: 6),
-            Text('${price.toStringAsFixed(2).replaceAll('.', ',')}€ / μήνα',
+            Text('${price.toStringAsFixed(2).replaceAll('.', ',')}€ / μήνα + ΦΠΑ',
                 style: const TextStyle(color: kGold, fontSize: 22, fontWeight: FontWeight.w900, fontFamily: 'Inter')),
             const SizedBox(height: 16),
             Container(
