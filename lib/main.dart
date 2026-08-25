@@ -965,9 +965,11 @@ class _LoginScreenState extends State<LoginScreen>
   }
 
   Future<void> _pickSelfie(ImageSource source) async {
-    final picker = ImagePicker();
-    final file = await picker.pickImage(source: source, imageQuality: 80, maxWidth: 800);
-    if (file != null && mounted) setState(() => _selfieFile = file);
+    try {
+      final picker = ImagePicker();
+      final file = await picker.pickImage(source: source, imageQuality: 80, maxWidth: 800);
+      if (file != null && mounted) setState(() => _selfieFile = file);
+    } catch (_) {}
   }
 
   void _showSelfieOptions() {
@@ -2180,6 +2182,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   List<String> _proSpecialties = [];
   List<String> _proAreas = [];
   String? _proPhotoUrlHome;
+  String? _userPhotoUrl;
   double _proAvgRatingHome = 0.0;
   bool _proIsVerifiedHome = false;
   Timestamp? _proLastSeenRequests;
@@ -2366,6 +2369,10 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       _proAvgRatingHome = proAvgRating;
       _proIsVerifiedHome = proIsVerified;
       _proLastSeenRequests = data['lastSeenRequestsAt'] as Timestamp?;
+      final ownPhoto = data['profilePhotoUrl'] as String?;
+      _userPhotoUrl = (ownPhoto != null && ownPhoto.isNotEmpty)
+          ? ownPhoto
+          : (proPhotoUrl.isNotEmpty ? proPhotoUrl : null);
     });
   }
 
@@ -2750,6 +2757,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
               return _BottomNav(
             navIndex: _navIndex,
             userName: _userName,
+            userPhotoUrl: _userPhotoUrl,
             hasActiveRequest: _activeRequests.isNotEmpty,
             activeRequestId: _activeRequests.isNotEmpty ? _activeRequests.first['id'] as String? : null,
             unreadMessages: unreadUserMsgs,
@@ -3924,6 +3932,7 @@ class _ActiveRequestsPreview extends StatelessWidget {
 class _BottomNav extends StatelessWidget {
   final int navIndex;
   final String? userName;
+  final String? userPhotoUrl;
   final String? activeRequestId;
   final bool hasActiveRequest;
   final int unreadMessages;
@@ -3931,6 +3940,7 @@ class _BottomNav extends StatelessWidget {
   const _BottomNav(
       {required this.navIndex,
       required this.userName,
+      this.userPhotoUrl,
       this.activeRequestId,
       this.hasActiveRequest = false,
       this.unreadMessages = 0,
@@ -4016,12 +4026,20 @@ class _BottomNav extends StatelessWidget {
                           ),
                           boxShadow: navIndex == 3 ? [BoxShadow(color: Colors.white.withValues(alpha: 0.1), blurRadius: 8)] : null,
                         ),
-                        child: Center(child: Text(
-                            userName?.isNotEmpty == true
-                                ? userName![0].toUpperCase() : 'G',
-                            style: const TextStyle(
-                                color: kGold,
-                                fontSize: 16, fontWeight: FontWeight.bold))),
+                        child: ClipOval(child: (userPhotoUrl?.isNotEmpty ?? false)
+                            ? Image.network(userPhotoUrl!, fit: BoxFit.cover,
+                                errorBuilder: (_, __, ___) => Center(child: Text(
+                                    userName?.isNotEmpty == true
+                                        ? userName![0].toUpperCase() : 'G',
+                                    style: const TextStyle(
+                                        color: kGold,
+                                        fontSize: 16, fontWeight: FontWeight.bold))))
+                            : Center(child: Text(
+                                userName?.isNotEmpty == true
+                                    ? userName![0].toUpperCase() : 'G',
+                                style: const TextStyle(
+                                    color: kGold,
+                                    fontSize: 16, fontWeight: FontWeight.bold)))),
                       ),
                     ))),
                   ]),
@@ -4296,11 +4314,11 @@ class _ProfessionalHomeScreenState extends State<ProfessionalHomeScreen> {
   DateTime? _lastSeenRequestsAt;
 
   Future<void> _changeProfilePhoto() async {
-    final picker = ImagePicker();
-    final file = await picker.pickImage(source: ImageSource.gallery, imageQuality: 80, maxWidth: 800);
-    if (file == null || !mounted) return;
-    setState(() => _uploadingPhoto = true);
     try {
+      final picker = ImagePicker();
+      final file = await picker.pickImage(source: ImageSource.gallery, imageQuality: 80, maxWidth: 800);
+      if (file == null || !mounted) return;
+      setState(() => _uploadingPhoto = true);
       final uid = FirebaseAuth.instance.currentUser?.uid ?? '';
       final bytes = await file.readAsBytes();
       final ref = FirebaseStorage.instance.ref('profile_photos/$uid/profile.jpg');
@@ -7814,9 +7832,9 @@ class _RequestScreenState extends State<RequestScreen>
   }
 
   Future<void> _takeSinglePhoto() async {
-    final xf = await _picker.pickImage(source: ImageSource.camera, imageQuality: 75);
-    if (xf == null || !mounted) return;
     try {
+      final xf = await _picker.pickImage(source: ImageSource.camera, imageQuality: 75);
+      if (xf == null || !mounted) return;
       final bytes = await xf.readAsBytes();
       final small = await _RequestScreenState._compressImage(bytes);
       setState(() => _images.add(small != null
@@ -7871,19 +7889,21 @@ class _RequestScreenState extends State<RequestScreen>
   }
 
   Future<void> _pickImage() async {
-    final picked = await _picker.pickMultiImage();
-    if (picked.isEmpty) return;
-    final compressed = <XFile>[];
-    for (final f in picked.take(3)) {
-      try {
-        final bytes = await f.readAsBytes();
-        final small = await _compressImage(bytes);
-        compressed.add(small != null
-            ? XFile.fromData(small, name: f.name, mimeType: 'image/png')
-            : f);
-      } catch (_) { compressed.add(f); }
-    }
-    setState(() => _images.addAll(compressed));
+    try {
+      final picked = await _picker.pickMultiImage();
+      if (picked.isEmpty || !mounted) return;
+      final compressed = <XFile>[];
+      for (final f in picked.take(3)) {
+        try {
+          final bytes = await f.readAsBytes();
+          final small = await _compressImage(bytes);
+          compressed.add(small != null
+              ? XFile.fromData(small, name: f.name, mimeType: 'image/png')
+              : f);
+        } catch (_) { compressed.add(f); }
+      }
+      setState(() => _images.addAll(compressed));
+    } catch (_) {}
   }
 
   bool _submitLock = false;  // Guard κατά double submit
@@ -11586,11 +11606,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   Future<void> _changeProfilePhoto() async {
-    final picker = ImagePicker();
-    final file = await picker.pickImage(source: ImageSource.gallery, imageQuality: 80, maxWidth: 800);
-    if (file == null || !mounted) return;
-    setState(() => _uploadingPhoto = true);
     try {
+      final picker = ImagePicker();
+      final file = await picker.pickImage(source: ImageSource.gallery, imageQuality: 80, maxWidth: 800);
+      if (file == null || !mounted) return;
+      setState(() => _uploadingPhoto = true);
       final uid = FirebaseAuth.instance.currentUser?.uid ?? '';
       final bytes = await file.readAsBytes();
       final ref = FirebaseStorage.instance.ref('profile_photos/$uid/profile.jpg');
@@ -12252,16 +12272,28 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                 blurRadius: 20)
                           ],
                         ),
-                        child: Center(
-                            child: Text(
-                                _name?.isNotEmpty == true
-                                    ? _name![0].toUpperCase()
-                                    : 'G',
-                                style: const TextStyle(
-                                    fontFamily: 'Inter',
-                                    fontSize: 30,
-                                    fontWeight: FontWeight.bold,
-                                    color: kGold))),
+                        child: ClipOval(child: (_photoUrl?.isNotEmpty ?? false)
+                            ? Image.network(_photoUrl!, fit: BoxFit.cover,
+                                errorBuilder: (_, __, ___) => Center(
+                                    child: Text(
+                                        _name?.isNotEmpty == true
+                                            ? _name![0].toUpperCase()
+                                            : 'G',
+                                        style: const TextStyle(
+                                            fontFamily: 'Inter',
+                                            fontSize: 30,
+                                            fontWeight: FontWeight.bold,
+                                            color: kGold))))
+                            : Center(
+                                child: Text(
+                                    _name?.isNotEmpty == true
+                                        ? _name![0].toUpperCase()
+                                        : 'G',
+                                    style: const TextStyle(
+                                        fontFamily: 'Inter',
+                                        fontSize: 30,
+                                        fontWeight: FontWeight.bold,
+                                        color: kGold)))),
                       ),
                       const SizedBox(height: 12),
                       Text(_name ?? '',
@@ -17031,11 +17063,13 @@ class _ChatScreenState extends State<ChatScreen> {
   bool _chatAudioUploading = false;
   Timer? _chatAudioTimer;
   Duration _chatAudioDur = Duration.zero;
+  String? _otherPhotoUrl;
 
   @override
   void initState() {
     super.initState();
     _markAsRead();
+    _loadOtherPhoto();
     // Listen to chat doc for the other side's lastReadAt
     _chatDocSub = FirebaseFirestore.instance
         .collection('chats').doc(widget.chatId)
@@ -17048,6 +17082,23 @@ class _ChatScreenState extends State<ChatScreen> {
       final ts = d[otherField] as Timestamp?;
       if (ts != null && mounted) setState(() => _otherLastRead = ts.toDate());
     });
+  }
+
+  Future<void> _loadOtherPhoto() async {
+    try {
+      final chatDoc = await FirebaseFirestore.instance.collection('chats').doc(widget.chatId).get();
+      final d = chatDoc.data();
+      if (d == null) return;
+      final otherUid = widget.isPro ? (d['userId'] as String? ?? '') : (d['proId'] as String? ?? '');
+      if (otherUid.isEmpty) return;
+      final primaryCol = widget.isPro ? 'users' : 'professionals';
+      final fallbackCol = widget.isPro ? 'professionals' : 'users';
+      var url = (await FirebaseFirestore.instance.collection(primaryCol).doc(otherUid).get())
+          .data()?['profilePhotoUrl'] as String?;
+      url ??= (await FirebaseFirestore.instance.collection(fallbackCol).doc(otherUid).get())
+          .data()?['profilePhotoUrl'] as String?;
+      if (url != null && url.isNotEmpty && mounted) setState(() => _otherPhotoUrl = url);
+    } catch (_) {}
   }
 
   @override
@@ -17413,9 +17464,14 @@ class _ChatScreenState extends State<ChatScreen> {
             Container(width: 38, height: 38,
               decoration: BoxDecoration(shape: BoxShape.circle,
                   color: kGold.withValues(alpha: 0.12), border: Border.all(color: kGold.withValues(alpha: 0.3))),
-              child: Center(child: Text(
-                  widget.otherName.isNotEmpty ? widget.otherName[0].toUpperCase() : '?',
-                  style: const TextStyle(color: kGold, fontSize: 16, fontWeight: FontWeight.w800))),
+              child: ClipOval(child: (_otherPhotoUrl?.isNotEmpty ?? false)
+                  ? Image.network(_otherPhotoUrl!, fit: BoxFit.cover,
+                      errorBuilder: (_, __, ___) => Center(child: Text(
+                          widget.otherName.isNotEmpty ? widget.otherName[0].toUpperCase() : '?',
+                          style: const TextStyle(color: kGold, fontSize: 16, fontWeight: FontWeight.w800))))
+                  : Center(child: Text(
+                      widget.otherName.isNotEmpty ? widget.otherName[0].toUpperCase() : '?',
+                      style: const TextStyle(color: kGold, fontSize: 16, fontWeight: FontWeight.w800)))),
             ),
             const SizedBox(width: 10),
             Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
@@ -17497,9 +17553,14 @@ class _ChatScreenState extends State<ChatScreen> {
                         if (!isMine) ...[
                           Container(width: 28, height: 28,
                               decoration: BoxDecoration(shape: BoxShape.circle, color: kGold.withValues(alpha: 0.12)),
-                              child: Center(child: Text(
-                                  widget.otherName.isNotEmpty ? widget.otherName[0].toUpperCase() : '?',
-                                  style: const TextStyle(color: kGold, fontSize: 12, fontWeight: FontWeight.w700)))),
+                              child: ClipOval(child: (_otherPhotoUrl?.isNotEmpty ?? false)
+                                  ? Image.network(_otherPhotoUrl!, fit: BoxFit.cover,
+                                      errorBuilder: (_, __, ___) => Center(child: Text(
+                                          widget.otherName.isNotEmpty ? widget.otherName[0].toUpperCase() : '?',
+                                          style: const TextStyle(color: kGold, fontSize: 12, fontWeight: FontWeight.w700))))
+                                  : Center(child: Text(
+                                      widget.otherName.isNotEmpty ? widget.otherName[0].toUpperCase() : '?',
+                                      style: const TextStyle(color: kGold, fontSize: 12, fontWeight: FontWeight.w700))))),
                           const SizedBox(width: 8),
                         ],
                         Flexible(
