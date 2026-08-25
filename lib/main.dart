@@ -17064,6 +17064,7 @@ class _ChatScreenState extends State<ChatScreen> {
   Timer? _chatAudioTimer;
   Duration _chatAudioDur = Duration.zero;
   String? _otherPhotoUrl;
+  String? _otherProId;
 
   @override
   void initState() {
@@ -17097,8 +17098,21 @@ class _ChatScreenState extends State<ChatScreen> {
           .data()?['profilePhotoUrl'] as String?;
       url ??= (await FirebaseFirestore.instance.collection(fallbackCol).doc(otherUid).get())
           .data()?['profilePhotoUrl'] as String?;
-      if (url != null && url.isNotEmpty && mounted) setState(() => _otherPhotoUrl = url);
+      if (mounted) setState(() {
+        if (url != null && url.isNotEmpty) _otherPhotoUrl = url;
+        if (!widget.isPro) _otherProId = otherUid;
+      });
     } catch (_) {}
+  }
+
+  void _openOtherProfile() {
+    if (_otherProId == null || _otherProId!.isEmpty) return;
+    Navigator.push(context, PageRouteBuilder(
+      transitionDuration: const Duration(milliseconds: 350),
+      pageBuilder: (_, __, ___) => _ProPublicProfileScreen(
+          proId: _otherProId!, proData: {'name': widget.otherName}),
+      transitionsBuilder: (_, a, __, c) => FadeTransition(opacity: a, child: c),
+    ));
   }
 
   @override
@@ -17461,23 +17475,29 @@ class _ChatScreenState extends State<ChatScreen> {
                   child: const Icon(Icons.arrow_back_ios_new, color: kGold, size: 16)),
             ),
             const SizedBox(width: 12),
-            Container(width: 38, height: 38,
-              decoration: BoxDecoration(shape: BoxShape.circle,
-                  color: kGold.withValues(alpha: 0.12), border: Border.all(color: kGold.withValues(alpha: 0.3))),
-              child: ClipOval(child: (_otherPhotoUrl?.isNotEmpty ?? false)
-                  ? Image.network(_otherPhotoUrl!, fit: BoxFit.cover,
-                      errorBuilder: (_, __, ___) => Center(child: Text(
-                          widget.otherName.isNotEmpty ? widget.otherName[0].toUpperCase() : '?',
-                          style: const TextStyle(color: kGold, fontSize: 16, fontWeight: FontWeight.w800))))
-                  : Center(child: Text(
-                      widget.otherName.isNotEmpty ? widget.otherName[0].toUpperCase() : '?',
-                      style: const TextStyle(color: kGold, fontSize: 16, fontWeight: FontWeight.w800)))),
+            GestureDetector(
+              onTap: _openOtherProfile,
+              child: Container(width: 38, height: 38,
+                decoration: BoxDecoration(shape: BoxShape.circle,
+                    color: kGold.withValues(alpha: 0.12), border: Border.all(color: kGold.withValues(alpha: 0.3))),
+                child: ClipOval(child: (_otherPhotoUrl?.isNotEmpty ?? false)
+                    ? Image.network(_otherPhotoUrl!, fit: BoxFit.cover,
+                        errorBuilder: (_, __, ___) => Center(child: Text(
+                            widget.otherName.isNotEmpty ? widget.otherName[0].toUpperCase() : '?',
+                            style: const TextStyle(color: kGold, fontSize: 16, fontWeight: FontWeight.w800))))
+                    : Center(child: Text(
+                        widget.otherName.isNotEmpty ? widget.otherName[0].toUpperCase() : '?',
+                        style: const TextStyle(color: kGold, fontSize: 16, fontWeight: FontWeight.w800)))),
+              ),
             ),
             const SizedBox(width: 10),
-            Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Expanded(child: GestureDetector(
+              onTap: _openOtherProfile,
+              behavior: HitTestBehavior.opaque,
+              child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
               Text(widget.otherName, style: const TextStyle(color: Colors.white, fontSize: 15, fontWeight: FontWeight.w700)),
               Text(widget.isPro ? 'Πελάτης' : 'Επαγγελματίας', style: TextStyle(color: _g(0.35), fontSize: 11)),
-            ])),
+            ]))),
           ]),
         ),
         Expanded(
