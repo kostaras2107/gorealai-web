@@ -5,8 +5,9 @@
     <uses-permission android:name="android.permission.INTERNET"/>
     <!-- Camera -->
     <uses-permission android:name="android.permission.CAMERA"/>
-    <!-- Gallery access (image_picker) -->
-    <uses-permission android:name="android.permission.READ_MEDIA_IMAGES"/>
+    <!-- Gallery access (image_picker) — the modern Android Photo Picker used by
+         image_picker needs no runtime permission; this is only a fallback for
+         devices predating it. -->
     <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" android:maxSdkVersion="32"/>
     <!-- FCM Notifications -->
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED"/>
