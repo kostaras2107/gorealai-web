@@ -1746,6 +1746,15 @@ class _MultiSpecialtyPickerState extends State<_MultiSpecialtyPicker> {
 }
 
 // ── Multi-select area picker ──
+// Τομείς Αττικής — επιλέγοντας έναν τομέα (π.χ. "Βόρεια Προάστια"), ο
+// επαγγελματίας δηλώνει ότι καλύπτει όλους τους δήμους του τομέα χωρίς να
+// τους διαλέξει έναν-έναν. Το matching με συγκεκριμένο δήμο αιτήματος
+// (π.χ. Χαλάνδρι) γίνεται server-side (βλ. ATTICA_SECTORS στο backend).
+const List<String> _atticaSectors = [
+  'Κεντρικά Προάστια', 'Νότια Προάστια', 'Βόρεια Προάστια', 'Δυτικά Προάστια',
+  'Πειραιάς & Νησιά', 'Ανατολική Αττική', 'Δυτική Αττική', 'Νότια Αττική',
+];
+
 class _MultiAreaPicker extends StatefulWidget {
   final List<String> initial;
   const _MultiAreaPicker({required this.initial});
@@ -1756,44 +1765,62 @@ class _MultiAreaPickerState extends State<_MultiAreaPicker> {
   late List<String> _selected;
   @override
   void initState() { super.initState(); _selected = List.from(widget.initial); }
+
+  Widget _row(String area) {
+    final isSel = _selected.contains(area);
+    return GestureDetector(
+      onTap: () => setState(() => isSel ? _selected.remove(area) : _selected.add(area)),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 150),
+        margin: const EdgeInsets.only(bottom: 6),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 13),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(12),
+          color: isSel ? kGold.withValues(alpha: 0.12) : _g(0.04),
+          border: Border.all(color: isSel ? kGold.withValues(alpha: 0.5) : _g(0.07)),
+        ),
+        child: Row(children: [
+          AnimatedContainer(
+            duration: const Duration(milliseconds: 150),
+            width: 20, height: 20,
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(4),
+              color: isSel ? kGold : Colors.transparent,
+              border: Border.all(color: isSel ? kGold : _g(0.25), width: 1.5),
+            ),
+            child: isSel ? const Icon(Icons.check, color: Colors.black, size: 13) : null,
+          ),
+          const SizedBox(width: 12),
+          Text(area, style: TextStyle(color: isSel ? kGold : Colors.white, fontSize: 14, fontWeight: isSel ? FontWeight.w600 : FontWeight.w400)),
+        ]),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) => _PickerContainer(
     title: 'Περιοχές εργασίας',
     onOk: _selected.isNotEmpty ? () => Navigator.pop(context, _selected) : null,
-    child: ListView.builder(
+    child: ListView(
       padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-      itemCount: _greekAreasSorted.length,
-      itemBuilder: (_, i) {
-        final area = _greekAreasSorted[i];
-        final isSel = _selected.contains(area);
-        return GestureDetector(
-          onTap: () => setState(() => isSel ? _selected.remove(area) : _selected.add(area)),
-          child: AnimatedContainer(
-            duration: const Duration(milliseconds: 150),
-            margin: const EdgeInsets.only(bottom: 6),
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 13),
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(12),
-              color: isSel ? kGold.withValues(alpha: 0.12) : _g(0.04),
-              border: Border.all(color: isSel ? kGold.withValues(alpha: 0.5) : _g(0.07)),
-            ),
-            child: Row(children: [
-              AnimatedContainer(
-                duration: const Duration(milliseconds: 150),
-                width: 20, height: 20,
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(4),
-                  color: isSel ? kGold : Colors.transparent,
-                  border: Border.all(color: isSel ? kGold : _g(0.25), width: 1.5),
-                ),
-                child: isSel ? const Icon(Icons.check, color: Colors.black, size: 13) : null,
-              ),
-              const SizedBox(width: 12),
-              Text(area, style: TextStyle(color: isSel ? kGold : Colors.white, fontSize: 14, fontWeight: isSel ? FontWeight.w600 : FontWeight.w400)),
-            ]),
-          ),
-        );
-      },
+      children: [
+        Padding(
+          padding: const EdgeInsets.only(bottom: 8, top: 4),
+          child: Text('ΤΟΜΕΙΣ (καλύπτουν πολλούς δήμους)',
+              style: TextStyle(fontFamily: 'Inter', fontSize: 9, letterSpacing: 2, color: kGold.withValues(alpha: 0.5))),
+        ),
+        ..._atticaSectors.map(_row),
+        const Padding(
+          padding: EdgeInsets.symmetric(vertical: 14),
+          child: Divider(color: Colors.white12, height: 1),
+        ),
+        Padding(
+          padding: const EdgeInsets.only(bottom: 8),
+          child: Text('ΔΗΜΟΙ',
+              style: TextStyle(fontFamily: 'Inter', fontSize: 9, letterSpacing: 2, color: kGold.withValues(alpha: 0.5))),
+        ),
+        ..._greekAreasSorted.map(_row),
+      ],
     ),
   );
 }
