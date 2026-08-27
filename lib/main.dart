@@ -2863,7 +2863,9 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                   text: ' 👋', style: TextStyle(fontSize: 24)),
             ])),
             const SizedBox(height: 6),
-            Text('Χρειάζεσαι κάποιον επαγγελματία;',
+            Text(_isPro
+                    ? 'Οι πελάτες θα σου στείλουν αίτημα όταν σε χρειαστούν, για να τους στείλεις την προσφορά σου.'
+                    : 'Χρειάζεσαι κάποιον επαγγελματία;',
                 style: TextStyle(
                     color: _g(0.45),
                     fontSize: 14)),
@@ -2904,7 +2906,27 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
         ),
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 20),
-          child: Column(children: [
+          child: _isPro
+              ? Column(children: [
+                  _HowItWorksStep(
+                      num: '1',
+                      emoji: '📝',
+                      title: 'Οι πελάτες στέλνουν το αίτημα',
+                      subtitle: 'Περιγράφουν τι χρειάζονται, με κείμενο ή φωτογραφίες'),
+                  const SizedBox(height: 10),
+                  _HowItWorksStep(
+                      num: '2',
+                      emoji: '💰',
+                      title: 'Ετοιμάζεις την προσφορά σου',
+                      subtitle: 'Μπες στην καρτέλα «Επαγγελματίες» → Αιτήματα και στείλε την προσφορά σου'),
+                  const SizedBox(height: 10),
+                  _HowItWorksStep(
+                      num: '3',
+                      emoji: '✅',
+                      title: 'Ο πελάτης αποφασίζει',
+                      subtitle: 'Αν αποδεχτεί την προσφορά σου, δημιουργείται αυτόματα το booking'),
+                ])
+              : Column(children: [
             _HowItWorksStep(
                 num: '1',
                 emoji: '📝',
@@ -3417,7 +3439,7 @@ class _EmptyHeroCard extends StatelessWidget {
                 fontWeight: FontWeight.w800, color: Colors.white, height: 1.2)),
         const SizedBox(height: 8),
         Text(isPro
-              ? 'Αν χρειάζεσαι εσύ κάποιον άλλον επαγγελματία, περίγραψέ το και θα ανταγωνιστούν για σένα.'
+              ? 'Αν χρειάζεσαι εσύ κάποιον άλλον επαγγελματία διαφορετικής ειδικότητας, τότε στείλε το αίτημά σου και θα λάβεις στον χρόνο που επέλεξες τις προσφορές σου.'
               : 'Περίγραψέ την και οι επαγγελματίες θα ανταγωνιστούν για σένα.',
             style: TextStyle(fontSize: 13, color: _g(0.7), fontWeight: FontWeight.w600, height: 1.4)),
         const SizedBox(height: 6),
