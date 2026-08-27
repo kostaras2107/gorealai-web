@@ -2879,7 +2879,6 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
               ? _ActiveRequestHeroCard(
                   requests: _activeRequests,
                   onTap: _openMyOffers,
-                  onNewRequest: _openRequest,
                 )
               : _EmptyHeroCard(onTap: _openRequest, isPro: _isPro),
         ),
@@ -3448,9 +3447,8 @@ class _EmptyHeroCard extends StatelessWidget {
 class _ActiveRequestHeroCard extends StatefulWidget {
   final List<Map<String, dynamic>> requests;
   final VoidCallback onTap;
-  final VoidCallback onNewRequest;
   const _ActiveRequestHeroCard({
-    required this.requests, required this.onTap, required this.onNewRequest});
+    required this.requests, required this.onTap});
   @override
   State<_ActiveRequestHeroCard> createState() => _ActiveRequestHeroCardState();
 }
@@ -3728,15 +3726,6 @@ class _ActiveRequestHeroCardState extends State<_ActiveRequestHeroCard> {
                     style: TextStyle(color: _gw, fontSize: 13, fontWeight: FontWeight.w800)),
               ]),
             ),
-            if (widget.requests.length < 2) ...[
-              const SizedBox(height: 10),
-              GestureDetector(
-                onTap: widget.onNewRequest,
-                child: Center(child: Text('+ Νέο αίτημα',
-                    style: TextStyle(color: _g(0.4),
-                        fontSize: 11, decoration: TextDecoration.underline))),
-              ),
-            ],
           ],
         ]),
       ),
@@ -12447,7 +12436,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       value: '',
                       onTap: () async => launchUrl(
                           Uri.parse('https://gorealai.web.app/privacy'),
-                          mode: LaunchMode.platformDefault)),
+                          mode: LaunchMode.externalApplication)),
                   _ProfileRow(
                       icon: Icons.description_outlined,
                       emoji: '📄',
@@ -12455,7 +12444,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       value: '',
                       onTap: () async => launchUrl(
                           Uri.parse('https://gorealai.web.app/terms'),
-                          mode: LaunchMode.platformDefault)),
+                          mode: LaunchMode.externalApplication)),
 
                   const SizedBox(height: 20),
                   _ProfileRow(
