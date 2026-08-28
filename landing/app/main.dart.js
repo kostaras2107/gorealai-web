@@ -32513,10 +32513,10 @@ aFg:function aFg(a){this.a=a},
 aFf:function aFf(a){this.a=a},
 Om:function Om(){},
 OK:function OK(){},
-bal(a,b){var s="tiktok-embed-"+a+"-false"
+bal(a,b){var s="tiktok-embed-"+a+"-"+b
 if(!$.b9V.p(0,s)){$.b9V.F(0,s)
 $.aZ3()
-$.wG().A9(s,new A.aXG(a,!1),!0)}return new A.CB(0.5625,A.b4W(null,B.El,s),null)},
+$.wG().A9(s,new A.aXG(a,b),!0)}return new A.CB(0.5625,A.b4W(null,B.El,s),null)},
 aXG:function aXG(a,b){this.a=a
 this.b=b},
 b_d(a,b){if(b<0)A.aj(A.fb("Offset may not be negative, was "+b+"."))
@@ -114028,7 +114028,7 @@ $0(){return this.a.e=this.b},
 $S:0}
 A.aVa.prototype={
 $2(a,b){var s,r,q=null,p=this.b[b],o=b===this.a.e,n=this.c,m=A.B(14),l=A.a([B.e4,B.Lc],t.O),k=A.af(B.c0.n(0.3),B.l,1),j=A.a([new A.bj(0,B.J,B.c0.n(0.1),B.q,10)],t.V),i=t.p,h=A.a([],i)
-if(o)h.push(A.iC(A.b9(A.bal(A.ax(p.h(0,"videoId")),!1),q,q),!0,q))
+if(o)h.push(A.iC(A.b9(A.bal(A.ax(p.h(0,"videoId")),!0),q,q),!0,q))
 else h.push(A.h5("https://ai-backend-kkt7.onrender.com/tiktok-thumbnail?url="+A.p6(2,A.ax(p.h(0,"url")),B.an,!1),new A.aV6(),B.bg,q,new A.aV7(),q))
 if(!o)h.push(A.b9(A.x(q,B.R1,B.e,q,q,new A.y(B.t.n(0.4),q,A.af(B.c0.n(0.5),B.l,1),q,q,q,B.H),q,52,q,q,q,q,52),q,q))
 s=A.B(8)
@@ -116174,7 +116174,9 @@ s.aX$=null
 s.aq()}}
 A.aXG.prototype={
 $1(a){var s,r=document.createElement("iframe")
-r.src="https://www.tiktok.com/player/v1/"+this.a+"?autoplay=1&muted=0"
+r.toString
+s=this.b?1:0
+r.src="https://www.tiktok.com/player/v1/"+this.a+"?autoplay=1&muted="+s
 s=r.style
 s.border="none"
 s=r.style

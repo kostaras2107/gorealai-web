@@ -14493,7 +14493,7 @@ class _TikTokShortsCarouselState extends State<_TikTokShortsCarousel> {
                   child: Stack(fit: StackFit.expand, children: [
                     if (isActive)
                       IgnorePointer(
-                        child: Center(child: tiktok_embed.buildTikTokEmbed(item['videoId'] as String, muted: false)),
+                        child: Center(child: tiktok_embed.buildTikTokEmbed(item['videoId'] as String, muted: true)),
                       )
                     else
                       Image.network(
