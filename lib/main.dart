@@ -2216,6 +2216,37 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   // Ενεργά αιτήματα (για το G button — μέχρι 2)
   List<Map<String, dynamic>> _activeRequests = []; // list of {id, status, desc, criteria, expiresAt}
 
+  // Δημοφιλείς υπηρεσίες — ξεκινάει με αυτό το στατικό fallback και
+  // αντικαθίσταται από τα πραγματικά top ειδικότητες μόλις απαντήσει το
+  // backend, ώστε η αρχική να μην είναι ποτέ άδεια/σπασμένη αν αργήσει.
+  List<Map<String, String>> _popularServices = const [
+    {'emoji': '⚡', 'label': 'Ηλεκτρολόγος', 'profession': 'Ηλεκτρολόγος'},
+    {'emoji': '🔧', 'label': 'Υδραυλικός', 'profession': 'Υδραυλικός'},
+    {'emoji': '❄️', 'label': 'Κλιματισμός', 'profession': 'Συντήρηση Κλιματιστικών'},
+    {'emoji': '🎨', 'label': 'Ελαιοχρωματιστής', 'profession': 'Ελαιοχρωματιστής'},
+    {'emoji': '🌿', 'label': 'Κηπουρός', 'profession': 'Κηπουρός'},
+    {'emoji': '🧹', 'label': 'Καθαρισμός', 'profession': 'Καθαρίστρια'},
+    {'emoji': '🏗️', 'label': 'Ανακαίνιση', 'profession': 'Συνεργείο Ανακαίνισης'},
+    {'emoji': '🏠', 'label': 'Smart Home', 'profession': 'Smart Home - Συστήματα Ασφαλείας'},
+  ];
+
+  Future<void> _loadPopularServices() async {
+    try {
+      final resp = await http.get(Uri.parse('$kBackendUrl/popular-specialties?limit=8'))
+          .timeout(const Duration(seconds: 8));
+      final d = jsonDecode(resp.body) as Map<String, dynamic>;
+      final items = (d['items'] as List?) ?? [];
+      if (items.isEmpty || !mounted) return;
+      setState(() {
+        _popularServices = items.map((it) => {
+              'emoji': (it['emoji'] as String?) ?? '🛠️',
+              'label': (it['profession'] as String?) ?? '',
+              'profession': (it['profession'] as String?) ?? '',
+            }).toList();
+      });
+    } catch (_) {}
+  }
+
   String _vocative(String? n) => _toVocative(n);
 
   // Ταιριάζει το επάγγελμα ενός αιτήματος με ΟΛΕΣ τις ειδικότητες του pro
@@ -2230,6 +2261,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
     _loadProfile();
+    _loadPopularServices();
     _setOnline(true);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final uid = FirebaseAuth.instance.currentUser?.uid ?? '';
@@ -2972,16 +3004,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
           child: ListView(
             scrollDirection: Axis.horizontal,
             padding: const EdgeInsets.symmetric(horizontal: 20),
-            children: [
-              {'emoji': '⚡', 'label': 'Ηλεκτρολόγος', 'profession': 'Ηλεκτρολόγος'},
-              {'emoji': '🔧', 'label': 'Υδραυλικός', 'profession': 'Υδραυλικός'},
-              {'emoji': '❄️', 'label': 'Κλιματισμός', 'profession': 'Συντήρηση Κλιματιστικών'},
-              {'emoji': '🎨', 'label': 'Ελαιοχρωματιστής', 'profession': 'Ελαιοχρωματιστής'},
-              {'emoji': '🌿', 'label': 'Κηπουρός', 'profession': 'Κηπουρός'},
-              {'emoji': '🧹', 'label': 'Καθαρισμός', 'profession': 'Καθαρίστρια'},
-              {'emoji': '🏗️', 'label': 'Ανακαίνιση', 'profession': 'Συνεργείο Ανακαίνισης'},
-              {'emoji': '🏠', 'label': 'Smart Home', 'profession': 'Smart Home - Συστήματα Ασφαλείας'},
-            ]
+            children: _popularServices
                 .map((c) => GestureDetector(
                       onTap: () => _openRequestWithProfession(c['profession']!),
                       child: Container(
@@ -3017,6 +3040,8 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                               const SizedBox(height: 6),
                               Text(c['label']!,
                                   textAlign: TextAlign.center,
+                                  maxLines: 2,
+                                  overflow: TextOverflow.ellipsis,
                                   style: TextStyle(
                                       fontSize: 9,
                                       color: _g(0.75),

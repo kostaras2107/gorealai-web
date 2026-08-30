@@ -142,6 +142,70 @@ app.get('/', (req, res) => {
 
 app.get('/health', (req, res) => res.json({ status: 'ok' }));
 
+// ── Δημοφιλείς υπηρεσίες (top ειδικότητες ανά αριθμό επαγγελματιών) ──────
+// GET /popular-specialties?limit=8
+// Υπολογίζεται live από τη βάση, με μικρό in-memory cache ώστε η λίστα να
+// ανανεώνεται μόνη της καθώς μπαίνουν/φεύγουν επαγγελματίες, χωρίς να
+// χτυπάει το Firestore σε κάθε άνοιγμα της αρχικής.
+const SPECIALTY_EMOJI = {
+  'Συνεργείο Ανακαίνισης': '🏗️', 'Ηλεκτρολόγος': '⚡', 'Ελαιοχρωματιστής': '🎨',
+  'Υδραυλικός': '🔧', 'Μονώσεις - Διαχείριση & Αντιμετώπιση Υγρασίας': '💧',
+  'Γυψοσανίδες': '🧱', 'Συνεργείο Κατασκευών': '🏢', 'Ξυλουργός': '🪵',
+  'Πλακάς': '🔲', 'Συνεργείο Υδραυλικών': '🔧', 'Μετακομίσεις': '📦',
+  'Νοσηλευτής κατ\' οίκον': '🩺', 'Υπηρεσία Αποξήλωσης': '🔨',
+  'Μεταλλικές Κατασκευές': '⚙️', 'Συνεργείο Γυψοσανίδας & Οροφής': '🧱',
+  'Καθαρίστρια': '🧹', 'Συνεργείο Πλακιδίων & Δαπέδων': '🔲',
+  'Εκδηλώσεις Γάμου': '💍', 'Συντήρηση Κλιματιστικών': '❄️',
+  'Συνεργείο Βαφής & Διακόσμησης': '🎨', 'Εγκατάσταση Ηλιακών': '☀️',
+  'Φωτογράφος': '📷', 'Συνεργείο Ηλεκτρολόγων': '⚡',
+  'Συνεργείο Ξυλουργικών Εργασιών': '🪵', 'Συνεργείο Κλιματισμού': '❄️',
+  'Συνεργείο Αλουμινίου & Κουφωμάτων': '🪟', 'Εκδηλώσεις Βάφτισης': '👶',
+  'Αλουμινάς': '🪟', 'DJ / Μουσική Εκδηλώσεων': '🎧', 'Ψυκτικός': '🧊',
+  'Γυάλισμα Μαρμάρων': '✨', 'Συνεργείο Κήπου & Εξωτερικών Χώρων': '🌿',
+  'Φωτογράφος Εκδηλώσεων': '📷', 'Makeup Artist': '💄', 'Κηπουρός': '🌿',
+  'Αποφράξεις': '🚿', 'Τεχνίτρια Νυχιών': '💅', 'Baby Sitter': '🍼',
+  'Γραφίστας': '🖌️', 'Διοργάνωση Πάρτυ': '🎉', 'Καθηγητής Αγγλικών': '📚',
+  'Γκαραζόπορτες - Ρολά - Συρόμενα': '🚪', 'Τέντες - Σκίαστρα': '⛱️',
+  'Catering': '🍽️', 'Βιολογικός Καθαρισμός': '🧼', 'Κτίστης': '🧱',
+  'Smart Home - Συστήματα Ασφαλείας': '🏠', 'Web Developer': '💻',
+};
+
+let _popularSpecialtiesCache = null;
+let _popularSpecialtiesCacheAt = 0;
+const POPULAR_SPECIALTIES_TTL_MS = 30 * 60_000; // 30 λεπτά
+
+app.get('/popular-specialties', async (req, res) => {
+  const limit = Math.min(parseInt(req.query.limit, 10) || 8, 20);
+  if (!firebaseReady) return res.json({ success: false, reason: 'firebase not ready', items: [] });
+
+  try {
+    const now = Date.now();
+    if (!_popularSpecialtiesCache || (now - _popularSpecialtiesCacheAt) > POPULAR_SPECIALTIES_TTL_MS) {
+      const snap = await admin.firestore().collection('users').where('role', '==', 'professional').get();
+      const counts = {};
+      snap.forEach(doc => {
+        const d = doc.data();
+        const specs = Array.isArray(d.specialties) && d.specialties.length > 0
+          ? d.specialties
+          : (d.specialty ? [d.specialty] : []);
+        const unique = [...new Set(specs.filter(s => s && s.trim()))];
+        unique.forEach(s => { counts[s] = (counts[s] || 0) + 1; });
+      });
+      _popularSpecialtiesCache = Object.entries(counts)
+        .sort((a, b) => b[1] - a[1])
+        .map(([profession, count]) => ({
+          profession, count,
+          emoji: SPECIALTY_EMOJI[profession] || '🛠️',
+        }));
+      _popularSpecialtiesCacheAt = now;
+    }
+    res.json({ success: true, items: _popularSpecialtiesCache.slice(0, limit) });
+  } catch (e) {
+    console.error('popular-specialties error:', e.message);
+    res.status(500).json({ success: false, items: [] });
+  }
+});
+
 // ── FCM Push Notification ────────────────────────────────────────
 // POST /send-push
 // Body: { token, title, body, data? }
