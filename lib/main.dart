@@ -7065,6 +7065,22 @@ Future<void> _submitOfferFallback(String requestId, Map<String, dynamic> request
       return;
     }
 
+    // Έλεγξε ότι το αίτημα δεν έχει λήξει/ακυρωθεί — χωρίς αυτό, μια
+    // καθυστερημένη επίσκεψη (π.χ. από παλιό email/notification) μπορεί να
+    // στείλει προσφορά ώρες/μέρες μετά τη λήξη, εκπλήσσοντας τον πελάτη.
+    final freshReq = await FirebaseFirestore.instance.collection('requests').doc(requestId).get();
+    final freshData = freshReq.data();
+    final expiresAt = freshData?['expiresAt'] as Timestamp?;
+    final status = freshData?['status'] as String?;
+    if (freshData == null || status != 'active' || (expiresAt != null && expiresAt.toDate().isBefore(DateTime.now()))) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('⏰ Το αίτημα έχει λήξει, δεν μπορείς πλέον να στείλεις προσφορά.')),
+        );
+      }
+      return;
+    }
+
     await FirebaseFirestore.instance.collection('offers').add({
       'requestId': requestId,
       'professionalId': _proId ?? '',
@@ -12824,6 +12840,37 @@ class NotificationsScreen extends StatelessWidget {
       Map<String, dynamic> requestData, double price,
       String message, String available, String proId) async {
     try {
+      // Έλεγξε ότι το αίτημα δεν έχει λήξει/ακυρωθεί — αυτό το quick-reply
+      // ανοίγει από παλιό email/push notification, οπότε μπορεί να έρχεται
+      // ώρες/μέρες αργότερα, μετά τη λήξη του αιτήματος.
+      final freshReq = await FirebaseFirestore.instance.collection('requests').doc(requestId).get();
+      final freshData = freshReq.data();
+      final expiresAt = freshData?['expiresAt'] as Timestamp?;
+      final status = freshData?['status'] as String?;
+      if (freshData == null || status != 'active' || (expiresAt != null && expiresAt.toDate().isBefore(DateTime.now()))) {
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('⏰ Το αίτημα έχει λήξει, δεν μπορείς πλέον να στείλεις προσφορά.')),
+          );
+        }
+        return;
+      }
+
+      final existing = await FirebaseFirestore.instance
+          .collection('offers')
+          .where('requestId', isEqualTo: requestId)
+          .where('professionalId', isEqualTo: proId)
+          .limit(1)
+          .get();
+      if (existing.docs.isNotEmpty) {
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('⚠️ Έχεις ήδη στείλει προσφορά!')),
+          );
+        }
+        return;
+      }
+
       final proDoc = await FirebaseFirestore.instance
           .collection('users').doc(proId).get();
       final proName = proDoc.data()?['name'] ?? 'Επαγγελματίας';
