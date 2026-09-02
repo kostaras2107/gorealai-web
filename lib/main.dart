@@ -14494,15 +14494,13 @@ class _TikTokShortsCarouselState extends State<_TikTokShortsCarousel> {
   @override
   Widget build(BuildContext context) {
     return StreamBuilder<QuerySnapshot>(
-      // orderBy(createdAt) — χωρίς αυτό, το limit(50) έκοβε αυθαίρετα ποιοι
-      // επαγγελματίες γυρνάνε (η Firestore δεν εγγυάται σειρά χωρίς orderBy),
-      // με αποτέλεσμα κάποιων τα TikTok shorts να μην εμφανίζονται ποτέ στο
-      // carousel απλά επειδή το προφίλ τους έμενε εκτός του τυχαίου batch.
+      // Χωρίς limit — μόνο μια χούφτα επαγγελματίες έχουν καν TikTok shorts,
+      // αλλά ένα limit() εδώ (ακόμα και με orderBy) κόβει όσους εγγράφηκαν
+      // παλιότερα καθώς η βάση επαγγελματιών μεγαλώνει, εξαφανίζοντας τα
+      // βίντεό τους από το carousel χωρίς κανείς να άλλαξε κάτι.
       stream: FirebaseFirestore.instance
           .collection('professionals')
           .where('is_active', isEqualTo: true)
-          .orderBy('createdAt', descending: true)
-          .limit(200)
           .snapshots(),
       builder: (context, snap) {
         if (!snap.hasData) return const SizedBox(height: 300);
