@@ -16,7 +16,7 @@ const RESOURCES = {"assets/AssetManifest.bin": "ff2aa7f7db47fa8b06af5ec00b770560
 "assets/fonts/CormorantGaramond-Italic-VariableFont_wght.ttf": "37c64acc60868133f0b37f9af95610fd",
 "assets/fonts/CormorantGaramond-VariableFont_wght.ttf": "b91cdecca37da9a4151818afaa0b4fb0",
 "assets/fonts/InterVariable.ttf": "7c80433dfb0d6e565327d9beeb774bac",
-"assets/fonts/MaterialIcons-Regular.otf": "fb175930fa105783ecbf4ad533540a9e",
+"assets/fonts/MaterialIcons-Regular.otf": "5fe1daaf5444cb82cc1d889ebb3066fc",
 "assets/fonts/Raleway-Italic-VariableFont_wght.ttf": "6afc0711e71150f1285c9125cf61bc77",
 "assets/fonts/Raleway-VariableFont_wght.ttf": "0821276254a0fb009f9fdef2a0d46283",
 "assets/NOTICES": "139ac3c91834058212ecfd86e816e734",
@@ -40,7 +40,7 @@ const RESOURCES = {"assets/AssetManifest.bin": "ff2aa7f7db47fa8b06af5ec00b770560
 "favicon.png": "10203cd9551060e8eaf6ff7760704c23",
 "firebase-messaging-sw.js": "c273b500781a50712c21eae615c37c3c",
 "flutter.js": "24bc71911b75b5f8135c949e27a2984e",
-"flutter_bootstrap.js": "562dbb36b193eefb9a478a3be8c85dd1",
+"flutter_bootstrap.js": "507502aad120365aa93c7cd5df240a4a",
 "icons/Icon-192-maskable.png": "92d267396b56382e759e34c40e080c5c",
 "icons/Icon-192.png": "b4164ef2482df56d36571ad7d8ad9bdb",
 "icons/Icon-512-maskable.png": "92d267396b56382e759e34c40e080c5c",
@@ -49,10 +49,10 @@ const RESOURCES = {"assets/AssetManifest.bin": "ff2aa7f7db47fa8b06af5ec00b770560
 "icons/Icon-maskable-512.png": "9774789ded9a8714be9c0085c4f3d80f",
 "index.html": "2873ae94d345d5823ec312a65bf592f5",
 "/": "2873ae94d345d5823ec312a65bf592f5",
-"main.dart.js": "fb98836c671a0145d6a33e17f66d6ef0",
+"main.dart.js": "ac3091b5eb2aef15f49991c0ae08aac4",
 "manifest.json": "a7625042be2727a9eeac8011ad7e74db",
 "privacy.html": "3c91d49ca53fed12956d56048ec72784",
-"version.json": "142e97a2632e59928752f2b6af932901"};
+"version.json": "92cf2c5cfbd5db4cfaf200a0ab9f8218"};
 // The application shell files that are downloaded before a service worker can
 // start.
 const CORE = ["main.dart.js",

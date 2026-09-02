@@ -826,7 +826,7 @@ app.post('/forgot-password', rateLimit(5, 60_000), async (req, res) => {
 // POST /email-pros-new-request
 // Body: { profession, location, description, requestId }
 app.post('/email-pros-new-request', rateLimit(30, 60_000), async (req, res) => {
-  const { profession, location, description, requestId, filterVerifiedOnly, exactSpecialty, requesterUserId, urgent } = req.body;
+  const { profession, location, description, requestId, filterVerifiedOnly, exactSpecialty, requesterUserId, urgent, teachingMode } = req.body;
   if (!firebaseReady) return res.json({ success: false, reason: 'firebase not ready' });
   if (!zohoTransporter && !process.env.SENDGRID_API_KEY) return res.json({ success: false, reason: 'no email provider configured' });
 
@@ -900,11 +900,21 @@ app.post('/email-pros-new-request', rateLimit(30, 60_000), async (req, res) => {
         }
       }
 
+      // Μαθήματα (καθηγητές/ιδιαίτερα): online καλύπτει όλη την Ελλάδα,
+      // ανεξαρτήτως περιοχής — δια ζώσης συνεχίζει να κοιτάει την περιοχή
+      // όπως πάντα. "both" σημαίνει: ειδοποίησε ΚΑΙ όσους δηλώνουν online
+      // (οπουδήποτε) ΚΑΙ όσους ταιριάζουν με την περιοχή του αιτήματος.
+      const proTeachingMode = d.teachingMode || 'in_person';
+      const proCanOnline = proTeachingMode === 'online' || proTeachingMode === 'both';
+      if (teachingMode === 'online' && !proCanOnline) return;
+      const skipAreaForOnline = teachingMode === 'online' ||
+          (teachingMode === 'both' && proCanOnline);
+
       // Match area — συνδυάζει το array (areas) ΚΑΙ το single πεδίο (area),
       // γιατί μπορεί να διαφέρουν (π.χ. το areas να μην έχει ενημερωθεί ποτέ
       // ενώ το area να είναι σωστό) — αγνοώντας μόνο ένα από τα δύο έχανε
       // πραγματικά matches.
-      if (locLower && locLower !== 'κοντά μου') {
+      if (!skipAreaForOnline && locLower && locLower !== 'κοντά μου') {
         const areasArr = Array.isArray(d.areas) ? d.areas.map(a => a.toLowerCase()) : [];
         const areaSingle = (d.area || '').toLowerCase();
         const areas = areaSingle ? [...areasArr, areaSingle] : areasArr;

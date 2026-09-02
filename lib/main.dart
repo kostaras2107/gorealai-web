@@ -4410,6 +4410,7 @@ class _ProfessionalHomeScreenState extends State<ProfessionalHomeScreen> {
   String _bio = '';
   String _specialty = '';
   List<String> _specialties = [];
+  String _teachingMode = 'in_person'; // 'in_person' | 'online' | 'both' — μόνο για ειδικότητες εκπαίδευσης
   List<String> _subSpecialties = [];
   List<String> _areas = [];
   String _proAfm = '';
@@ -4569,6 +4570,7 @@ class _ProfessionalHomeScreenState extends State<ProfessionalHomeScreen> {
       _bio = merged['bio'] as String? ?? '';
       _specialty = merged['specialty'] as String? ?? '';
       _specialties = rawSpecs is List ? List<String>.from(rawSpecs.map((e) => e.toString())) : [];
+      _teachingMode = merged['teachingMode'] as String? ?? 'in_person';
       _areas = rawAreas is List ? List<String>.from(rawAreas.map((e) => e.toString())) : [];
       final rawSubs = merged['subSpecialties'];
       _subSpecialties = rawSubs is List ? List<String>.from(rawSubs.map((e) => e.toString())) : [];
@@ -5418,6 +5420,48 @@ class _ProfessionalHomeScreenState extends State<ProfessionalHomeScreen> {
             ),
           ]),
         ),
+
+        // ── 2β. Τρόπος διδασκαλίας — μόνο για ειδικότητες εκπαίδευσης ──
+        if (_specialties.any(_isTeacherSpecialty))
+          _MiniCvCard(
+            icon: Icons.school_outlined,
+            iconColor: kGold,
+            title: 'Τρόπος διδασκαλίας',
+            subtitle: 'Δια ζώσης, online, ή και τα δύο',
+            isDone: true,
+            child: Row(children: [
+              {'value': 'in_person', 'label': 'Δια ζώσης'},
+              {'value': 'online', 'label': 'Online'},
+              {'value': 'both', 'label': 'Και τα δύο'},
+            ].map((opt) {
+              final isSel = _teachingMode == opt['value'];
+              return Expanded(child: GestureDetector(
+                onTap: () async {
+                  final uid = FirebaseAuth.instance.currentUser?.uid;
+                  if (uid == null) return;
+                  await FirebaseFirestore.instance.collection('users').doc(uid)
+                      .set({'teachingMode': opt['value']}, SetOptions(merge: true));
+                  if (_proDocId != null) {
+                    await FirebaseFirestore.instance.collection('professionals').doc(_proDocId)
+                        .set({'teachingMode': opt['value']}, SetOptions(merge: true));
+                  }
+                  if (mounted) setState(() => _teachingMode = opt['value']!);
+                },
+                child: Container(
+                  margin: const EdgeInsets.symmetric(horizontal: 3),
+                  padding: const EdgeInsets.symmetric(vertical: 10),
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(12),
+                    color: isSel ? kGold.withValues(alpha: 0.15) : _g(0.04),
+                    border: Border.all(color: isSel ? kGold.withValues(alpha: 0.5) : _g(0.08)),
+                  ),
+                  child: Center(child: Text(opt['label']!,
+                      style: TextStyle(color: isSel ? kGold : Colors.white70, fontSize: 12,
+                          fontWeight: isSel ? FontWeight.w700 : FontWeight.w400))),
+                ),
+              ));
+            }).toList()),
+          ),
 
         // ── 3. Ειδικότητες ──
         _MiniCvCard(
@@ -7772,6 +7816,7 @@ class _RequestScreenState extends State<RequestScreen>
   bool _showTip = false;
   String? _selectedProfession;
   String? _selectedLocation;
+  String _teachingMode = 'in_person'; // 'in_person' | 'online' | 'both' — μόνο για μαθήματα
   late AnimationController _pulseCtrl;
   // Audio recording
   final _audioRec = AudioRecorder();
@@ -8045,6 +8090,7 @@ class _RequestScreenState extends State<RequestScreen>
         'filterVerifiedOnly': _filterVerifiedOnly,
         'urgent': _durationMinutes == 15,
         if (_requestAudioUrl != null) 'audioUrl': _requestAudioUrl,
+        if (_isTeacherSpecialty(_selectedProfession)) 'teachingMode': _teachingMode,
       });
 
       // Προγραμμάτισε την ειδοποίηση λήξης (email+push όταν τελειώσει η 1 ώρα)
@@ -8144,7 +8190,8 @@ class _RequestScreenState extends State<RequestScreen>
 } catch (_) {
   await _notifyProsDirectly(docRef.id, _textCtrl.text.trim(),
     _selectedProfession ?? '', _selectedLocation ?? '',
-    widget.userName, _images.length, widget.userId);
+    widget.userName, _images.length, widget.userId,
+    teachingMode: _isTeacherSpecialty(_selectedProfession) ? _teachingMode : null);
 }
 
         // Email όλους τους ταιριαστούς επαγγελματίες (fire-and-forget)
@@ -8159,6 +8206,7 @@ class _RequestScreenState extends State<RequestScreen>
             'filterVerifiedOnly': _filterVerifiedOnly,
             'requesterUserId': widget.userId,
             'urgent': _durationMinutes == 15,
+            if (_isTeacherSpecialty(_selectedProfession)) 'teachingMode': _teachingMode,
           }),
         ).timeout(const Duration(seconds: 60)).catchError((_) {});
 
@@ -8191,8 +8239,9 @@ Future<void> _notifyProsDirectly(
     String location,
     String userName,
     int imageCount,
-    String requesterUserId,
-  ) async {
+    String requesterUserId, {
+    String? teachingMode,
+  }) async {
     try {
       final professionLower = profession.toLowerCase();
       final locationLower = location.toLowerCase();
@@ -8213,7 +8262,13 @@ Future<void> _notifyProsDirectly(
           if (!specialty.contains(professionLower) &&
               !professionLower.contains(specialty)) continue;
         }
-        if (location.isNotEmpty && location != 'Κοντά μου') {
+        // Μαθήματα: online καλύπτει όλη την Ελλάδα, δια ζώσης κοιτάει περιοχή.
+        final proTeachingMode = d['teachingMode'] as String? ?? 'in_person';
+        final proCanOnline = proTeachingMode == 'online' || proTeachingMode == 'both';
+        if (teachingMode == 'online' && !proCanOnline) continue;
+        final skipAreaCheck = teachingMode == 'online' ||
+            (teachingMode == 'both' && proCanOnline);
+        if (!skipAreaCheck && location.isNotEmpty && location != 'Κοντά μου') {
           final areasArr = ((d['areas'] as List?) ?? []).whereType<String>().map((a) => a.toLowerCase());
           final areaSingle = (d['area'] as String? ?? '').toLowerCase();
           final areas = [...areasArr, if (areaSingle.isNotEmpty) areaSingle];
@@ -8346,6 +8401,33 @@ Future<void> _notifyProsDirectly(
                       ),
                     )),
                   ]),
+
+                  // Δια ζώσης / Online — μόνο για μαθήματα (καθηγητές/ιδιαίτερα)
+                  if (_isTeacherSpecialty(_selectedProfession)) ...[
+                    const SizedBox(height: 10),
+                    Row(children: [
+                      {'value': 'in_person', 'label': '🏠 Δια ζώσης'},
+                      {'value': 'online', 'label': '💻 Online'},
+                      {'value': 'both', 'label': 'Και τα δύο'},
+                    ].map((opt) {
+                      final isSel = _teachingMode == opt['value'];
+                      return Expanded(child: GestureDetector(
+                        onTap: () => setState(() => _teachingMode = opt['value']!),
+                        child: Container(
+                          margin: const EdgeInsets.symmetric(horizontal: 3),
+                          padding: const EdgeInsets.symmetric(vertical: 9),
+                          decoration: BoxDecoration(
+                            borderRadius: BorderRadius.circular(12),
+                            color: isSel ? kGold.withValues(alpha: 0.15) : _g(0.04),
+                            border: Border.all(color: isSel ? kGold.withValues(alpha: 0.5) : _g(0.08)),
+                          ),
+                          child: Center(child: Text(opt['label']!,
+                              style: TextStyle(color: isSel ? kGold : Colors.white70, fontSize: 11.5,
+                                  fontWeight: isSel ? FontWeight.w700 : FontWeight.w400))),
+                        ),
+                      ));
+                    }).toList()),
+                  ],
                   const SizedBox(height: 12),
 
                   // ══ SEARCH BAR + MIC + SEND — ΕΝΑ ΠΛΑΙΣΙΟ ══
@@ -13284,6 +13366,29 @@ const List<Map<String, dynamic>> _specialtyCategories = [
   },
 ];
 
+// Ειδικότητες που μπορούν να δηλώσουν αν διδάσκουν δια ζώσης, online, ή και
+// τα δύο — μόνο η κατηγορία "Εκπαίδευση" (καθηγητές/ιδιαίτερα μαθήματα).
+final Set<String> _teacherSpecialties = (_specialtyCategories
+        .firstWhere((c) => c['category'] == 'Εκπαίδευση')['items'] as List)
+    .cast<String>()
+    .toSet();
+
+bool _isTeacherSpecialty(String? specialty) =>
+    specialty != null && _teacherSpecialties.contains(specialty);
+
+// 'in_person' | 'online' | 'both' — λείπον πεδίο σημαίνει "δια ζώσης" μόνο,
+// ώστε η συμπεριφορά να μένει ίδια για όσους δεν το έχουν δηλώσει ακόμα.
+String _teachingModeLabel(String? mode) {
+  switch (mode) {
+    case 'online':
+      return 'Online';
+    case 'both':
+      return 'Δια ζώσης / Online';
+    default:
+      return 'Δια ζώσης';
+  }
+}
+
 class _SpecialtyPicker extends StatefulWidget {
   const _SpecialtyPicker();
   @override
@@ -14449,6 +14554,12 @@ class _NearbyProsSectionState extends State<_NearbyProsSection> {
                             Row(children: [
                               Text(rating > 0 ? '⭐ ${rating.toStringAsFixed(1)}' : (isNew ? '⭐ Νέος' : '⭐ —'),
                                   style: const TextStyle(color: kGold, fontSize: 10, fontWeight: FontWeight.w600)),
+                              if (_isTeacherSpecialty(specialty)) ...[
+                                const SizedBox(width: 4),
+                                Flexible(child: Text('· ${_teachingModeLabel(d['teachingMode'] as String?)}',
+                                    maxLines: 1, overflow: TextOverflow.ellipsis,
+                                    style: TextStyle(color: _g(0.5), fontSize: 9, fontWeight: FontWeight.w600))),
+                              ],
                             ]),
                           ]),
                         ),
@@ -14984,6 +15095,31 @@ class _ProPublicProfileScreenState extends State<_ProPublicProfileScreen> {
                               padding: const EdgeInsets.fromLTRB(18, 0, 18, 0),
                               child: Wrap(spacing: 7, runSpacing: 7,
                                   children: specialties.map((s) => _goldChip(s)).toList()),
+                            ),
+                          ],
+                          // Τρόπος διδασκαλίας — μόνο για καθηγητές/ιδιαίτερα
+                          if (specialties.any(_isTeacherSpecialty)) ...[
+                            const SizedBox(height: 10),
+                            Padding(
+                              padding: const EdgeInsets.fromLTRB(18, 0, 18, 0),
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                                decoration: BoxDecoration(
+                                  borderRadius: BorderRadius.circular(20),
+                                  color: kGold.withValues(alpha: 0.1),
+                                  border: Border.all(color: kGold.withValues(alpha: 0.35)),
+                                ),
+                                child: Row(mainAxisSize: MainAxisSize.min, children: [
+                                  Icon(
+                                      (_data['teachingMode'] as String?) == 'online'
+                                          ? Icons.laptop_mac_outlined
+                                          : Icons.school_outlined,
+                                      color: kGold, size: 13),
+                                  const SizedBox(width: 6),
+                                  Text(_teachingModeLabel(_data['teachingMode'] as String?),
+                                      style: const TextStyle(color: kGold, fontSize: 11.5, fontWeight: FontWeight.w700)),
+                                ]),
+                              ),
                             ),
                           ],
                           // Sub-specialties
