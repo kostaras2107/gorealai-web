@@ -15097,6 +15097,35 @@ class _ProPublicProfileScreenState extends State<_ProPublicProfileScreen> {
                                   children: specialties.map((s) => _goldChip(s)).toList()),
                             ),
                           ],
+                          // Περιοχές δραστηριοποίησης
+                          if (((_data['areas'] as List?)?.isNotEmpty ?? false) || ((_data['area'] as String?)?.isNotEmpty ?? false)) ...[
+                            const SizedBox(height: 14),
+                            Padding(
+                              padding: const EdgeInsets.fromLTRB(18, 0, 18, 0),
+                              child: GestureDetector(
+                                onTap: () => _showAreasSheet(context),
+                                child: Container(
+                                  width: double.infinity,
+                                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 13),
+                                  decoration: BoxDecoration(
+                                    borderRadius: BorderRadius.circular(14),
+                                    gradient: LinearGradient(
+                                      begin: Alignment.topLeft, end: Alignment.bottomRight,
+                                      colors: [kGold.withValues(alpha: 0.14), kGold.withValues(alpha: 0.04)],
+                                    ),
+                                    border: Border.all(color: kGold.withValues(alpha: 0.4)),
+                                  ),
+                                  child: Row(children: [
+                                    const Icon(Icons.map_outlined, color: kGold, size: 17),
+                                    const SizedBox(width: 10),
+                                    const Expanded(child: Text('Περιοχές Δραστηριοποίησης',
+                                        style: TextStyle(color: kGold, fontSize: 13, fontWeight: FontWeight.w700))),
+                                    Icon(Icons.chevron_right_rounded, color: kGold.withValues(alpha: 0.7), size: 20),
+                                  ]),
+                                ),
+                              ),
+                            ),
+                          ],
                           // Τρόπος διδασκαλίας — μόνο για καθηγητές/ιδιαίτερα
                           if (specialties.any(_isTeacherSpecialty)) ...[
                             const SizedBox(height: 10),
@@ -15478,6 +15507,46 @@ class _ProPublicProfileScreenState extends State<_ProPublicProfileScreen> {
 
   Widget _miniCvLabel(String text) => Text(text,
       style: TextStyle(color: _g(0.4), fontSize: 10, fontWeight: FontWeight.w700, letterSpacing: 1));
+
+  void _showAreasSheet(BuildContext context) {
+    final areasArr = ((_data['areas'] as List?) ?? []).whereType<String>().toList();
+    final areaSingle = _data['area'] as String?;
+    final areas = areasArr.isNotEmpty ? areasArr : (areaSingle != null && areaSingle.isNotEmpty ? [areaSingle] : <String>[]);
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      isScrollControlled: true,
+      builder: (_) => Container(
+        constraints: BoxConstraints(maxHeight: MediaQuery.of(context).size.height * 0.7),
+        decoration: BoxDecoration(
+          color: kBg,
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+          border: Border.all(color: kGold.withValues(alpha: 0.25)),
+        ),
+        child: Column(mainAxisSize: MainAxisSize.min, children: [
+          const SizedBox(height: 12),
+          Container(width: 40, height: 4,
+              decoration: BoxDecoration(color: kGold.withValues(alpha: 0.3), borderRadius: BorderRadius.circular(4))),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(20, 18, 20, 4),
+            child: Row(children: [
+              const Icon(Icons.map_outlined, color: kGold, size: 19),
+              const SizedBox(width: 10),
+              const Expanded(child: Text('Περιοχές Δραστηριοποίησης',
+                  style: TextStyle(color: kGold, fontSize: 16, fontWeight: FontWeight.w800))),
+            ]),
+          ),
+          const SizedBox(height: 16),
+          Flexible(
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.fromLTRB(20, 0, 20, 24),
+              child: Wrap(spacing: 8, runSpacing: 8, children: areas.map((a) => _goldChip(a)).toList()),
+            ),
+          ),
+        ]),
+      ),
+    );
+  }
 
   Widget _goldChip(String label) => Container(
     padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
