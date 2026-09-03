@@ -15024,6 +15024,31 @@ class _ProPublicProfileScreenState extends State<_ProPublicProfileScreen> {
                             textAlign: TextAlign.center,
                             style: TextStyle(color: kGold.withValues(alpha: 0.85), fontSize: 12, fontWeight: FontWeight.w600, letterSpacing: 0.5)),
                       ],
+                      if (((_data['areas'] as List?)?.isNotEmpty ?? false) || ((_data['area'] as String?)?.isNotEmpty ?? false)) ...[
+                        const SizedBox(height: 10),
+                        GestureDetector(
+                          onTap: () => _showAreasSheet(context),
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                            decoration: BoxDecoration(
+                              borderRadius: BorderRadius.circular(20),
+                              gradient: LinearGradient(
+                                begin: Alignment.topLeft, end: Alignment.bottomRight,
+                                colors: [kGold.withValues(alpha: 0.16), kGold.withValues(alpha: 0.05)],
+                              ),
+                              border: Border.all(color: kGold.withValues(alpha: 0.45)),
+                            ),
+                            child: Row(mainAxisSize: MainAxisSize.min, children: [
+                              const Icon(Icons.map_outlined, color: kGold, size: 14),
+                              const SizedBox(width: 7),
+                              const Text('Περιοχές Δραστηριοποίησης',
+                                  style: TextStyle(color: kGold, fontSize: 11.5, fontWeight: FontWeight.w700)),
+                              const SizedBox(width: 4),
+                              Icon(Icons.chevron_right_rounded, color: kGold.withValues(alpha: 0.7), size: 16),
+                            ]),
+                          ),
+                        ),
+                      ],
                       const SizedBox(height: 20),
                       // Stat row
                       Row(mainAxisAlignment: MainAxisAlignment.center, children: [
@@ -15095,35 +15120,6 @@ class _ProPublicProfileScreenState extends State<_ProPublicProfileScreen> {
                               padding: const EdgeInsets.fromLTRB(18, 0, 18, 0),
                               child: Wrap(spacing: 7, runSpacing: 7,
                                   children: specialties.map((s) => _goldChip(s)).toList()),
-                            ),
-                          ],
-                          // Περιοχές δραστηριοποίησης
-                          if (((_data['areas'] as List?)?.isNotEmpty ?? false) || ((_data['area'] as String?)?.isNotEmpty ?? false)) ...[
-                            const SizedBox(height: 14),
-                            Padding(
-                              padding: const EdgeInsets.fromLTRB(18, 0, 18, 0),
-                              child: GestureDetector(
-                                onTap: () => _showAreasSheet(context),
-                                child: Container(
-                                  width: double.infinity,
-                                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 13),
-                                  decoration: BoxDecoration(
-                                    borderRadius: BorderRadius.circular(14),
-                                    gradient: LinearGradient(
-                                      begin: Alignment.topLeft, end: Alignment.bottomRight,
-                                      colors: [kGold.withValues(alpha: 0.14), kGold.withValues(alpha: 0.04)],
-                                    ),
-                                    border: Border.all(color: kGold.withValues(alpha: 0.4)),
-                                  ),
-                                  child: Row(children: [
-                                    const Icon(Icons.map_outlined, color: kGold, size: 17),
-                                    const SizedBox(width: 10),
-                                    const Expanded(child: Text('Περιοχές Δραστηριοποίησης',
-                                        style: TextStyle(color: kGold, fontSize: 13, fontWeight: FontWeight.w700))),
-                                    Icon(Icons.chevron_right_rounded, color: kGold.withValues(alpha: 0.7), size: 20),
-                                  ]),
-                                ),
-                              ),
                             ),
                           ],
                           // Τρόπος διδασκαλίας — μόνο για καθηγητές/ιδιαίτερα
