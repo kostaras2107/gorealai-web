@@ -15512,34 +15512,43 @@ class _ProPublicProfileScreenState extends State<_ProPublicProfileScreen> {
       context: context,
       backgroundColor: Colors.transparent,
       isScrollControlled: true,
-      builder: (_) => Container(
-        constraints: BoxConstraints(maxHeight: MediaQuery.of(context).size.height * 0.7),
+      builder: (sheetCtx) => Container(
+        constraints: BoxConstraints(
+          maxHeight: MediaQuery.of(sheetCtx).size.height * 0.7,
+          minHeight: MediaQuery.of(sheetCtx).size.height * 0.32,
+        ),
         decoration: BoxDecoration(
           color: kBg,
           borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
           border: Border.all(color: kGold.withValues(alpha: 0.25)),
         ),
-        child: Column(mainAxisSize: MainAxisSize.min, children: [
-          const SizedBox(height: 12),
-          Container(width: 40, height: 4,
-              decoration: BoxDecoration(color: kGold.withValues(alpha: 0.3), borderRadius: BorderRadius.circular(4))),
-          Padding(
-            padding: const EdgeInsets.fromLTRB(20, 18, 20, 4),
-            child: Row(children: [
-              const Icon(Icons.map_outlined, color: kGold, size: 19),
-              const SizedBox(width: 10),
-              const Expanded(child: Text('Περιοχές Δραστηριοποίησης',
-                  style: TextStyle(color: kGold, fontSize: 16, fontWeight: FontWeight.w800))),
-            ]),
-          ),
-          const SizedBox(height: 16),
-          Flexible(
-            child: SingleChildScrollView(
-              padding: const EdgeInsets.fromLTRB(20, 0, 20, 24),
-              child: Wrap(spacing: 8, runSpacing: 8, children: areas.map((a) => _goldChip(a)).toList()),
+        // SafeArea + έξτρα κάτω padding — χωρίς αυτό, η μπάρα του mobile
+        // browser (PWA) καλύπτει το κάτω μέρος όταν το sheet είναι κοντό
+        // (π.χ. επαγγελματίας με μία μόνο περιοχή), κρύβοντας το τελευταίο chip.
+        child: SafeArea(
+          top: false,
+          child: Column(mainAxisSize: MainAxisSize.min, children: [
+            const SizedBox(height: 12),
+            Container(width: 40, height: 4,
+                decoration: BoxDecoration(color: kGold.withValues(alpha: 0.3), borderRadius: BorderRadius.circular(4))),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(20, 18, 20, 4),
+              child: Row(children: [
+                const Icon(Icons.map_outlined, color: kGold, size: 19),
+                const SizedBox(width: 10),
+                const Expanded(child: Text('Περιοχές Δραστηριοποίησης',
+                    style: TextStyle(color: kGold, fontSize: 16, fontWeight: FontWeight.w800))),
+              ]),
             ),
-          ),
-        ]),
+            const SizedBox(height: 16),
+            Flexible(
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.fromLTRB(20, 0, 20, 40),
+                child: Wrap(spacing: 8, runSpacing: 8, children: areas.map((a) => _goldChip(a)).toList()),
+              ),
+            ),
+          ]),
+        ),
       ),
     );
   }
