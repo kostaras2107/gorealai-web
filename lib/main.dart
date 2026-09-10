@@ -13472,7 +13472,7 @@ class _SpecialtyPickerState extends State<_SpecialtyPicker> {
 const List<String> _greekAreas = [
   // ── ΑΤΤΙΚΗ - Κεντρικός Τομέας ──
   'Αθήνα', 'Βύρωνας', 'Γαλάτσι', 'Δάφνη-Υμηττός', 'Ζωγράφου',
-  'Ηλιούπολη', 'Καισαριανή', 'Φιλαδέλφεια-Χαλκηδόνα',
+  'Ηλιούπολη', 'Καισαριανή', 'Κυψέλη', 'Φιλαδέλφεια-Χαλκηδόνα',
   // Νότιος Τομέας
   'Άλιμος', 'Αργυρούπολη-Ελληνικό', 'Γλυφάδα', 'Βούλα', 'Βουλιαγμένη',
   'Καλλιθέα', 'Μοσχάτο-Ταύρος', 'Νέα Σμύρνη', 'Παλαιό Φάληρο',
@@ -17383,6 +17383,9 @@ class _ChatScreenState extends State<ChatScreen> {
   Duration _chatAudioDur = Duration.zero;
   String? _otherPhotoUrl;
   String? _otherProId;
+  String? _otherUid;
+  bool _isBlocked = false;
+  bool _iBlocked = false;
 
   @override
   void initState() {
@@ -17400,6 +17403,11 @@ class _ChatScreenState extends State<ChatScreen> {
       final otherField = widget.isPro ? 'userLastReadAt' : 'proLastReadAt';
       final ts = d[otherField] as Timestamp?;
       if (ts != null && mounted) setState(() => _otherLastRead = ts.toDate());
+      final blockedBy = ((d['blockedBy'] as List?) ?? []).whereType<String>().toList();
+      if (mounted) setState(() {
+        _isBlocked = blockedBy.isNotEmpty;
+        _iBlocked = blockedBy.contains(widget.currentUserId);
+      });
     });
   }
 
@@ -17419,6 +17427,7 @@ class _ChatScreenState extends State<ChatScreen> {
       if (mounted) setState(() {
         if (url != null && url.isNotEmpty) _otherPhotoUrl = url;
         if (!widget.isPro) _otherProId = otherUid;
+        _otherUid = otherUid;
       });
     } catch (_) {}
   }
@@ -17431,6 +17440,127 @@ class _ChatScreenState extends State<ChatScreen> {
           proId: _otherProId!, proData: {'name': widget.otherName}),
       transitionsBuilder: (_, a, __, c) => FadeTransition(opacity: a, child: c),
     ));
+  }
+
+  void _showChatMenu() {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (sheetCtx) => Container(
+        decoration: BoxDecoration(
+          color: kBg,
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+          border: Border.all(color: kGold.withValues(alpha: 0.2)),
+        ),
+        child: SafeArea(top: false, child: Column(mainAxisSize: MainAxisSize.min, children: [
+          const SizedBox(height: 12),
+          Container(width: 40, height: 4,
+              decoration: BoxDecoration(color: kGold.withValues(alpha: 0.3), borderRadius: BorderRadius.circular(4))),
+          const SizedBox(height: 8),
+          if (_iBlocked)
+            ListTile(
+              leading: const Icon(Icons.lock_open_outlined, color: kGold),
+              title: Text('Άρση αποκλεισμού ${widget.otherName}', style: const TextStyle(color: Colors.white)),
+              onTap: () { Navigator.pop(sheetCtx); _unblockUser(); },
+            )
+          else
+            ListTile(
+              leading: const Icon(Icons.block, color: Colors.redAccent),
+              title: Text('Αποκλεισμός ${widget.otherName}', style: const TextStyle(color: Colors.white)),
+              onTap: () { Navigator.pop(sheetCtx); _confirmBlockUser(); },
+            ),
+          ListTile(
+            leading: const Icon(Icons.flag_outlined, color: Colors.redAccent),
+            title: Text('Αναφορά ${widget.otherName}', style: const TextStyle(color: Colors.white)),
+            onTap: () { Navigator.pop(sheetCtx); _showReportDialog(); },
+          ),
+          const SizedBox(height: 8),
+        ])),
+      ),
+    );
+  }
+
+  void _confirmBlockUser() {
+    showDialog(context: context, builder: (ctx) => AlertDialog(
+      backgroundColor: kBg,
+      title: const Text('Αποκλεισμός χρήστη;', style: TextStyle(color: Colors.white)),
+      content: Text('Ο/Η ${widget.otherName} δεν θα μπορεί πλέον να σου στείλει μηνύματα.',
+          style: TextStyle(color: _g(0.6))),
+      actions: [
+        TextButton(onPressed: () => Navigator.pop(ctx), child: Text('Άκυρο', style: TextStyle(color: _g(0.5)))),
+        TextButton(onPressed: () { Navigator.pop(ctx); _blockUser(); },
+            child: const Text('Αποκλεισμός', style: TextStyle(color: Colors.redAccent))),
+      ],
+    ));
+  }
+
+  Future<void> _blockUser() async {
+    try {
+      await FirebaseFirestore.instance.collection('chats').doc(widget.chatId)
+          .set({'blockedBy': FieldValue.arrayUnion([widget.currentUserId])}, SetOptions(merge: true));
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Ο/Η ${widget.otherName} αποκλείστηκε.')));
+    } catch (_) {}
+  }
+
+  Future<void> _unblockUser() async {
+    try {
+      await FirebaseFirestore.instance.collection('chats').doc(widget.chatId)
+          .set({'blockedBy': FieldValue.arrayRemove([widget.currentUserId])}, SetOptions(merge: true));
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Ο αποκλεισμός αφαιρέθηκε.')));
+    } catch (_) {}
+  }
+
+  void _showReportDialog() {
+    const reasons = ['Παρενόχληση', 'Απρεπές περιεχόμενο', 'Ψεύτικο προφίλ', 'Ανεπιθύμητο / Spam', 'Άλλο'];
+    String? selected;
+    showDialog(context: context, builder: (ctx) => StatefulBuilder(
+      builder: (ctx, setSt) => AlertDialog(
+        backgroundColor: kBg,
+        title: Text('Αναφορά ${widget.otherName}', style: const TextStyle(color: Colors.white)),
+        content: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start,
+          children: reasons.map((r) => RadioListTile<String>(
+            value: r, groupValue: selected,
+            activeColor: kGold,
+            title: Text(r, style: const TextStyle(color: Colors.white, fontSize: 13)),
+            contentPadding: EdgeInsets.zero,
+            onChanged: (v) => setSt(() => selected = v),
+          )).toList(),
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx), child: Text('Άκυρο', style: TextStyle(color: _g(0.5)))),
+          TextButton(
+            onPressed: selected == null ? null : () { Navigator.pop(ctx); _sendReport(selected!); },
+            child: const Text('Αποστολή', style: TextStyle(color: Colors.redAccent)),
+          ),
+        ],
+      ),
+    ));
+  }
+
+  Future<void> _sendReport(String reason) async {
+    try {
+      await FirebaseFirestore.instance.collection('reports').add({
+        'reporterId': widget.currentUserId,
+        'reporterName': widget.currentUserName,
+        'reportedId': _otherUid ?? '',
+        'reportedName': widget.otherName,
+        'chatId': widget.chatId,
+        'reason': reason,
+        'createdAt': FieldValue.serverTimestamp(),
+      });
+      http.post(Uri.parse('$kBackendUrl/report-user'), headers: {'Content-Type': 'application/json'},
+          body: jsonEncode({
+            'reporterName': widget.currentUserName,
+            'reportedName': widget.otherName,
+            'reportedId': _otherUid ?? '',
+            'reason': reason,
+            'chatId': widget.chatId,
+          })).catchError((_) {});
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Η αναφορά στάλθηκε. Ευχαριστούμε.')));
+    } catch (_) {}
   }
 
   @override
@@ -17515,6 +17645,12 @@ class _ChatScreenState extends State<ChatScreen> {
     final path = await _audioRec.stop();
     setState(() { _chatAudioRecording = false; _chatAudioUploading = true; });
     if (path == null || path.isEmpty) { setState(() => _chatAudioUploading = false); return; }
+    if (_isBlocked) {
+      setState(() => _chatAudioUploading = false);
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Δεν μπορείς να στείλεις μήνυμα σε αυτή τη συνομιλία.')));
+      return;
+    }
     try {
       final Uint8List bytes = await _readFileBytes(path);
       // blob URLs don't have a file extension — default to webm on web
@@ -17670,6 +17806,11 @@ class _ChatScreenState extends State<ChatScreen> {
     final text = _msgCtrl.text.trim();
     if (text.isEmpty && _selectedImages.isEmpty && _selectedVideo == null) return;
     if (_sending) return;
+    if (_isBlocked) {
+      ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Δεν μπορείς να στείλεις μήνυμα σε αυτή τη συνομιλία.')));
+      return;
+    }
     _msgCtrl.clear();
     setState(() => _sending = true);
     try {
@@ -17816,6 +17957,12 @@ class _ChatScreenState extends State<ChatScreen> {
               Text(widget.otherName, style: const TextStyle(color: Colors.white, fontSize: 15, fontWeight: FontWeight.w700)),
               Text(widget.isPro ? 'Πελάτης' : 'Επαγγελματίας', style: TextStyle(color: _g(0.35), fontSize: 11)),
             ]))),
+            GestureDetector(
+              onTap: _showChatMenu,
+              child: Container(width: 36, height: 36,
+                  decoration: BoxDecoration(shape: BoxShape.circle, color: _g(0.06)),
+                  child: Icon(Icons.more_vert, color: _g(0.6), size: 18)),
+            ),
           ]),
         ),
         Expanded(
@@ -18087,6 +18234,27 @@ class _ChatScreenState extends State<ChatScreen> {
                   ],
                 ]),
               ),
+            if (_isBlocked)
+              Padding(
+                padding: const EdgeInsets.fromLTRB(20, 10, 20, 16),
+                child: Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(14),
+                    color: Colors.redAccent.withValues(alpha: 0.08),
+                    border: Border.all(color: Colors.redAccent.withValues(alpha: 0.3)),
+                  ),
+                  child: Row(children: [
+                    const Icon(Icons.block, color: Colors.redAccent, size: 16),
+                    const SizedBox(width: 10),
+                    Expanded(child: Text(
+                        _iBlocked ? 'Έχεις αποκλείσει αυτή τη συνομιλία.' : 'Αυτή η συνομιλία έχει αποκλειστεί.',
+                        style: const TextStyle(color: Colors.redAccent, fontSize: 12, fontWeight: FontWeight.w600))),
+                  ]),
+                ),
+              )
+            else
             Padding(
               padding: const EdgeInsets.fromLTRB(12, 8, 12, 10),
               child: Row(children: [

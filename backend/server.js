@@ -14,7 +14,7 @@ const app = express();
 // matching, ώστε να βρεθεί ο επαγγελματίας που κάλυψε τον τομέα, όχι μόνο
 // όσους έχουν επιλέξει ρητά τον ίδιο δήμο.
 const ATTICA_SECTORS = {
-  'κεντρικά προάστια': ['αθήνα', 'βύρωνας', 'γαλάτσι', 'δάφνη-υμηττός', 'ζωγράφου', 'ηλιούπολη', 'καισαριανή', 'φιλαδέλφεια-χαλκηδόνα'],
+  'κεντρικά προάστια': ['αθήνα', 'βύρωνας', 'γαλάτσι', 'δάφνη-υμηττός', 'ζωγράφου', 'ηλιούπολη', 'καισαριανή', 'κυψέλη', 'φιλαδέλφεια-χαλκηδόνα'],
   'νότια προάστια': ['άλιμος', 'αργυρούπολη-ελληνικό', 'γλυφάδα', 'βούλα', 'βουλιαγμένη', 'καλλιθέα', 'μοσχάτο-ταύρος', 'νέα σμύρνη', 'παλαιό φάληρο'],
   'βόρεια προάστια': ['αγία παρασκευή', 'αμαρούσιο', 'βριλήσσια', 'ηράκλειο αττικής', 'κηφισιά', 'λυκόβρυση-πεύκη', 'μεταμόρφωση', 'νέα ιωνία', 'παπάγου-χολαργός', 'πεντέλη', 'φιλοθέη-ψυχικό', 'χαλάνδρι'],
   'δυτικά προάστια': ['αγία βαρβάρα', 'αγίων αναργύρων-καματερό', 'αιγάλεω', 'ίλιον', 'κορυδαλλός', 'περιστέρι', 'πετρούπολη', 'χαϊδάρι'],
@@ -1019,6 +1019,37 @@ app.post('/email-pros-new-request', rateLimit(30, 60_000), async (req, res) => {
     res.json({ success: true, sent, total: matching.length, notified: sentPros });
   } catch (e) {
     console.error('email-pros-new-request error:', e.message);
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// ── Report a user (block/report from chat) ────────────────────────
+// POST /report-user
+// Body: { reporterName, reportedName, reportedId, reason, chatId }
+// Ο ίδιος ο report γράφεται απευθείας στο Firestore από το client — αυτό
+// το endpoint στέλνει απλά ειδοποίηση email στον διαχειριστή, ώστε να μην
+// χρειάζεται να ελέγχει χειροκίνητα τη συλλογή 'reports'.
+app.post('/report-user', rateLimit(20, 60_000), async (req, res) => {
+  const { reporterName, reportedName, reportedId, reason, chatId } = req.body;
+  if (!zohoTransporter && !process.env.SENDGRID_API_KEY) return res.json({ success: false, reason: 'no email provider configured' });
+
+  try {
+    const html = `
+      <div style="font-family:Arial,sans-serif;max-width:480px;margin:0 auto;background:#0A0800;color:#fff;border-radius:16px;padding:32px;border:1px solid rgba(220,53,69,0.4)">
+        <h1 style="color:#ff6b6b;font-size:19px;margin-bottom:12px;">🚩 Νέα αναφορά χρήστη</h1>
+        <p style="color:rgba(255,255,255,0.8);font-size:14px;line-height:1.7;">
+          <strong>Ανέφερε:</strong> ${reporterName || 'N/A'}<br>
+          <strong>Ανέφερε τον/την:</strong> ${reportedName || 'N/A'} (ID: ${reportedId || 'N/A'})<br>
+          <strong>Λόγος:</strong> ${reason || 'N/A'}<br>
+          <strong>Chat ID:</strong> ${chatId || 'N/A'}
+        </p>
+        <p style="color:rgba(255,255,255,0.4);font-size:12px;margin-top:20px;">Έλεγξε τη συλλογή 'reports' στο Firestore για πλήρη στοιχεία.</p>
+      </div>
+    `;
+    await sendEmail({ to: 'info@gorealai.gr', subject: `🚩 Αναφορά χρήστη: ${reportedName || ''}`, html });
+    res.json({ success: true });
+  } catch (e) {
+    console.error('report-user error:', e.message);
     res.status(500).json({ error: e.message });
   }
 });
