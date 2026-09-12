@@ -646,6 +646,10 @@ app.post('/welcome-email', rateLimit(5, 60_000), async (req, res) => {
       <div style="text-align:center;margin-top:28px">
         <a href="https://gorealai.web.app/app" style="display:inline-block;padding:14px 32px;background:linear-gradient(135deg,#FFD47A,#C9A84C);color:#000;border-radius:12px;text-decoration:none;font-weight:800;font-size:15px">Άνοιξε την εφαρμογή →</a>
       </div>
+      <div style="text-align:center;margin-top:16px">
+        <p style="color:rgba(255,255,255,0.5);font-size:12px;margin:0 0 8px">📲 Έχεις Android; Κατέβασε την εφαρμογή από το Google Play για την καλύτερη εμπειρία</p>
+        <a href="https://gorealai.web.app/get" style="color:#FFD47A;font-size:13px;text-decoration:underline">Κατέβασε από το Google Play</a>
+      </div>
       <p style="color:rgba(255,255,255,0.25);font-size:11px;margin-top:28px;text-align:center">GorealPro · gorealai.web.app · info@gorealai.gr</p>
     </div>
   ` : `
@@ -666,6 +670,10 @@ app.post('/welcome-email', rateLimit(5, 60_000), async (req, res) => {
       </div>
       <div style="text-align:center;margin-top:28px">
         <a href="https://gorealai.web.app/app" style="display:inline-block;padding:14px 32px;background:linear-gradient(135deg,#FFD47A,#C9A84C);color:#000;border-radius:12px;text-decoration:none;font-weight:800;font-size:15px">Κάνε το πρώτο σου αίτημα →</a>
+      </div>
+      <div style="text-align:center;margin-top:16px">
+        <p style="color:rgba(255,255,255,0.5);font-size:12px;margin:0 0 8px">📲 Έχεις Android; Κατέβασε την εφαρμογή από το Google Play για την καλύτερη εμπειρία</p>
+        <a href="https://gorealai.web.app/get" style="color:#FFD47A;font-size:13px;text-decoration:underline">Κατέβασε από το Google Play</a>
       </div>
       <p style="color:rgba(255,255,255,0.25);font-size:11px;margin-top:28px;text-align:center">GorealPro · gorealai.web.app · info@gorealai.gr</p>
     </div>
