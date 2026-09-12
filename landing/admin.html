@@ -146,6 +146,15 @@
     <button class="logout-btn" onclick="doLogout()">Έξοδος</button>
   </div>
   <div class="container">
+    <div class="section-title" style="margin-bottom:16px">📲 Google Play</div>
+    <div class="stats-grid" style="margin-bottom:24px">
+      <div class="stat-card"><div class="stat-label">Σύνολο από Playstore</div><div class="stat-value" id="ps-android-total">—</div></div>
+      <div class="stat-card"><div class="stat-label">Σήμερα από Playstore</div><div class="stat-value" id="ps-android-today">—</div></div>
+      <div class="stat-card"><div class="stat-label">Χρήστες (Playstore)</div><div class="stat-value" id="ps-users">—</div></div>
+      <div class="stat-card"><div class="stat-label">Επαγγελματίες (Playstore)</div><div class="stat-value" id="ps-pros">—</div></div>
+      <div class="stat-card"><div class="stat-label">Μέσω Web (χωρίς download)</div><div class="stat-value" id="ps-web-total">—</div></div>
+    </div>
+
     <div class="stats-grid">
       <div class="stat-card"><div class="stat-label">Χρήστες</div><div class="stat-value" id="stat-users">—</div></div>
       <div class="stat-card"><div class="stat-label">Επαγγελματίες</div><div class="stat-value" id="stat-total">—</div></div>
@@ -215,7 +224,7 @@
     <div class="table-wrap">
       <div class="loading" id="loading">Φόρτωση...</div>
       <table id="pros-table" style="display:none">
-        <thead><tr><th>Όνομα</th><th>Ειδικότητα</th><th>Περιοχή</th><th>Τηλέφωνο</th><th>Κλικ</th><th>Bookings</th><th>Κατάσταση</th><th>Ενέργειες</th></tr></thead>
+        <thead><tr><th>Όνομα</th><th>Ειδικότητα</th><th>Περιοχή</th><th>Τηλέφωνο</th><th>Playstore</th><th>Κλικ</th><th>Bookings</th><th>Κατάσταση</th><th>Ενέργειες</th></tr></thead>
         <tbody id="pros-tbody"></tbody>
       </table>
       <div class="empty-state" id="empty-state" style="display:none"><div class="empty-icon">👤</div><div>Δεν βρέθηκαν επαγγελματίες</div></div>
@@ -508,7 +517,7 @@
     document.getElementById('empty-state').style.display = 'none';
 
     // Load clicks + user count; requests load separately (non-blocking)
-    await Promise.all([loadClicks(), loadUserCount()]);
+    await Promise.all([loadClicks(), loadUserCount(), loadPlatformStats()]);
     loadRequests().then(loadBookings);
 
     if (unsubPros) unsubPros();
@@ -605,6 +614,20 @@
     }
   }
 
+  async function loadPlatformStats() {
+    try {
+      const resp = await fetch('https://ai-backend-kkt7.onrender.com/platform-stats');
+      const s = await resp.json();
+      document.getElementById('ps-android-total').textContent = s.androidTotal ?? '—';
+      document.getElementById('ps-android-today').textContent = s.androidToday ?? '—';
+      document.getElementById('ps-users').textContent = s.androidUsers ?? '—';
+      document.getElementById('ps-pros').textContent = s.androidPros ?? '—';
+      document.getElementById('ps-web-total').textContent = s.webTotal ?? '—';
+    } catch(e) {
+      console.error('loadPlatformStats error:', e);
+    }
+  }
+
   function updateUserStats() {
     // Deduplicate by userId to avoid counting same pro twice (auto-ID + uid-keyed docs)
     const uniqueProUids = new Set(allPros.map(p => p.userId || p.id).filter(Boolean));
@@ -655,6 +678,11 @@
         <td><span class="pro-specialty">${p.specialty||'-'}</span></td>
         <td class="pro-area">${p.area||'-'}</td>
         <td style="font-size:13px;color:#999">${p.phone||'-'}</td>
+        <td>${p.platform==='android'
+          ?'<span style="font-size:11px;background:#0d2b1a;color:#2ecc71;border-radius:6px;padding:3px 8px">📲 Play Store</span>'
+          :p.platform==='web'
+          ?'<span style="font-size:11px;background:#1a1a1a;color:#888;border-radius:6px;padding:3px 8px">🌐 Web</span>'
+          :'<span style="font-size:11px;color:#555">—</span>'}</td>
         <td><span class="clicks-badge">${clicksPerPro[p.id] || clicksPerPro[p.userId] || p.total_clicks || 0}</span></td>
         <td>
             <span style="font-family:'Syne',sans-serif;font-weight:700;color:#7ecfff">${bookingsPerPro[p.id] || bookingsPerPro[p.userId] || 0}</span>

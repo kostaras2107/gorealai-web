@@ -1336,6 +1336,52 @@ app.get('/auth-user-count', async (req, res) => {
   }
 });
 
+// ── Platform stats (πόσοι κατέβασαν από Play Store vs web) ──────────
+// GET /platform-stats
+app.get('/platform-stats', async (req, res) => {
+  if (!firebaseReady) return res.status(503).json({ error: 'Firebase not ready' });
+  try {
+    const snap = await admin.firestore().collection('users').get();
+
+    // "Σήμερα" σε ώρα Ελλάδας (UTC+3 EEST) — μετατροπή σε UTC για σύγκριση.
+    const GREECE_OFFSET_MS = 3 * 60 * 60 * 1000;
+    const nowGreece = new Date(Date.now() + GREECE_OFFSET_MS);
+    const startOfTodayGreece = Date.UTC(nowGreece.getUTCFullYear(), nowGreece.getUTCMonth(), nowGreece.getUTCDate());
+    const startOfTodayUTC = new Date(startOfTodayGreece - GREECE_OFFSET_MS);
+
+    const stats = {
+      androidTotal: 0, webTotal: 0, unknownTotal: 0,
+      androidToday: 0, webToday: 0,
+      androidUsers: 0, androidPros: 0,
+      androidUsersToday: 0, androidProsToday: 0,
+    };
+
+    snap.forEach((doc) => {
+      const d = doc.data();
+      const createdAt = d.createdAt && d.createdAt.toDate ? d.createdAt.toDate() : null;
+      const isToday = createdAt && createdAt >= startOfTodayUTC;
+      const isPro = d.role === 'professional';
+
+      if (d.platform === 'android') {
+        stats.androidTotal++;
+        if (isToday) stats.androidToday++;
+        if (isPro) { stats.androidPros++; if (isToday) stats.androidProsToday++; }
+        else { stats.androidUsers++; if (isToday) stats.androidUsersToday++; }
+      } else if (d.platform === 'web') {
+        stats.webTotal++;
+        if (isToday) stats.webToday++;
+      } else {
+        stats.unknownTotal++;
+      }
+    });
+
+    res.json(stats);
+  } catch (e) {
+    console.error('platform-stats error:', e.message);
+    res.status(500).json({ error: e.message });
+  }
+});
+
 // ── Stripe Checkout Session ──────────────────────────────────────
 // POST /create-checkout-session
 // Body: { userId, email }
