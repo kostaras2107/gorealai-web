@@ -1105,6 +1105,7 @@ class _LoginScreenState extends State<LoginScreen>
         'name': fullName,
         'phone': _phone.text.trim(),
         'role': _role,
+        'platform': kIsWeb ? 'web' : 'android',
         'createdAt': FieldValue.serverTimestamp(),
         if (_role == 'user') 'city': _selectedArea ?? '',
         if (_role == 'professional') ...{
@@ -1127,6 +1128,7 @@ class _LoginScreenState extends State<LoginScreen>
           'specialty': _selectedSpecialties.isNotEmpty ? _selectedSpecialties.first : '',
           'areas': _selectedAreas, 'area': _selectedProHomeArea ?? '',
           'is_active': true, 'userId': cred.user!.uid,
+          'platform': kIsWeb ? 'web' : 'android',
           'createdAt': FieldValue.serverTimestamp(),
           'afm': _afm.text.trim(),
           if (selfieUrl != null) 'profilePhotoUrl': selfieUrl,
@@ -1763,8 +1765,15 @@ class _MultiAreaPicker extends StatefulWidget {
 }
 class _MultiAreaPickerState extends State<_MultiAreaPicker> {
   late List<String> _selected;
+  String _query = '';
   @override
   void initState() { super.initState(); _selected = List.from(widget.initial); }
+
+  List<String> _filter(List<String> items) {
+    if (_query.isEmpty) return items;
+    final q = _normalizeForSearch(_query);
+    return items.where((a) => _normalizeForSearch(a).contains(q)).toList();
+  }
 
   Widget _row(String area) {
     final isSel = _selected.contains(area);
@@ -1798,31 +1807,60 @@ class _MultiAreaPickerState extends State<_MultiAreaPicker> {
   }
 
   @override
-  Widget build(BuildContext context) => _PickerContainer(
+  Widget build(BuildContext context) {
+    final sectors = _filter(_atticaSectors);
+    final areas = _filter(_greekAreasSorted);
+    return _PickerContainer(
     title: 'Περιοχές εργασίας',
     onOk: _selected.isNotEmpty ? () => Navigator.pop(context, _selected) : null,
-    child: ListView(
+    child: Column(children: [
+      Padding(
+        padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+        child: TextField(
+          style: const TextStyle(color: Colors.white, fontSize: 14),
+          decoration: InputDecoration(
+            hintText: 'Αναζήτηση περιοχής...',
+            hintStyle: TextStyle(color: _g(0.3)),
+            prefixIcon: Icon(Icons.search, color: _g(0.3), size: 20),
+            filled: true,
+            fillColor: _g(0.04),
+            contentPadding: const EdgeInsets.symmetric(vertical: 12),
+            border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: _g(0.07))),
+            enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: _g(0.07))),
+            focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: kGold)),
+          ),
+          onChanged: (v) => setState(() => _query = v),
+        ),
+      ),
+      Expanded(child: ListView(
       padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
       children: [
-        Padding(
-          padding: const EdgeInsets.only(bottom: 8, top: 4),
-          child: Text('ΤΟΜΕΙΣ (καλύπτουν πολλούς δήμους)',
-              style: TextStyle(fontFamily: 'Inter', fontSize: 9, letterSpacing: 2, color: kGold.withValues(alpha: 0.5))),
-        ),
-        ..._atticaSectors.map(_row),
-        const Padding(
-          padding: EdgeInsets.symmetric(vertical: 14),
-          child: Divider(color: Colors.white12, height: 1),
-        ),
-        Padding(
-          padding: const EdgeInsets.only(bottom: 8),
-          child: Text('ΔΗΜΟΙ',
-              style: TextStyle(fontFamily: 'Inter', fontSize: 9, letterSpacing: 2, color: kGold.withValues(alpha: 0.5))),
-        ),
-        ..._greekAreasSorted.map(_row),
+        if (sectors.isNotEmpty) ...[
+          Padding(
+            padding: const EdgeInsets.only(bottom: 8, top: 4),
+            child: Text('ΤΟΜΕΙΣ (καλύπτουν πολλούς δήμους)',
+                style: TextStyle(fontFamily: 'Inter', fontSize: 9, letterSpacing: 2, color: kGold.withValues(alpha: 0.5))),
+          ),
+          ...sectors.map(_row),
+        ],
+        if (sectors.isNotEmpty && areas.isNotEmpty)
+          const Padding(
+            padding: EdgeInsets.symmetric(vertical: 14),
+            child: Divider(color: Colors.white12, height: 1),
+          ),
+        if (areas.isNotEmpty) ...[
+          Padding(
+            padding: const EdgeInsets.only(bottom: 8),
+            child: Text('ΔΗΜΟΙ',
+                style: TextStyle(fontFamily: 'Inter', fontSize: 9, letterSpacing: 2, color: kGold.withValues(alpha: 0.5))),
+          ),
+          ...areas.map(_row),
+        ],
       ],
-    ),
-  );
+      )),
+    ]),
+    );
+  }
 }
 
 // ── Sub-specialties list ──
@@ -13529,7 +13567,7 @@ const List<String> _greekAreas = [
   // ── ΣΤΕΡΕΑ ΕΛΛΑΔΑ ──
   'Λαμία', 'Αμφίκλεια-Ελάτεια', 'Δομοκός', 'Μακρακώμη', 'Στυλίδα', // Φθιώτιδα
   'Λιβαδειά', 'Άλιαρτος', 'Διστομο-Αράχωβα', 'Θήβα', 'Ορχομενός', // Βοιωτία
-  'Χαλκίδα', 'Ερέτρια', 'Κάρυστος', 'Κύμη-Αλιβέρι', 'Σκύρος', // Εύβοια
+  'Χαλκίδα', 'Ερέτρια', 'Κάρυστος', 'Κύμη-Αλιβέρι', 'Σκύρος', 'Ιστιαία-Αιδηψός', 'Διρφύων-Μεσσαπίων', 'Μαντούδι-Λίμνη-Αγία Άννα', // Εύβοια
   'Άμφισσα', 'Δελφοί', 'Δωρίδα',                 // Φωκίδα
   'Άγραφα', 'Καρπενήσι',                          // Ευρυτανία
 
@@ -13606,6 +13644,18 @@ List<String> get _greekAreasSorted {
   return s;
 }
 
+// Αφαιρεί τόνους/διαλυτικά και μετατρέπει σε πεζά, ώστε η αναζήτηση περιοχής
+// να δουλεύει είτε ο χρήστης γράψει "Αθηνα" είτε "αθήνα".
+String _normalizeForSearch(String s) {
+  const withTones = 'άέήίόύώΐΰϊϋΆΈΉΊΌΎΏ';
+  const withoutTones = 'αεηιουωιυιυΑΕΗΙΟΥΩ';
+  var result = s.toLowerCase();
+  for (var i = 0; i < withTones.length; i++) {
+    result = result.replaceAll(withTones[i], withoutTones[i].toLowerCase());
+  }
+  return result;
+}
+
 class _AreaPicker extends StatefulWidget {
   const _AreaPicker();
   @override
@@ -13614,17 +13664,45 @@ class _AreaPicker extends StatefulWidget {
 
 class _AreaPickerState extends State<_AreaPicker> {
   String? _selected;
+  String _query = '';
+
+  List<String> get _filtered {
+    if (_query.isEmpty) return _greekAreasSorted;
+    final q = _normalizeForSearch(_query);
+    return _greekAreasSorted.where((a) => _normalizeForSearch(a).contains(q)).toList();
+  }
+
   @override
   Widget build(BuildContext context) => _PickerContainer(
         title: 'Επιλέξτε περιοχή',
         onOk: _selected != null
             ? () => Navigator.pop(context, _selected)
             : null,
-        child: ListView.builder(
+        child: Column(children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+            child: TextField(
+              autofocus: false,
+              style: const TextStyle(color: Colors.white, fontSize: 14),
+              decoration: InputDecoration(
+                hintText: 'Αναζήτηση περιοχής...',
+                hintStyle: TextStyle(color: _g(0.3)),
+                prefixIcon: Icon(Icons.search, color: _g(0.3), size: 20),
+                filled: true,
+                fillColor: _g(0.04),
+                contentPadding: const EdgeInsets.symmetric(vertical: 12),
+                border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: _g(0.07))),
+                enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: _g(0.07))),
+                focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: kGold)),
+              ),
+              onChanged: (v) => setState(() => _query = v),
+            ),
+          ),
+          Expanded(child: ListView.builder(
           padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-          itemCount: _greekAreasSorted.length,
+          itemCount: _filtered.length,
           itemBuilder: (_, i) {
-            final area = _greekAreasSorted[i];
+            final area = _filtered[i];
             final isSel = _selected == area;
             return GestureDetector(
               onTap: () => setState(() => _selected = area),
@@ -13667,7 +13745,8 @@ class _AreaPickerState extends State<_AreaPicker> {
               ),
             );
           },
-        ),
+        )),
+        ]),
       );
 }
 
