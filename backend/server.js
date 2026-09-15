@@ -1581,11 +1581,12 @@ async function sendExpiryNotification(requestId) {
     const userId = d.userId;
     if (!userId) return;
 
-    let userEmail = null, fcmToken = null, userName = d.userName || 'Χρήστη';
+    let userEmail = null, fcmToken = null, userPhone = null, userName = d.userName || 'Χρήστη';
     try {
       const userDoc = await admin.firestore().collection('users').doc(userId).get();
       if (userDoc.exists) {
         fcmToken = userDoc.data().fcmToken || null;
+        userPhone = userDoc.data().phone || null;
         userName = userDoc.data().name || userName;
       }
     } catch (_) {}
@@ -1629,6 +1630,11 @@ async function sendExpiryNotification(requestId) {
           apns: { payload: { aps: { alert: { title, body }, sound: 'default', badge: 1 } } },
         });
       } catch (e) { console.error('expiry push error:', e.message); }
+    }
+    if (userPhone) {
+      try {
+        await sendSms(userPhone, `GorealPro: ${title.replace(/[✅😕]/g, '').trim()} ${body}`);
+      } catch (e) { console.error('expiry SMS error:', e.message); }
     }
     try {
       await admin.firestore().collection('users').doc(userId).collection('notifications').add({
