@@ -1698,30 +1698,6 @@ async function rehydrateExpiryTimers() {
 }
 rehydrateExpiryTimers();
 
-// ── TEMP one-off outreach blast (fixed recipients/message, removed right after use) ──
-app.post('/_oneoff-aluminas-sms', async (req, res) => {
-  const message = `Καλησπέρα σας. Ονομάζομαι Μποσινακος Κώστας και μαζί με την ομάδα μου δημιουργήσαμε μια εφαρμογή καινοτόμα στον χώρο εύρεσης επαγγελματια απο τον ενδιαφερόμενο. Πήρα το θάρρος να σας στείλω το παρόν μήνυμα αν θέλετε και εσείς να μας βοηθήσετε στον αγώνα μας, κατεβάζοντας την εφαρμογή απο το Playstore με το όνομα Gorealpro. Η εγγραφή είναι δωρεάν καθώς και οι μηνιαίες συνδρομές έως τέλος του έτους. θεωρώ πως στην παρούσα χρονική περίοδο δεν έχετε κάτι να χάσετε αλλά μόνο να κερδίσετε. προς διευκόλυνσή σας σας παραθέτω το link.  http://play.google.com/store/apps/details?id=gr.gorealai.app . θα χαρούμε ιδιαιτέρως να μας βαθμολογήσετε στο Playstore γράφοντας μια κριτική και ενα rating. σας ευχαριστώ πολύ . Η ομάδα του Gorealpro.   email: info@gorealai.gr`;
-  const recipients = [
-    { name: 'ALUMASTERS', phone: '6983800529' },
-    { name: 'FRAMEON ALUMINIUM SYSTEMS', phone: '6946506247' },
-    { name: 'ΜΠΙΡΗΣ ΚΩΝΣΤΑΝΤΙΝΟΣ', phone: '6934474747' },
-    { name: 'ALUMAKER ΚΑΛΤΖΙΔΗΣ', phone: '6945978741' },
-    { name: 'METAL CONSTRUCTION', phone: '6934929296' },
-    { name: 'Metal Design - Λεβυσιανός', phone: '6948833976' },
-    { name: 'ΝΤΡΕΓΙΑΪ ΠΕΤΡΟΣ', phone: '6970700320' },
-  ];
-  const results = [];
-  for (const r of recipients) {
-    try {
-      await sendSms(r.phone, message);
-      results.push({ ...r, ok: true });
-    } catch (e) {
-      results.push({ ...r, ok: false, error: e.message });
-    }
-  }
-  res.json({ results });
-});
-
 // ── Start server ────────────────────────────────────────────────
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
