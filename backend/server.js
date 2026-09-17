@@ -1698,6 +1698,25 @@ async function rehydrateExpiryTimers() {
 }
 rehydrateExpiryTimers();
 
+
+// ── TEMP wave-4 outreach blast (garage doors/rolla, fixed recipients/message, removed right after use) ──
+let _wave4Status = { total: 0, sent: 0, done: false };
+app.post('/_oneoff-wave4-sms', async (req, res) => {
+  const message = "Καλησπέρα σας. Ονομάζομαι Μποσινακος Κώστας και μαζί με την ομάδα μου δημιουργήσαμε μια εφαρμογή καινοτόμα στον χώρο εύρεσης επαγγελματια απο τον ενδιαφερόμενο. Πήρα το θάρρος να σας στείλω το παρόν μήνυμα αν θέλετε και εσείς να μας βοηθήσετε στον αγώνα μας, κατεβάζοντας την εφαρμογή απο το Playstore με το όνομα Gorealpro. Η εγγραφή είναι δωρεάν καθώς και οι μηνιαίες συνδρομές έως τέλος του έτους. θεωρώ πως στην παρούσα χρονική περίοδο δεν έχετε κάτι να χάσετε αλλά μόνο να κερδίσετε. προς διευκόλυνσή σας σας παραθέτω το link.  http://play.google.com/store/apps/details?id=gr.gorealai.app . θα χαρούμε ιδιαιτέρως να μας βαθμολογήσετε στο Playstore γράφοντας μια κριτική και ενα rating. σας ευχαριστώ πολύ . Η ομάδα του Gorealpro.   email: info@gorealai.gr";
+  const recipients = [{"name":"SYNTRA ΑΥΤΟΜΑΤΕΣ ΠΟΡΤΕΣ ΦΩΤΙΑΔΗ","phone":"6948325253"},{"name":"ΓΟΛΙΑΘ - ΜΑΘΙΟΥΔΑΚΗΣ ΚΩΝΣΤΑΝΤΙΝΟΣ","phone":"6943154956"},{"name":"ROLLWIN - ΙΩΣΗΦΙΔΗΣ ΑΡΙΣΤΕΙΔΗΣ","phone":"6932234864"},{"name":"ΜΕΝΟΥΝΟΣ Α. & Σ. Ο.Ε.","phone":"6944333958"},{"name":"ΓΕΩΡΓΙΑΔΗΣ ΚΩΣΤΑΣ","phone":"6944353192"},{"name":"ΚΑΤΕΕ","phone":"6974796666"},{"name":"ΦΥΛΤΖΑΝΙΔΗΣ Α. Γ.","phone":"6944693403"},{"name":"ΑΡΒΑΝΙΤΗΣ ΔΗΜΗΤΡΗΣ - ΗΦΑΙΣΤΟΣ","phone":"6934827817"},{"name":"ΘΕΜΗΣ","phone":"6995853313"},{"name":"ΤΗΛΕΚΙΝΗΣΗ","phone":"6944386159"},{"name":"ΜΥΪΣΛΗ ΜΠΕΚΙΡ","phone":"6946328896"},{"name":"ΘΩΜΑΤΟΣ Ι. ΓΕΡΑΣΙΜΟΣ","phone":"6939502129"},{"name":"LOWE DOORS ΜΟΝΟΠΡΟΣΩΠΗ ΙΚΕ","phone":"6937400038"},{"name":"CORFU ALUMIN - ΚΑΒΒΑΔΙΑΣ","phone":"6946700810"},{"name":"ΠΕΤΡΟΠΟΥΛΟΣ ΝΙΚΟΣ","phone":"6934904339"},{"name":"ΒΙΟΜΕΚ ΞΑΝΘΗΣ","phone":"6945909941"},{"name":"EUROPA - ΠΑΤΟΥΛΑ ΑΦΟΙ","phone":"6936078747"},{"name":"ΜΗΤΡΟΠΟΥΛΟΣ ΘΕΟΔΩΡΟΣ","phone":"6993276498"},{"name":"ΣΤΟΓΙΑΝΝΗΣ Ι. ΓΕΩΡΓΙΟΣ","phone":"6973749883"},{"name":"PLATIS DOORS - ΠΛΑΤΗΣ ΚΩΝΣΤΑΝΤΙΝΟΣ","phone":"6932621405"},{"name":"ΑΝΤΩΝΗΣ","phone":"6973537643"},{"name":"ΙΑΚΩΒΙΔΗΣ ΔΗΜΗΤΡΗΣ","phone":"6946737861"},{"name":"ΑΝΔΡΕΑΚΗ ΑΦΟΙ Ο.Ε.","phone":"6978481892"},{"name":"ΠΛΑΡΙΝΟΣ ΔΗΜΗΤΡΙΟΣ","phone":"6973730408"},{"name":"CANADOOR","phone":"6975903634"},{"name":"ΕΛ.ΚΑ.ΑΛ. - ΤΖΟΛΑΣ ΓΕΩΡΓΙΟΣ - ΧΑΡΜΑΝΤΑΣ ΓΕΩΡΓΙΟΣ Ο.Ε.","phone":"6942290443"},{"name":"KASTANOS ALOUMINIUM SYSTEMS","phone":"6995889418"},{"name":"EDMIR EUROPA","phone":"6947235179"},{"name":"ΦΡΟΥΝΤΑ ΑΦΟΙ Ο.Ε.","phone":"6997047002"},{"name":"PAPPAS SYSTEM ALUMINIUM","phone":"6987715624"},{"name":"ΚΚ ALUMETAL KIRIAZIS","phone":"6945014365"},{"name":"VADARAKIS SOLUTIONS - ΑΛΕΞΑΝΔΡΟΣ ΒΑΝΤΑΡΑΚΗΣ","phone":"6938384709"},{"name":"ALUMANTE","phone":"6988595644"},{"name":"ΚΟΝΤΟΣ Ε.Μ.Κ.Α","phone":"6908241107"},{"name":"EUROTECHNAL","phone":"6972219526"},{"name":"KEY EXPERT - ΑΓΑΣ ΠΕΡΙΚΛΗΣ","phone":"6973744444"},{"name":"METALPLAST - ΠΑΝΙΔΗΣ Χ. & ΣΙΑ Ε.Ε.","phone":"6906060626"},{"name":"KRITIKOS ΜΕΤΑΛΛΙΚΑ ΡΟΛΑ","phone":"6973690035"},{"name":"ΑΝΤΩΝΟΠΟΥΛΟΣ ΛΥΚΟΥΡΓΟΣ","phone":"6997000210"},{"name":"ΚΑΝΕΛΛΟΠΟΥΛΟΣ ΑΝΑΣΤΑΣΙΟΣ","phone":"6937605131"},{"name":"CHRISAFIS ROLLING SHUTTERS","phone":"6947156195"},{"name":"ΑΤΤΙΚΑ - ΜΠΙΚΟΥΛΗΣ","phone":"6944560666"},{"name":"ΔΕΣΙΝΙΩΤΗΣ ΠΕΤΡΟΣ","phone":"6986997106"},{"name":"MALTAS AUTOMATIC DOORS","phone":"6909129805"},{"name":"ΚΑΡΒΕΛΑΣ ΝΙΚΟΣ","phone":"6974767636"},{"name":"KOUKOULOGIANNIS DOORS","phone":"6945213742"},{"name":"KOUKOULOGIANNIS DOORS","phone":"6982251620"},{"name":"ΚΟΥΤΣΟΣΤΑΥΡΟΣ ΕΜΜ. ΝΙΚΟΛΑΟΣ","phone":"6946192078"},{"name":"TSIOUKIS LOCKS","phone":"6955994555"},{"name":"ATTIQ METAL COLORS","phone":"6972435174"},{"name":"ΤΣΙΡΩΝΗΣ ΝΙΚΟΛΑΟΣ","phone":"6948103860"},{"name":"ΠΡΙΦΤΗΣ Π.","phone":"6984113404"},{"name":"SUPER DOORS - ΣΤΕΦΟΣ ΔΑΥΙΔ","phone":"6951732970"},{"name":"ΔΡΑΚΑΚΗΣ ΓΕΩΡΓΙΟΣ","phone":"6944534869"},{"name":"NEW DOOR","phone":"6936880491"},{"name":"TECHNOLOGY DOORS KLADOUXAS","phone":"6947836712"},{"name":"Q METAL","phone":"6940926223"},{"name":"INSTAROLL ΜΑΧΑΙΡΙΔΗΣ","phone":"6985688000"},{"name":"A. STAGOR HELLAS","phone":"6978262200"}];
+  _wave4Status = { total: recipients.length, sent: 0, done: false };
+  res.json({ started: true, total: recipients.length });
+  (async () => {
+    for (const r of recipients) {
+      try { await sendSms(r.phone, message); } catch (e) { console.error('wave4 sms error', r.phone, e.message); }
+      _wave4Status.sent++;
+    }
+    _wave4Status.done = true;
+    console.log('wave4 outreach done', _wave4Status);
+  })();
+});
+app.get('/_oneoff-wave4-sms/status', (req, res) => res.json(_wave4Status));
+
 // ── Start server ────────────────────────────────────────────────
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
