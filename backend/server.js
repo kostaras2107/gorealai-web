@@ -23,9 +23,17 @@ const ATTICA_SECTORS = {
   'δυτική αττική': ['ασπρόπυργος', 'ελευσίνα', 'μάνδρα-ειδυλλία', 'μέγαρα', 'νέα πέραμος'],
   'νότια αττική': ['κορωπί', 'λαύριο', 'σαρωνικός'],
 };
+// Ίδια λογική για τη Θεσσαλονίκη — εδώ ο ίδιος ο δήμος "Θεσσαλονίκη" παίζει
+// ρόλο "τομέα" που καλύπτει και τους γύρω δήμους/προάστια (Θέρμη, Καλαμαριά
+// κ.λπ.), αφού πολλοί επαγγελματίες δηλώνουν απλά "Θεσσαλονίκη" εννοώντας
+// όλη την ευρύτερη περιοχή.
+const THESSALONIKI_SECTORS = {
+  'θεσσαλονίκη': ['θεσσαλονίκη', 'αμπελόκηποι-μενεμένη', 'βόλβη', 'δέλτα', 'εχέδωρος', 'θέρμη', 'καλαμαριά', 'κορδελιό-ευόσμος', 'λαγκαδάς', 'νεάπολη-συκιές', 'παύλος μελάς', 'πυλαία-χορτιάτης', 'σταυρούπολη', 'χαλκηδόνα', 'ωραιόκαστρο', 'νέα μηχανιώνα'],
+};
+
 // Αντίστροφος χάρτης: δήμος (lowercase) → τομέας του, για γρήγορο lookup.
 const AREA_TO_SECTOR = {};
-for (const [sector, towns] of Object.entries(ATTICA_SECTORS)) {
+for (const [sector, towns] of Object.entries({ ...ATTICA_SECTORS, ...THESSALONIKI_SECTORS })) {
   for (const t of towns) AREA_TO_SECTOR[t] = sector;
 }
 
@@ -1697,15 +1705,6 @@ async function rehydrateExpiryTimers() {
   }
 }
 rehydrateExpiryTimers();
-
-
-app.post('/_oneoff-thermi-sms', async (req, res) => {
-  const message = "🔔 Νέο αίτημα GorealPro για Μετακομίσεις! θελω να μεταφέρω μια ντουλάπα 2φυλλη από την Θέρμη προς καλαμαριά απο πεζοδρόμιο σε πεζοδρόμιο. Δες το: gorealai.web.app/app";
-  const recipients = [{"phone":"6993184758"},{"phone":"6936926808"}];
-  const results = [];
-  for (const r of recipients) { try { await sendSms(r.phone, message); results.push({phone:r.phone, ok:true}); } catch(e){ results.push({phone:r.phone, ok:false, error:e.message}); } }
-  res.json({ results });
-});
 
 // ── Start server ────────────────────────────────────────────────
 const PORT = process.env.PORT || 3000;
