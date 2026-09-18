@@ -1396,10 +1396,6 @@ app.get('/platform-stats', async (req, res) => {
       androidToday: 0, webToday: 0,
       androidUsers: 0, androidPros: 0,
       androidUsersToday: 0, androidProsToday: 0,
-      // Πόσες εγγραφές Android ήρθαν από κάθε κανάλι (π.χ. "google_ads" αν
-      // πατήθηκε το κλικ διαφήμισης, "organic" αν κατέβηκε απευθείας από
-      // αναζήτηση στο Play Store) — βασισμένο στο Play Install Referrer.
-      acquisitionSources: {}, acquisitionSourcesToday: {},
     };
 
     snap.forEach((doc) => {
@@ -1413,10 +1409,6 @@ app.get('/platform-stats', async (req, res) => {
         if (isToday) stats.androidToday++;
         if (isPro) { stats.androidPros++; if (isToday) stats.androidProsToday++; }
         else { stats.androidUsers++; if (isToday) stats.androidUsersToday++; }
-
-        const source = d.acquisitionSource || 'unknown';
-        stats.acquisitionSources[source] = (stats.acquisitionSources[source] || 0) + 1;
-        if (isToday) stats.acquisitionSourcesToday[source] = (stats.acquisitionSourcesToday[source] || 0) + 1;
       } else if (d.platform === 'web') {
         stats.webTotal++;
         if (isToday) stats.webToday++;
