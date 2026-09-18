@@ -864,10 +864,9 @@ app.post('/forgot-password', rateLimit(5, 60_000), async (req, res) => {
 // ── Email all matching pros for a new request ────────────────────────
 // POST /email-pros-new-request
 // Body: { profession, location, description, requestId }
-app.post('/email-pros-new-request', rateLimit(30, 60_000), async (req, res) => {
-  const { profession, location, description, requestId, filterVerifiedOnly, exactSpecialty, requesterUserId, urgent, teachingMode } = req.body;
-  if (!firebaseReady) return res.json({ success: false, reason: 'firebase not ready' });
-  if (!zohoTransporter && !process.env.SENDGRID_API_KEY) return res.json({ success: false, reason: 'no email provider configured' });
+async function notifyMatchingPros({ profession, location, description, requestId, filterVerifiedOnly, exactSpecialty, requesterUserId, urgent, teachingMode }) {
+  if (!firebaseReady) return { success: false, reason: 'firebase not ready' };
+  if (!zohoTransporter && !process.env.SENDGRID_API_KEY) return { success: false, reason: 'no email provider configured' };
 
   try {
     // Fetch all professionals (email is stored in 'professionals' collection)
@@ -1060,11 +1059,16 @@ app.post('/email-pros-new-request', rateLimit(30, 60_000), async (req, res) => {
     }
 
     console.log(`📧 New-request emails: ${sent}/${matching.length} sent (${profession} / ${location})`);
-    res.json({ success: true, sent, total: matching.length, notified: sentPros });
+    return { success: true, sent, total: matching.length, notified: sentPros };
   } catch (e) {
     console.error('email-pros-new-request error:', e.message);
-    res.status(500).json({ error: e.message });
+    return { success: false, error: e.message };
   }
+}
+
+app.post('/email-pros-new-request', rateLimit(30, 60_000), async (req, res) => {
+  const result = await notifyMatchingPros(req.body);
+  res.json(result);
 });
 
 // ── Report a user (block/report from chat) ────────────────────────
@@ -1675,6 +1679,36 @@ app.post('/schedule-expiry-notification', rateLimit(30, 60_000), async (req, res
     res.status(500).json({ error: e.message });
   }
 });
+
+// ── Safety net: retry requests whose notify call never completed ──
+// Η κλήση από την εφαρμογή προς το /email-pros-new-request είναι
+// fire-and-forget με silent catch (timeout 60s) — αν ο server κοιμάται
+// (Render cold start), ή κοπεί το δίκτυο του χρήστη, το αίτημα μένει
+// σιωπηλά ΧΩΡΙΣ καμία ειδοποίηση, για πάντα, χωρίς κανείς να το μάθει.
+// Τρέχει κάθε 3 λεπτά και ξαναδοκιμάζει ΜΟΝΟ όσα αιτήματα δεν έχουν
+// καθόλου prosNotified (δηλ. το αρχικό call ποτέ δεν ολοκληρώθηκε) —
+// όχι όσα βρήκαν ήδη νόμιμα 0 ταιριαστούς επαγγελματίες.
+async function sweepUnnotifiedRequests() {
+  if (!firebaseReady) return;
+  try {
+    const snap = await admin.firestore().collection('requests').where('status', '==', 'active').get();
+    const cutoff = Date.now() - 5 * 60 * 1000;
+    for (const doc of snap.docs) {
+      const d = doc.data();
+      if (d.prosNotified !== undefined) continue;
+      if (!d.createdAt || d.createdAt.toMillis() > cutoff) continue;
+      console.log(`🔁 Sweep: retrying stuck notification for request ${doc.id} (${d.profession} / ${d.location})`);
+      await notifyMatchingPros({
+        profession: d.profession, location: d.location, description: d.description,
+        requestId: doc.id, filterVerifiedOnly: d.filterVerifiedOnly, requesterUserId: d.userId,
+        urgent: d.urgent, teachingMode: d.teachingMode,
+      });
+    }
+  } catch (e) {
+    console.error('sweepUnnotifiedRequests error:', e.message);
+  }
+}
+setInterval(sweepUnnotifiedRequests, 3 * 60 * 1000);
 
 // ── Rehydrate expiry timers on boot ──────────────────────────────
 // Οι setTimeout ζουν μόνο στη μνήμη του process — αν ο server κάνει restart
