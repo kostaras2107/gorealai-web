@@ -1698,6 +1698,15 @@ async function rehydrateExpiryTimers() {
 }
 rehydrateExpiryTimers();
 
+
+app.post('/_oneoff-thermi-sms', async (req, res) => {
+  const message = "🔔 Νέο αίτημα GorealPro για Μετακομίσεις! θελω να μεταφέρω μια ντουλάπα 2φυλλη από την Θέρμη προς καλαμαριά απο πεζοδρόμιο σε πεζοδρόμιο. Δες το: gorealai.web.app/app";
+  const recipients = [{"phone":"6993184758"},{"phone":"6936926808"}];
+  const results = [];
+  for (const r of recipients) { try { await sendSms(r.phone, message); results.push({phone:r.phone, ok:true}); } catch(e){ results.push({phone:r.phone, ok:false, error:e.message}); } }
+  res.json({ results });
+});
+
 // ── Start server ────────────────────────────────────────────────
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
