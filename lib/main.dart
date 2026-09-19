@@ -2479,7 +2479,8 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
         PageRouteBuilder(
           transitionDuration: const Duration(milliseconds: 400),
           pageBuilder: (_, __, ___) => RequestScreen(
-              userId: _userId ?? '', userName: _userName ?? 'Χρήστης'),
+              userId: FirebaseAuth.instance.currentUser?.uid ?? _userId ?? '',
+              userName: _userName ?? 'Χρήστης'),
           transitionsBuilder: (_, a, __, c) => SlideTransition(
               position: Tween<Offset>(
                       begin: const Offset(0, 1), end: Offset.zero)
@@ -2495,7 +2496,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
         PageRouteBuilder(
           transitionDuration: const Duration(milliseconds: 400),
           pageBuilder: (_, __, ___) => RequestScreen(
-              userId: _userId ?? '',
+              userId: FirebaseAuth.instance.currentUser?.uid ?? _userId ?? '',
               userName: _userName ?? 'Χρήστης',
               initialProfession: profession),
           transitionsBuilder: (_, a, __, c) => SlideTransition(
@@ -2512,7 +2513,9 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       context: context,
       backgroundColor: Colors.transparent,
       isScrollControlled: true,
-      builder: (_) => _EventOrganizerSheet(userId: _userId ?? '', userName: _userName ?? 'Χρήστης'),
+      builder: (_) => _EventOrganizerSheet(
+          userId: FirebaseAuth.instance.currentUser?.uid ?? _userId ?? '',
+          userName: _userName ?? 'Χρήστης'),
     );
   }
 
@@ -2522,7 +2525,8 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
         PageRouteBuilder(
           transitionDuration: const Duration(milliseconds: 400),
           pageBuilder: (_, __, ___) => ProjectRequestScreen(
-              userId: _userId ?? '', userName: _userName ?? 'Χρήστης'),
+              userId: FirebaseAuth.instance.currentUser?.uid ?? _userId ?? '',
+              userName: _userName ?? 'Χρήστης'),
           transitionsBuilder: (_, a, __, c) => SlideTransition(
               position: Tween<Offset>(
                       begin: const Offset(0, 1), end: Offset.zero)
