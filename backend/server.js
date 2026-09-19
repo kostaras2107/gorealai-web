@@ -1020,7 +1020,7 @@ async function notifyMatchingPros({ profession, location, description, requestId
       }
       // Send SMS regardless of email success
       if (p.phone) {
-        const smsText = `🔔 Νέο αίτημα GorealPro${profession ? ` για ${profession}` : ''}!\n${description ? description.substring(0, 100) : ''}\nΔες το: gorealai.web.app/app`;
+        const smsText = `🔔 Νέο αίτημα GorealPro${profession ? ` για ${profession}` : ''}!\n${description ? description.substring(0, 100) : ''}\nΔες το: https://gorealai.web.app/app`;
         sendSms(p.phone, smsText); // fire-and-forget
       }
       // Push notification + in-app badge entry (fire-and-forget, doesn't block the loop)
@@ -1176,7 +1176,7 @@ app.post('/email-pro-new-message', rateLimit(60, 60_000), async (req, res) => {
     `;
 
     if (proEmail) await sendEmail({ to: proEmail, subject, html });
-    if (proPhone) sendSms(proPhone, `💬 Νέο μήνυμα από ${senderName || 'χρήστη'} στο GorealPro!\n${messagePreview ? messagePreview.substring(0, 100) + '\n' : ''}Απάντησε: gorealai.web.app/app`);
+    if (proPhone) sendSms(proPhone, `💬 Νέο μήνυμα από ${senderName || 'χρήστη'} στο GorealPro!\n${messagePreview ? messagePreview.substring(0, 100) + '\n' : ''}Απάντησε: https://gorealai.web.app/app`);
     console.log(`📧📱 New-message notification to pro ${proId}`);
     res.json({ success: true });
   } catch (e) {
@@ -1241,7 +1241,7 @@ app.post('/email-user-new-message', rateLimit(60, 60_000), async (req, res) => {
     `;
 
     if (userEmail) await sendEmail({ to: userEmail, subject, html });
-    if (userPhone) sendSms(userPhone, `💬 Νέο μήνυμα από ${proName || 'επαγγελματία'} στο GorealPro!\n${messagePreview ? messagePreview.substring(0, 100) + '\n' : ''}Απάντησε: gorealai.web.app/app`);
+    if (userPhone) sendSms(userPhone, `💬 Νέο μήνυμα από ${proName || 'επαγγελματία'} στο GorealPro!\n${messagePreview ? messagePreview.substring(0, 100) + '\n' : ''}Απάντησε: https://gorealai.web.app/app`);
     console.log(`📧📱 New-message notification to user ${userId}`);
     res.json({ success: true });
   } catch (e) {
