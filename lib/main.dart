@@ -23,6 +23,7 @@ import 'package:record/record.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:audioplayers/audioplayers.dart';
 import 'package:firebase_storage/firebase_storage.dart';
+import 'package:firebase_crashlytics/firebase_crashlytics.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:app_badge_plus/app_badge_plus.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
@@ -275,6 +276,14 @@ class AuthService {
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
+  // Crashlytics δεν υποστηρίζεται στο web — μόνο Android/iOS.
+  if (!kIsWeb) {
+    FlutterError.onError = FirebaseCrashlytics.instance.recordFlutterFatalError;
+    PlatformDispatcher.instance.onError = (error, stack) {
+      FirebaseCrashlytics.instance.recordError(error, stack, fatal: true);
+      return true;
+    };
+  }
   // FCM μπορεί να αποτύχει στο web — δεν σταματάμε το app
   try {
     await NotificationService.init();
@@ -14738,6 +14747,14 @@ class _TikTokShortsCarouselState extends State<_TikTokShortsCarousel> {
               // thumbnail (πραγματικό iframe σε μη-ενεργή κάρτα θα μπλόκαρε
               // πάλι το οριζόντιο swipe του PageView στο web).
               return GestureDetector(
+                // Σταθερό key ανά videoId — χωρίς αυτό, όταν το stream ξαναχτίζει
+                // τη λίστα (π.χ. κάποιος άλλος επαγγελματίας απλά άλλαξε
+                // διαθεσιμότητα, άσχετο με τα βίντεο), το Flutter μπορεί να
+                // ξαναχρησιμοποιήσει το ίδιο WebView για ΔΙΑΦΟΡΕΤΙΚΟ βίντεο στην
+                // ίδια θέση (position-based reuse) — προκαλεί τρεμόσβημα/λάθος
+                // βίντεο. Με key ανά videoId, το Flutter καταστρέφει/ξαναφτιάχνει
+                // WebView ΜΟΝΟ όταν αλλάζει πραγματικά το βίντεο σε αυτή τη θέση.
+                key: ValueKey(item['videoId']),
                 onTap: () => Navigator.push(context, PageRouteBuilder(
                   pageBuilder: (_, __, ___) => _FullscreenTikTokViewer(videoId: item['videoId'] as String),
                   transitionsBuilder: (_, a, __, c) => FadeTransition(opacity: a, child: c),

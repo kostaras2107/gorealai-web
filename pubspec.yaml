@@ -1,7 +1,7 @@
 name: shoppilot
 description: "GorealAI Bidding App"
 publish_to: 'none'
-version: 2.0.1+48
+version: 2.0.1+49
 
 environment:
   sdk: ^3.4.0
@@ -24,6 +24,7 @@ dependencies:
   http: ^1.2.2
   firebase_storage: ^12.1.0
   firebase_analytics: ^11.4.0
+  firebase_crashlytics: ^4.2.0
   image_picker: ^1.1.2
   speech_to_text: ^7.0.0
   record: ^6.0.0
