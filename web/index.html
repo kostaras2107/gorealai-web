@@ -48,6 +48,44 @@
 </head>
 <body>
   <script>
+    // Ανιχνεύει αν έγινε νέο deploy μετά την τελευταία επίσκεψη και καθαρίζει
+    // το παλιό service worker + cache ΠΡΙΝ φορτώσει η εφαρμογή. Χωρίς αυτό,
+    // το Safari/iOS ειδικά μπορεί να μείνει κολλημένο σε ενδιάμεση, χαλασμένη
+    // κατάσταση (μαύρη οθόνη) μετά από κάθε deploy, μέχρι ο χρήστης να
+    // καθαρίσει χειροκίνητα τα δεδομένα ιστότοπου.
+    (function () {
+      var VERSION_KEY = 'gorealpro_build_version';
+      var RELOAD_GUARD_KEY = 'gorealpro_reload_guard';
+      fetch('version.json', { cache: 'no-store' })
+        .then(function (r) { return r.json(); })
+        .then(function (v) {
+          var current = v.build_number + '+' + v.version;
+          var stored = localStorage.getItem(VERSION_KEY);
+          if (stored && stored !== current && !sessionStorage.getItem(RELOAD_GUARD_KEY)) {
+            sessionStorage.setItem(RELOAD_GUARD_KEY, '1');
+            Promise.all([
+              ('serviceWorker' in navigator)
+                ? navigator.serviceWorker.getRegistrations().then(function (regs) {
+                    return Promise.all(regs.map(function (r) { return r.unregister(); }));
+                  })
+                : Promise.resolve(),
+              ('caches' in window)
+                ? caches.keys().then(function (keys) {
+                    return Promise.all(keys.map(function (k) { return caches.delete(k); }));
+                  })
+                : Promise.resolve(),
+            ]).finally(function () {
+              localStorage.setItem(VERSION_KEY, current);
+              location.reload();
+            });
+          } else {
+            localStorage.setItem(VERSION_KEY, current);
+            sessionStorage.removeItem(RELOAD_GUARD_KEY);
+          }
+        })
+        .catch(function () {});
+    })();
+
     if ('serviceWorker' in navigator) {
       navigator.serviceWorker.register('firebase-messaging-sw.js', {scope: './'})
         .then(function(reg) { console.log('FCM SW registered:', reg.scope); })

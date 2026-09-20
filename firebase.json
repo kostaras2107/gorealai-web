@@ -27,6 +27,32 @@
         {
           "source": "/terms",
           "destination": "/terms.html"
+        },
+        {
+          "source": "/get",
+          "destination": "/get.html"
+        }
+      ],
+      "headers": [
+        {
+          "source": "/app/index.html",
+          "headers": [{ "key": "Cache-Control", "value": "no-cache" }]
+        },
+        {
+          "source": "/app/version.json",
+          "headers": [{ "key": "Cache-Control", "value": "no-cache" }]
+        },
+        {
+          "source": "/app/flutter_bootstrap.js",
+          "headers": [{ "key": "Cache-Control", "value": "no-cache" }]
+        },
+        {
+          "source": "/app/flutter_service_worker.js",
+          "headers": [{ "key": "Cache-Control", "value": "no-cache" }]
+        },
+        {
+          "source": "/app/main.dart.js",
+          "headers": [{ "key": "Cache-Control", "value": "no-cache" }]
         }
       ]
     }
