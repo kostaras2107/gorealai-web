@@ -2432,10 +2432,15 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   Future<void> _loadProfile() async {
     final u = FirebaseAuth.instance.currentUser;
     if (u == null) return;
-    final doc = await FirebaseFirestore.instance
-        .collection('users')
-        .doc(u.uid)
-        .get();
+    final DocumentSnapshot<Map<String, dynamic>> doc;
+    try {
+      doc = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(u.uid)
+          .get();
+    } catch (_) {
+      return;
+    }
     if (!mounted) return;
     final data = doc.data() ?? {};
     final isPro = (data['role'] ?? '') == 'professional';
@@ -4523,20 +4528,24 @@ class _ProfessionalHomeScreenState extends State<ProfessionalHomeScreen> {
     if (user == null) return;
     // Find the canonical professionals doc: prefer auto-ID doc (userId == uid),
     // fall back to UID-keyed doc
-    final proQuery = await FirebaseFirestore.instance
-        .collection('professionals')
-        .where('userId', isEqualTo: user.uid)
-        .limit(1)
-        .get();
     final String resolvedDocId;
     Map<String, dynamic> dp;
-    if (proQuery.docs.isNotEmpty) {
-      resolvedDocId = proQuery.docs.first.id;
-      dp = proQuery.docs.first.data();
-    } else {
-      resolvedDocId = user.uid;
-      final fallback = await FirebaseFirestore.instance.collection('professionals').doc(user.uid).get();
-      dp = fallback.data() ?? {};
+    try {
+      final proQuery = await FirebaseFirestore.instance
+          .collection('professionals')
+          .where('userId', isEqualTo: user.uid)
+          .limit(1)
+          .get();
+      if (proQuery.docs.isNotEmpty) {
+        resolvedDocId = proQuery.docs.first.id;
+        dp = proQuery.docs.first.data();
+      } else {
+        resolvedDocId = user.uid;
+        final fallback = await FirebaseFirestore.instance.collection('professionals').doc(user.uid).get();
+        dp = fallback.data() ?? {};
+      }
+    } catch (_) {
+      return;
     }
     if (!mounted) return;
     _proDocId = resolvedDocId;
@@ -11726,10 +11735,16 @@ class _ProfileScreenState extends State<ProfileScreen> {
       setState(() => _loading = false);
       return;
     }
-    final doc = await FirebaseFirestore.instance
-        .collection('users')
-        .doc(user.uid)
-        .get();
+    final DocumentSnapshot<Map<String, dynamic>> doc;
+    try {
+      doc = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(user.uid)
+          .get();
+    } catch (_) {
+      if (mounted) setState(() => _loading = false);
+      return;
+    }
     final prefs = await SharedPreferences.getInstance();
     if (!mounted) return;
     final data = doc.data() ?? {};
