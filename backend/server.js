@@ -1740,6 +1740,22 @@ async function rehydrateExpiryTimers() {
 }
 rehydrateExpiryTimers();
 
+// ── TEMP: resolve a Google Place ID from a text query (removed right after use) ──
+app.get('/_oneoff-find-place', async (req, res) => {
+  const { query } = req.query;
+  const apiKey = process.env.GOOGLE_PLACES_KEY;
+  if (!apiKey) return res.status(503).json({ error: 'Google Places not configured' });
+  if (!query) return res.status(400).json({ error: 'query required' });
+  try {
+    const url = `https://maps.googleapis.com/maps/api/place/findplacefromtext/json?input=${encodeURIComponent(query)}&inputtype=textquery&fields=place_id,name,formatted_address&language=el&key=${apiKey}`;
+    const resp = await fetch(url);
+    const data = await resp.json();
+    res.json(data);
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
 // ── Start server ────────────────────────────────────────────────
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
