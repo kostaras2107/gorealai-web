@@ -924,7 +924,6 @@ class _LoginScreenState extends State<LoginScreen>
   bool _wantsVerifiedBadge = false;
   List<String> _selectedSpecialties = [];
   List<String> _selectedAreas = [];
-  String? _selectedArea; // for user
   String? _selectedProHomeArea; // home city for professional
   String? _referralProName;
   String? _referralProUid;
@@ -1092,9 +1091,6 @@ class _LoginScreenState extends State<LoginScreen>
     if (_role == 'professional' && _selectedAreas.isEmpty) {
       _snack('Παρακαλώ επιλέξτε τουλάχιστον μία περιοχή εργασίας'); return;
     }
-    if (_role == 'user' && (_selectedArea == null || _selectedArea!.isEmpty)) {
-      _snack('Παρακαλώ επιλέξτε την περιοχή σας'); return;
-    }
     setState(() => _loading = true);
     try {
       final cred = await FirebaseAuth.instance.createUserWithEmailAndPassword(
@@ -1116,7 +1112,6 @@ class _LoginScreenState extends State<LoginScreen>
         'role': _role,
         'platform': kIsWeb ? 'web' : 'android',
         'createdAt': FieldValue.serverTimestamp(),
-        if (_role == 'user') 'city': _selectedArea ?? '',
         if (_role == 'professional') ...{
           'specialties': _selectedSpecialties,
           'areas': _selectedAreas,
@@ -1515,16 +1510,11 @@ class _LoginScreenState extends State<LoginScreen>
             const SizedBox(height: 12),
           ],
 
-          // User: Περιοχή (single) | Pro: Περιοχές (multi)
-          if (!isPro) ...[
-            _pickerRow(Icons.location_on_outlined, 'Περιοχή', 'Επίλεξε την περιοχή σου', null, null, () async {
-              final r = await showModalBottomSheet<String>(
-                  context: context, backgroundColor: Colors.transparent, isScrollControlled: true,
-                  builder: (_) => const _AreaPicker());
-              if (r != null) setState(() => _selectedArea = r);
-            }, selectedSingle: _selectedArea),
-            const SizedBox(height: 16),
-          ] else ...[
+          // Pro: Περιοχές (multi) — οι απλοί χρήστες δεν δηλώνουν περιοχή στην
+          // εγγραφή πια (δεν χρησιμοποιείται πουθενά στη λειτουργία της
+          // εφαρμογής, κάθε αίτημα ζητάει ούτως ή άλλως τη δική του τοποθεσία
+          // ξεχωριστά — λιγότερη τριβή στην εγγραφή).
+          if (isPro) ...[
             _pickerRow(Icons.home_outlined, 'Περιοχή κατοικίας', 'Σε ποια περιοχή μένεις;', null, null, () async {
               final r = await showModalBottomSheet<String>(
                   context: context, backgroundColor: Colors.transparent, isScrollControlled: true,
