@@ -1765,37 +1765,6 @@ async function rehydrateExpiryTimers() {
 }
 rehydrateExpiryTimers();
 
-// ── TEMP: re-engagement SMS για επαγγελματίες χωρίς ενεργό push token ──
-// (να αφαιρεθεί μετά την ολοκλήρωση της αποστολής)
-const _pushReengagementState = { running: false, done: false, sent: 0, total: 0, failed: 0 };
-app.post('/_oneoff-push-reengagement-sms', async (req, res) => {
-  if (_pushReengagementState.running) return res.json({ already: true });
-  const list = require('./_no_push_phones.json');
-  _pushReengagementState.running = true;
-  _pushReengagementState.done = false;
-  _pushReengagementState.sent = 0;
-  _pushReengagementState.failed = 0;
-  _pushReengagementState.total = list.length;
-  res.json({ started: true, total: list.length });
-
-  (async () => {
-    const msg = 'GorealPro: Έχεις χάσει αιτήματα πελατών γιατί δεν έχεις ενεργές ειδοποιήσεις (push) στο κινητό σου! Άνοιξε τώρα την εφαρμογή και ΠΑΤΑ ΑΠΟΔΟΧΗ όταν σου ζητήσει άδεια για ειδοποιήσεις, για να μη χάνεις άλλες δουλειές. https://gorealai.web.app/app';
-    for (const p of list) {
-      try {
-        await sendSms(p.phone, msg);
-        _pushReengagementState.sent++;
-      } catch (e) {
-        _pushReengagementState.failed++;
-      }
-      await new Promise(r => setTimeout(r, 400));
-    }
-    _pushReengagementState.done = true;
-    _pushReengagementState.running = false;
-    console.log(`✅ Push re-engagement SMS done: ${_pushReengagementState.sent}/${_pushReengagementState.total}`);
-  })();
-});
-app.get('/_oneoff-push-reengagement-sms/status', (req, res) => res.json(_pushReengagementState));
-
 // ── Start server ────────────────────────────────────────────────
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
