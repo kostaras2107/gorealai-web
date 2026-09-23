@@ -12,6 +12,7 @@ import 'package:http/http.dart' as http;
 import 'package:url_launcher/url_launcher.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:google_sign_in/google_sign_in.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'firebase_options.dart';
@@ -681,7 +682,11 @@ class AuthGate extends StatelessWidget {
         }
         if (!snapshot.hasData) return const LoginScreen();
         final user = snapshot.data!;
-        if (!user.emailVerified) {
+        // Λογαριασμοί που μπήκαν με κινητό+SMS δεν έχουν καν email — δεν
+        // υπάρχει τίποτα να επιβεβαιωθεί, οπότε προσπερνάμε εντελώς αυτό το
+        // βήμα γι' αυτούς.
+        final isPhoneOnlyAccount = user.email == null && user.phoneNumber != null;
+        if (!isPhoneOnlyAccount && !user.emailVerified) {
           // Το emailVerified του cached User μπορεί να είναι μπαγιάτικο —
           // π.χ. αν επιβεβαίωσε το email σε άλλη καρτέλα/συσκευή και μετά
           // άνοιξε ξανά την εφαρμογή από τον σύνδεσμο του welcome email.
@@ -763,6 +768,13 @@ class _AuthGateRoleCheckState extends State<_AuthGateRoleCheck> {
         if (userSnap.connectionState == ConnectionState.waiting) {
           return const Scaffold(
               body: Center(child: CircularProgressIndicator(color: kGold)));
+        }
+        final exists = userSnap.data?.exists ?? false;
+        if (!exists) {
+          // Μπήκε με Google αλλά δεν πρόλαβε να επιβεβαιώσει το κινητό του
+          // (π.χ. έκλεισε την εφαρμογή στη μέση) — συνέχισε από εκεί πριν μπει
+          // στην εφαρμογή.
+          return LoginScreen(incompleteUser: widget.user);
         }
         return const HomeScreen();
       },
@@ -896,7 +908,11 @@ class _EmailVerificationScreenState extends State<EmailVerificationScreen> {
 // LOGIN SCREEN
 // ═══════════════════════════════════════
 class LoginScreen extends StatefulWidget {
-  const LoginScreen({super.key});
+  // Περνιέται όταν κάποιος είναι ήδη συνδεδεμένος (π.χ. μέσω Google) αλλά δεν
+  // έχει ολοκληρώσει την εγγραφή του (λείπει η υποχρεωτική επιβεβαίωση
+  // κινητού) — τον ξαναφέρνουμε εδώ να συνεχίσει από εκεί που έμεινε.
+  final User? incompleteUser;
+  const LoginScreen({super.key, this.incompleteUser});
   @override
   State<LoginScreen> createState() => _LoginScreenState();
 }
@@ -934,12 +950,29 @@ class _LoginScreenState extends State<LoginScreen>
   late AnimationController _fadeCtrl;
   late Animation<double> _fade;
 
+  // ── Υποχρεωτική επιβεβαίωση κινητού (OTP) μετά από εγγραφή με Google ──
+  final _otpCtrl = TextEditingController();
+  String? _phoneVerificationId;
+  ConfirmationResult? _webPhoneConfirmation;
+
   @override
   void initState() {
     super.initState();
     _fadeCtrl = AnimationController(vsync: this, duration: const Duration(milliseconds: 900));
     _fade = CurvedAnimation(parent: _fadeCtrl, curve: Curves.easeOut);
     _fadeCtrl.forward();
+    if (kIsWeb) _checkGoogleRedirectResult();
+    if (widget.incompleteUser != null) {
+      // Έκλεισε την εφαρμογή στη μέση της επιβεβαίωσης κινητού μετά το Google
+      // sign-in — συνέχισε από εκεί, χωρίς να ξαναπεράσει από το Google.
+      final u = widget.incompleteUser!;
+      if (u.phoneNumber == null) {
+        _screen = 'phone_signup';
+      } else {
+        WidgetsBinding.instance.addPostFrameCallback((_) => _finishGoogleSignup());
+      }
+      return;
+    }
     Future.delayed(const Duration(milliseconds: 300), () async {
       final has = await AuthService.hasAccount();
       if (has) {
@@ -1069,6 +1102,156 @@ class _LoginScreenState extends State<LoginScreen>
       if (mounted) _snack(msg);
     }
     if (mounted) setState(() => _loading = false);
+  }
+
+  // Μετά το signInWithRedirect, η σελίδα ξαναφορτώνει — τυχόν σφάλμα (π.χ.
+  // υπάρχει ήδη λογαριασμός με άλλο provider) φαίνεται μόνο εδώ, όχι στο
+  // try/catch του _signInWithGoogle (που δεν προλαβαίνει να τρέξει ξανά).
+  Future<void> _checkGoogleRedirectResult() async {
+    try {
+      await FirebaseAuth.instance.getRedirectResult();
+    } catch (e) {
+      final err = e.toString();
+      if (err.contains('account-exists-with-different-credential') && mounted) {
+        _snack('Υπάρχει ήδη λογαριασμός με αυτό το email. Συνδέσου με email και κωδικό.');
+      }
+    }
+  }
+
+  // ── Χρήστης: σύνδεση με Google, με υποχρεωτική επιβεβαίωση κινητού (OTP)
+  // πριν ολοκληρωθεί η εγγραφή για νέους λογαριασμούς. ──
+  Future<void> _signInWithGoogle() async {
+    setState(() => _loading = true);
+    try {
+      User? user;
+      if (kIsWeb) {
+        // Το popup μπλοκάρεται συχνά σε Safari/κινητά browsers (και σε
+        // in-app browsers όπως του Viber) — το redirect δουλεύει παντού. Η
+        // σελίδα θα ξαναφορτώσει μόνη της μετά το Google, και ο AuthGate θα
+        // αναλάβει από εκεί (βλ. _checkGoogleRedirectResult στο initState).
+        await FirebaseAuth.instance.signInWithRedirect(GoogleAuthProvider());
+        return;
+      } else {
+        final googleUser = await GoogleSignIn().signIn();
+        if (googleUser == null) { if (mounted) setState(() => _loading = false); return; }
+        final googleAuth = await googleUser.authentication;
+        final credential = GoogleAuthProvider.credential(
+            accessToken: googleAuth.accessToken, idToken: googleAuth.idToken);
+        final cred = await FirebaseAuth.instance.signInWithCredential(credential);
+        user = cred.user;
+      }
+      if (user == null) { if (mounted) setState(() => _loading = false); return; }
+      final doc = await FirebaseFirestore.instance.collection('users').doc(user.uid).get();
+      if (doc.exists) {
+        if (mounted) Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => const AuthGate()));
+      } else {
+        // Νέος λογαριασμός μέσω Google — ζήτα υποχρεωτικά το κινητό του πριν ολοκληρωθεί η εγγραφή.
+        if (mounted) setState(() { _screen = 'phone_signup'; _loading = false; });
+      }
+    } catch (e) {
+      if (mounted) setState(() => _loading = false);
+      final err = e.toString();
+      if (err.contains('account-exists-with-different-credential')) {
+        _snack('Υπάρχει ήδη λογαριασμός με αυτό το email. Συνδέσου με email και κωδικό.');
+      } else if (!err.contains('cancel') && !err.contains('popup-closed')) {
+        _snack('Σφάλμα σύνδεσης με Google. Δοκίμασε ξανά.');
+      }
+    }
+  }
+
+  Future<void> _sendPhoneOtp() async {
+    final phone = _phone.text.trim();
+    if (!_isValidPhone(phone)) { _snack('Το τηλέφωνο πρέπει να είναι 10 ψηφία'); return; }
+    final e164 = '+30$phone';
+    setState(() => _loading = true);
+    try {
+      if (kIsWeb) {
+        _webPhoneConfirmation = await FirebaseAuth.instance.currentUser!.linkWithPhoneNumber(e164);
+        if (mounted) setState(() { _screen = 'phone_otp'; _loading = false; });
+      } else {
+        await FirebaseAuth.instance.verifyPhoneNumber(
+          phoneNumber: e164,
+          timeout: const Duration(seconds: 60),
+          verificationCompleted: (PhoneAuthCredential credential) async {
+            await _linkPhoneAndFinish(credential);
+          },
+          verificationFailed: (FirebaseAuthException e) {
+            if (mounted) setState(() => _loading = false);
+            _snack('Αποτυχία αποστολής κωδικού. Δοκίμασε ξανά.');
+          },
+          codeSent: (String verificationId, int? resendToken) {
+            _phoneVerificationId = verificationId;
+            if (mounted) setState(() { _screen = 'phone_otp'; _loading = false; });
+          },
+          codeAutoRetrievalTimeout: (String verificationId) {
+            _phoneVerificationId = verificationId;
+          },
+        );
+      }
+    } catch (e) {
+      if (mounted) setState(() => _loading = false);
+      final err = e.toString();
+      if (err.contains('credential-already-in-use') || err.contains('provider-already-linked')) {
+        _snack('Αυτό το κινητό χρησιμοποιείται ήδη από άλλο λογαριασμό.');
+      } else {
+        _snack('Σφάλμα αποστολής κωδικού. Δοκίμασε ξανά.');
+      }
+    }
+  }
+
+  Future<void> _verifyPhoneOtp() async {
+    final code = _otpCtrl.text.trim();
+    if (code.length < 6) { _snack('Συμπλήρωσε τον 6ψήφιο κωδικό'); return; }
+    setState(() => _loading = true);
+    try {
+      if (kIsWeb) {
+        await _webPhoneConfirmation!.confirm(code);
+        await _finishGoogleSignup();
+      } else {
+        final credential = PhoneAuthProvider.credential(
+            verificationId: _phoneVerificationId!, smsCode: code);
+        await _linkPhoneAndFinish(credential);
+      }
+    } catch (e) {
+      if (mounted) setState(() => _loading = false);
+      _snack('Λάθος κωδικός. Δοκίμασε ξανά.');
+    }
+  }
+
+  Future<void> _linkPhoneAndFinish(PhoneAuthCredential credential) async {
+    try {
+      await FirebaseAuth.instance.currentUser!.linkWithCredential(credential);
+    } catch (e) {
+      if (mounted) { setState(() => _loading = false); _snack('Σφάλμα επιβεβαίωσης τηλεφώνου. Δοκίμασε ξανά.'); }
+      return;
+    }
+    await _finishGoogleSignup();
+  }
+
+  Future<void> _finishGoogleSignup() async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) { if (mounted) setState(() => _loading = false); return; }
+    try {
+      await FirebaseFirestore.instance.collection('users').doc(user.uid).set({
+        'name': user.displayName ?? '',
+        'email': user.email ?? '',
+        'phone': user.phoneNumber ?? '',
+        'role': 'user',
+        'platform': kIsWeb ? 'web' : 'android',
+        'authMethod': 'google',
+        'createdAt': FieldValue.serverTimestamp(),
+      });
+      if (mounted) Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => const AuthGate()));
+    } catch (e) {
+      if (mounted) { setState(() => _loading = false); _snack('Σφάλμα αποθήκευσης. Δοκίμασε ξανά.'); }
+    }
+  }
+
+  // Αν έκλεισε την εφαρμογή στη μέση της επιβεβαίωσης κινητού, τον ξαναφέρνουμε
+  // εδώ (βλ. AuthGate) αντί να τον αφήσουμε μέσα χωρίς ολοκληρωμένο προφίλ.
+  void _cancelIncompleteSignup() {
+    FirebaseAuth.instance.signOut();
+    setState(() => _screen = 'login');
   }
 
   Future<void> _submitRegister() async {
@@ -1257,7 +1440,11 @@ class _LoginScreenState extends State<LoginScreen>
       body: SafeArea(
         child: FadeTransition(
           opacity: _fade,
-          child: _screen == 'login' ? _buildLogin() : _screen == 'role' ? _buildRoleSelect() : _buildRegister(),
+          child: _screen == 'login' ? _buildLogin()
+              : _screen == 'role' ? _buildRoleSelect()
+              : _screen == 'phone_signup' ? _buildPhoneSignup()
+              : _screen == 'phone_otp' ? _buildPhoneOtp()
+              : _buildRegister(),
         ),
       ),
     );
@@ -1446,6 +1633,86 @@ class _LoginScreenState extends State<LoginScreen>
         ),
       ]),
     ));
+  }
+
+  // ════════════════════════════════
+  // ΥΠΟΧΡΕΩΤΙΚΗ ΕΠΙΒΕΒΑΙΩΣΗ ΚΙΝΗΤΟΥ — μετά από εγγραφή με Google
+  // ════════════════════════════════
+  Widget _buildPhoneSignup() {
+    return SingleChildScrollView(
+      padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom + 24),
+      child: Center(child: Container(
+        width: 360,
+        margin: const EdgeInsets.symmetric(vertical: 40),
+        padding: const EdgeInsets.all(28),
+        decoration: BoxDecoration(
+          color: _g(0.06), borderRadius: BorderRadius.circular(30), border: Border.all(color: Colors.white12),
+        ),
+        child: Column(mainAxisSize: MainAxisSize.min, children: [
+          ShaderMask(
+            shaderCallback: (b) => const LinearGradient(colors: [kGoldLight, kGold]).createShader(b),
+            child: const Text('Μία τελευταία λεπτομέρεια', style: TextStyle(fontSize: 20, fontWeight: FontWeight.w700, color: Colors.white), textAlign: TextAlign.center),
+          ),
+          const SizedBox(height: 8),
+          Text('Γράψε το κινητό σου για να το επιβεβαιώσουμε', style: TextStyle(fontSize: 13, color: _g(0.5)), textAlign: TextAlign.center),
+          const SizedBox(height: 28),
+          _field(_phone, 'Κινητό τηλέφωνο (π.χ. 6912345678)', keyboard: TextInputType.phone),
+          const SizedBox(height: 28),
+          SizedBox(
+            width: double.infinity, height: 52,
+            child: ElevatedButton(
+              onPressed: _loading ? null : _sendPhoneOtp,
+              style: ElevatedButton.styleFrom(backgroundColor: kGold, foregroundColor: Colors.black, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18))),
+              child: _loading ? const CircularProgressIndicator(color: Colors.black) : const Text('Αποστολή κωδικού SMS', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+            ),
+          ),
+          const SizedBox(height: 14),
+          TextButton(
+            onPressed: _loading ? null : _cancelIncompleteSignup,
+            child: Text('Ακύρωση', style: TextStyle(color: _g(0.4), fontSize: 13)),
+          ),
+        ]),
+      )),
+    );
+  }
+
+  Widget _buildPhoneOtp() {
+    return SingleChildScrollView(
+      padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom + 24),
+      child: Center(child: Container(
+        width: 360,
+        margin: const EdgeInsets.symmetric(vertical: 40),
+        padding: const EdgeInsets.all(28),
+        decoration: BoxDecoration(
+          color: _g(0.06), borderRadius: BorderRadius.circular(30), border: Border.all(color: Colors.white12),
+        ),
+        child: Column(mainAxisSize: MainAxisSize.min, children: [
+          const Icon(Icons.sms_outlined, color: kGold, size: 40),
+          const SizedBox(height: 12),
+          Text('Στείλαμε κωδικό στο ${_phone.text.trim()}', style: TextStyle(color: _g(0.7), fontSize: 13), textAlign: TextAlign.center),
+          const SizedBox(height: 24),
+          _field(_otpCtrl, 'Κωδικός 6 ψηφίων', keyboard: TextInputType.number),
+          const SizedBox(height: 24),
+          SizedBox(
+            width: double.infinity, height: 52,
+            child: ElevatedButton(
+              onPressed: _loading ? null : _verifyPhoneOtp,
+              style: ElevatedButton.styleFrom(backgroundColor: kGold, foregroundColor: Colors.black, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18))),
+              child: _loading ? const CircularProgressIndicator(color: Colors.black) : const Text('Επιβεβαίωση', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+            ),
+          ),
+          const SizedBox(height: 14),
+          TextButton(
+            onPressed: _loading ? null : _sendPhoneOtp,
+            child: Text('Δεν πήρες κωδικό; Ξαναστείλε', style: TextStyle(color: _g(0.6), fontSize: 13)),
+          ),
+          TextButton(
+            onPressed: _loading ? null : _cancelIncompleteSignup,
+            child: Text('Ακύρωση', style: TextStyle(color: _g(0.4), fontSize: 13)),
+          ),
+        ]),
+      )),
+    );
   }
 
   // ════════════════════════════════
@@ -1679,6 +1946,27 @@ class _LoginScreenState extends State<LoginScreen>
               child: _loading ? const CircularProgressIndicator(color: Colors.black) : const Text('Δημιουργία λογαριασμού', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
             ),
           ),
+          if (!isPro) ...[
+            const SizedBox(height: 12),
+            Row(children: [
+              Expanded(child: Divider(color: _g(0.15))),
+              Padding(padding: const EdgeInsets.symmetric(horizontal: 10), child: Text('ή', style: TextStyle(color: _g(0.35), fontSize: 12))),
+              Expanded(child: Divider(color: _g(0.15))),
+            ]),
+            const SizedBox(height: 12),
+            SizedBox(
+              width: double.infinity, height: 52,
+              child: OutlinedButton.icon(
+                onPressed: _loading ? null : _signInWithGoogle,
+                style: OutlinedButton.styleFrom(
+                  side: BorderSide(color: _g(0.2)),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+                ),
+                icon: const Text('G', style: TextStyle(fontWeight: FontWeight.w900, fontSize: 18, color: Colors.white)),
+                label: const Text('Συνέχεια με Google', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w600, fontSize: 15)),
+              ),
+            ),
+          ],
           const SizedBox(height: 10),
           Center(child: TextButton(
             onPressed: () => setState(() => _screen = 'login'),

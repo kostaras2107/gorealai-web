@@ -12,7 +12,20 @@
           "package_name": "com.example.shoppilot"
         }
       },
-      "oauth_client": [],
+      "oauth_client": [
+        {
+          "client_id": "451660365555-okilpurp9rkd7b6o9qrb0tnenulu3c89.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.example.shoppilot",
+            "certificate_hash": "b8e0a6375498de5bd28c768458885234d01c1b8f"
+          }
+        },
+        {
+          "client_id": "451660365555-nad1ol0d77q68pq4ctiqeh0bodbkvrev.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
       "api_key": [
         {
           "current_key": "AIzaSyAb7hJlPIaBOq8JnhVqSYbM2OmUE5WVD08"
@@ -20,7 +33,19 @@
       ],
       "services": {
         "appinvite_service": {
-          "other_platform_oauth_client": []
+          "other_platform_oauth_client": [
+            {
+              "client_id": "451660365555-nad1ol0d77q68pq4ctiqeh0bodbkvrev.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "451660365555-lgl33r457q8dh194liifjae4u2u8p6f7.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "gr.gorealai.app"
+              }
+            }
+          ]
         }
       }
     },
@@ -31,7 +56,20 @@
           "package_name": "gr.gorealai.app"
         }
       },
-      "oauth_client": [],
+      "oauth_client": [
+        {
+          "client_id": "451660365555-97tf75ejbs7ahql5jtfbpttj2m1ilfmj.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "gr.gorealai.app",
+            "certificate_hash": "42302b6350135e1ee34f041b2d441d853dd2573e"
+          }
+        },
+        {
+          "client_id": "451660365555-nad1ol0d77q68pq4ctiqeh0bodbkvrev.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
       "api_key": [
         {
           "current_key": "AIzaSyAb7hJlPIaBOq8JnhVqSYbM2OmUE5WVD08"
@@ -39,7 +77,19 @@
       ],
       "services": {
         "appinvite_service": {
-          "other_platform_oauth_client": []
+          "other_platform_oauth_client": [
+            {
+              "client_id": "451660365555-nad1ol0d77q68pq4ctiqeh0bodbkvrev.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "451660365555-lgl33r457q8dh194liifjae4u2u8p6f7.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "gr.gorealai.app"
+              }
+            }
+          ]
         }
       }
     }

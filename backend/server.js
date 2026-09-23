@@ -1396,6 +1396,10 @@ app.get('/platform-stats', async (req, res) => {
       androidToday: 0, webToday: 0,
       androidUsers: 0, androidPros: 0,
       androidUsersToday: 0, androidProsToday: 0,
+      // Πόσοι απλοί χρήστες μπήκαν με Google (authMethod: 'google', με
+      // υποχρεωτικό επιβεβαιωμένο κινητό) έναντι του παλιού email/password —
+      // δείχνει αν όντως βοηθάει η πιο γρήγορη εγγραφή.
+      googleSignups: 0, googleSignupsToday: 0,
     };
 
     snap.forEach((doc) => {
@@ -1414,6 +1418,11 @@ app.get('/platform-stats', async (req, res) => {
         if (isToday) stats.webToday++;
       } else {
         stats.unknownTotal++;
+      }
+
+      if (d.authMethod === 'google') {
+        stats.googleSignups++;
+        if (isToday) stats.googleSignupsToday++;
       }
     });
 

@@ -51,7 +51,11 @@ class DefaultFirebaseOptions {
     appId: '1:451660365555:web:c340e9650c38bb37888186',
     messagingSenderId: '451660365555',
     projectId: 'shoppilot-app-e4104',
-    authDomain: 'shoppilot-app-e4104.firebaseapp.com',
+    // Ίδιο domain με αυτό που τρέχει η εφαρμογή (gorealai.web.app), όχι το
+    // προεπιλεγμένο *.firebaseapp.com — αλλιώς το Safari (ITP) μπλοκάρει το
+    // cross-origin storage που χρειάζεται το redirect flow του Google Sign-In
+    // και η σύνδεση αποτυγχάνει σιωπηλά μετά την επιστροφή από το Google.
+    authDomain: 'gorealai.web.app',
     storageBucket: 'shoppilot-app-e4104.firebasestorage.app',
   );
 
