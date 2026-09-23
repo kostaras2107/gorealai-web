@@ -77,6 +77,22 @@ setInterval(() => {
 app.use(cors());
 app.use(express.json());
 
+// ── Ξύπνα-και-σκάναρε: ο sweepUnnotifiedRequests() τρέχει και σε κάθε
+// εισερχόμενο request (όχι μόνο μέσω setInterval), γιατί το Render free
+// tier κοιμίζει εντελώς τη διεργασία όταν δεν έχει κίνηση — το setInterval
+// τότε απλά δεν προλαβαίνει ποτέ να χτυπήσει. Έτσι, μόλις ο server ξυπνήσει
+// για ΟΠΟΙΟΔΗΠΟΤΕ λόγο, σκανάρει αμέσως για κολλημένα αιτήματα αντί να
+// περιμένει τυχαία το επόμενο tick του timer.
+let lastSweepAt = 0;
+app.use((req, res, next) => {
+  const now = Date.now();
+  if (now - lastSweepAt > 3 * 60 * 1000) {
+    lastSweepAt = now;
+    sweepUnnotifiedRequests().catch(() => {});
+  }
+  next();
+});
+
 // ── Firebase Admin Init ──────────────────────────────────────────
 let firebaseReady = false;
 try {
@@ -991,7 +1007,7 @@ async function notifyMatchingPros({ profession, location, description, requestId
           });
         } catch (_) {}
       }
-      return res.json({ success: true, sent: 0 });
+      return { success: true, sent: 0 };
     }
 
     const subject = `${urgent ? '🚨 ΕΠΕΙΓΟΝ — ' : ''}🔔 Νέο αίτημα${profession ? ` για ${profession}` : ''}${location ? ` — ${location}` : ''}`;
