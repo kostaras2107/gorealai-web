@@ -682,11 +682,7 @@ class AuthGate extends StatelessWidget {
         }
         if (!snapshot.hasData) return const LoginScreen();
         final user = snapshot.data!;
-        // Λογαριασμοί που μπήκαν με κινητό+SMS δεν έχουν καν email — δεν
-        // υπάρχει τίποτα να επιβεβαιωθεί, οπότε προσπερνάμε εντελώς αυτό το
-        // βήμα γι' αυτούς.
-        final isPhoneOnlyAccount = user.email == null && user.phoneNumber != null;
-        if (!isPhoneOnlyAccount && !user.emailVerified) {
+        if (!user.emailVerified) {
           // Το emailVerified του cached User μπορεί να είναι μπαγιάτικο —
           // π.χ. αν επιβεβαίωσε το email σε άλλη καρτέλα/συσκευή και μετά
           // άνοιξε ξανά την εφαρμογή από τον σύνδεσμο του welcome email.
@@ -1104,16 +1100,31 @@ class _LoginScreenState extends State<LoginScreen>
     if (mounted) setState(() => _loading = false);
   }
 
-  // Μετά το signInWithRedirect, η σελίδα ξαναφορτώνει — τυχόν σφάλμα (π.χ.
-  // υπάρχει ήδη λογαριασμός με άλλο provider) φαίνεται μόνο εδώ, όχι στο
-  // try/catch του _signInWithGoogle (που δεν προλαβαίνει να τρέξει ξανά).
+  // Μετά το signInWithRedirect, η σελίδα ξαναφορτώνει από την αρχή (μέσα από
+  // SplashScreen) — αν περιμέναμε το AuthGate να το προσέξει μόνο του μέσω
+  // authStateChanges(), υπάρχει race condition: το πρώτο snapshot του stream
+  // μπορεί να είναι ακόμα "κανένας χρήστης" πριν προλάβει το Firebase να
+  // επεξεργαστεί το αποτέλεσμα του redirect, με αποτέλεσμα να μείνει κολλημένος
+  // στην απλή οθόνη login. Αναλαμβάνουμε λοιπόν ρητά εδώ, μόλις το ξέρουμε.
   Future<void> _checkGoogleRedirectResult() async {
     try {
-      await FirebaseAuth.instance.getRedirectResult();
+      final result = await FirebaseAuth.instance.getRedirectResult();
+      final user = result.user;
+      if (user == null || !mounted) return;
+      final doc = await FirebaseFirestore.instance.collection('users').doc(user.uid).get();
+      if (!mounted) return;
+      if (doc.exists) {
+        Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => const AuthGate()));
+      } else {
+        setState(() { _screen = 'phone_signup'; });
+      }
     } catch (e) {
       final err = e.toString();
       if (err.contains('account-exists-with-different-credential') && mounted) {
         _snack('Υπάρχει ήδη λογαριασμός με αυτό το email. Συνδέσου με email και κωδικό.');
+      } else if (mounted) {
+        // TODO: προσωρινό — δείχνει το ακριβές σφάλμα για διάγνωση, να αφαιρεθεί μετά.
+        _snack('Redirect result error: $err');
       }
     }
   }
@@ -1154,7 +1165,8 @@ class _LoginScreenState extends State<LoginScreen>
       if (err.contains('account-exists-with-different-credential')) {
         _snack('Υπάρχει ήδη λογαριασμός με αυτό το email. Συνδέσου με email και κωδικό.');
       } else if (!err.contains('cancel') && !err.contains('popup-closed')) {
-        _snack('Σφάλμα σύνδεσης με Google. Δοκίμασε ξανά.');
+        // TODO: προσωρινό — δείχνει το ακριβές σφάλμα για διάγνωση, να αφαιρεθεί μετά.
+        _snack('Google sign-in error: $err');
       }
     }
   }
@@ -3006,10 +3018,13 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                               ? snapOffers.data!.docs.map((d) => (d.data() as Map)['requestId'] as String? ?? '').toSet()
                               : <String>{};
                           return StreamBuilder<QuerySnapshot>(
+                            // Βλ. σχόλιο στο ίδιο query σε _buildGrid() — χωρίς
+                            // orderBy το limit(20) έχανε αυθαίρετα πρόσφατα αιτήματα.
                             stream: FirebaseFirestore.instance
                                 .collection('requests')
                                 .where('status', isEqualTo: 'active')
-                                .limit(20)
+                                .orderBy('createdAt', descending: true)
+                                .limit(150)
                                 .snapshots(),
                             builder: (context, snapReq) {
                           final reqCount = snapReq.hasData
@@ -4806,8 +4821,8 @@ class _ProfessionalHomeScreenState extends State<ProfessionalHomeScreen> {
     if (user == null) return;
     // Find the canonical professionals doc: prefer auto-ID doc (userId == uid),
     // fall back to UID-keyed doc
-    final String resolvedDocId;
-    Map<String, dynamic> dp;
+    String resolvedDocId = user.uid;
+    Map<String, dynamic> dp = {};
     try {
       final proQuery = await FirebaseFirestore.instance
           .collection('professionals')
@@ -4818,12 +4833,21 @@ class _ProfessionalHomeScreenState extends State<ProfessionalHomeScreen> {
         resolvedDocId = proQuery.docs.first.id;
         dp = proQuery.docs.first.data();
       } else {
-        resolvedDocId = user.uid;
         final fallback = await FirebaseFirestore.instance.collection('professionals').doc(user.uid).get();
         dp = fallback.data() ?? {};
       }
     } catch (_) {
-      return;
+      // Αν απέτυχε το query (δίκτυο, καθυστέρηση κλπ), ΜΗΝ αφήσεις το
+      // _proDocId null — έτσι κάθε επόμενη αποθήκευση (περιοχές, ειδικότητες
+      // κλπ) θα παρέκαμπτε σιωπηλά το "professionals" doc για πάντα σε αυτή
+      // τη σύνοδο, δίνοντας την εντύπωση ότι αποθηκεύτηκε ενώ δεν άλλαξε
+      // τίποτα εκεί που πραγματικά μετράει (αντιστοίχιση αιτημάτων). Έστω
+      // fallback στο UID-keyed doc ώστε οι αποθηκεύσεις να συνεχίσουν να
+      // δουλεύουν, ακόμα κι αν προσωρινά δεν φορτώθηκαν τα υπόλοιπα στοιχεία.
+      try {
+        final fallback = await FirebaseFirestore.instance.collection('professionals').doc(user.uid).get();
+        dp = fallback.data() ?? {};
+      } catch (_) {}
     }
     if (!mounted) return;
     _proDocId = resolvedDocId;
@@ -5270,10 +5294,18 @@ class _ProfessionalHomeScreenState extends State<ProfessionalHomeScreen> {
             ? snapOffers.data!.docs.map((d) => (d.data() as Map)['requestId'] as String? ?? '').toSet()
             : <String>{};
         return StreamBuilder<QuerySnapshot>(
+      // ΠΡΟΣΟΧΗ: χωρίς orderBy, το limit(20) έπαιρνε μια αυθαίρετη υποομάδα
+      // από ΟΛΑ τα ενεργά αιτήματα της πλατφόρμας (όλων των ειδικοτήτων/
+      // περιοχών) πριν καν εφαρμοστεί το φιλτράρισμα ειδικότητας/περιοχής
+      // παρακάτω — έτσι πρόσφατα αιτήματα που ταίριαζαν απόλυτα σε έναν
+      // επαγγελματία μπορούσαν να μην εμφανιστούν ΠΟΤΕ, αν έτυχε να υπάρχουν
+      // 20+ ενεργά αιτήματα άσχετης ειδικότητας/περιοχής. Το orderBy+μεγαλύτερο
+      // limit εξασφαλίζει ότι τουλάχιστον τα πιο πρόσφατα δεν χάνονται.
       stream: FirebaseFirestore.instance
           .collection('requests')
           .where('status', isEqualTo: 'active')
-          .limit(20)
+          .orderBy('createdAt', descending: true)
+          .limit(150)
           .snapshots(),
       builder: (_, snapReq) {
         // Fallback στο κύριο _specialty αν η λίστα _specialties είναι άδεια
@@ -6810,10 +6842,13 @@ class _ProfessionalHomeScreenState extends State<ProfessionalHomeScreen> {
             ? snapOffers.data!.docs.map((d) => (d.data() as Map)['requestId'] as String? ?? '').toSet()
             : <String>{};
         return StreamBuilder<QuerySnapshot>(
+      // Βλ. σχόλιο στο ίδιο query στο _buildGrid() παραπάνω στο αρχείο —
+      // χωρίς orderBy το limit(20) έχανε αυθαίρετα πρόσφατα αιτήματα.
       stream: FirebaseFirestore.instance
           .collection('requests')
           .where('status', isEqualTo: 'active')
-             .limit(20)
+          .orderBy('createdAt', descending: true)
+          .limit(150)
           .snapshots(),
       builder: (context, snap) {
         if (!snap.hasData) {
@@ -7955,7 +7990,8 @@ class _RequestImageGallery extends StatelessWidget {
           itemCount: images.length,
           itemBuilder: (context, i) {
             final imgData = images[i] as String? ?? '';
-            final bytes = _decodeImage(imgData);
+            final isUrl = imgData.startsWith('http');
+            final bytes = isUrl ? null : _decodeImage(imgData);
 
             return GestureDetector(
               onTap: () => _showFullImage(context, imgData, i,
@@ -7970,11 +8006,16 @@ class _RequestImageGallery extends StatelessWidget {
                     border: Border.all(
                         color: kGold.withValues(alpha: 0.3))),
                 clipBehavior: Clip.antiAlias,
-                child: bytes != null
-                    ? Image.memory(bytes, fit: BoxFit.cover)
-                    : const Center(
-                        child: Icon(Icons.broken_image_outlined,
-                            color: Colors.white24, size: 28)),
+                child: isUrl
+                    ? Image.network(imgData, fit: BoxFit.cover,
+                        errorBuilder: (_, __, ___) => const Center(
+                            child: Icon(Icons.broken_image_outlined,
+                                color: Colors.white24, size: 28)))
+                    : (bytes != null
+                        ? Image.memory(bytes, fit: BoxFit.cover)
+                        : const Center(
+                            child: Icon(Icons.broken_image_outlined,
+                                color: Colors.white24, size: 28))),
               ),
             );
           },
@@ -7985,7 +8026,8 @@ class _RequestImageGallery extends StatelessWidget {
 
   void _showFullImage(BuildContext context, String imgData, int idx,
       List<String> all) {
-    final bytes = _decodeImage(imgData);
+    final isUrl = imgData.startsWith('http');
+    final bytes = isUrl ? null : _decodeImage(imgData);
     showDialog(
       context: context,
       barrierColor: Colors.black87,
@@ -8013,13 +8055,19 @@ class _RequestImageGallery extends StatelessWidget {
           const SizedBox(height: 8),
           ClipRRect(
             borderRadius: BorderRadius.circular(16),
-            child: bytes != null
-                ? Image.memory(bytes, fit: BoxFit.contain)
-                : const Padding(
-                    padding: EdgeInsets.all(32),
-                    child: Icon(Icons.broken_image,
-                        color: Colors.white30, size: 64),
-                  ),
+            child: isUrl
+                ? Image.network(imgData, fit: BoxFit.contain,
+                    errorBuilder: (_, __, ___) => const Padding(
+                        padding: EdgeInsets.all(32),
+                        child: Icon(Icons.broken_image,
+                            color: Colors.white30, size: 64)))
+                : (bytes != null
+                    ? Image.memory(bytes, fit: BoxFit.contain)
+                    : const Padding(
+                        padding: EdgeInsets.all(32),
+                        child: Icon(Icons.broken_image,
+                            color: Colors.white30, size: 64),
+                      )),
           ),
         ]),
       ),
@@ -8428,12 +8476,21 @@ class _RequestScreenState extends State<RequestScreen>
     } catch (_) { return null; }
   }
 
+  static const _maxRequestImages = 3;
+
   Future<void> _pickImage() async {
     try {
       final picked = await _picker.pickMultiImage();
       if (picked.isEmpty || !mounted) return;
+      final remaining = _maxRequestImages - _images.length;
+      if (remaining <= 0) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('⚠️ Έφτασες στο όριο των $_maxRequestImages φωτογραφιών'), backgroundColor: Colors.orange));
+        return;
+      }
+      final toAdd = picked.take(remaining).toList();
       final compressed = <XFile>[];
-      for (final f in picked.take(3)) {
+      for (final f in toAdd) {
         try {
           final bytes = await f.readAsBytes();
           final small = await _compressImage(bytes);
@@ -8443,6 +8500,10 @@ class _RequestScreenState extends State<RequestScreen>
         } catch (_) { compressed.add(f); }
       }
       setState(() => _images.addAll(compressed));
+      if (picked.length > toAdd.length && mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('⚠️ Μπορείς να στείλεις μέχρι $_maxRequestImages φωτογραφίες — οι υπόλοιπες δεν προστέθηκαν'), backgroundColor: Colors.orange));
+      }
     } catch (_) {}
   }
 
@@ -8518,18 +8579,27 @@ class _RequestScreenState extends State<RequestScreen>
 
       // Server για AI categorization + pro notifications
       try {
-        // Encode images as base64
+        // Διάβασε κάθε φωτογραφία μία φορά: base64 για το AI categorization
+        // endpoint (παρακάτω), και ανέβασμα στο Storage για μόνιμη αποθήκευση.
+        // ΠΡΟΣΟΧΗ: οι φωτογραφίες ΔΕΝ αποθηκεύονται πια ως base64 μέσα στο ίδιο
+        // το Firestore document — το Firestore έχει σκληρό όριο 1MB ανά έγγραφο,
+        // που 2-3 φωτογραφίες σε base64 (+33% μέγεθος) το ξεπερνούσαν εύκολα,
+        // αποτυγχάνοντας σιωπηλά· ο πελάτης νόμιζε ότι έστειλε φωτογραφίες αλλά
+        // ο επαγγελματίας δεν έβλεπε ποτέ τίποτα. Ίδιο μοτίβο με το βίντεο.
         List<String> imageBase64 = [];
+        List<String> imageUrls = [];
         int imageFailCount = 0;
-        for (final img in _images) {
+        for (var i = 0; i < _images.length; i++) {
           try {
-            final bytes = await img.readAsBytes();
+            final bytes = await _images[i].readAsBytes();
             imageBase64.add(base64Encode(bytes));
+            final iref = FirebaseStorage.instance.ref('requests/images/${docRef.id}_$i.jpg');
+            await iref.putData(bytes, SettableMetadata(contentType: 'image/jpeg'));
+            imageUrls.add(await iref.getDownloadURL());
           } catch (_) {
             imageFailCount++;
           }
         }
-        // Αποθήκευσε images στο Firestore (base64) για να τα βλέπει ο επαγγελματίας.
         // Διόρθωσε πάντα το imageCount ώστε να ταιριάζει με όσες πραγματικά
         // αποθηκεύτηκαν — αλλιώς ο επαγγελματίας βλέπει ένδειξη φωτογραφίας
         // που στην πραγματικότητα δεν υπάρχει (imageCount>0 αλλά images: null).
@@ -8537,9 +8607,9 @@ class _RequestScreenState extends State<RequestScreen>
             .collection('requests')
             .doc(docRef.id)
             .update({
-              if (imageBase64.isNotEmpty) 'images': imageBase64,
-              'hasImages': imageBase64.isNotEmpty,
-              'imageCount': imageBase64.length,
+              if (imageUrls.isNotEmpty) 'images': imageUrls,
+              'hasImages': imageUrls.isNotEmpty,
+              'imageCount': imageUrls.length,
             });
         if (imageFailCount > 0 && mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
