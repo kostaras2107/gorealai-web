@@ -1,7 +1,7 @@
 name: shoppilot
 description: "GorealAI Bidding App"
 publish_to: 'none'
-version: 2.0.1+54
+version: 2.0.1+55
 
 environment:
   sdk: ^3.4.0
