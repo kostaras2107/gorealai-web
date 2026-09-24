@@ -1740,6 +1740,47 @@ async function sweepUnnotifiedRequests() {
 }
 setInterval(sweepUnnotifiedRequests, 3 * 60 * 1000);
 
+// ── Καθάρισμα παλιών φωτογραφιών/βίντεο αιτημάτων (30 μέρες) ──────
+// Οι φωτογραφίες/βίντεο ανεβαίνουν στο Storage χωρίς κανέναν αυτόματο
+// μηχανισμό διαγραφής — έμεναν αποθηκευμένα για πάντα. Καθαρίζουμε μόνο τα
+// αρχεία (όχι το ίδιο το request doc, που έχει αξία σαν ιστορικό) 30 μέρες
+// μετά τη λήξη, δίνοντας αρκετό περιθώριο για τυχόν αναφορά μετά τη δουλειά.
+async function cleanupOldRequestMedia() {
+  if (!firebaseReady) return;
+  try {
+    const cutoff = admin.firestore.Timestamp.fromMillis(Date.now() - 30 * 24 * 60 * 60 * 1000);
+    const snap = await admin.firestore().collection('requests')
+      .where('expiresAt', '<', cutoff)
+      .get();
+    const bucket = admin.storage().bucket();
+    let cleaned = 0;
+    for (const doc of snap.docs) {
+      const d = doc.data();
+      if (d.mediaCleanedUp) continue;
+      if (!d.hasImages && !d.hasVideo) continue;
+      try {
+        await bucket.deleteFiles({ prefix: `requests/images/${doc.id}_` });
+        await bucket.deleteFiles({ prefix: `requests/videos/${doc.id}_` });
+        await doc.ref.update({
+          images: admin.firestore.FieldValue.delete(),
+          videoUrl: admin.firestore.FieldValue.delete(),
+          hasImages: false,
+          hasVideo: false,
+          mediaCleanedUp: true,
+        });
+        cleaned++;
+      } catch (e) {
+        console.error(`cleanupOldRequestMedia error for ${doc.id}:`, e.message);
+      }
+    }
+    if (cleaned > 0) console.log(`🧹 Καθαρίστηκαν φωτογραφίες/βίντεο από ${cleaned} παλιά αιτήματα (30+ ημερών)`);
+  } catch (e) {
+    console.error('cleanupOldRequestMedia error:', e.message);
+  }
+}
+setInterval(cleanupOldRequestMedia, 24 * 60 * 60 * 1000);
+cleanupOldRequestMedia();
+
 // ── Rehydrate expiry timers on boot ──────────────────────────────
 // Οι setTimeout ζουν μόνο στη μνήμη του process — αν ο server κάνει restart
 // (νέο deploy, redeploy από Render κ.λπ.) ενώ κάποιο αίτημα μετράει ακόμα,
