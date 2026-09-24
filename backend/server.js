@@ -1611,7 +1611,12 @@ async function sendExpiryNotification(requestId) {
     if (d.status === 'completed') return; // ο πελάτης διάλεξε ήδη επαγγελματία, το ξέρει
     if (d.status === 'cancelled') return; // ο πελάτης το ακύρωσε μόνος του, δεν χρειάζεται ειδοποίηση
 
-    await ref.update({ expiryNotified: true });
+    // Η "δεξαμενή" ενεργών αιτημάτων που βλέπουν οι επαγγελματίες φιλτράρεται
+    // με status=='active' — χωρίς αυτή τη μετάβαση σε 'expired', ένα ληγμένο
+    // αίτημα έμενε "active" για πάντα στη βάση, μεγαλώνοντας ασταμάτητα τη
+    // δεξαμενή με τον καιρό (ο πελάτης μπορεί ακόμα να διαλέξει από τις
+    // προσφορές που ήδη έχει, απλά δεν εμφανίζεται πια σε ΝΕΟΥΣ επαγγελματίες).
+    await ref.update({ expiryNotified: true, status: 'expired' });
 
     const offersCount = d.offersCount || 0;
     const found = offersCount > 0;
