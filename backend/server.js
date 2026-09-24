@@ -1765,17 +1765,6 @@ async function rehydrateExpiryTimers() {
 }
 rehydrateExpiryTimers();
 
-// ── TEMP: μοναδικό SMS στη Χρύσα (2 προσφορές + Play Store) — να αφαιρεθεί μετά την αποστολή ──
-app.post('/_oneoff-sms-chrisa', async (req, res) => {
-  const msg = 'Γεια σου Χρύσα! Για το αίτημά σου στο GorealPro βρέθηκαν 2 επαγγελματίες που έστειλαν προσφορά — μπες στην εφαρμογή να τις δεις και να διαλέξεις. Είμαστε πλέον και στο Play Store: https://play.google.com/store/apps/details?id=gr.gorealai.app';
-  try {
-    await sendSms('6947007750', msg);
-    res.json({ sent: true });
-  } catch (e) {
-    res.status(500).json({ sent: false, error: e.message });
-  }
-});
-
 // ── Start server ────────────────────────────────────────────────
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
