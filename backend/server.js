@@ -582,7 +582,7 @@ app.post('/new-offer', rateLimit(20, 60_000), async (req, res) => {
 // POST /offer-accepted
 // Body: { proId, userName, userPhone, requestDesc }
 app.post('/offer-accepted', rateLimit(20, 60_000), async (req, res) => {
-  const { proId, userName, userPhone, requestDesc } = req.body;
+  const { proId, proName, userName, userPhone, requestDesc } = req.body;
   if (!proId) return res.status(400).json({ error: 'proId required' });
   if (!firebaseReady) return res.json({ success: false, reason: 'firebase not ready' });
 
@@ -596,6 +596,19 @@ app.post('/offer-accepted', rateLimit(20, 60_000), async (req, res) => {
         jobs_count: admin.firestore.FieldValue.increment(1),
       }, { merge: true });
     } catch (e) { console.error('jobs-count increment error:', e.message); }
+
+    // Admin analytics: καταγραφή επιλογής — ίδιος λόγος (admin_analytics
+    // επιτρέπει write μόνο σε admin, ο πελάτης δεν μπορούσε ποτέ να το κάνει
+    // απευθείας από το κινητό του).
+    if (proName) {
+      try {
+        await admin.firestore().collection('admin_analytics').doc('pro_selections').set({
+          [`clicks_${proId}`]: admin.firestore.FieldValue.increment(1),
+          [`name_${proId}`]: proName,
+          lastUpdated: admin.firestore.FieldValue.serverTimestamp(),
+        }, { merge: true });
+      } catch (e) { console.error('pro_selections analytics error:', e.message); }
+    }
 
     let proEmail = null;
     try {

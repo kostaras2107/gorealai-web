@@ -10157,22 +10157,14 @@ class _OffersScreenState extends State<OffersScreen>
         'createdAt': FieldValue.serverTimestamp(),
       });
 
-      // Admin analytics: καταγράφω κλικ επιλογής
-      final proId2 = offer['professionalId'] as String? ?? '';
-      final proName2 = (offer['name'] ?? offer['professionalName'] ?? '').toString();
-      if (proName2.isNotEmpty) {
-        final clickRef = FirebaseFirestore.instance
-            .collection('admin_analytics')
-            .doc('pro_selections');
-        final proKey = proId2.isNotEmpty ? proId2 : proName2;
-        await clickRef.set({
-          'clicks_$proKey': FieldValue.increment(1),
-          'name_$proKey': proName2,
-          'lastUpdated': FieldValue.serverTimestamp(),
-        }, SetOptions(merge: true));
-      }
-
-      // Αποθήκευση επιλεγμένου επαγγελματία στο ιστορικό χρήστη
+      // Αποθήκευση επιλεγμένου επαγγελματία στο ιστορικό χρήστη — ΠΡΩΤΑ τα
+      // κρίσιμα βήματα (αυτό + η ενημέρωση του request παρακάτω), πριν το μη
+      // κρίσιμο analytics tracking. Παλιότερα το analytics ήταν πρώτο και,
+      // επειδή το admin_analytics doc επιτρέπει write ΜΟΝΟ σε admin (βλ.
+      // firestore.rules), ΚΑΘΕ πελάτης έπαιρνε εδώ permission-denied — το
+      // exception σταματούσε σιωπηλά τα επόμενα δύο βήματα (η επιλογή ποτέ
+      // δεν καταγραφόταν, το request ποτέ δεν γινόταν 'completed'), ενώ ο
+      // χρήστης έβλεπε ούτως ή άλλως το μήνυμα επιτυχίας παρακάτω.
       if (user != null) {
         await FirebaseFirestore.instance
             .collection('users')
@@ -10244,13 +10236,15 @@ class _OffersScreenState extends State<OffersScreen>
           }
         } catch (_) {}
 
-        // Email στον επαγγελματία ότι αποδέχτηκαν την προσφορά του
+        // Email στον επαγγελματία ότι αποδέχτηκαν την προσφορά του (και το
+        // admin analytics tracking, μέσω Admin SDK — βλ. σχόλιο πιο πάνω).
         try {
           await http.post(
             Uri.parse('$kBackendUrl/offer-accepted'),
             headers: {'Content-Type': 'application/json'},
             body: jsonEncode({
               'proId': proId,
+              'proName': offer['name'] ?? offer['professionalName'] ?? '',
               'userName': userName,
               'userPhone': userPhone,
               'requestDesc': widget.description,
