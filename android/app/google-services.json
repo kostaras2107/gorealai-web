@@ -66,6 +66,14 @@
           }
         },
         {
+          "client_id": "451660365555-m0v6t0emm7pqnd7d4j5hklsp0l8m16df.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "gr.gorealai.app",
+            "certificate_hash": "aea597fa260b854cd4c9e87e50d347165beb3334"
+          }
+        },
+        {
           "client_id": "451660365555-nad1ol0d77q68pq4ctiqeh0bodbkvrev.apps.googleusercontent.com",
           "client_type": 3
         }
