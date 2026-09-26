@@ -134,15 +134,21 @@ if (process.env.ZOHO_USER && process.env.ZOHO_PASS) {
 }
 
 // ── SMS via InfiniReach ──────────────────────────────────────────
-async function sendSms(phone, message) {
-  const apiKey = process.env.INFINIREACH_API_KEY;
-  const fromPhone = process.env.INFINIREACH_PHONE; // your Android number e.g. +306944048588
-  if (!apiKey || !fromPhone || !phone) return;
-  let p = phone.replace(/\s+/g, '');
+function normalizePhone(phone) {
+  let p = (phone || '').replace(/\s+/g, '');
+  if (!p) return '';
   if (p.startsWith('00')) p = '+' + p.slice(2);
   else if (p.startsWith('0')) p = '+30' + p.slice(1);
   else if (/^[62]/.test(p)) p = '+30' + p;
   else if (!p.startsWith('+')) p = '+30' + p;
+  return p;
+}
+
+async function sendSms(phone, message) {
+  const apiKey = process.env.INFINIREACH_API_KEY;
+  const fromPhone = process.env.INFINIREACH_PHONE; // your Android number e.g. +306944048588
+  if (!apiKey || !fromPhone || !phone) return;
+  const p = normalizePhone(phone);
   try {
     const r = await fetch('https://api.infinireach.io/api/v1/messages', {
       method: 'POST',
@@ -1039,6 +1045,10 @@ async function notifyMatchingPros({ profession, location, description, requestId
     // Send email + SMS individually
     let sent = 0;
     const sentPros = [];
+    // Μερικοί επαγγελματίες έχουν κατά λάθος 2 ξεχωριστούς λογαριασμούς
+    // (διαφορετικό uid) με το ΙΔΙΟ κινητό — χωρίς αυτό το guard θα έπαιρναν
+    // 2 SMS για το ίδιο αίτημα, ένα ανά λογαριασμό.
+    const smsPhonesSent = new Set();
     for (const p of matching) {
       try {
         await sendEmail({ to: p.email, subject, html });
@@ -1048,7 +1058,9 @@ async function notifyMatchingPros({ profession, location, description, requestId
         console.error(`Email error for ${p.email}:`, e.message);
       }
       // Send SMS regardless of email success
-      if (p.phone) {
+      const normalizedPhone = normalizePhone(p.phone);
+      if (normalizedPhone && !smsPhonesSent.has(normalizedPhone)) {
+        smsPhonesSent.add(normalizedPhone);
         const smsText = `🔔 Νέο αίτημα GorealPro${profession ? ` για ${profession}` : ''}!\n${description ? description.substring(0, 100) : ''}\nΔες το: https://gorealai.web.app/app`;
         sendSms(p.phone, smsText); // fire-and-forget
       }
