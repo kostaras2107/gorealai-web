@@ -1836,6 +1836,16 @@ async function rehydrateExpiryTimers() {
 }
 rehydrateExpiryTimers();
 
+// ── TEMP one-off: SMS στον Κατίκα για το αίτημα Αλουμινάς (αφαιρείται μετά) ──
+app.post('/_oneoff-sms-katikas', async (req, res) => {
+  try {
+    await sendSms('6983792329', '🔔 Νέο αίτημα GorealPro για Αλουμινάς!\nΘΕΛΩ ΚΟΥΦΩΜΑΤΑ ΓΙΑ 4 ΜΕΣΟΝΕΤΕΣ\nΔες το: https://gorealai.web.app/app');
+    res.json({ success: true });
+  } catch (e) {
+    res.status(500).json({ success: false, error: e.message });
+  }
+});
+
 // ── Start server ────────────────────────────────────────────────
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
