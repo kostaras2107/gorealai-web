@@ -17462,13 +17462,9 @@ class _DirectRequestScreenState extends State<DirectRequestScreen> {
           ? (photoUrls.isNotEmpty ? '$msg\n📷 ${photoUrls.length} φωτογραφίες' : msg)
           : '📷 ${photoUrls.length} φωτογραφίες';
 
-      await FirebaseFirestore.instance.collection('chats').doc(chatId).set({
-        'userId': user.uid, 'proId': proId,
-        'userName': userName, 'proName': proName,
-        'lastMessage': msgText, 'lastMessageAt': FieldValue.serverTimestamp(),
-        'unreadUser': 0, 'unreadPro': FieldValue.increment(1),
-      }, SetOptions(merge: true));
-
+      // Το μήνυμα ΠΡΩΤΑ, το preview ΜΕΤΑ — αν το 2ο βήμα αποτύχει (δίκτυο,
+      // κλείσιμο app), το μήνυμα έχει ήδη σωθεί· αντίστροφα θα έμενε ένα
+      // "φάντασμα" preview χωρίς ποτέ να υπάρξει το πραγματικό μήνυμα.
       await FirebaseFirestore.instance
           .collection('chats').doc(chatId)
           .collection('messages').add({
@@ -17476,6 +17472,13 @@ class _DirectRequestScreenState extends State<DirectRequestScreen> {
         'text': msgText, 'photoUrls': photoUrls,
         'createdAt': FieldValue.serverTimestamp(),
       });
+
+      await FirebaseFirestore.instance.collection('chats').doc(chatId).set({
+        'userId': user.uid, 'proId': proId,
+        'userName': userName, 'proName': proName,
+        'lastMessage': msgText, 'lastMessageAt': FieldValue.serverTimestamp(),
+        'unreadUser': 0, 'unreadPro': FieldValue.increment(1),
+      }, SetOptions(merge: true));
 
       if (proId.isNotEmpty) {
         await FirebaseFirestore.instance
