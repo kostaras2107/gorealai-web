@@ -284,6 +284,18 @@ Future<void> main() async {
       FirebaseCrashlytics.instance.recordError(error, stack, fatal: true);
       return true;
     };
+    // google_sign_in 7.x: πρέπει να καλεστεί ΜΙΑ φορά πριν από κάθε άλλη
+    // χρήση. Το web χρησιμοποιεί signInWithRedirect (χωρίς αυτό το package).
+    // serverClientId = το Web OAuth client (client_type 3) από
+    // google-services.json — χρειάζεται ρητά, αλλιώς το idToken δεν είναι
+    // έγκυρο για Firebase.
+    try {
+      await GoogleSignIn.instance.initialize(
+        serverClientId: '451660365555-nad1ol0d77q68pq4ctiqeh0bodbkvrev.apps.googleusercontent.com',
+      );
+    } catch (e) {
+      debugPrint('GoogleSignIn.initialize error: $e');
+    }
   }
   // FCM μπορεί να αποτύχει στο web — δεν σταματάμε το app
   try {
@@ -1143,11 +1155,18 @@ class _LoginScreenState extends State<LoginScreen>
         await FirebaseAuth.instance.signInWithRedirect(GoogleAuthProvider());
         return;
       } else {
-        final googleUser = await GoogleSignIn().signIn();
-        if (googleUser == null) { if (mounted) setState(() => _loading = false); return; }
-        final googleAuth = await googleUser.authentication;
+        GoogleSignInAccount googleUser;
+        try {
+          googleUser = await GoogleSignIn.instance.authenticate();
+        } on GoogleSignInException catch (e) {
+          if (e.code == GoogleSignInExceptionCode.canceled) {
+            if (mounted) setState(() => _loading = false);
+            return;
+          }
+          rethrow;
+        }
         final credential = GoogleAuthProvider.credential(
-            accessToken: googleAuth.accessToken, idToken: googleAuth.idToken);
+            idToken: googleUser.authentication.idToken);
         final cred = await FirebaseAuth.instance.signInWithCredential(credential);
         user = cred.user;
       }
@@ -3198,7 +3217,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                         MessagesScreen(userId: _userId ?? ''),
                     transitionsBuilder: (_, a, __, c) =>
                         FadeTransition(opacity: a, child: c),
-                  )).then((_) => setState(() => _navIndex = 0));
+                  )).then((_) { if (mounted) setState(() => _navIndex = 0); });
             },
             onHistory: () {
               setState(() => _navIndex = 2);
@@ -3210,7 +3229,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                         RequestHistoryScreen(userId: _userId ?? ''),
                     transitionsBuilder: (_, a, __, c) =>
                         FadeTransition(opacity: a, child: c),
-                  )).then((_) => setState(() => _navIndex = 0));
+                  )).then((_) { if (mounted) setState(() => _navIndex = 0); });
             },
             onProfile: () {
               setState(() => _navIndex = 3);
@@ -3221,7 +3240,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                     pageBuilder: (_, __, ___) => const ProfileScreen(),
                     transitionsBuilder: (_, a, __, c) =>
                         FadeTransition(opacity: a, child: c),
-                  )).then((_) => setState(() => _navIndex = 0));
+                  )).then((_) { if (mounted) setState(() => _navIndex = 0); });
             },
           );
             }),
@@ -3931,7 +3950,7 @@ class _ActiveRequestHeroCardState extends State<_ActiveRequestHeroCard> {
           _prosNotified = data['prosNotified'] ?? 0;
         });
       }
-    });
+    }, onError: (Object _) {});
   }
 
   @override
@@ -9351,7 +9370,7 @@ class _WaitingScreenState extends State<WaitingScreen>
             .where((n) => n.isNotEmpty)
             .toSet();
       });
-    });
+    }, onError: (Object _) {});
   }
 
   Future<void> _initFromFirestore() async {
@@ -9416,7 +9435,7 @@ class _WaitingScreenState extends State<WaitingScreen>
           _notifiedProNames = names is List ? List<String>.from(names.map((e) => e.toString())) : [];
         });
       }
-    });
+    }, onError: (Object _) {});
   }
 
   Future<void> _confirmCancel(BuildContext context) async {
@@ -14672,7 +14691,7 @@ class _AppBadgeSyncState extends State<_AppBadgeSync> {
       }
       _chatUserUnread = total;
       _updateBadge();
-    });
+    }, onError: (Object _) {});
     _chatProSub = FirebaseFirestore.instance
         .collection('chats')
         .where('proId', isEqualTo: widget.userId)
@@ -14684,7 +14703,7 @@ class _AppBadgeSyncState extends State<_AppBadgeSync> {
       }
       _chatProUnread = total;
       _updateBadge();
-    });
+    }, onError: (Object _) {});
     _notifSub = FirebaseFirestore.instance
         .collection('users')
         .doc(widget.userId)
@@ -14698,7 +14717,7 @@ class _AppBadgeSyncState extends State<_AppBadgeSync> {
       // αίτημα εμφανίζεται διπλά σε δύο διαφορετικά badges.
       _notifUnread = snap.docs.where((d) => (d.data())['type'] != 'new_request').length;
       _updateBadge();
-    });
+    }, onError: (Object _) {});
   }
 
   void _updateBadge() {
@@ -17973,7 +17992,7 @@ class _ChatScreenState extends State<ChatScreen> {
         _isBlocked = blockedBy.isNotEmpty;
         _iBlocked = blockedBy.contains(widget.currentUserId);
       });
-    });
+    }, onError: (Object _) {});
   }
 
   Future<void> _loadOtherPhoto() async {
