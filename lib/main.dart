@@ -1181,6 +1181,11 @@ class _LoginScreenState extends State<LoginScreen>
     } catch (e) {
       if (mounted) setState(() => _loading = false);
       final err = e.toString();
+      // TODO: προσωρινό διαγνωστικό logging — να αφαιρεθεί μετά. Πάντα τυπώνει
+      // το raw exception στο logcat (tag "flutter"), ανεξάρτητα από το αν
+      // δείχνουμε snackbar, ώστε να βλέπουμε ακριβώς τι πετάει χωρίς να
+      // κρύβεται από το φιλτράρισμα "cancel"/"popup-closed" παρακάτω.
+      debugPrint('🔴 _signInWithGoogle RAW ERROR: $err');
       if (err.contains('account-exists-with-different-credential')) {
         _snack('Υπάρχει ήδη λογαριασμός με αυτό το email. Συνδέσου με email και κωδικό.');
       } else if (!err.contains('cancel') && !err.contains('popup-closed')) {
