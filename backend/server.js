@@ -1836,6 +1836,25 @@ async function rehydrateExpiryTimers() {
 }
 rehydrateExpiryTimers();
 
+// ── TEMP one-off: recruitment SMS σε νέα leads (Τεχνικός Καυστήρων /
+// Διακοσμητής Εσωτερικών Χώρων) — αφαιρείται μετά τη χρήση ──────────
+const _recruitLeads = require('./_leads_data.json');
+const _recruitMsg = "Καλησπέρα σας. Ονομάζομαι Μποσινακος Κώστας και μαζί με την ομάδα μου δημιουργήσαμε μια εφαρμογή καινοτόμα στον χώρο εύρεσης επαγγελματια απο τον ενδιαφερόμενο. Πήρα το θάρρος να σας στείλω το παρόν μήνυμα αν θέλετε και εσείς να μας βοηθήσετε στον αγώνα μας, κατεβάζοντας την εφαρμογή απο το Playstore με το όνομα Gorealpro. Η εγγραφή είναι δωρεάν καθώς και οι μηνιαίες συνδρομές έως τέλος του έτους. θεωρώ πως στην παρούσα χρονική περίοδο δεν έχετε κάτι να χάσετε αλλά μόνο να κερδίσετε. προς διευκόλυνσή σας σας παραθέτω το link. http://play.google.com/store/apps/details?id=gr.gorealai.app . θα χαρούμε ιδιαιτέρως να μας βαθμολογήσετε στο Playstore γράφοντας μια κριτική και ενα rating. σας ευχαριστώ πολύ . Η ομάδα του Gorealpro. email: info@gorealai.gr";
+app.post('/_oneoff-recruit-sms', async (req, res) => {
+  let sent = 0, failed = 0;
+  for (const lead of _recruitLeads) {
+    try {
+      await sendSms(lead.phone, _recruitMsg);
+      sent++;
+    } catch (e) {
+      failed++;
+      console.error('recruit-sms fail', lead.phone, e.message);
+    }
+    await new Promise(r => setTimeout(r, 250));
+  }
+  res.json({ success: true, sent, failed, total: _recruitLeads.length });
+});
+
 // ── Start server ────────────────────────────────────────────────
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
