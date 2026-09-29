@@ -1801,12 +1801,16 @@ class _LoginScreenState extends State<LoginScreen>
           ),
           const SizedBox(height: 20),
 
-          // Όνομα + Επώνυμο
-          Row(children: [
-            Expanded(child: _field(_name, 'Όνομα')),
-            const SizedBox(width: 12),
-            Expanded(child: _field(_lastName, 'Επώνυμο')),
-          ]),
+          // Όνομα + Επώνυμο — το Επώνυμο εμφανίζεται μόνο για επαγγελματίες·
+          // οι απλοί χρήστες βλέπουν μόνο ένα πεδίο, για πιο σύντομη εγγραφή.
+          if (isPro)
+            Row(children: [
+              Expanded(child: _field(_name, 'Όνομα')),
+              const SizedBox(width: 12),
+              Expanded(child: _field(_lastName, 'Επώνυμο')),
+            ])
+          else
+            _field(_name, 'Όνομα'),
           const SizedBox(height: 16),
 
           // Τηλέφωνο
