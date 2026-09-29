@@ -7592,7 +7592,7 @@ class _RequestProfessionPicker extends StatefulWidget {
 class _RequestProfessionPickerState extends State<_RequestProfessionPicker> {
   // Fallback list — ίδιο με τη σελίδα admin
   static const _fallback = [
-    'Αλουμινάς', 'Αποφράξεις', 'Αρχιτέκτονας', 'Baby Sitter',
+    'Αισθητικός', 'Αλουμινάς', 'Αποφράξεις', 'Αρχιτέκτονας', 'Baby Sitter',
     'Βιολογικός Καθαρισμός', 'Γκαραζόπορτες - Ρολά - Συρόμενα', 'Γραφίστας', 'Γυάλισμα Μαρμάρων', 'Γυψοσανίδες',
     'Διατροφολόγος', 'Δικηγόρος', 'Διακοσμητής Εσωτερικών Χώρων', 'Διοργάνωση Πάρτυ', 'DJ / Μουσική Εκδηλώσεων',
     'Εγκατάσταση Ηλιακών', 'Εκδηλώσεις Βάφτισης', 'Εκδηλώσεις Γάμου', 'Εκπαιδευτής Σκύλων',
@@ -8131,6 +8131,7 @@ class _AIInsightsWidget extends StatelessWidget {
     if (t.contains('καυστήρ') || t.contains('λέβητ') || t.contains('φυσικού αερίου') || t.contains('στεγανότητ')) return 'Τεχνικός Καυστήρων';
     if (t.contains('υδρ') || t.contains('νερ') || t.contains('βρύση') || t.contains('αποχέτ')) return 'Υδραυλικός';
     if (t.contains('κλιματ') || t.contains('air') || t.contains('ψυκτ')) return 'Τεχνικός Κλιματισμού';
+    if (t.contains('αισθητικ') || t.contains('περιποίηση προσώπου') || t.contains('depilation') || t.contains('αποτρίχωση')) return 'Αισθητικός';
     if (t.contains('καθαρ')) return 'Καθαρίστρια';
     if (t.contains('κηπ') || t.contains('δέντρ') || t.contains('γρασίδ')) return 'Κηπουρός';
     if (t.contains('μετακ') || t.contains('μεταφ')) return 'Εταιρεία Μεταφορών';
@@ -8250,6 +8251,7 @@ class _RequestScreenState extends State<RequestScreen>
   // πεδίο περιγραφής να αλλάζει όταν ο χρήστης επιλέξει επάγγελμα, αντί να
   // δείχνει πάντα το ίδιο (άσχετο) παράδειγμα βαψίματος.
   static const Map<String, String> _descriptionHints = {
+    'Αισθητικός': 'πχ. "Θέλω περιποίηση προσώπου/αποτρίχωση στο σπίτι μου..."',
     'Ελαιοχρωματιστής': 'πχ. "Θέλω να βάψω το σαλόνι μου ~30τμ..."',
     'Υδραυλικός': 'πχ. "Έχει σπάσει ο σωλήνας κάτω από τον νεροχύτη..."',
     'Τεχνικός Καυστήρων': 'πχ. "Θέλω συντήρηση καυστήρα/λέβητα φυσικού αερίου & πιστοποιητικό στεγανότητας..."',
@@ -13876,7 +13878,7 @@ const List<Map<String, dynamic>> _specialtyCategories = [
   },
   {
     'category': 'Ομορφιά & Αισθητική',
-    'items': ['Makeup Artist', 'Tattoo Artist', 'Τεχνίτρια Νυχιών']
+    'items': ['Αισθητικός', 'Makeup Artist', 'Tattoo Artist', 'Τεχνίτρια Νυχιών']
   },
   {
     'category': 'Άλλα',
