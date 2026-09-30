@@ -6,6 +6,8 @@ workflows:
     integrations:
       app_store_connect: gorealpro_appstore
     environment:
+      groups:
+        - ios_signing
       vars:
         BUNDLE_ID: "gr.gorealai.app"
         XCODE_WORKSPACE: "ios/Runner.xcworkspace"
