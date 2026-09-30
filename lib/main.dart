@@ -15239,64 +15239,81 @@ class _SearchSpecificProSectionState extends State<_SearchSpecificProSection> {
     final results = _results;
     return Padding(
       padding: const EdgeInsets.fromLTRB(20, 0, 20, 28),
-      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Row(children: [
-          Container(width: 3, height: 20,
-              decoration: BoxDecoration(
-                  color: kGold,
-                  borderRadius: BorderRadius.circular(2),
-                  boxShadow: [BoxShadow(color: kGold.withValues(alpha: 0.6), blurRadius: 6)])),
-          const SizedBox(width: 10),
-          const Expanded(child: Text('Ψάχνεις κάποιον συγκεκριμένο επαγγελματία;',
-              style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.w700, letterSpacing: 0.3))),
-        ]),
-        const SizedBox(height: 12),
-        Row(children: [
-          Expanded(child: _CompactProfessionField(value: _profession, onChanged: _onProfessionChanged)),
-          const SizedBox(width: 10),
-          Expanded(child: _CompactAreaField(
-            value: _area,
-            availableAreas: _profession == null ? null : _availableAreas,
-            onChanged: (v) => setState(() => _area = v),
-          )),
-        ]),
-        const SizedBox(height: 10),
-        GestureDetector(
-          onTap: () => setState(() => _verifiedOnly = !_verifiedOnly),
-          child: Row(children: [
-            AnimatedContainer(
-              duration: const Duration(milliseconds: 150),
-              width: 18, height: 18,
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(4),
-                color: _verifiedOnly ? kGold : Colors.transparent,
-                border: Border.all(color: _verifiedOnly ? kGold : _g(0.3)),
-              ),
-              child: _verifiedOnly ? const Icon(Icons.check, size: 13, color: Colors.black) : null,
-            ),
-            const SizedBox(width: 8),
-            Text('Μόνο επαληθευμένοι', style: TextStyle(color: _g(0.75), fontSize: 13, fontWeight: FontWeight.w500)),
-          ]),
+      child: Container(
+        padding: const EdgeInsets.all(18),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(24),
+          gradient: LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [kGold.withValues(alpha: 0.18), const Color(0xFF0A0A1A), kGold.withValues(alpha: 0.04)],
+              stops: const [0.0, 0.5, 1.0]),
+          border: Border.all(color: kGold.withValues(alpha: 0.45), width: 1.5),
+          boxShadow: [
+            BoxShadow(color: kGold.withValues(alpha: 0.15), blurRadius: 12, offset: const Offset(0, 4)),
+            BoxShadow(color: Colors.black.withValues(alpha: 0.5), blurRadius: 16, offset: const Offset(0, 4)),
+          ],
         ),
-        if (_loading) ...[
-          const SizedBox(height: 16),
-          const Center(child: Padding(
-            padding: EdgeInsets.symmetric(vertical: 12),
-            child: SizedBox(width: 20, height: 20,
-                child: CircularProgressIndicator(strokeWidth: 2, color: kGold)),
-          )),
-        ] else if (_profession != null && _area != null) ...[
+        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Row(children: [
+            Container(padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                decoration: BoxDecoration(borderRadius: BorderRadius.circular(8),
+                    color: kGold.withValues(alpha: 0.15)),
+                child: const Text('✦ ΑΝΑΖΗΤΗΣΗ', style: TextStyle(
+                    color: kGold, fontSize: 9, fontWeight: FontWeight.w800, letterSpacing: 1.5))),
+          ]),
+          const SizedBox(height: 12),
+          const Text('Ψάχνεις κάποιον συγκεκριμένο επαγγελματία;',
+              style: TextStyle(fontFamily: 'Inter', color: Colors.white, fontSize: 19,
+                  fontWeight: FontWeight.w800, height: 1.2)),
           const SizedBox(height: 14),
-          if (results.isEmpty)
-            Padding(
-              padding: const EdgeInsets.symmetric(vertical: 8),
-              child: Text('Δεν βρέθηκαν επαγγελματίες με αυτά τα κριτήρια.',
-                  style: TextStyle(color: _g(0.45), fontSize: 13)),
-            )
-          else
-            ...results.map((doc) => _SearchResultProCard(doc: doc)),
-        ],
-      ]),
+          Row(children: [
+            Expanded(child: _CompactProfessionField(value: _profession, onChanged: _onProfessionChanged)),
+            const SizedBox(width: 10),
+            Expanded(child: _CompactAreaField(
+              value: _area,
+              availableAreas: _profession == null ? null : _availableAreas,
+              onChanged: (v) => setState(() => _area = v),
+            )),
+          ]),
+          const SizedBox(height: 12),
+          GestureDetector(
+            onTap: () => setState(() => _verifiedOnly = !_verifiedOnly),
+            child: Row(children: [
+              AnimatedContainer(
+                duration: const Duration(milliseconds: 150),
+                width: 18, height: 18,
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(4),
+                  color: _verifiedOnly ? kGold : Colors.transparent,
+                  border: Border.all(color: _verifiedOnly ? kGold : _g(0.3)),
+                ),
+                child: _verifiedOnly ? const Icon(Icons.check, size: 13, color: Colors.black) : null,
+              ),
+              const SizedBox(width: 8),
+              Text('Μόνο επαληθευμένοι', style: TextStyle(color: _g(0.75), fontSize: 13, fontWeight: FontWeight.w500)),
+            ]),
+          ),
+          if (_loading) ...[
+            const SizedBox(height: 16),
+            const Center(child: Padding(
+              padding: EdgeInsets.symmetric(vertical: 12),
+              child: SizedBox(width: 20, height: 20,
+                  child: CircularProgressIndicator(strokeWidth: 2, color: kGold)),
+            )),
+          ] else if (_profession != null && _area != null) ...[
+            const SizedBox(height: 14),
+            if (results.isEmpty)
+              Padding(
+                padding: const EdgeInsets.symmetric(vertical: 8),
+                child: Text('Δεν βρέθηκαν επαγγελματίες με αυτά τα κριτήρια.',
+                    style: TextStyle(color: _g(0.45), fontSize: 13)),
+              )
+            else
+              ...results.map((doc) => _SearchResultProCard(doc: doc)),
+          ],
+        ]),
+      ),
     );
   }
 }
@@ -15320,24 +15337,13 @@ class _PremiumPickerField extends StatelessWidget {
     final hasValue = value != null;
     return GestureDetector(
       onTap: onTap,
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 200),
+      child: Container(
         width: double.infinity,
         padding: const EdgeInsets.fromLTRB(10, 10, 8, 10),
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(16),
-          gradient: LinearGradient(
-            begin: Alignment.topLeft, end: Alignment.bottomRight,
-            colors: hasValue
-                ? [const Color(0xFF241A0A), const Color(0xFF120D05)]
-                : [const Color(0xFF16120B), const Color(0xFF0D0A06)],
-          ),
-          border: Border.all(
-              color: hasValue ? kGold.withValues(alpha: 0.55) : kGold.withValues(alpha: 0.18),
-              width: hasValue ? 1.2 : 1),
-          boxShadow: hasValue
-              ? [BoxShadow(color: kGold.withValues(alpha: 0.16), blurRadius: 12, spreadRadius: -3)]
-              : null,
+          gradient: const LinearGradient(colors: [kGoldLight, kGold, kGoldDark]),
+          boxShadow: [BoxShadow(color: kGold.withValues(alpha: 0.25), blurRadius: 8)],
         ),
         child: Row(children: [
           Container(
@@ -15345,7 +15351,7 @@ class _PremiumPickerField extends StatelessWidget {
             alignment: Alignment.center,
             decoration: BoxDecoration(
               shape: BoxShape.circle,
-              color: kGold.withValues(alpha: hasValue ? 0.18 : 0.09),
+              color: Colors.black.withValues(alpha: 0.12),
             ),
             child: Text(icon, style: const TextStyle(fontSize: 13)),
           ),
@@ -15353,17 +15359,17 @@ class _PremiumPickerField extends StatelessWidget {
           Expanded(
             child: Column(crossAxisAlignment: CrossAxisAlignment.start, mainAxisSize: MainAxisSize.min, children: [
               Text(label, style: TextStyle(
-                  color: kGold.withValues(alpha: 0.6), fontSize: 9,
+                  color: Colors.black.withValues(alpha: 0.55), fontSize: 9,
                   fontWeight: FontWeight.w800, letterSpacing: 0.6)),
               const SizedBox(height: 2),
               Text(value ?? placeholder, maxLines: 1, overflow: TextOverflow.ellipsis,
                   style: TextStyle(
-                      color: hasValue ? Colors.white : _g(0.32),
-                      fontSize: 13, fontWeight: hasValue ? FontWeight.w700 : FontWeight.w500)),
+                      color: hasValue ? Colors.black : Colors.black.withValues(alpha: 0.45),
+                      fontSize: 13, fontWeight: FontWeight.w800)),
             ]),
           ),
           Icon(Icons.keyboard_arrow_down_rounded,
-              color: kGold.withValues(alpha: hasValue ? 0.75 : 0.4), size: 20),
+              color: Colors.black.withValues(alpha: 0.6), size: 20),
         ]),
       ),
     );
