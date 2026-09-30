@@ -12173,7 +12173,7 @@ class ProfileScreen extends StatefulWidget {
 }
 
 class _ProfileScreenState extends State<ProfileScreen> {
-  String? _name, _email, _city;
+  String? _name, _email, _city, _phone;
   String _role = 'user';
   String _specialty = '';
   bool _isPremium = false;
@@ -12232,6 +12232,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
       _name = data['name'] ?? user.displayName ?? '';
       _city = data['city'] ?? '';
       _email = user.email ?? '';
+      _phone = data['phone'] ?? '';
       _role = data['role'] ?? 'user';
       _specialty = data['specialty'] ?? '';
       _isPremium = data['isPremium'] == true && (premiumUntil == null || premiumUntil.isAfter(DateTime.now()));
@@ -13224,6 +13225,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     'uid': uid,
                     'name': _name ?? '',
                     'email': _email ?? '',
+                    'phone': _phone ?? '',
                     'role': _role,
                     'deletedAt': FieldValue.serverTimestamp(),
                   });
