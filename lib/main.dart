@@ -3375,6 +3375,8 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
 
         const SizedBox(height: 28),
 
+        const _SearchSpecificProSection(),
+
         // ΚΑΤΗΓΟΡΙΕΣ
         Padding(
           padding: const EdgeInsets.fromLTRB(20, 0, 20, 12),
@@ -7826,8 +7828,11 @@ class _SimpleListPicker extends StatefulWidget {
   final String title;
   final List<String> items;
   final String? selected;
+  // Στοιχεία που εμφανίζονται αχνά και δεν πατιούνται (π.χ. περιοχές χωρίς
+  // κανέναν επαγγελματία για το ήδη επιλεγμένο επάγγελμα). null = όλα ενεργά.
+  final Set<String>? disabledItems;
   const _SimpleListPicker({
-    required this.title, required this.items, this.selected});
+    required this.title, required this.items, this.selected, this.disabledItems});
   @override
   State<_SimpleListPicker> createState() => _SimpleListPickerState();
 }
@@ -7897,8 +7902,9 @@ class _SimpleListPickerState extends State<_SimpleListPicker> {
         itemBuilder: (_, i) {
           final item = filtered[i];
           final isSel = _sel == item;
+          final isDisabled = widget.disabledItems?.contains(item) ?? false;
           return GestureDetector(
-            onTap: () {
+            onTap: isDisabled ? null : () {
               setState(() => _sel = item);
               Future.delayed(const Duration(milliseconds: 150), () {
                 Navigator.pop(context, item);
@@ -7918,22 +7924,25 @@ class _SimpleListPickerState extends State<_SimpleListPicker> {
                         ? kGold.withValues(alpha: 0.5)
                         : _g(0.06)),
               ),
-              child: Row(children: [
-                AnimatedContainer(
-                  duration: const Duration(milliseconds: 150),
-                  width: 20, height: 20,
-                  decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      border: Border.all(
-                          color: isSel ? kGold : _g(0.25),
-                          width: isSel ? 6 : 1.5))),
-                const SizedBox(width: 12),
-                Expanded(child: Text(item, style: TextStyle(
-                    color: isSel ? kGold : Colors.white,
-                    fontSize: 14,
-                    fontWeight: isSel ? FontWeight.w600 : FontWeight.w400))),
-                if (isSel) const Icon(Icons.check_rounded, color: kGold, size: 16),
-              ]),
+              child: Opacity(
+                opacity: isDisabled ? 0.35 : 1.0,
+                child: Row(children: [
+                  AnimatedContainer(
+                    duration: const Duration(milliseconds: 150),
+                    width: 20, height: 20,
+                    decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        border: Border.all(
+                            color: isSel ? kGold : _g(0.25),
+                            width: isSel ? 6 : 1.5))),
+                  const SizedBox(width: 12),
+                  Expanded(child: Text(item, style: TextStyle(
+                      color: isSel ? kGold : Colors.white,
+                      fontSize: 14,
+                      fontWeight: isSel ? FontWeight.w600 : FontWeight.w400))),
+                  if (isSel) const Icon(Icons.check_rounded, color: kGold, size: 16),
+                ]),
+              ),
             ),
           );
         },
@@ -15000,11 +15009,11 @@ class _NearbyProsSectionState extends State<_NearbyProsSection> {
             ((d['yearsExperience'] as num?) ?? 0) > 0,
           ];
           final completed = fields.where((f) => f).length;
-          // Στο 2/6 μπαίνει επίσης αν έχει φωτογραφία προφίλ — δείχνει
-          // πραγματικό πρόσωπο/επιχείρηση ακόμα κι αν δεν έχει συμπληρώσει
-          // όλο το Mini CV.
+          // Χρειάζεται ΚΑΙ ≥3/6 κριτήρια Mini CV ΚΑΙ φωτογραφία προφίλ —
+          // δείχνει πραγματικό πρόσωπο/επιχείρηση με ουσιαστικά συμπληρωμένο
+          // προφίλ, όχι μόνο το ένα από τα δύο.
           final hasProfilePhoto = (d['profilePhotoUrl'] as String? ?? '').isNotEmpty;
-          return completed >= 3 || (completed >= 2 && hasProfilePhoto);
+          return completed >= 3 && hasProfilePhoto;
         }).toList();
         if (!snap.hasData) return const SizedBox(height: 260);
         if (docs.isEmpty) return const SizedBox(height: 260);
@@ -15161,6 +15170,331 @@ class _NearbyProsSectionState extends State<_NearbyProsSection> {
     child: Center(child: Text(initials,
         style: const TextStyle(color: kGold, fontSize: 36, fontWeight: FontWeight.bold))),
   );
+}
+
+// ══════════════════════════════════════════════════════
+// ΨΑΧΝΕΙΣ ΚΑΠΟΙΟΝ ΣΥΓΚΕΚΡΙΜΕΝΟ ΕΠΑΓΓΕΛΜΑΤΙΑ — αναζήτηση με
+// επάγγελμα + περιοχή (οι περιοχές χωρίς κανέναν επαγγελματία
+// για το επιλεγμένο επάγγελμα εμφανίζονται αχνές/μη επιλέξιμες)
+// ══════════════════════════════════════════════════════
+class _SearchSpecificProSection extends StatefulWidget {
+  const _SearchSpecificProSection();
+  @override
+  State<_SearchSpecificProSection> createState() => _SearchSpecificProSectionState();
+}
+
+class _SearchSpecificProSectionState extends State<_SearchSpecificProSection> {
+  String? _profession;
+  String? _area;
+  bool _verifiedOnly = false;
+  List<QueryDocumentSnapshot>? _professionDocs;
+  Set<String> _availableAreas = {};
+  bool _loading = false;
+
+  Future<void> _onProfessionChanged(String? p) async {
+    setState(() {
+      _profession = p;
+      _area = null;
+      _professionDocs = null;
+      _availableAreas = {};
+      _loading = p != null;
+    });
+    if (p == null) return;
+    final snap = await FirebaseFirestore.instance
+        .collection('professionals')
+        .where('is_active', isEqualTo: true)
+        .where('specialties', arrayContains: p)
+        .get();
+    if (!mounted || _profession != p) return;
+    final areas = <String>{};
+    for (final doc in snap.docs) {
+      final d = doc.data();
+      areas.addAll((d['areas'] as List?)?.whereType<String>() ?? []);
+      final singleArea = d['area'] as String? ?? '';
+      if (singleArea.isNotEmpty) areas.add(singleArea);
+    }
+    setState(() {
+      _professionDocs = snap.docs;
+      _availableAreas = areas;
+      _loading = false;
+    });
+  }
+
+  List<QueryDocumentSnapshot> get _results {
+    final docs = _professionDocs;
+    final area = _area;
+    if (docs == null || area == null) return [];
+    return docs.where((doc) {
+      final d = doc.data() as Map<String, dynamic>;
+      final areasList = List<String>.from((d['areas'] as List?)?.whereType<String>() ?? []);
+      final singleArea = d['area'] as String? ?? '';
+      if (!areasList.contains(area) && singleArea != area) return false;
+      if (_verifiedOnly && d['afmValid'] != true) return false;
+      return true;
+    }).toList();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final results = _results;
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(20, 0, 20, 28),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Row(children: [
+          Container(width: 3, height: 20,
+              decoration: BoxDecoration(
+                  color: kGold,
+                  borderRadius: BorderRadius.circular(2),
+                  boxShadow: [BoxShadow(color: kGold.withValues(alpha: 0.6), blurRadius: 6)])),
+          const SizedBox(width: 10),
+          const Expanded(child: Text('Ψάχνεις κάποιον συγκεκριμένο επαγγελματία;',
+              style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.w700, letterSpacing: 0.3))),
+        ]),
+        const SizedBox(height: 12),
+        Row(children: [
+          Expanded(child: _CompactProfessionField(value: _profession, onChanged: _onProfessionChanged)),
+          const SizedBox(width: 10),
+          Expanded(child: _CompactAreaField(
+            value: _area,
+            availableAreas: _profession == null ? null : _availableAreas,
+            onChanged: (v) => setState(() => _area = v),
+          )),
+        ]),
+        const SizedBox(height: 10),
+        GestureDetector(
+          onTap: () => setState(() => _verifiedOnly = !_verifiedOnly),
+          child: Row(children: [
+            AnimatedContainer(
+              duration: const Duration(milliseconds: 150),
+              width: 18, height: 18,
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(4),
+                color: _verifiedOnly ? kGold : Colors.transparent,
+                border: Border.all(color: _verifiedOnly ? kGold : _g(0.3)),
+              ),
+              child: _verifiedOnly ? const Icon(Icons.check, size: 13, color: Colors.black) : null,
+            ),
+            const SizedBox(width: 8),
+            Text('Μόνο επαληθευμένοι', style: TextStyle(color: _g(0.75), fontSize: 13, fontWeight: FontWeight.w500)),
+          ]),
+        ),
+        if (_loading) ...[
+          const SizedBox(height: 16),
+          const Center(child: Padding(
+            padding: EdgeInsets.symmetric(vertical: 12),
+            child: SizedBox(width: 20, height: 20,
+                child: CircularProgressIndicator(strokeWidth: 2, color: kGold)),
+          )),
+        ] else if (_profession != null && _area != null) ...[
+          const SizedBox(height: 14),
+          if (results.isEmpty)
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 8),
+              child: Text('Δεν βρέθηκαν επαγγελματίες με αυτά τα κριτήρια.',
+                  style: TextStyle(color: _g(0.45), fontSize: 13)),
+            )
+          else
+            ...results.map((doc) => _SearchResultProCard(doc: doc)),
+        ],
+      ]),
+    );
+  }
+}
+
+// Κοινό, premium στυλ πεδίο-επιλογέα (ετικέτα από πάνω + τιμή από κάτω) —
+// χρησιμοποιείται και για το επάγγελμα και για την περιοχή ώστε να χωράνε
+// σωστά το ένα δίπλα στο άλλο χωρίς να "σπάει" το κείμενο σε 2 γραμμές.
+class _PremiumPickerField extends StatelessWidget {
+  final String icon;
+  final String label;
+  final String? value;
+  final String placeholder;
+  final VoidCallback onTap;
+  const _PremiumPickerField({
+    required this.icon, required this.label, required this.value,
+    required this.placeholder, required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final hasValue = value != null;
+    return GestureDetector(
+      onTap: onTap,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
+        width: double.infinity,
+        padding: const EdgeInsets.fromLTRB(10, 10, 8, 10),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(16),
+          gradient: LinearGradient(
+            begin: Alignment.topLeft, end: Alignment.bottomRight,
+            colors: hasValue
+                ? [const Color(0xFF241A0A), const Color(0xFF120D05)]
+                : [const Color(0xFF16120B), const Color(0xFF0D0A06)],
+          ),
+          border: Border.all(
+              color: hasValue ? kGold.withValues(alpha: 0.55) : kGold.withValues(alpha: 0.18),
+              width: hasValue ? 1.2 : 1),
+          boxShadow: hasValue
+              ? [BoxShadow(color: kGold.withValues(alpha: 0.16), blurRadius: 12, spreadRadius: -3)]
+              : null,
+        ),
+        child: Row(children: [
+          Container(
+            width: 28, height: 28,
+            alignment: Alignment.center,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: kGold.withValues(alpha: hasValue ? 0.18 : 0.09),
+            ),
+            child: Text(icon, style: const TextStyle(fontSize: 13)),
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Column(crossAxisAlignment: CrossAxisAlignment.start, mainAxisSize: MainAxisSize.min, children: [
+              Text(label, style: TextStyle(
+                  color: kGold.withValues(alpha: 0.6), fontSize: 9,
+                  fontWeight: FontWeight.w800, letterSpacing: 0.6)),
+              const SizedBox(height: 2),
+              Text(value ?? placeholder, maxLines: 1, overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                      color: hasValue ? Colors.white : _g(0.32),
+                      fontSize: 13, fontWeight: hasValue ? FontWeight.w700 : FontWeight.w500)),
+            ]),
+          ),
+          Icon(Icons.keyboard_arrow_down_rounded,
+              color: kGold.withValues(alpha: hasValue ? 0.75 : 0.4), size: 20),
+        ]),
+      ),
+    );
+  }
+}
+
+class _CompactProfessionField extends StatelessWidget {
+  final String? value;
+  final ValueChanged<String?> onChanged;
+  const _CompactProfessionField({required this.value, required this.onChanged});
+
+  Future<void> _showPicker(BuildContext context) async {
+    final result = await showModalBottomSheet<String>(
+      context: context,
+      backgroundColor: Colors.transparent,
+      isScrollControlled: true,
+      builder: (ctx) => _CategorySpecialtyPicker(selected: value),
+    );
+    if (result != null) onChanged(result);
+  }
+
+  @override
+  Widget build(BuildContext context) => _PremiumPickerField(
+    icon: '🔨',
+    label: 'ΕΠΑΓΓΕΛΜΑ',
+    value: value,
+    placeholder: 'Επίλεξε',
+    onTap: () => _showPicker(context),
+  );
+}
+
+class _CompactAreaField extends StatelessWidget {
+  final String? value;
+  final Set<String>? availableAreas; // null = χωρίς περιορισμό
+  final ValueChanged<String?> onChanged;
+  const _CompactAreaField({required this.value, required this.availableAreas, required this.onChanged});
+
+  Future<void> _showPicker(BuildContext context) async {
+    final disabled = availableAreas == null
+        ? null
+        : _greekAreasSorted.where((a) => !availableAreas!.contains(a)).toSet();
+    final result = await showModalBottomSheet<String>(
+      context: context,
+      backgroundColor: Colors.transparent,
+      isScrollControlled: true,
+      builder: (ctx) => _SimpleListPicker(
+        title: '📍 Περιοχή',
+        items: _greekAreasSorted,
+        selected: value,
+        disabledItems: disabled,
+      ),
+    );
+    if (result != null) onChanged(result);
+  }
+
+  @override
+  Widget build(BuildContext context) => _PremiumPickerField(
+    icon: '📍',
+    label: 'ΠΕΡΙΟΧΗ',
+    value: value,
+    placeholder: 'Επίλεξε',
+    onTap: () => _showPicker(context),
+  );
+}
+
+class _SearchResultProCard extends StatelessWidget {
+  final QueryDocumentSnapshot doc;
+  const _SearchResultProCard({required this.doc});
+
+  @override
+  Widget build(BuildContext context) {
+    final d = doc.data() as Map<String, dynamic>;
+    final name = d['name'] as String? ?? 'Επαγγελματίας';
+    final specialty = d['specialty'] as String? ?? d['profession'] as String? ?? '';
+    final areasList = List<String>.from((d['areas'] as List?)?.whereType<String>() ?? []);
+    final area = (d['area'] as String? ?? '').isNotEmpty
+        ? d['area'] as String
+        : (areasList.isNotEmpty ? areasList.first : '');
+    final rating = _combinedRating(d);
+    final isVerified = d['afmValid'] == true;
+    final profilePhotoUrl = d['profilePhotoUrl'] as String? ?? '';
+    final initials = name.isNotEmpty ? name[0].toUpperCase() : 'P';
+
+    return GestureDetector(
+      onTap: () => Navigator.push(context, PageRouteBuilder(
+        pageBuilder: (_, __, ___) => _ProPublicProfileScreen(proId: doc.id, proData: d),
+        transitionsBuilder: (_, a, __, c) => FadeTransition(opacity: a, child: c),
+      )),
+      child: Container(
+        margin: const EdgeInsets.only(bottom: 8),
+        padding: const EdgeInsets.all(10),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(14),
+          color: _g(0.04),
+          border: Border.all(color: kGold.withValues(alpha: 0.12)),
+        ),
+        child: Row(children: [
+          ClipRRect(
+            borderRadius: BorderRadius.circular(10),
+            child: SizedBox(width: 46, height: 46,
+              child: profilePhotoUrl.isNotEmpty
+                  ? Image.network(profilePhotoUrl, fit: BoxFit.cover,
+                      errorBuilder: (_, __, ___) => Container(
+                          color: kGold.withValues(alpha: 0.08),
+                          child: Center(child: Text(initials, style: const TextStyle(color: kGold, fontWeight: FontWeight.bold)))))
+                  : Container(
+                      color: kGold.withValues(alpha: 0.08),
+                      child: Center(child: Text(initials, style: const TextStyle(color: kGold, fontWeight: FontWeight.bold)))),
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, mainAxisSize: MainAxisSize.min, children: [
+            Row(children: [
+              Flexible(child: Text(name, maxLines: 1, overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.w700))),
+              if (isVerified) ...[
+                const SizedBox(width: 5),
+                const Icon(Icons.verified, color: kGold, size: 13),
+              ],
+            ]),
+            const SizedBox(height: 2),
+            Text('$specialty${area.isNotEmpty ? ' · $area' : ''}', maxLines: 1, overflow: TextOverflow.ellipsis,
+                style: TextStyle(color: _g(0.55), fontSize: 12)),
+          ])),
+          const SizedBox(width: 8),
+          Text(rating > 0 ? '⭐ ${rating.toStringAsFixed(1)}' : '⭐ —',
+              style: const TextStyle(color: kGold, fontSize: 12, fontWeight: FontWeight.w600)),
+        ]),
+      ),
+    );
+  }
 }
 
 // ══════════════════════════════════════════════════════
