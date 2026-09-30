@@ -21,6 +21,9 @@ workflows:
     scripts:
       - name: Get Flutter packages
         script: flutter packages pub get
+      - name: Generate ios/Podfile (never built on iOS before, no local Mac)
+        script: |
+          flutter build ios --release --no-codesign --config-only
       - name: Install CocoaPods dependencies
         script: |
           cd ios && pod install
