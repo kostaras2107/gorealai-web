@@ -17828,6 +17828,7 @@ class _DirectRequestScreenState extends State<DirectRequestScreen> {
         'userId': user.uid, 'proId': proId,
         'userName': userName, 'proName': proName,
         'lastMessage': msgText, 'lastMessageAt': FieldValue.serverTimestamp(),
+        'lastSenderId': user.uid,
         'unreadUser': 0, 'unreadPro': FieldValue.increment(1),
       }, SetOptions(merge: true));
 
@@ -18123,6 +18124,12 @@ class _MessagesScreenState extends State<MessagesScreen> {
                 final lastMsg = d['lastMessage'] as String? ?? '';
                 final ts = d['lastMessageAt'] as Timestamp?;
                 final unread = (d[widget.isPro ? 'unreadPro' : 'unreadUser'] as int?) ?? 0;
+                // Διπλό τικ σαν Viber, ορατό απευθείας στη λίστα — μόνο όταν
+                // το τελευταίο μήνυμα το έστειλα εγώ.
+                final lastSenderId = d['lastSenderId'] as String?;
+                final isMine = lastSenderId != null && lastSenderId == widget.userId;
+                final otherReadTs = (d[widget.isPro ? 'userLastReadAt' : 'proLastReadAt'] as Timestamp?)?.toDate();
+                final isReadByOther = isMine && ts != null && otherReadTs != null && !otherReadTs.isBefore(ts.toDate());
                 String timeStr = '';
                 if (ts != null) {
                   final now = DateTime.now();
@@ -18252,6 +18259,11 @@ class _MessagesScreenState extends State<MessagesScreen> {
                           ]),
                           const SizedBox(height: 6),
                           Row(children: [
+                            if (isMine) ...[
+                              Icon(Icons.done_all_rounded, size: 14,
+                                  color: isReadByOther ? const Color(0xFF4FC3F7) : Colors.white.withValues(alpha: 0.35)),
+                              const SizedBox(width: 3),
+                            ],
                             Expanded(child: Text(lastMsg.isNotEmpty ? lastMsg : 'Ξεκίνα τη συνομιλία...',
                                 maxLines: 1, overflow: TextOverflow.ellipsis,
                                 style: TextStyle(
@@ -18612,6 +18624,7 @@ class _ChatScreenState extends State<ChatScreen> {
       final chatParts = widget.chatId.split('_');
       await chatRef.set({
         'lastMessage': '🎤 Ηχητικό μήνυμα', 'lastMessageAt': FieldValue.serverTimestamp(),
+        'lastSenderId': widget.currentUserId,
         unreadField: FieldValue.increment(1),
         widget.isPro ? 'unreadPro' : 'unreadUser': 0,
         if (chatParts.isNotEmpty) 'userId': chatParts[0],
@@ -18798,6 +18811,7 @@ class _ChatScreenState extends State<ChatScreen> {
       final chatParts = widget.chatId.split('_');
       await chatRef.set({
         'lastMessage': previewText, 'lastMessageAt': FieldValue.serverTimestamp(),
+        'lastSenderId': widget.currentUserId,
         unreadField: FieldValue.increment(1),
         widget.isPro ? 'unreadPro' : 'unreadUser': 0,
         if (chatParts.isNotEmpty) 'userId': chatParts[0],
@@ -18950,23 +18964,59 @@ class _ChatScreenState extends State<ChatScreen> {
                   final audioUrl = d['audioUrl'] as String? ?? '';
                   final hasMedia = photoUrls.isNotEmpty || videoUrls.isNotEmpty || audioUrl.isNotEmpty;
                   return GestureDetector(
-                    onLongPress: isMine ? () async {
-                      final confirmed = await showDialog<bool>(
+                    onLongPress: () async {
+                      final action = await showModalBottomSheet<String>(
                         context: context,
-                        builder: (ctx) => AlertDialog(
-                          backgroundColor: const Color(0xFF1A1A2E),
-                          title: const Text('Διαγραφή μηνύματος', style: TextStyle(color: Colors.white, fontSize: 16)),
-                          content: const Text('Να διαγραφεί αυτό το μήνυμα;', style: TextStyle(color: Colors.white70)),
-                          actions: [
-                            TextButton(onPressed: () => Navigator.pop(ctx, false), child: Text('Άκυρο', style: TextStyle(color: _g(0.5)))),
-                            TextButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Διαγραφή', style: TextStyle(color: Colors.red))),
-                          ],
+                        backgroundColor: Colors.transparent,
+                        builder: (ctx) => Container(
+                          padding: const EdgeInsets.only(bottom: 12),
+                          decoration: const BoxDecoration(
+                            color: Color(0xFF1A1A2E),
+                            borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+                          ),
+                          child: Column(mainAxisSize: MainAxisSize.min, children: [
+                            Container(width: 36, height: 4, margin: const EdgeInsets.symmetric(vertical: 10),
+                                decoration: BoxDecoration(color: Colors.white24, borderRadius: BorderRadius.circular(2))),
+                            if (text.isNotEmpty)
+                              ListTile(
+                                leading: const Icon(Icons.copy_rounded, color: kGold),
+                                title: const Text('Αντιγραφή μηνύματος', style: TextStyle(color: Colors.white)),
+                                onTap: () => Navigator.pop(ctx, 'copy'),
+                              ),
+                            if (isMine)
+                              ListTile(
+                                leading: const Icon(Icons.delete_outline_rounded, color: Colors.red),
+                                title: const Text('Διαγραφή μηνύματος', style: TextStyle(color: Colors.red)),
+                                onTap: () => Navigator.pop(ctx, 'delete'),
+                              ),
+                          ]),
                         ),
                       );
-                      if (confirmed == true) {
-                        await doc.reference.delete();
+                      if (!mounted) return;
+                      if (action == 'copy') {
+                        await Clipboard.setData(ClipboardData(text: text));
+                        if (mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(content: Text('Το μήνυμα αντιγράφηκε'), duration: Duration(seconds: 1)));
+                        }
+                      } else if (action == 'delete') {
+                        final confirmed = await showDialog<bool>(
+                          context: context,
+                          builder: (ctx) => AlertDialog(
+                            backgroundColor: const Color(0xFF1A1A2E),
+                            title: const Text('Διαγραφή μηνύματος', style: TextStyle(color: Colors.white, fontSize: 16)),
+                            content: const Text('Να διαγραφεί αυτό το μήνυμα;', style: TextStyle(color: Colors.white70)),
+                            actions: [
+                              TextButton(onPressed: () => Navigator.pop(ctx, false), child: Text('Άκυρο', style: TextStyle(color: _g(0.5)))),
+                              TextButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Διαγραφή', style: TextStyle(color: Colors.red))),
+                            ],
+                          ),
+                        );
+                        if (confirmed == true) {
+                          await doc.reference.delete();
+                        }
                       }
-                    } : null,
+                    },
                     child: Padding(
                     padding: const EdgeInsets.only(bottom: 8),
                     child: Row(
