@@ -6,9 +6,6 @@ workflows:
     integrations:
       app_store_connect: gorealpro_appstore
     environment:
-      ios_signing:
-        distribution_type: app_store
-        bundle_identifier: gr.gorealai.app
       vars:
         BUNDLE_ID: "gr.gorealai.app"
         XCODE_WORKSPACE: "ios/Runner.xcworkspace"
@@ -41,8 +38,7 @@ workflows:
           xcode-project use-profiles
       - name: Flutter build ipa
         script: |
-          flutter build ipa --release \
-            --export-options-plist=/Users/builder/export_options.plist
+          flutter build ipa --release
     artifacts:
       - build/ios/ipa/*.ipa
       - /tmp/xcodebuild_logs/*.log
