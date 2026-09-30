@@ -1,0 +1,42 @@
+workflows:
+  ios-release:
+    name: iOS Release (TestFlight)
+    max_build_duration: 60
+    instance_type: mac_mini_m2
+    integrations:
+      app_store_connect: gorealpro_appstore
+    environment:
+      ios_signing:
+        distribution_type: app_store
+        bundle_identifier: gr.gorealai.app
+      vars:
+        XCODE_WORKSPACE: "ios/Runner.xcworkspace"
+        XCODE_SCHEME: "Runner"
+      flutter: stable
+      xcode: latest
+      cocoapods: default
+    triggering:
+      events:
+        - tag
+      tag_patterns:
+        - pattern: "ios-*"
+    scripts:
+      - name: Get Flutter packages
+        script: flutter packages pub get
+      - name: Install CocoaPods dependencies
+        script: |
+          cd ios && pod install
+      - name: Set up code signing (automatic, via App Store Connect integration)
+        script: |
+          xcode-project use-profiles
+      - name: Flutter build ipa
+        script: |
+          flutter build ipa --release \
+            --export-options-plist=/Users/builder/export_options.plist
+    artifacts:
+      - build/ios/ipa/*.ipa
+      - /tmp/xcodebuild_logs/*.log
+    publishing:
+      app_store_connect:
+        auth: integration
+        submit_to_testflight: true
