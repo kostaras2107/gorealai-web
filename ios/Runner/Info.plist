@@ -59,5 +59,7 @@
 		<string>Το GorealPro χρησιμοποιεί αναγνώριση φωνής ώστε να μπορείς να υπαγορεύεις το αίτημά σου αντί να το πληκτρολογείς.</string>
 		<key>NSFaceIDUsageDescription</key>
 		<string>Το GorealPro χρησιμοποιεί το Face ID για γρήγορη και ασφαλή σύνδεση στον λογαριασμό σου.</string>
+		<key>ITSAppUsesNonExemptEncryption</key>
+		<false/>
 	</dict>
 </plist>
