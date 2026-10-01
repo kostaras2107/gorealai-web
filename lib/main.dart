@@ -13,6 +13,8 @@ import 'package:url_launcher/url_launcher.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:google_sign_in/google_sign_in.dart';
+import 'package:sign_in_with_apple/sign_in_with_apple.dart';
+import 'package:crypto/crypto.dart' show sha256;
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'firebase_options.dart';
@@ -25,7 +27,7 @@ import 'package:path_provider/path_provider.dart';
 import 'package:audioplayers/audioplayers.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:firebase_crashlytics/firebase_crashlytics.dart';
-import 'package:flutter/foundation.dart' show kIsWeb;
+import 'package:flutter/foundation.dart' show kIsWeb, defaultTargetPlatform, TargetPlatform;
 import 'package:app_badge_plus/app_badge_plus.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
@@ -1195,6 +1197,57 @@ class _LoginScreenState extends State<LoginScreen>
     }
   }
 
+  String _generateNonce([int length = 32]) {
+    const charset = '0123456789ABCDEFGHIJKLMNOPQRSTUVXYZabcdefghijklmnopqrstuvwxyz-._';
+    final random = Random.secure();
+    return List.generate(length, (_) => charset[random.nextInt(charset.length)]).join();
+  }
+
+  Future<void> _signInWithApple() async {
+    setState(() => _loading = true);
+    try {
+      final rawNonce = _generateNonce();
+      final nonce = sha256.convert(utf8.encode(rawNonce)).toString();
+      final appleCredential = await SignInWithApple.getAppleIDCredential(
+        scopes: [AppleIDAuthorizationScopes.email, AppleIDAuthorizationScopes.fullName],
+        nonce: nonce,
+      );
+      final oauthCredential = OAuthProvider('apple.com').credential(
+        idToken: appleCredential.identityToken,
+        rawNonce: rawNonce,
+      );
+      final cred = await FirebaseAuth.instance.signInWithCredential(oauthCredential);
+      final user = cred.user;
+      if (user == null) { if (mounted) setState(() => _loading = false); return; }
+      // Η Apple στέλνει το όνομα ΜΟΝΟ την πρώτη φορά που συνδέεται κάποιος —
+      // αν δεν το αποθηκεύσουμε τώρα στο Firebase profile, χάνεται για πάντα.
+      if ((user.displayName == null || user.displayName!.isEmpty) &&
+          (appleCredential.givenName != null || appleCredential.familyName != null)) {
+        final fullName = '${appleCredential.givenName ?? ''} ${appleCredential.familyName ?? ''}'.trim();
+        if (fullName.isNotEmpty) await user.updateDisplayName(fullName);
+      }
+      final doc = await FirebaseFirestore.instance.collection('users').doc(user.uid).get();
+      if (doc.exists) {
+        if (mounted) Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => const AuthGate()));
+      } else {
+        if (mounted) setState(() { _screen = 'phone_signup'; _loading = false; });
+      }
+    } on SignInWithAppleAuthorizationException catch (e) {
+      if (mounted) setState(() => _loading = false);
+      if (e.code != AuthorizationErrorCode.canceled) {
+        _snack('Apple sign-in error: ${e.message}');
+      }
+    } catch (e) {
+      if (mounted) setState(() => _loading = false);
+      final err = e.toString();
+      if (err.contains('account-exists-with-different-credential')) {
+        _snack('Υπάρχει ήδη λογαριασμός με αυτό το email. Συνδέσου με email και κωδικό.');
+      } else {
+        _snack('Apple sign-in error: $err');
+      }
+    }
+  }
+
   Future<void> _sendPhoneOtp() async {
     final phone = _phone.text.trim();
     if (!_isValidPhone(phone)) { _snack('Το τηλέφωνο πρέπει να είναι 10 ψηφία'); return; }
@@ -1274,7 +1327,7 @@ class _LoginScreenState extends State<LoginScreen>
         'phone': user.phoneNumber ?? '',
         'role': 'user',
         'platform': kIsWeb ? 'web' : 'android',
-        'authMethod': 'google',
+        'authMethod': user.providerData.any((p) => p.providerId == 'apple.com') ? 'apple' : 'google',
         'createdAt': FieldValue.serverTimestamp(),
       });
       if (mounted) Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => const AuthGate()));
@@ -2017,6 +2070,23 @@ class _LoginScreenState extends State<LoginScreen>
                 label: const Text('Συνέχεια με Google', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w600, fontSize: 15)),
               ),
             ),
+            // Υποχρεωτικό από την Apple (Guideline 4.8): αν προσφέρουμε Google
+            // Sign-In, πρέπει να προσφέρουμε και Apple — μόνο σε iOS build.
+            if (!kIsWeb && defaultTargetPlatform == TargetPlatform.iOS) ...[
+              const SizedBox(height: 12),
+              SizedBox(
+                width: double.infinity, height: 52,
+                child: OutlinedButton.icon(
+                  onPressed: _loading ? null : _signInWithApple,
+                  style: OutlinedButton.styleFrom(
+                    side: BorderSide(color: _g(0.2)),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+                  ),
+                  icon: const Icon(Icons.apple, color: Colors.white, size: 22),
+                  label: const Text('Συνέχεια με Apple', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w600, fontSize: 15)),
+                ),
+              ),
+            ],
           ],
           const SizedBox(height: 10),
           Center(child: TextButton(
