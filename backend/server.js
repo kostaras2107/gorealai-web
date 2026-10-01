@@ -896,6 +896,16 @@ app.post('/forgot-password', rateLimit(5, 60_000), async (req, res) => {
   }
 });
 
+// Επαγγέλματα που ταιριάζουν επίσης με επαγγελματίες που έχουν δηλώσει
+// συγκεκριμένες sub-specialties, ακόμα κι αν δεν έχουν δηλώσει ρητά το ίδιο
+// το επάγγελμα — π.χ. ένας υδραυλικός με sub-specialty "Αντλίες Θερμότητας"
+// πρέπει να ειδοποιείται και για αιτήματα "Ενδοδαπέδια Θέρμανση".
+const PROFESSION_SUBSPECIALTY_SYNONYMS = {
+  'ενδοδαπέδια θέρμανση & άλλες μορφές θέρμανσης': [
+    'αντλίες θερμότητας', 'λέβητες & θερμοσίφωνες', 'κεντρική θέρμανση',
+  ],
+};
+
 // ── Email all matching pros for a new request ────────────────────────
 // POST /email-pros-new-request
 // Body: { profession, location, description, requestId }
@@ -925,6 +935,7 @@ async function notifyMatchingPros({ profession, location, description, requestId
           ...d,
           email: existing.email || d.email, // keep email from whichever has it
           specialties: (d.specialties && d.specialties.length > 0) ? d.specialties : existing.specialties,
+          subSpecialties: (d.subSpecialties && d.subSpecialties.length > 0) ? d.subSpecialties : existing.subSpecialties,
           areas: (d.areas && d.areas.length > 0) ? d.areas : existing.areas,
         });
       }
@@ -969,7 +980,12 @@ async function notifyMatchingPros({ profession, location, description, requestId
           const matches = exactSpecialty
             ? allSpecs.some(s => s.trim() === profLower.trim())
             : allSpecs.some(s => s.includes(profLower) || profLower.includes(s));
-          if (!matches) return;
+          if (!matches) {
+            const subSynonyms = PROFESSION_SUBSPECIALTY_SYNONYMS[profLower];
+            const subSpecialties = Array.isArray(d.subSpecialties) ? d.subSpecialties.map(s => s.toLowerCase()) : [];
+            const synonymMatch = !!subSynonyms && subSpecialties.some(s => subSynonyms.includes(s));
+            if (!synonymMatch) return;
+          }
         }
       }
 
