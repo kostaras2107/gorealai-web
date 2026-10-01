@@ -13,8 +13,6 @@ import 'package:url_launcher/url_launcher.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:google_sign_in/google_sign_in.dart';
-import 'package:sign_in_with_apple/sign_in_with_apple.dart';
-import 'package:crypto/crypto.dart' show sha256;
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'firebase_options.dart';
@@ -1197,52 +1195,34 @@ class _LoginScreenState extends State<LoginScreen>
     }
   }
 
-  String _generateNonce([int length = 32]) {
-    const charset = '0123456789ABCDEFGHIJKLMNOPQRSTUVXYZabcdefghijklmnopqrstuvwxyz-._';
-    final random = Random.secure();
-    return List.generate(length, (_) => charset[random.nextInt(charset.length)]).join();
-  }
-
   Future<void> _signInWithApple() async {
     setState(() => _loading = true);
     try {
-      final rawNonce = _generateNonce();
-      final nonce = sha256.convert(utf8.encode(rawNonce)).toString();
-      final appleCredential = await SignInWithApple.getAppleIDCredential(
-        scopes: [AppleIDAuthorizationScopes.email, AppleIDAuthorizationScopes.fullName],
-        nonce: nonce,
-      );
-      final oauthCredential = OAuthProvider('apple.com').credential(
-        idToken: appleCredential.identityToken,
-        rawNonce: rawNonce,
-      );
-      final cred = await FirebaseAuth.instance.signInWithCredential(oauthCredential);
+      // Χρησιμοποιούμε το ενσωματωμένο AppleAuthProvider του firebase_auth
+      // (signInWithProvider) αντί για το πακέτο sign_in_with_apple με
+      // χειροκίνητο nonce — εκείνος ο συνδυασμός πετάει πάντα
+      // [firebase_auth/invalid-credential] "Invalid OAuth response from
+      // apple.com", γνωστό πρόβλημα στο πώς περνάει το nonce στη Firebase.
+      final appleProvider = AppleAuthProvider()
+        ..addScope('email')
+        ..addScope('name');
+      final cred = kIsWeb
+          ? await FirebaseAuth.instance.signInWithPopup(appleProvider)
+          : await FirebaseAuth.instance.signInWithProvider(appleProvider);
       final user = cred.user;
       if (user == null) { if (mounted) setState(() => _loading = false); return; }
-      // Η Apple στέλνει το όνομα ΜΟΝΟ την πρώτη φορά που συνδέεται κάποιος —
-      // αν δεν το αποθηκεύσουμε τώρα στο Firebase profile, χάνεται για πάντα.
-      if ((user.displayName == null || user.displayName!.isEmpty) &&
-          (appleCredential.givenName != null || appleCredential.familyName != null)) {
-        final fullName = '${appleCredential.givenName ?? ''} ${appleCredential.familyName ?? ''}'.trim();
-        if (fullName.isNotEmpty) await user.updateDisplayName(fullName);
-      }
       final doc = await FirebaseFirestore.instance.collection('users').doc(user.uid).get();
       if (doc.exists) {
         if (mounted) Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => const AuthGate()));
       } else {
         if (mounted) setState(() { _screen = 'phone_signup'; _loading = false; });
       }
-    } on SignInWithAppleAuthorizationException catch (e) {
-      if (mounted) setState(() => _loading = false);
-      if (e.code != AuthorizationErrorCode.canceled) {
-        _snack('Apple sign-in error: ${e.message}');
-      }
     } catch (e) {
       if (mounted) setState(() => _loading = false);
       final err = e.toString();
       if (err.contains('account-exists-with-different-credential')) {
         _snack('Υπάρχει ήδη λογαριασμός με αυτό το email. Συνδέσου με email και κωδικό.');
-      } else {
+      } else if (!err.contains('canceled') && !err.contains('cancel')) {
         _snack('Apple sign-in error: $err');
       }
     }
