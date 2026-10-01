@@ -16233,9 +16233,10 @@ class _ProPublicProfileScreenState extends State<_ProPublicProfileScreen> {
                             : GestureDetector(
                                 onTap: () {
                                   final placeId = _data['googlePlaceId'] as String? ?? '';
+                                  final searchName = companyName.isNotEmpty ? companyName : name;
                                   final url = placeId.isNotEmpty
-                                      ? 'https://www.google.com/maps/search/?api=1&query=${Uri.encodeComponent(companyName)}&query_place_id=$placeId'
-                                      : (companyName.isNotEmpty ? 'https://www.google.com/search?q=${Uri.encodeComponent(companyName + ' αξιολογήσεις')}' : null);
+                                      ? 'https://www.google.com/maps/search/?api=1&query=${Uri.encodeComponent(searchName)}&query_place_id=$placeId'
+                                      : (searchName.isNotEmpty ? 'https://www.google.com/search?q=${Uri.encodeComponent('$searchName αξιολογήσεις')}' : null);
                                   if (url != null) launchUrl(Uri.parse(url), mode: LaunchMode.externalApplication);
                                 },
                                 child: Padding(
