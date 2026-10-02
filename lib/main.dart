@@ -1447,15 +1447,6 @@ class _LoginScreenState extends State<LoginScreen>
         // αναλάβει από εκεί (βλ. _checkGoogleRedirectResult στο initState).
         await FirebaseAuth.instance.signInWithRedirect(GoogleAuthProvider());
         return;
-      } else if (defaultTargetPlatform == TargetPlatform.android) {
-        // Στο Android το native Credential Manager (google_sign_in) είναι χαλασμένο
-        // στα builds του Play Store — σφάλμα Google [16] "Account reauth failed"
-        // (βλ. Google Issue Tracker #563444631), που μάλιστα εμφανίζεται σαν
-        // "ακύρωση" και δεν έδειχνε τίποτα. Χρησιμοποιούμε αντί γι' αυτό τη ροή
-        // browser της Firebase, που δεν περνάει από εκεί.
-        final res = await FirebaseAuth.instance
-            .signInWithProvider(GoogleAuthProvider()..addScope('email'));
-        user = res.user;
       } else {
         GoogleSignInAccount googleUser;
         try {
@@ -13653,8 +13644,6 @@ class _ProfileScreenState extends State<ProfileScreen> with WidgetsBindingObserv
                   await user.reauthenticateWithCredential(cred);
                 } else if (kIsWeb) {
                   await user.reauthenticateWithPopup(GoogleAuthProvider());
-                } else if (defaultTargetPlatform == TargetPlatform.android) {
-                  await user.reauthenticateWithProvider(GoogleAuthProvider());
                 } else {
                   final googleUser = await GoogleSignIn.instance.authenticate();
                   final cred = GoogleAuthProvider.credential(
