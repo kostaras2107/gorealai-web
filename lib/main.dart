@@ -998,19 +998,38 @@ class _LoginScreenState extends State<LoginScreen>
     super.dispose();
   }
 
-  Future<void> _autoLoginWithBiometrics() async {
+  bool get _isIOS => !kIsWeb && defaultTargetPlatform == TargetPlatform.iOS;
+  String get _biometricName => _isIOS ? 'Face ID' : 'δαχτυλικό αποτύπωμα';
+
+  // interactive=true όταν το πάτησε ο χρήστης ο ίδιος — τότε εξηγούμε γιατί
+  // δεν γίνεται σύνδεση αντί να αποτυγχάνει σιωπηλά (π.χ. λογαριασμοί
+  // Apple/Google δεν αποθηκεύουν κωδικό, άρα δεν έχουν τι να ξεκλειδώσουν).
+  Future<void> _autoLoginWithBiometrics({bool interactive = false}) async {
     final email = await AuthService.getUser();
     final password = await AuthService.getPassword();
-    if (email == null || password == null) return;
+    if (email == null || password == null) {
+      if (interactive) {
+        _snack('Το $_biometricName δουλεύει για λογαριασμούς με email και κωδικό. Συνδέσου μία φορά με email/κωδικό για να ενεργοποιηθεί (οι λογαριασμοί Apple/Google συνδέονται απευθείας με το κουμπί τους).');
+      }
+      return;
+    }
     final auth = LocalAuthentication();
     try {
+      final supported = await auth.isDeviceSupported() && await auth.canCheckBiometrics;
+      if (!supported) {
+        if (interactive) _snack('Δεν είναι ενεργοποιημένο το $_biometricName στη συσκευή σου.');
+        return;
+      }
       final ok = await auth.authenticate(
-          localizedReason: 'Σύνδεση με δαχτυλικό αποτύπωμα',
+          localizedReason: 'Σύνδεση με $_biometricName',
           options: const AuthenticationOptions(biometricOnly: true));
       if (!ok) return;
       await FirebaseAuth.instance.signInWithEmailAndPassword(email: email, password: password);
       if (mounted) Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => const AuthGate()));
-    } catch (e) { debugPrint('Auto login error: $e'); }
+    } catch (e) {
+      debugPrint('Auto login error: $e');
+      if (interactive) _snack('Αποτυχία $_biometricName: $e');
+    }
   }
 
   Future<void> _pickSelfie(ImageSource source) async {
@@ -1554,7 +1573,7 @@ class _LoginScreenState extends State<LoginScreen>
           ),
           const SizedBox(height: 14),
           GestureDetector(
-            onTap: _autoLoginWithBiometrics,
+            onTap: () => _autoLoginWithBiometrics(interactive: true),
             child: Container(
               width: double.infinity, height: 52,
               padding: const EdgeInsets.symmetric(horizontal: 12),
@@ -1564,10 +1583,10 @@ class _LoginScreenState extends State<LoginScreen>
               // (accessibility) το κείμενο ξεχείλιζε έξω από το στρογγυλεμένο
               // πλαίσιο του κουμπιού.
               child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [
-                const Icon(Icons.fingerprint, color: kGold, size: 26),
+                Icon(_isIOS ? Icons.face_unlock_outlined : Icons.fingerprint, color: kGold, size: 26),
                 const SizedBox(width: 10),
                 Flexible(
-                  child: Text('Είσοδος με δαχτυλικό αποτύπωμα',
+                  child: Text('Είσοδος με $_biometricName',
                       style: const TextStyle(color: kGold, fontSize: 14, fontWeight: FontWeight.w500),
                       overflow: TextOverflow.ellipsis,
                       maxLines: 1,
