@@ -36,6 +36,9 @@ import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 // ═══════════════════════════════════════
 const bool kFreeForAll = true; // Δωρεάν premium για χρήστες (όχι επαγγελματίες)
 const String kBackendUrl = 'https://ai-backend-kkt7.onrender.com';
+// Στο iOS η Apple (Guideline 3.1.1) δεν επιτρέπει συνδρομές/πληρωμές εκτός
+// του δικού της συστήματος — κρύβουμε τα σχετικά (Premium κλπ) μόνο εκεί.
+bool get kIsIOSApp => !kIsWeb && defaultTargetPlatform == TargetPlatform.iOS;
 const Color kGold = Color(0xFFFFB340);
 const Color kGoldLight = Color(0xFFFFD47A);
 const Color kGoldDark = Color(0xFFCC8800);
@@ -2358,6 +2361,26 @@ class _LoginScreenState extends State<LoginScreen>
               ),
             ],
           ],
+          const SizedBox(height: 14),
+          // Συναίνεση στους Όρους για κάθε τρόπο εγγραφής (email/Google/Apple) —
+          // απαίτηση της Apple για εφαρμογές με περιεχόμενο χρηστών (Guideline 1.2).
+          Wrap(
+            alignment: WrapAlignment.center,
+            crossAxisAlignment: WrapCrossAlignment.center,
+            children: [
+              Text('Συνεχίζοντας αποδέχεσαι τους ', style: TextStyle(color: _g(0.45), fontSize: 11)),
+              GestureDetector(
+                onTap: () => launchUrl(Uri.parse('https://gorealai.web.app/terms'), mode: LaunchMode.externalApplication),
+                child: const Text('Όρους Χρήσης', style: TextStyle(color: kGold, fontSize: 11, decoration: TextDecoration.underline)),
+              ),
+              Text(' και την ', style: TextStyle(color: _g(0.45), fontSize: 11)),
+              GestureDetector(
+                onTap: () => launchUrl(Uri.parse('https://gorealai.web.app/privacy'), mode: LaunchMode.externalApplication),
+                child: const Text('Πολιτική Απορρήτου', style: TextStyle(color: kGold, fontSize: 11, decoration: TextDecoration.underline)),
+              ),
+              Text('.', style: TextStyle(color: _g(0.45), fontSize: 11)),
+            ],
+          ),
           const SizedBox(height: 10),
           Center(child: TextButton(
             onPressed: () => setState(() => _screen = 'login'),
@@ -13488,7 +13511,7 @@ class _ProfileScreenState extends State<ProfileScreen> with WidgetsBindingObserv
                   _sectionHeader('ΘΕΜΑ'),
                   _ThemeSelector(),
 
-                  if (_role == 'professional') ...[
+                  if (_role == 'professional' && !kIsIOSApp) ...[
                     const SizedBox(height: 20),
                     _sectionHeader('ΣΥΝΔΡΟΜΗ'),
                     if (!_isPremium) _buildReferralCard(),
@@ -13565,6 +13588,13 @@ class _ProfileScreenState extends State<ProfileScreen> with WidgetsBindingObserv
   void _showDeleteAccountDialog() {
     final passCtrl = TextEditingController();
     bool showPass = false;
+    // Οι λογαριασμοί Apple/Google δεν έχουν κωδικό — η επιβεβαίωση γίνεται
+    // με τον ίδιο τον πάροχο (απαίτηση Apple για in-app διαγραφή λογαριασμού).
+    final providers = FirebaseAuth.instance.currentUser?.providerData
+            .map((p) => p.providerId).toList() ?? <String>[];
+    final viaApple = providers.contains('apple.com');
+    final hasPassword = !viaApple && providers.contains('password');
+    final providerName = viaApple ? 'Apple' : 'Google';
     showDialog(
       context: context,
       builder: (ctx) => StatefulBuilder(builder: (ctx, setSt) => AlertDialog(
@@ -13574,31 +13604,57 @@ class _ProfileScreenState extends State<ProfileScreen> with WidgetsBindingObserv
         content: Column(mainAxisSize: MainAxisSize.min, children: [
           const Text('Αυτή η ενέργεια είναι μη αναστρέψιμη. Όλα τα δεδομένα σου θα διαγραφούν οριστικά.', style: TextStyle(color: Colors.white60, fontSize: 13)),
           const SizedBox(height: 16),
-          TextField(
-            controller: passCtrl,
-            obscureText: !showPass,
-            style: const TextStyle(color: Colors.white),
-            decoration: InputDecoration(
-              labelText: 'Εισήγαγε τον κωδικό σου για επιβεβαίωση',
-              labelStyle: const TextStyle(color: Colors.white54, fontSize: 12),
-              filled: true, fillColor: const Color(0xFF1A1A1A),
-              border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
-              suffixIcon: IconButton(
-                icon: Icon(showPass ? Icons.visibility_off : Icons.visibility, color: Colors.white38, size: 20),
-                onPressed: () => setSt(() => showPass = !showPass),
+          if (hasPassword)
+            TextField(
+              controller: passCtrl,
+              obscureText: !showPass,
+              style: const TextStyle(color: Colors.white),
+              decoration: InputDecoration(
+                labelText: 'Εισήγαγε τον κωδικό σου για επιβεβαίωση',
+                labelStyle: const TextStyle(color: Colors.white54, fontSize: 12),
+                filled: true, fillColor: const Color(0xFF1A1A1A),
+                border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+                suffixIcon: IconButton(
+                  icon: Icon(showPass ? Icons.visibility_off : Icons.visibility, color: Colors.white38, size: 20),
+                  onPressed: () => setSt(() => showPass = !showPass),
+                ),
               ),
-            ),
-          ),
+            )
+          else
+            Text('Για επιβεβαίωση θα σου ζητηθεί να συνδεθείς ξανά με $providerName.',
+                style: const TextStyle(color: Colors.white70, fontSize: 13)),
         ]),
         actions: [
           TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Άκυρο', style: TextStyle(color: Colors.white54))),
           TextButton(
             onPressed: () async {
               final user = FirebaseAuth.instance.currentUser;
-              if (user == null || _email == null) return;
+              if (user == null) return;
               try {
-                final cred = EmailAuthProvider.credential(email: _email!, password: passCtrl.text.trim());
-                await user.reauthenticateWithCredential(cred);
+                String? appleAuthCode;
+                if (viaApple) {
+                  final appleProvider = AppleAuthProvider()..addScope('email')..addScope('name');
+                  final res = kIsWeb
+                      ? await user.reauthenticateWithPopup(appleProvider)
+                      : await user.reauthenticateWithProvider(appleProvider);
+                  appleAuthCode = res.additionalUserInfo?.authorizationCode;
+                } else if (hasPassword) {
+                  if (_email == null) return;
+                  final cred = EmailAuthProvider.credential(email: _email!, password: passCtrl.text.trim());
+                  await user.reauthenticateWithCredential(cred);
+                } else if (kIsWeb) {
+                  await user.reauthenticateWithPopup(GoogleAuthProvider());
+                } else {
+                  final googleUser = await GoogleSignIn.instance.authenticate();
+                  final cred = GoogleAuthProvider.credential(
+                      idToken: googleUser.authentication.idToken);
+                  await user.reauthenticateWithCredential(cred);
+                }
+                // Η Apple απαιτεί ανάκληση του Sign in with Apple token κατά τη
+                // διαγραφή λογαριασμού. Αν αποτύχει δεν μπλοκάρουμε τη διαγραφή.
+                if (appleAuthCode != null) {
+                  try { await FirebaseAuth.instance.revokeTokenWithAuthorizationCode(appleAuthCode); } catch (_) {}
+                }
                 final uid = user.uid;
                 final fs = FirebaseFirestore.instance;
                 // Ελάχιστο log πριν διαγραφούν όλα τα ίχνη — αλλιώς μετά τη
@@ -13622,10 +13678,12 @@ class _ProfileScreenState extends State<ProfileScreen> with WidgetsBindingObserv
                 if (ctx.mounted) Navigator.pop(ctx);
                 if (mounted) Navigator.of(context).popUntil((r) => r.isFirst);
               } catch (e) {
-                String msg = 'Λάθος κωδικός ή σφάλμα. Δοκίμασε ξανά.';
+                final raw = e.toString().toLowerCase();
+                if (raw.contains('cancel') || raw.contains('popup-closed')) return;
+                String msg = hasPassword ? 'Λάθος κωδικός ή σφάλμα. Δοκίμασε ξανά.' : 'Η επιβεβαίωση απέτυχε. Δοκίμασε ξανά.';
                 if (e is FirebaseAuthException) {
                   msg = switch (e.code) {
-                    'wrong-password' || 'invalid-credential' => 'Λάθος κωδικός.',
+                    'wrong-password' || 'invalid-credential' => hasPassword ? 'Λάθος κωδικός.' : 'Η επιβεβαίωση απέτυχε. Δοκίμασε ξανά.',
                     'too-many-requests' => 'Πολλές αποτυχημένες προσπάθειες. Δοκίμασε ξανά σε λίγο.',
                     'requires-recent-login' => 'Χρειάζεται νέα σύνδεση. Κάνε logout/login και ξαναδοκίμασε.',
                     'network-request-failed' => 'Πρόβλημα σύνδεσης δικτύου.',
