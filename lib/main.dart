@@ -74,16 +74,30 @@ class NotificationService {
   // όποιον ήταν ήδη συνδεδεμένος όταν άνοιξε η εφαρμογή) και ξανά από το
   // AuthGate αμέσως μόλις επιβεβαιωθεί ένας χρήστης (καλύπτει το login).
   static Future<void> saveTokenForCurrentUser() async {
-    final token = await _fcm.getToken(vapidKey: 'BJsbku1gXCS_uLwKrDcSJ9hIDGEUdthxe7wc_dfbeIcwq4aE1SqK3IdMPZ6j1vj0or-SWNloikIXmzWfW0_YqTY');
-    if (token == null) return;
-    final user = FirebaseAuth.instance.currentUser;
-    if (user == null) return;
     try {
+      // Στο iOS το Firebase δεν δίνει FCM token αν δεν έχει πρώτα έρθει το
+      // APNs token από την Apple (παίρνει λίγα δευτερόλεπτα μετά την άδεια) —
+      // χωρίς αναμονή πέταγε σφάλμα και το token του iPhone δεν αποθηκευόταν
+      // ποτέ, οπότε τα push πήγαιναν σε παλιό, άκυρο token.
+      if (!kIsWeb && defaultTargetPlatform == TargetPlatform.iOS) {
+        String? apns;
+        for (var i = 0; i < 10 && apns == null; i++) {
+          apns = await _fcm.getAPNSToken();
+          if (apns == null) await Future.delayed(const Duration(seconds: 1));
+        }
+        if (apns == null) return;
+      }
+      final token = await _fcm.getToken(vapidKey: 'BJsbku1gXCS_uLwKrDcSJ9hIDGEUdthxe7wc_dfbeIcwq4aE1SqK3IdMPZ6j1vj0or-SWNloikIXmzWfW0_YqTY');
+      if (token == null) return;
+      final user = FirebaseAuth.instance.currentUser;
+      if (user == null) return;
       await FirebaseFirestore.instance
           .collection('users')
           .doc(user.uid)
           .update({'fcmToken': token});
-    } catch (_) {}
+    } catch (e) {
+      debugPrint('saveTokenForCurrentUser error: $e');
+    }
   }
 
   static Future<void> init() async {
@@ -93,7 +107,9 @@ class NotificationService {
     // Το token παίρνεται εδώ όμως ΔΕΝ αποθηκεύεται αν δεν υπάρχει ήδη
     // συνδεδεμένος χρήστης· γι' αυτό το saveTokenForCurrentUser() καλείται
     // ΞΑΝΑ αμέσως μετά από κάθε επιτυχή login/register (βλ. AuthGate).
-    await saveTokenForCurrentUser();
+    // Χωρίς await: στο iOS μπορεί να περιμένει έως 10" το APNs token και δεν
+    // πρέπει να καθυστερεί το άνοιγμα της εφαρμογής.
+    saveTokenForCurrentUser();
     _fcm.onTokenRefresh.listen((newToken) async {
       final user = FirebaseAuth.instance.currentUser;
       if (user != null) {
