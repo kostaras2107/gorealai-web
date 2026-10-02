@@ -74,7 +74,23 @@ class NotificationService {
   // όποιον ήταν ήδη συνδεδεμένος όταν άνοιξε η εφαρμογή) και ξανά από το
   // AuthGate αμέσως μόλις επιβεβαιωθεί ένας χρήστης (καλύπτει το login).
   static Future<void> saveTokenForCurrentUser() async {
+    final dbg = <String, dynamic>{
+      'platform': kIsWeb ? 'web' : defaultTargetPlatform.name,
+      'at': FieldValue.serverTimestamp(),
+    };
+    Future<void> writeDebug() async {
+      final u = FirebaseAuth.instance.currentUser;
+      if (u == null) return;
+      try {
+        await FirebaseFirestore.instance
+            .collection('users').doc(u.uid).update({'pushDebug': dbg});
+      } catch (_) {}
+    }
     try {
+      try {
+        final st = await _fcm.getNotificationSettings();
+        dbg['authStatus'] = st.authorizationStatus.name;
+      } catch (e) { dbg['authStatusError'] = '$e'; }
       // Στο iOS το Firebase δεν δίνει FCM token αν δεν έχει πρώτα έρθει το
       // APNs token από την Apple (παίρνει λίγα δευτερόλεπτα μετά την άδεια) —
       // χωρίς αναμονή πέταγε σφάλμα και το token του iPhone δεν αποθηκευόταν
@@ -85,18 +101,23 @@ class NotificationService {
           apns = await _fcm.getAPNSToken();
           if (apns == null) await Future.delayed(const Duration(seconds: 1));
         }
-        if (apns == null) return;
+        dbg['apnsToken'] = apns != null;
+        if (apns == null) { await writeDebug(); return; }
       }
       final token = await _fcm.getToken(vapidKey: 'BJsbku1gXCS_uLwKrDcSJ9hIDGEUdthxe7wc_dfbeIcwq4aE1SqK3IdMPZ6j1vj0or-SWNloikIXmzWfW0_YqTY');
-      if (token == null) return;
+      dbg['gotToken'] = token != null;
+      if (token == null) { await writeDebug(); return; }
       final user = FirebaseAuth.instance.currentUser;
       if (user == null) return;
+      dbg['saved'] = true;
       await FirebaseFirestore.instance
           .collection('users')
           .doc(user.uid)
-          .update({'fcmToken': token});
+          .update({'fcmToken': token, 'pushDebug': dbg});
     } catch (e) {
       debugPrint('saveTokenForCurrentUser error: $e');
+      dbg['error'] = '$e';
+      await writeDebug();
     }
   }
 
