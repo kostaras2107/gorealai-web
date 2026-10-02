@@ -18,6 +18,7 @@ import 'package:firebase_messaging/firebase_messaging.dart';
 import 'firebase_options.dart';
 import 'splash_screen.dart';
 import 'package:local_auth/local_auth.dart';
+import 'package:permission_handler/permission_handler.dart' show openAppSettings;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:speech_to_text/speech_to_text.dart' as stt;
 import 'package:record/record.dart';
@@ -152,6 +153,119 @@ class NotificationService {
       'sent': false,
       'createdAt': FieldValue.serverTimestamp(),
     });
+  }
+}
+
+// Κοινή λογική για την άδεια push: χρησιμοποιείται από το toggle στο προφίλ
+// και από το banner στην αρχική. Αν ο χρήστης πατήσει κατά λάθος "Δεν
+// επιτρέπω", το σύστημα (iOS/Android) δεν ξαναρωτάει — μπορεί να αλλάξει μόνο
+// από τις Ρυθμίσεις της συσκευής, γι' αυτό το enable() ανοίγει εκεί.
+class PushPermission {
+  static Future<bool> isEnabled() async {
+    try {
+      final s = await FirebaseMessaging.instance.getNotificationSettings();
+      return s.authorizationStatus == AuthorizationStatus.authorized ||
+          s.authorizationStatus == AuthorizationStatus.provisional;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  // Επιστρέφει true αν είναι ενεργό μετά την προσπάθεια. Αν χρειάστηκε να
+  // ανοίξουν οι Ρυθμίσεις, επιστρέφει false — το αποτέλεσμα φαίνεται όταν
+  // ο χρήστης γυρίσει στην εφαρμογή (οι οθόνες ξανατσεκάρουν στο resume).
+  static Future<bool> enable(BuildContext context) async {
+    try {
+      await FirebaseMessaging.instance
+          .requestPermission(alert: true, badge: true, sound: true);
+    } catch (_) {}
+    if (await isEnabled()) {
+      await NotificationService.saveTokenForCurrentUser();
+      return true;
+    }
+    if (kIsWeb) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+            content: Text('Ενεργοποίησε τις ειδοποιήσεις από τις ρυθμίσεις του browser για αυτόν τον ιστότοπο.')));
+      }
+      return false;
+    }
+    await openAppSettings();
+    return false;
+  }
+}
+
+// Banner στην κορυφή της αρχικής σελίδας για όσους δεν έχουν ενεργές τις
+// ειδοποιήσεις — εξαφανίζεται μόνο του μόλις τις ενεργοποιήσουν.
+class _PushPermissionBanner extends StatefulWidget {
+  const _PushPermissionBanner();
+  @override
+  State<_PushPermissionBanner> createState() => _PushPermissionBannerState();
+}
+
+class _PushPermissionBannerState extends State<_PushPermissionBanner>
+    with WidgetsBindingObserver {
+  bool _enabled = true; // κρύβεται μέχρι να ξέρουμε το πραγματικό status
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+    _refresh();
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) _refresh();
+  }
+
+  Future<void> _refresh() async {
+    final on = await PushPermission.isEnabled();
+    if (on) await NotificationService.saveTokenForCurrentUser();
+    if (mounted && on != _enabled) setState(() => _enabled = on);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (_enabled) return const SizedBox.shrink();
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(20, 0, 20, 16),
+      child: GestureDetector(
+        onTap: () async {
+          final on = await PushPermission.enable(context);
+          if (mounted && on) setState(() => _enabled = true);
+        },
+        child: Container(
+          padding: const EdgeInsets.all(14),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(16),
+            color: kGold.withValues(alpha: 0.10),
+            border: Border.all(color: kGold.withValues(alpha: 0.45)),
+          ),
+          child: Row(children: [
+            const Icon(Icons.notifications_off_outlined, color: kGold, size: 26),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                const Text('Ενεργοποίησε τις ειδοποιήσεις',
+                    style: TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.w700)),
+                const SizedBox(height: 3),
+                Text('Ενεργοποίησέ τες από το προφίλ σου (ή πατώντας εδώ), αλλιώς δεν θα λαμβάνεις προσφορές και ειδοποιήσεις.',
+                    style: TextStyle(color: _g(0.7), fontSize: 12, height: 1.3)),
+              ]),
+            ),
+            const SizedBox(width: 8),
+            const Icon(Icons.chevron_right, color: kGold),
+          ]),
+        ),
+      ),
+    );
   }
 }
 
@@ -3449,6 +3563,8 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       children: [
         const SizedBox(height: 24),
 
+        const _PushPermissionBanner(),
+
         // Greeting
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 20),
@@ -5384,6 +5500,8 @@ class _ProfessionalHomeScreenState extends State<ProfessionalHomeScreen> {
           ),
 
           const SizedBox(height: 14),
+
+          const _PushPermissionBanner(),
 
           // ══ ΣΗΜΕΡΑ stats box ══
           Padding(
@@ -12356,7 +12474,8 @@ class ProfileScreen extends StatefulWidget {
   State<ProfileScreen> createState() => _ProfileScreenState();
 }
 
-class _ProfileScreenState extends State<ProfileScreen> {
+class _ProfileScreenState extends State<ProfileScreen> with WidgetsBindingObserver {
+  bool _pushOn = true;
   String? _name, _email, _city, _phone;
   String _role = 'user';
   String _specialty = '';
@@ -12378,11 +12497,25 @@ class _ProfileScreenState extends State<ProfileScreen> {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _loadProfile();
+    _refreshPush();
+  }
+
+  Future<void> _refreshPush() async {
+    final on = await PushPermission.isEnabled();
+    if (mounted && on != _pushOn) setState(() => _pushOn = on);
+  }
+
+  // Όταν γυρίσει από τις Ρυθμίσεις της συσκευής, ξαναδιαβάζουμε την άδεια.
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) _refreshPush();
   }
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _nameCtrl.dispose();
     _cityCtrl.dispose();
     _oldPassCtrl.dispose();
@@ -13272,6 +13405,30 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         label: 'ΑΦΜ',
                         value: _afm.isEmpty ? 'Δεν έχει προστεθεί' : (_afmValid ? '$_afm ✓' : _afm),
                         onTap: _showAfmDialog),
+
+                  const SizedBox(height: 20),
+                  _sectionHeader('ΕΙΔΟΠΟΙΗΣΕΙΣ'),
+                  _buildToggleRow(
+                      '🔔',
+                      'Push Notifications',
+                      _pushOn
+                          ? 'Ενεργές — λαμβάνεις προσφορές και ειδοποιήσεις'
+                          : 'Ανενεργές — δεν λαμβάνεις προσφορές και ειδοποιήσεις',
+                      _pushOn, (v) async {
+                    if (v) {
+                      final on = await PushPermission.enable(context);
+                      if (mounted) setState(() => _pushOn = on);
+                    } else {
+                      // Η εφαρμογή δεν μπορεί να ανακαλέσει η ίδια την άδεια —
+                      // μόνο ο χρήστης από τις Ρυθμίσεις της συσκευής.
+                      if (!kIsWeb) {
+                        await openAppSettings();
+                      } else if (mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+                            content: Text('Απενεργοποίησε τις ειδοποιήσεις από τις ρυθμίσεις του browser.')));
+                      }
+                    }
+                  }),
 
                   const SizedBox(height: 20),
                   _sectionHeader('ΑΣΦΑΛΕΙΑ'),
