@@ -784,8 +784,123 @@ class _AuthGateRoleCheckState extends State<_AuthGateRoleCheck> {
           // στην εφαρμογή.
           return LoginScreen(incompleteUser: widget.user);
         }
-        return const HomeScreen();
+        return const _BiometricLock(child: HomeScreen());
       },
+    );
+  }
+}
+
+// Κλείδωμα εφαρμογής με Face ID / δακτυλικό στο (ψυχρό) άνοιγμα, για ΟΛΟΥΣ
+// τους συνδεδεμένους χρήστες — και για Apple/Google που δεν έχουν αποθηκευμένο
+// κωδικό. Ελέγχεται από τον διακόπτη "Biometric Login" στο προφίλ. Αν η συσκευή
+// δεν έχει καταχωρημένο Face ID/δακτυλικό, δεν κλειδώνει καθόλου. Αν αποτύχει,
+// υπάρχει πάντα επιλογή αποσύνδεσης, ώστε να μην κλειδωθεί κανείς έξω.
+class _BiometricLock extends StatefulWidget {
+  final Widget child;
+  const _BiometricLock({required this.child});
+  static bool unlocked = false;
+  @override
+  State<_BiometricLock> createState() => _BiometricLockState();
+}
+
+class _BiometricLockState extends State<_BiometricLock> {
+  bool _checking = true;
+  final _auth = LocalAuthentication();
+
+  bool get _isIOS => defaultTargetPlatform == TargetPlatform.iOS;
+  String get _name => _isIOS ? 'Face ID' : 'δαχτυλικό αποτύπωμα';
+
+  @override
+  void initState() {
+    super.initState();
+    _start();
+  }
+
+  Future<void> _start() async {
+    if (_BiometricLock.unlocked || kIsWeb) {
+      _BiometricLock.unlocked = true;
+      if (mounted) setState(() => _checking = false);
+      return;
+    }
+    // Μόλις έκανε σύνδεση (Apple/Google/email) — δεν τον ξαναρωτάμε αμέσως.
+    final lastSignIn = FirebaseAuth.instance.currentUser?.metadata.lastSignInTime;
+    if (lastSignIn != null && DateTime.now().difference(lastSignIn).inSeconds < 120) {
+      _BiometricLock.unlocked = true;
+      if (mounted) setState(() => _checking = false);
+      return;
+    }
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final enabled = prefs.getBool('biometric_enabled') ?? true;
+      final available = await _auth.getAvailableBiometrics();
+      if (!enabled || available.isEmpty) {
+        _BiometricLock.unlocked = true;
+        if (mounted) setState(() => _checking = false);
+        return;
+      }
+    } catch (_) {
+      _BiometricLock.unlocked = true;
+      if (mounted) setState(() => _checking = false);
+      return;
+    }
+    if (mounted) setState(() => _checking = false);
+    await _prompt();
+  }
+
+  Future<void> _prompt() async {
+    try {
+      final ok = await _auth.authenticate(
+        localizedReason: 'Ξεκλείδωμα GorealPro με $_name',
+        options: const AuthenticationOptions(stickyAuth: true),
+      );
+      if (ok) {
+        _BiometricLock.unlocked = true;
+        if (mounted) setState(() {});
+      }
+    } catch (_) {}
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (_BiometricLock.unlocked) return widget.child;
+    if (_checking) {
+      return const Scaffold(body: Center(child: CircularProgressIndicator(color: kGold)));
+    }
+    return Scaffold(
+      body: Center(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 32),
+          child: Column(mainAxisSize: MainAxisSize.min, children: [
+            Icon(_isIOS ? Icons.face_unlock_outlined : Icons.fingerprint, color: kGold, size: 72),
+            const SizedBox(height: 20),
+            const Text('Η εφαρμογή είναι κλειδωμένη',
+                style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.w700)),
+            const SizedBox(height: 28),
+            SizedBox(
+              width: double.infinity, height: 52,
+              child: ElevatedButton(
+                onPressed: () async {
+                  await _prompt();
+                  if (mounted) setState(() {});
+                },
+                style: ElevatedButton.styleFrom(
+                    backgroundColor: kGold, foregroundColor: Colors.black,
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18))),
+                child: Text('Ξεκλείδωμα με $_name',
+                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
+              ),
+            ),
+            const SizedBox(height: 12),
+            TextButton(
+              onPressed: () async {
+                await FirebaseAuth.instance.signOut();
+                await AuthService.logout();
+              },
+              child: Text('Αποσύνδεση', style: TextStyle(color: _g(0.6))),
+            ),
+          ]),
+        ),
+      ),
     );
   }
 }
