@@ -102,6 +102,11 @@ class NotificationService {
           if (apns == null) await Future.delayed(const Duration(seconds: 1));
         }
         dbg['apnsToken'] = apns != null;
+        try {
+          final prefs = await SharedPreferences.getInstance();
+          await prefs.reload();
+          dbg['apnsNative'] = prefs.getString('apnsResult') ?? 'no callback yet';
+        } catch (_) {}
         if (apns == null) { await writeDebug(); return; }
       }
       final token = await _fcm.getToken(vapidKey: 'BJsbku1gXCS_uLwKrDcSJ9hIDGEUdthxe7wc_dfbeIcwq4aE1SqK3IdMPZ6j1vj0or-SWNloikIXmzWfW0_YqTY');
