@@ -634,6 +634,37 @@ Future<String> _newRecordingPath() async {
   return '${dir.path}/rec_${DateTime.now().millisecondsSinceEpoch}.m4a';
 }
 
+// Τομείς Αττικής/Θεσσαλονίκης — ΙΔΙΟΙ με το backend (server.js). Το backend
+// ειδοποιεί επαγγελματίες που δήλωσαν τομέα (π.χ. "Δυτική Αττική") για αίτημα
+// από συγκεκριμένο δήμο (π.χ. Ελευσίνα), αλλά η λίστα "Αιτήματα" της εφαρμογής
+// έλεγχε μόνο αν το κείμενο της περιοχής περιέχεται — οπότε έπαιρναν
+// ειδοποίηση και μετά δεν έβλεπαν το αίτημα. Η ίδια λογική και στις δύο μεριές.
+const Map<String, List<String>> _areaSectors = {
+  'κεντρικά προάστια': ['αθήνα', 'βύρωνας', 'γαλάτσι', 'δάφνη-υμηττός', 'ζωγράφου', 'ηλιούπολη', 'καισαριανή', 'κυψέλη', 'φιλαδέλφεια-χαλκηδόνα'],
+  'νότια προάστια': ['άλιμος', 'αργυρούπολη-ελληνικό', 'γλυφάδα', 'βούλα', 'βουλιαγμένη', 'καλλιθέα', 'μοσχάτο-ταύρος', 'νέα σμύρνη', 'παλαιό φάληρο'],
+  'βόρεια προάστια': ['αγία παρασκευή', 'αμαρούσιο', 'βριλήσσια', 'ηράκλειο αττικής', 'κηφισιά', 'λυκόβρυση-πεύκη', 'μεταμόρφωση', 'νέα ιωνία', 'παπάγου-χολαργός', 'πεντέλη', 'φιλοθέη-ψυχικό', 'χαλάνδρι'],
+  'δυτικά προάστια': ['αγία βαρβάρα', 'αγίων αναργύρων-καματερό', 'αιγάλεω', 'ίλιον', 'κορυδαλλός', 'περιστέρι', 'πετρούπολη', 'χαϊδάρι'],
+  'πειραιάς & νησιά': ['πειραιάς', 'κερατσίνι-δραπετσώνα', 'νίκαια-αγ.ιω.ρέντης', 'πέραμα', 'σαλαμίνα'],
+  'ανατολική αττική': ['ανθούσα', 'αχαρνές', 'γέρακας', 'διόνυσος', 'κρυονέρι', 'μαραθώνας', 'μαρκόπουλο', 'παιανία', 'παλλήνη', 'ραφήνα-πικέρμι', 'σπάτα-αρτέμιδα', 'ωρωπός'],
+  'δυτική αττική': ['ασπρόπυργος', 'ελευσίνα', 'μάνδρα-ειδυλλία', 'μέγαρα', 'νέα πέραμος'],
+  'νότια αττική': ['κορωπί', 'λαύριο', 'σαρωνικός'],
+  'θεσσαλονίκη': ['θεσσαλονίκη', 'βόλβη', 'δέλτα', 'εχέδωρος', 'θέρμη', 'καλαμαριά', 'κορδελιό-ευόσμος', 'λαγκαδάς', 'νεάπολη-συκιές', 'παύλος μελάς', 'πυλαία-χορτιάτης', 'σταυρούπολη', 'ωραιόκαστρο', 'νέα μηχανιώνα'],
+};
+
+final Map<String, String> _areaToSector = {
+  for (final e in _areaSectors.entries)
+    for (final t in e.value) t: e.key,
+};
+
+// proAreasLower / reqLocLower: όλα σε lowercase.
+bool _areaMatchesRequest(Iterable<String> proAreasLower, String reqLocLower) {
+  if (proAreasLower.isEmpty || reqLocLower.isEmpty || reqLocLower == 'κοντά μου') return true;
+  if (proAreasLower.any((a) => a.contains(reqLocLower) || reqLocLower.contains(a))) return true;
+  final sector = _areaToSector[reqLocLower];
+  if (sector == null) return false;
+  return proAreasLower.any((a) => a == sector || _areaToSector[a] == sector);
+}
+
 bool _matchesProfession(Iterable<String> proSpecialties, String reqProfession, {bool exact = false}) {
   if (reqProfession.isEmpty) return true;
   final specs = proSpecialties.toList();
@@ -3450,7 +3481,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                                   if (_proAreas.isNotEmpty) {
                                     final reqLoc = (data['location'] as String? ?? '').toLowerCase();
                                     if (reqLoc.isNotEmpty && reqLoc != 'κοντά μου') {
-                                      if (!_proAreas.any((a) => a.contains(reqLoc) || reqLoc.contains(a))) return false;
+                                      if (!_areaMatchesRequest(_proAreas, reqLoc)) return false;
                                     }
                                   }
                                   if (data['filterWithPhoto'] == true && (_proPhotoUrlHome == null || _proPhotoUrlHome!.isEmpty)) return false;
@@ -3487,7 +3518,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                                   if (_proAreas.isNotEmpty) {
                                     final reqLoc = (data['location'] as String? ?? '').toLowerCase();
                                     if (reqLoc.isNotEmpty && reqLoc != 'κοντά μου') {
-                                      if (!_proAreas.any((a) => a.contains(reqLoc) || reqLoc.contains(a))) return false;
+                                      if (!_areaMatchesRequest(_proAreas, reqLoc)) return false;
                                     }
                                   }
                                   return true;
@@ -5750,7 +5781,7 @@ class _ProfessionalHomeScreenState extends State<ProfessionalHomeScreen> {
                 if (proAreas.isNotEmpty) {
                   final reqLoc = (data['location'] as String? ?? '').toLowerCase();
                   if (reqLoc.isNotEmpty && reqLoc != 'κοντά μου') {
-                    if (!proAreas.any((a) => a.contains(reqLoc) || reqLoc.contains(a))) return false;
+                    if (!_areaMatchesRequest(proAreas, reqLoc)) return false;
                   }
                 }
                 if (data['filterWithPhoto'] == true && (_proPhotoUrl == null || _proPhotoUrl!.isEmpty)) return false;
@@ -7292,7 +7323,7 @@ class _ProfessionalHomeScreenState extends State<ProfessionalHomeScreen> {
               // Filter by location
               final reqLocation = (data['location'] as String? ?? '').toLowerCase();
               if (proAreas.isNotEmpty && reqLocation.isNotEmpty && reqLocation != 'κοντά μου') {
-                final matches = proAreas.any((a) => a.contains(reqLocation) || reqLocation.contains(a));
+                final matches = _areaMatchesRequest(proAreas, reqLocation);
                 if (!matches) return false;
               }
               // Filter by filterWithPhoto: pro must have profile photo
@@ -9184,7 +9215,7 @@ Future<void> _notifyProsDirectly(
           final areaSingle = (d['area'] as String? ?? '').toLowerCase();
           final areas = [...areasArr, if (areaSingle.isNotEmpty) areaSingle];
           if (areas.isNotEmpty &&
-              !areas.any((a) => a.contains(locationLower) || locationLower.contains(a))) continue;
+              !_areaMatchesRequest(areas, locationLower)) continue;
         }
         await FirebaseFirestore.instance
             .collection('users')
