@@ -958,6 +958,32 @@ async function notifyMatchingPros({ profession, location, description, requestId
       }));
     }
 
+    // Φίλτρα φωτογραφίας/βαθμολογίας: η εφαρμογή κρύβει το αίτημα από όσους
+    // δεν τα πληρούν, άρα δεν πρέπει να τους στέλνουμε ειδοποίηση για κάτι που
+    // δεν θα δουν. Διαβάζονται από το έγγραφο του αιτήματος (δεν έρχονται
+    // στο body του endpoint).
+    let filterWithPhoto = false, filterMinRating = 0;
+    if (requestId) {
+      try {
+        const reqDoc = await admin.firestore().collection('requests').doc(requestId).get();
+        if (reqDoc.exists) {
+          filterWithPhoto = reqDoc.data().filterWithPhoto === true;
+          filterMinRating = Number(reqDoc.data().filterMinRating) || 0;
+        }
+      } catch (_) {}
+    }
+    // Ίδιο merge με την εφαρμογή: professionals + users (photo/averageRating
+    // μπορεί να βρίσκονται σε οποιοδήποτε από τα δύο).
+    const userExtra = new Map();
+    if (filterWithPhoto || filterMinRating > 0) {
+      await Promise.all([...proMap.keys()].map(async uid => {
+        try {
+          const u = await admin.firestore().collection('users').doc(uid).get();
+          if (u.exists) userExtra.set(uid, u.data());
+        } catch (_) {}
+      }));
+    }
+
     const matching = [];
     proMap.forEach((d, uid) => {
       if (!d.email) return;
@@ -1022,6 +1048,12 @@ async function notifyMatchingPros({ profession, location, description, requestId
       // Verified-only filter — πρέπει να έχει επιβεβαιωθεί πραγματικά από το
       // VIES (afmValid), όχι απλά να έχει γραφτεί κάποιο κείμενο στο πεδίο.
       if (filterVerifiedOnly && d.afmValid !== true) return;
+
+      if (filterWithPhoto || filterMinRating > 0) {
+        const merged = { ...(userExtra.get(uid) || {}), ...d };
+        if (filterWithPhoto && !merged.profilePhotoUrl) return;
+        if (filterMinRating > 0 && (Number(merged.averageRating) || 0) < filterMinRating) return;
+      }
 
       matching.push({ uid, email: d.email, phone: d.phone || '', name: d.displayName || d.name || 'Επαγγελματία' });
     });
