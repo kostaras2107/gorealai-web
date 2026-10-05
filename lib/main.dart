@@ -39,6 +39,10 @@ const String kBackendUrl = 'https://ai-backend-kkt7.onrender.com';
 // Στο iOS η Apple (Guideline 3.1.1) δεν επιτρέπει συνδρομές/πληρωμές εκτός
 // του δικού της συστήματος — κρύβουμε τα σχετικά (Premium κλπ) μόνο εκεί.
 bool get kIsIOSApp => !kIsWeb && defaultTargetPlatform == TargetPlatform.iOS;
+// Λειτουργία επισκέπτη (μόνο iOS) — Apple Guideline 5.1.1(v): η εγγραφή
+// επιτρέπεται να ζητείται μόνο για ενέργειες που χρειάζονται λογαριασμό
+// (αίτημα, συνομιλία, προσφορές), όχι για απλή περιήγηση.
+final ValueNotifier<bool> kGuestMode = ValueNotifier<bool>(false);
 const Color kGold = Color(0xFFFFB340);
 const Color kGoldLight = Color(0xFFFFD47A);
 const Color kGoldDark = Color(0xFFCC8800);
@@ -882,7 +886,13 @@ class AuthGate extends StatelessWidget {
           return const Scaffold(
               body: Center(child: CircularProgressIndicator(color: kGold)));
         }
-        if (!snapshot.hasData) return const LoginScreen();
+        if (!snapshot.hasData) {
+          return ValueListenableBuilder<bool>(
+            valueListenable: kGuestMode,
+            builder: (_, guest, __) =>
+                (guest && kIsIOSApp) ? const GuestHomeScreen() : const LoginScreen(),
+          );
+        }
         final user = snapshot.data!;
         if (!user.emailVerified) {
           // Το emailVerified του cached User μπορεί να είναι μπαγιάτικο —
@@ -1909,6 +1919,22 @@ class _LoginScreenState extends State<LoginScreen>
             onPressed: _showForgotPasswordDialog,
             child: Text('Ξέχασες τον κωδικό;', style: TextStyle(color: _g(0.5), fontSize: 13)),
           ),
+          if (kIsIOSApp && widget.incompleteUser == null) ...[
+            const SizedBox(height: 6),
+            SizedBox(
+              width: double.infinity, height: 48,
+              child: OutlinedButton.icon(
+                onPressed: _loading ? null : () => kGuestMode.value = true,
+                style: OutlinedButton.styleFrom(
+                  side: BorderSide(color: kGold.withValues(alpha: 0.4)),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+                ),
+                icon: const Icon(Icons.explore_outlined, color: kGold, size: 20),
+                label: const Text('Περιήγηση ως επισκέπτης',
+                    style: TextStyle(color: kGold, fontWeight: FontWeight.w600, fontSize: 14)),
+              ),
+            ),
+          ],
         ]),
       )),
     );
@@ -2956,6 +2982,193 @@ class _GorealWordmark extends StatelessWidget {
           'assets/images/gorealpro_wordmark.png',
           fit: BoxFit.contain,
         ),
+      ),
+    );
+  }
+}
+
+// ═══════════════════════════════════════
+// ΕΠΙΣΚΕΠΤΗΣ (iOS) — περιήγηση χωρίς λογαριασμό
+// ═══════════════════════════════════════
+// Βγαίνει από τη λειτουργία επισκέπτη και πηγαίνει στην οθόνη εισόδου/εγγραφής.
+void exitGuestMode(BuildContext context) {
+  Navigator.of(context, rootNavigator: true).popUntil((r) => r.isFirst);
+  kGuestMode.value = false;
+}
+
+// Εμφανίζεται όταν ο επισκέπτης πατάει κάτι που χρειάζεται λογαριασμό.
+void showGuestSignInPrompt(BuildContext context, {String reason = 'Για να συνεχίσεις χρειάζεσαι λογαριασμό.'}) {
+  showModalBottomSheet(
+    context: context,
+    backgroundColor: Colors.transparent,
+    builder: (ctx) => Container(
+      padding: const EdgeInsets.fromLTRB(24, 16, 24, 28),
+      decoration: const BoxDecoration(
+        color: Color(0xFF0E0B04),
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      child: Column(mainAxisSize: MainAxisSize.min, children: [
+        Container(width: 36, height: 4,
+            decoration: BoxDecoration(color: _g(0.2), borderRadius: BorderRadius.circular(2))),
+        const SizedBox(height: 18),
+        const Text('Χρειάζεσαι λογαριασμό',
+            style: TextStyle(fontFamily: 'Inter', fontSize: 18, fontWeight: FontWeight.w800, color: Colors.white)),
+        const SizedBox(height: 8),
+        Text(reason, textAlign: TextAlign.center,
+            style: TextStyle(fontSize: 13, color: _g(0.55), height: 1.4)),
+        const SizedBox(height: 20),
+        SizedBox(
+          width: double.infinity, height: 52,
+          child: ElevatedButton(
+            onPressed: () => exitGuestMode(ctx),
+            style: ElevatedButton.styleFrom(
+                backgroundColor: kGold, foregroundColor: Colors.black,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18))),
+            child: const Text('Σύνδεση / Εγγραφή',
+                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
+          ),
+        ),
+        const SizedBox(height: 8),
+        TextButton(
+          onPressed: () => Navigator.pop(ctx),
+          child: Text('Συνέχεια περιήγησης', style: TextStyle(color: _g(0.6))),
+        ),
+      ]),
+    ),
+  );
+}
+
+class GuestHomeScreen extends StatefulWidget {
+  const GuestHomeScreen({super.key});
+  @override
+  State<GuestHomeScreen> createState() => _GuestHomeScreenState();
+}
+
+class _GuestHomeScreenState extends State<GuestHomeScreen> {
+  List<Map<String, String>> _services = const [
+    {'emoji': '⚡', 'label': 'Ηλεκτρολόγος', 'profession': 'Ηλεκτρολόγος'},
+    {'emoji': '🔧', 'label': 'Υδραυλικός', 'profession': 'Υδραυλικός'},
+    {'emoji': '❄️', 'label': 'Κλιματισμός', 'profession': 'Συντήρηση Κλιματιστικών'},
+    {'emoji': '🎨', 'label': 'Ελαιοχρωματιστής', 'profession': 'Ελαιοχρωματιστής'},
+    {'emoji': '🌿', 'label': 'Κηπουρός', 'profession': 'Κηπουρός'},
+    {'emoji': '🧹', 'label': 'Καθαρισμός', 'profession': 'Καθαρίστρια'},
+    {'emoji': '🏗️', 'label': 'Ανακαίνιση', 'profession': 'Συνεργείο Ανακαίνισης'},
+    {'emoji': '🏠', 'label': 'Smart Home', 'profession': 'Smart Home - Συστήματα Ασφαλείας'},
+  ];
+
+  @override
+  void initState() {
+    super.initState();
+    _loadServices();
+  }
+
+  Future<void> _loadServices() async {
+    try {
+      final resp = await http.get(Uri.parse('$kBackendUrl/popular-specialties?limit=8'))
+          .timeout(const Duration(seconds: 8));
+      final d = jsonDecode(resp.body) as Map<String, dynamic>;
+      final items = (d['items'] as List?) ?? [];
+      if (items.isEmpty || !mounted) return;
+      setState(() {
+        _services = items.map((it) => {
+              'emoji': (it['emoji'] as String?) ?? '🛠️',
+              'label': (it['profession'] as String?) ?? '',
+              'profession': (it['profession'] as String?) ?? '',
+            }).toList();
+      });
+    } catch (_) {}
+  }
+
+  Widget _sectionTitle(String t) => Padding(
+        padding: const EdgeInsets.fromLTRB(20, 0, 20, 12),
+        child: Row(children: [
+          Container(width: 3, height: 20,
+              decoration: BoxDecoration(
+                  color: kGold,
+                  borderRadius: BorderRadius.circular(2),
+                  boxShadow: [BoxShadow(color: kGold.withValues(alpha: 0.6), blurRadius: 6)])),
+          const SizedBox(width: 10),
+          Text(t, style: const TextStyle(
+              color: Colors.white, fontSize: 16, fontWeight: FontWeight.w700, letterSpacing: 0.3)),
+        ]),
+      );
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+      body: SafeArea(
+        child: Column(children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(20, 14, 12, 0),
+            child: Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
+              const _GorealWordmark(),
+              TextButton(
+                onPressed: () => exitGuestMode(context),
+                child: const Text('Σύνδεση / Εγγραφή',
+                    style: TextStyle(color: kGold, fontWeight: FontWeight.w700, fontSize: 13)),
+              ),
+            ]),
+          ),
+          Expanded(
+            child: ListView(padding: const EdgeInsets.only(top: 12, bottom: 32), children: [
+              Padding(
+                padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
+                child: Text('Βρες τον κατάλληλο επαγγελματία για κάθε δουλειά.',
+                    style: TextStyle(fontFamily: 'Inter', color: _g(0.85), fontSize: 15, height: 1.4)),
+              ),
+              const _SearchSpecificProSection(),
+              _sectionTitle('Δημοφιλείς υπηρεσίες'),
+              SizedBox(
+                height: 90,
+                child: ListView(
+                  scrollDirection: Axis.horizontal,
+                  padding: const EdgeInsets.symmetric(horizontal: 20),
+                  children: _services.map((c) => GestureDetector(
+                    onTap: () => showGuestSignInPrompt(context,
+                        reason: 'Για να στείλεις αίτημα για «${c['label']}» και να λάβεις προσφορές, φτιάξε δωρεάν λογαριασμό.'),
+                    child: Container(
+                      width: 80,
+                      margin: const EdgeInsets.only(right: 10),
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(16),
+                        gradient: LinearGradient(
+                            begin: Alignment.topLeft, end: Alignment.bottomRight,
+                            colors: [kGold.withValues(alpha: 0.08), const Color(0xFF0A0A18)]),
+                        border: Border.all(color: kGold.withValues(alpha: 0.18)),
+                      ),
+                      child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
+                        Text(c['emoji']!, style: const TextStyle(fontSize: 26)),
+                        const SizedBox(height: 6),
+                        Text(c['label']!, textAlign: TextAlign.center, maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(fontSize: 9, color: _g(0.75), fontWeight: FontWeight.w600)),
+                      ]),
+                    ),
+                  )).toList(),
+                ),
+              ),
+              const SizedBox(height: 28),
+              _sectionTitle('Προτεινόμενοι Επαγγελματίες'),
+              const _NearbyProsSection(),
+              const SizedBox(height: 28),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 20),
+                child: SizedBox(
+                  width: double.infinity, height: 52,
+                  child: ElevatedButton(
+                    onPressed: () => exitGuestMode(context),
+                    style: ElevatedButton.styleFrom(
+                        backgroundColor: kGold, foregroundColor: Colors.black,
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18))),
+                    child: const Text('Δημιούργησε δωρεάν λογαριασμό',
+                        style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
+                  ),
+                ),
+              ),
+            ]),
+          ),
+        ]),
       ),
     );
   }
@@ -16189,20 +16402,28 @@ class _ProPublicProfileScreenState extends State<_ProPublicProfileScreen> {
 
   Future<void> _fetchAll() async {
     try {
-      final usersSnap = await FirebaseFirestore.instance.collection('users').doc(widget.proId).get();
+      // Επισκέπτης (χωρίς σύνδεση): το users/{id} δεν διαβάζεται και δεν
+      // γίνονται εγγραφές — μόνο ανάγνωση των δημόσιων δεδομένων.
+      final isGuest = FirebaseAuth.instance.currentUser == null;
+      DocumentSnapshot<Map<String, dynamic>>? usersSnap;
+      if (!isGuest) {
+        try {
+          usersSnap = await FirebaseFirestore.instance.collection('users').doc(widget.proId).get();
+        } catch (_) {}
+      }
       final prosSnap = await FirebaseFirestore.instance.collection('professionals').doc(widget.proId).get();
       final reviewsSnap = await FirebaseFirestore.instance.collection('reviews').where('proId', isEqualTo: widget.proId).limit(20).get();
       // Sync afm from users → professionals for legacy accounts (runs silently in background)
       final afmInPros = ((prosSnap.data() ?? {})['afm'] as String? ?? '').trim();
-      final afmInUsers = ((usersSnap.data() ?? {})['afm'] as String? ?? '').trim();
-      if (afmInPros.isEmpty && afmInUsers.isNotEmpty) {
+      final afmInUsers = ((usersSnap?.data() ?? {})['afm'] as String? ?? '').trim();
+      if (!isGuest && afmInPros.isEmpty && afmInUsers.isNotEmpty) {
         FirebaseFirestore.instance.collection('professionals').doc(widget.proId)
             .set({'afm': afmInUsers}, SetOptions(merge: true));
       }
       // Migrate legacy reviews: read from professionals/{proId}/selectedProfessionals subcollection via users
       // Since we can't collectionGroup without index, we read from the pro's own users doc
       // which stores myRating. Instead, read legacy from professionals doc fields.
-      if (reviewsSnap.docs.isEmpty) {
+      if (!isGuest && reviewsSnap.docs.isEmpty) {
         try {
           final prosData = prosSnap.data() ?? {};
           final lastRating = (prosData['lastRating'] as num?)?.toInt() ?? 0;
@@ -16223,7 +16444,7 @@ class _ProPublicProfileScreenState extends State<_ProPublicProfileScreen> {
           }
         } catch (_) {}
       }
-      final d = usersSnap.data() ?? {};
+      final d = usersSnap?.data() ?? {};
       final dp = prosSnap.data() ?? {};
       final merged = <String, dynamic>{..._data, ...d, ...dp};
 
@@ -16800,7 +17021,11 @@ class _ProPublicProfileScreenState extends State<_ProPublicProfileScreen> {
                       GestureDetector(
                         onTap: () async {
                           final user = FirebaseAuth.instance.currentUser;
-                          if (user == null) return;
+                          if (user == null) {
+                            showGuestSignInPrompt(context,
+                                reason: 'Για να επικοινωνήσεις με τον επαγγελματία χρειάζεσαι δωρεάν λογαριασμό.');
+                            return;
+                          }
                           final userDoc = await FirebaseFirestore.instance.collection('users').doc(user.uid).get();
                           final userName = userDoc.data()?['name'] as String? ?? 'Χρήστης';
                           final proName = _data['name'] as String? ?? 'Επαγγελματίας';

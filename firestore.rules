@@ -205,8 +205,9 @@ service cloud.firestore {
 
     // ─── REVIEWS ──────────────────────────────────────────
     match /reviews/{reviewId} {
-      // Anyone logged in can read reviews (shown on pro profiles)
-      allow read: if request.auth != null;
+      // Public: reviews are shown on pro profiles, incl. to guests browsing
+      // without an account (Apple Guideline 5.1.1(v))
+      allow read: if true;
       // Only the reviewer (userId) can create their review
       allow create: if request.auth != null
                     && request.resource.data.userId == request.auth.uid;
