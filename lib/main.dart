@@ -28,6 +28,7 @@ import 'package:firebase_storage/firebase_storage.dart';
 import 'package:firebase_crashlytics/firebase_crashlytics.dart';
 import 'package:flutter/foundation.dart' show kIsWeb, defaultTargetPlatform, TargetPlatform;
 import 'package:app_badge_plus/app_badge_plus.dart';
+import 'package:in_app_update/in_app_update.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 
@@ -2988,6 +2989,47 @@ class _GorealWordmark extends StatelessWidget {
 }
 
 // ═══════════════════════════════════════
+// ΕΝΗΜΕΡΩΣΗ ΕΦΑΡΜΟΓΗΣ (Android / Google Play in-app update)
+// ═══════════════════════════════════════
+// Ελέγχει στο άνοιγμα της αρχικής αν υπάρχει νεότερη έκδοση στο Play· αν ναι,
+// την κατεβάζει στο παρασκήνιο (flexible) και δείχνει κουμπί επανεκκίνησης.
+// Έτσι οι επαγγελματίες δεν μένουν σε παλιά έκδοση με γνωστά bugs. Μόνο για
+// εγκαταστάσεις από το Play (αλλιώς το checkForUpdate αποτυγχάνει σιωπηλά).
+class AppUpdateService {
+  static bool _checked = false;
+
+  static Future<void> check(BuildContext context) async {
+    if (_checked || kIsWeb || defaultTargetPlatform != TargetPlatform.android) return;
+    _checked = true;
+    try {
+      final info = await InAppUpdate.checkForUpdate();
+      if (info.installStatus == InstallStatus.downloaded) {
+        if (context.mounted) _showRestart(context);
+        return;
+      }
+      if (info.updateAvailability != UpdateAvailability.updateAvailable ||
+          !info.flexibleUpdateAllowed) {
+        return;
+      }
+      final result = await InAppUpdate.startFlexibleUpdate();
+      if (result == AppUpdateResult.success && context.mounted) _showRestart(context);
+    } catch (_) {}
+  }
+
+  static void _showRestart(BuildContext context) {
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+      content: const Text('Κατέβηκε νέα έκδοση του GorealPro.'),
+      duration: const Duration(minutes: 5),
+      action: SnackBarAction(
+        label: 'ΕΠΑΝΕΚΚΙΝΗΣΗ',
+        textColor: kGold,
+        onPressed: () => InAppUpdate.completeFlexibleUpdate(),
+      ),
+    ));
+  }
+}
+
+// ═══════════════════════════════════════
 // ΕΠΙΣΚΕΠΤΗΣ (iOS) — περιήγηση χωρίς λογαριασμό
 // ═══════════════════════════════════════
 // Βγαίνει από τη λειτουργία επισκέπτη και πηγαίνει στην οθόνη εισόδου/εγγραφής.
@@ -3247,6 +3289,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     _loadPopularServices();
     _setOnline(true);
     WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) AppUpdateService.check(context);
       final uid = FirebaseAuth.instance.currentUser?.uid ?? '';
       if (uid.isNotEmpty && mounted) {
         ReminderService.startChecking(context, uid);
