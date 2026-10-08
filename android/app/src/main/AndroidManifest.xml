@@ -34,6 +34,14 @@
     <uses-permission android:name="android.permission.RECORD_AUDIO"/>
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE"/>
 
+    <!-- Without these, Google Play auto-hides the app from search/install on any
+         device lacking a camera, microphone, or fingerprint sensor (implied by the
+         permissions above) — the app works fine without them (password login etc). -->
+    <uses-feature android:name="android.hardware.camera" android:required="false"/>
+    <uses-feature android:name="android.hardware.camera.autofocus" android:required="false"/>
+    <uses-feature android:name="android.hardware.microphone" android:required="false"/>
+    <uses-feature android:name="android.hardware.fingerprint" android:required="false"/>
+
     <!-- Required for opening external browser links (Android 11+) -->
     <queries>
         <intent>

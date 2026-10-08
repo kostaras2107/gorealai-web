@@ -22,11 +22,22 @@ const PROFESSIONS = [
   'Τεχνικός Ανελκυστήρων', 'Υαλουργός', 'Υδραυλικός', 'Υπηρεσία Αποξήλωσης',
   'Smart Home Συστήματα Ασφαλείας', 'Ξυλουργός', 'Ψυκτικός',
 ];
-const CITIES = ['Αθήνα', 'Θεσσαλονίκη', 'Πάτρα'];
+// Δήμοι Αττικής (ίδια λίστα με την εφαρμογή/admin panel)
+const CITIES = [
+  'Αθήνα', 'Βύρωνας', 'Γαλάτσι', 'Δάφνη-Υμηττός', 'Ζωγράφου', 'Ηλιούπολη', 'Καισαριανή', 'Φιλαδέλφεια-Χαλκηδόνα',
+  'Άλιμος', 'Αργυρούπολη-Ελληνικό', 'Γλυφάδα', 'Βούλα', 'Βουλιαγμένη', 'Καλλιθέα', 'Μοσχάτο-Ταύρος', 'Νέα Σμύρνη', 'Παλαιό Φάληρο',
+  'Αγία Παρασκευή', 'Αμαρούσιο', 'Βριλήσσια', 'Ηράκλειο Αττικής', 'Κηφισιά', 'Λυκόβρυση-Πεύκη', 'Μεταμόρφωση', 'Νέα Ιωνία', 'Παπάγου-Χολαργός', 'Πεντέλη', 'Φιλοθέη-Ψυχικό', 'Χαλάνδρι',
+  'Αγία Βαρβάρα', 'Αγίων Αναργύρων-Καματερό', 'Αιγάλεω', 'Ίλιον', 'Κορυδαλλός', 'Περιστέρι', 'Πετρούπολη', 'Χαϊδάρι',
+  'Πειραιάς', 'Κερατσίνι-Δραπετσώνα', 'Νίκαια-Αγ.Ιω.Ρέντης', 'Πέραμα', 'Σαλαμίνα',
+  'Ανθούσα', 'Αχαρνές', 'Γέρακας', 'Διόνυσος', 'Κρυονέρι', 'Μαραθώνας', 'Μαρκόπουλο', 'Παιανία', 'Παλλήνη', 'Ραφήνα-Πικέρμι', 'Σπάτα-Αρτέμιδα', 'Ωρωπός',
+  'Ασπρόπυργος', 'Ελευσίνα', 'Μάνδρα-Ειδυλλία', 'Μέγαρα', 'Νέα Πέραμος',
+  'Κορωπί', 'Λαύριο', 'Σαρωνικός',
+];
 
 const SEARCHES = PROFESSIONS.flatMap((p) => CITIES.map((c) => [p, c]));
 
-const RESULTS_PER_SEARCH = 10;
+const RESULTS_PER_SEARCH = 6;
+const TARGET_TOTAL_LEADS = 520; // σταματάει νωρίτερα μόλις φτάσει εδώ, για έλεγχο κόστους/χρόνου
 const EMAIL_BLOCKLIST = /wixpress|sentry|example\.(com|org)|godaddy|schema\.org|w3\.org|gstatic|google-analytics|cloudflare|yourdomain|@2x|\.(png|jpg|jpeg|gif|svg|webp)$/i;
 
 async function textSearch(query) {
@@ -83,8 +94,10 @@ async function main() {
     fs.writeFileSync('pro_leads.csv', csv, 'utf8');
   };
 
+  searchLoop:
   for (const [profession, city] of SEARCHES) {
-    console.log(`\n🔍 Αναζήτηση: ${profession} ${city}`);
+    if (leads.length >= TARGET_TOTAL_LEADS) break;
+    console.log(`\n🔍 Αναζήτηση: ${profession} ${city} (σύνολο μέχρι τώρα: ${leads.length})`);
     let results = [];
     try {
       results = await textSearch(`${profession} ${city}`);
@@ -93,28 +106,26 @@ async function main() {
       continue;
     }
     for (const p of results) {
+      if (leads.length >= TARGET_TOTAL_LEADS) break searchLoop;
       if (seen.has(p.place_id)) continue;
       seen.add(p.place_id);
-      await sleep(300);
+      await sleep(200);
       try {
         const details = await placeDetails(p.place_id);
-        let email = null;
-        if (details.website) {
-          email = await findEmailFromWebsite(details.website);
-        }
+        // Παραλείπουμε το scraping email από ιστοσελίδες σε αυτό το run —
+        // προτεραιότητα είναι τα τηλέφωνα για κλήσεις, όχι μαζικά emails.
         leads.push({
           profession, city,
           name: details.name || p.name || '',
           address: details.formatted_address || p.formatted_address || '',
           phone: details.formatted_phone_number || '',
           website: details.website || '',
-          email: email || '',
+          email: '',
         });
-        console.log(`  ${email ? '✅' : '❌'} ${details.name || p.name} ${email ? '→ ' + email : '(χωρίς email)'}`);
+        console.log(`  ✅ ${details.name || p.name} | ${details.formatted_phone_number || 'χωρίς τηλέφωνο'}`);
       } catch (e) {
         console.error(`  ⚠️ Σφάλμα στο ${p.name} (${e.message}) — προσπερνάω`);
       }
-      await sleep(500);
     }
     saveCsv(); // αποθήκευση προοδευτικά ώστε να μη χαθεί τίποτα σε τυχόν κράσαρισμα
   }
