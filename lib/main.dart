@@ -5061,7 +5061,7 @@ class _BottomNav extends StatelessWidget {
               Row(
                   children: [
                     Expanded(child: Center(child: _HNavItem(icon: Icons.home_rounded, label: 'Αρχική',
-                        active: navIndex == 0, onTap: onHome))),
+                        active: navIndex == 0, onTap: onHome, showLabel: false))),
 
                     // Μηνύματα με unread badge
                     Expanded(child: Center(child: Stack(clipBehavior: Clip.none, children: [
@@ -15968,8 +15968,9 @@ class _SearchSpecificProSectionState extends State<_SearchSpecificProSection> {
                     color: kGold, fontSize: 9, fontWeight: FontWeight.w800, letterSpacing: 1.5))),
           ]),
           const SizedBox(height: 12),
+          // Ίδιο μέγεθος/στυλ με το "Γνωρίζεις την ανάγκη σου;"
           const Text('Ψάχνεις κάποιον συγκεκριμένο επαγγελματία;',
-              style: TextStyle(fontFamily: 'Inter', color: Colors.white, fontSize: 19,
+              style: TextStyle(fontFamily: 'Inter', color: Colors.white, fontSize: 28,
                   fontWeight: FontWeight.w800, height: 1.2)),
           const SizedBox(height: 14),
           Row(children: [
@@ -16063,14 +16064,14 @@ class _PremiumPickerField extends StatelessWidget {
           const SizedBox(width: 8),
           Expanded(
             child: Column(crossAxisAlignment: CrossAxisAlignment.start, mainAxisSize: MainAxisSize.min, children: [
-              Text(label, style: TextStyle(
-                  color: Colors.black.withValues(alpha: 0.55), fontSize: 9,
-                  fontWeight: FontWeight.w800, letterSpacing: 0.6)),
+              Text(label, style: const TextStyle(
+                  color: Colors.black, fontSize: 9,
+                  fontWeight: FontWeight.w900, letterSpacing: 0.6)),
               const SizedBox(height: 2),
               Text(value ?? placeholder, maxLines: 1, overflow: TextOverflow.ellipsis,
                   style: TextStyle(
-                      color: hasValue ? Colors.black : Colors.black.withValues(alpha: 0.45),
-                      fontSize: 13, fontWeight: FontWeight.w800)),
+                      color: hasValue ? Colors.black : Colors.black.withValues(alpha: 0.85),
+                      fontSize: 13, fontWeight: FontWeight.w900)),
             ]),
           ),
           Icon(Icons.keyboard_arrow_down_rounded,
