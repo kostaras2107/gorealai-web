@@ -653,7 +653,10 @@ const Map<String, List<String>> _areaSectors = {
   'ανατολική αττική': ['ανθούσα', 'αχαρνές', 'γέρακας', 'διόνυσος', 'κρυονέρι', 'μαραθώνας', 'μαρκόπουλο', 'παιανία', 'παλλήνη', 'ραφήνα-πικέρμι', 'σπάτα-αρτέμιδα', 'ωρωπός'],
   'δυτική αττική': ['ασπρόπυργος', 'ελευσίνα', 'μάνδρα-ειδυλλία', 'μέγαρα', 'νέα πέραμος'],
   'νότια αττική': ['κορωπί', 'λαύριο', 'σαρωνικός'],
-  'θεσσαλονίκη': ['θεσσαλονίκη', 'βόλβη', 'δέλτα', 'εχέδωρος', 'θέρμη', 'καλαμαριά', 'κορδελιό-ευόσμος', 'λαγκαδάς', 'νεάπολη-συκιές', 'παύλος μελάς', 'πυλαία-χορτιάτης', 'σταυρούπολη', 'ωραιόκαστρο', 'νέα μηχανιώνα'],
+  'θεσσαλονίκη - κέντρο': ['θεσσαλονίκη', 'νεάπολη-συκιές'],
+  'θεσσαλονίκη - ανατολικά': ['καλαμαριά', 'πυλαία-χορτιάτης', 'θέρμη', 'νέα μηχανιώνα'],
+  'θεσσαλονίκη - δυτικά': ['αμπελόκηποι-μενεμένη', 'κορδελιό-ευόσμος', 'σταυρούπολη', 'παύλος μελάς', 'ωραιόκαστρο', 'χαλκηδόνα', 'δέλτα', 'εχέδωρος'],
+  'θεσσαλονίκη - περιφέρεια': ['λαγκαδάς', 'βόλβη'],
 };
 
 final Map<String, String> _areaToSector = {
@@ -664,7 +667,13 @@ final Map<String, String> _areaToSector = {
 // proAreasLower / reqLocLower: όλα σε lowercase.
 bool _areaMatchesRequest(Iterable<String> proAreasLower, String reqLocLower) {
   if (proAreasLower.isEmpty || reqLocLower.isEmpty || reqLocLower == 'κοντά μου') return true;
-  if (proAreasLower.any((a) => a.contains(reqLocLower) || reqLocLower.contains(a))) return true;
+  // Οι τομείς ταιριάζουν ΜΟΝΟ μέσω των δήμων τους — όχι με substring, αλλιώς
+  // ο τομέας "θεσσαλονίκη - ανατολικά" θα "περιείχε" τον δήμο "θεσσαλονίκη"
+  // και θα έπαιρνε και αιτήματα του Κέντρου.
+  if (proAreasLower.any((a) => !_areaSectors.containsKey(a) &&
+      (a.contains(reqLocLower) || reqLocLower.contains(a)))) {
+    return true;
+  }
   final sector = _areaToSector[reqLocLower];
   if (sector == null) return false;
   return proAreasLower.any((a) => a == sector || _areaToSector[a] == sector);
@@ -2515,6 +2524,19 @@ const List<String> _atticaSectors = [
   'Κεντρικά Προάστια', 'Νότια Προάστια', 'Βόρεια Προάστια', 'Δυτικά Προάστια',
   'Πειραιάς & Νησιά', 'Ανατολική Αττική', 'Δυτική Αττική', 'Νότια Αττική',
 ];
+const List<String> _thessalonikiSectors = [
+  'Θεσσαλονίκη - Κέντρο', 'Θεσσαλονίκη - Ανατολικά',
+  'Θεσσαλονίκη - Δυτικά', 'Θεσσαλονίκη - Περιφέρεια',
+];
+
+// Οι δήμοι ενός τομέα με την κανονική τους γραφή (από τη λίστα δήμων), για
+// τον υπότιτλο κάτω από κάθε τομέα και για την αναζήτηση.
+List<String> _sectorTowns(String sector) {
+  final towns = _areaSectors[sector.toLowerCase()] ?? const <String>[];
+  return towns.map((t) => _greekAreasSorted.firstWhere(
+      (a) => a.toLowerCase() == t,
+      orElse: () => t.isEmpty ? t : t[0].toUpperCase() + t.substring(1))).toList();
+}
 
 class _MultiAreaPicker extends StatefulWidget {
   final List<String> initial;
@@ -2534,7 +2556,22 @@ class _MultiAreaPickerState extends State<_MultiAreaPicker> {
     return items.where((a) => _normalizeForSearch(a).contains(q)).toList();
   }
 
-  Widget _row(String area) {
+  // Τομείς: ταιριάζουν στην αναζήτηση και με το όνομά τους και με τους
+  // δήμους τους (π.χ. "Καλαμαριά" → "Θεσσαλονίκη - Ανατολικά").
+  List<String> _filterSectors(List<String> sectors) {
+    if (_query.isEmpty) return sectors;
+    final q = _normalizeForSearch(_query);
+    return sectors.where((s) => _normalizeForSearch(s).contains(q) ||
+        _sectorTowns(s).any((t) => _normalizeForSearch(t).contains(q))).toList();
+  }
+
+  Widget _sectorHeader(String text) => Padding(
+    padding: const EdgeInsets.only(bottom: 8, top: 4),
+    child: Text(text,
+        style: TextStyle(fontFamily: 'Inter', fontSize: 9, letterSpacing: 2, color: kGold.withValues(alpha: 0.5))),
+  );
+
+  Widget _row(String area, {String? subtitle}) {
     final isSel = _selected.contains(area);
     return GestureDetector(
       onTap: () => setState(() => isSel ? _selected.remove(area) : _selected.add(area)),
@@ -2559,15 +2596,25 @@ class _MultiAreaPickerState extends State<_MultiAreaPicker> {
             child: isSel ? const Icon(Icons.check, color: Colors.black, size: 13) : null,
           ),
           const SizedBox(width: 12),
-          Text(area, style: TextStyle(color: isSel ? kGold : Colors.white, fontSize: 14, fontWeight: isSel ? FontWeight.w600 : FontWeight.w400)),
+          Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Text(area, style: TextStyle(color: isSel ? kGold : Colors.white, fontSize: 14, fontWeight: isSel ? FontWeight.w600 : FontWeight.w400)),
+            if (subtitle != null) ...[
+              const SizedBox(height: 3),
+              Text(subtitle, style: TextStyle(color: _g(0.4), fontSize: 11, height: 1.3)),
+            ],
+          ])),
         ]),
       ),
     );
   }
 
+  Widget _sectorRow(String sector) => _row(sector, subtitle: _sectorTowns(sector).join(', '));
+
   @override
   Widget build(BuildContext context) {
-    final sectors = _filter(_atticaSectors);
+    final atticaSectors = _filterSectors(_atticaSectors);
+    final thessSectors = _filterSectors(_thessalonikiSectors);
+    final hasSectors = atticaSectors.isNotEmpty || thessSectors.isNotEmpty;
     final areas = _filter(_greekAreasSorted);
     return _PickerContainer(
     title: 'Περιοχές εργασίας',
@@ -2594,15 +2641,16 @@ class _MultiAreaPickerState extends State<_MultiAreaPicker> {
       Expanded(child: ListView(
       padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
       children: [
-        if (sectors.isNotEmpty) ...[
-          Padding(
-            padding: const EdgeInsets.only(bottom: 8, top: 4),
-            child: Text('ΤΟΜΕΙΣ (καλύπτουν πολλούς δήμους)',
-                style: TextStyle(fontFamily: 'Inter', fontSize: 9, letterSpacing: 2, color: kGold.withValues(alpha: 0.5))),
-          ),
-          ...sectors.map(_row),
+        if (atticaSectors.isNotEmpty) ...[
+          _sectorHeader('ΤΟΜΕΙΣ ΑΤΤΙΚΗΣ (καλύπτουν πολλούς δήμους)'),
+          ...atticaSectors.map(_sectorRow),
         ],
-        if (sectors.isNotEmpty && areas.isNotEmpty)
+        if (thessSectors.isNotEmpty) ...[
+          if (atticaSectors.isNotEmpty) const SizedBox(height: 10),
+          _sectorHeader('ΤΟΜΕΙΣ ΘΕΣΣΑΛΟΝΙΚΗΣ (καλύπτουν πολλούς δήμους)'),
+          ...thessSectors.map(_sectorRow),
+        ],
+        if (hasSectors && areas.isNotEmpty)
           const Padding(
             padding: EdgeInsets.symmetric(vertical: 14),
             child: Divider(color: Colors.white12, height: 1),

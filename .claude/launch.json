@@ -14,6 +14,12 @@
       "port": 5501
     },
     {
+      "name": "web-build-preview",
+      "runtimeExecutable": "npx",
+      "runtimeArgs": ["serve", "-s", "build/web", "-l", "5503"],
+      "port": 5503
+    },
+    {
       "name": "business-cards",
       "runtimeExecutable": "npx",
       "runtimeArgs": ["serve", "landing", "-l", "5502"],
