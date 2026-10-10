@@ -414,7 +414,7 @@
       // Sort newest first in JS
       allRequests.sort((a, b) => (b.createdAt?.seconds||0) - (a.createdAt?.seconds||0));
       document.getElementById('stat-requests').textContent = allRequests.length;
-      const bookingCount = allRequests.filter(r => r.selectedPro).length;
+      const bookingCount = allRequests.filter(r => reqStatus(r) === 'selected').length;
       document.getElementById('stat-bookings').textContent = bookingCount;
       // Populate specialty filter
       const specs = [...new Set(allRequests.map(r => r.profession || r.specialty).filter(Boolean))].sort((a,b)=>a.localeCompare(b,'el'));
@@ -431,16 +431,23 @@
     }
   }
 
+  // Κατάσταση αιτήματος για το admin. Με το booking η εφαρμογή γράφει
+  // status 'completed' ΚΑΙ dismissed: true (για να κρυφτεί η κάρτα από τον
+  // πελάτη) — άρα το 'completed' ελέγχεται ΠΡΙΝ το dismissed, αλλιώς τα
+  // bookings εμφανίζονταν ως "Ακυρώθηκε".
+  function reqStatus(r) {
+    if (r.selectedPro || r.status === 'completed') return 'selected';
+    if (r.status === 'cancelled' || r.dismissed) return 'dismissed';
+    if (r.status === 'expired') return 'expired';
+    return 'pending';
+  }
+
   window.renderRequests = function() {
     const statusF = document.getElementById('req-filter-status').value;
     const specF = document.getElementById('req-filter-spec').value;
     const searchF = document.getElementById('req-filter-search').value.toLowerCase();
     let filtered = allRequests.filter(r => {
-      const status = r.selectedPro ? 'selected'
-        : (r.dismissed || r.status === 'cancelled') ? 'dismissed'
-        : r.status === 'completed' ? 'selected'
-        : r.status === 'expired' ? 'expired'
-        : 'pending';
+      const status = reqStatus(r);
       if (statusF && status !== statusF) return false;
       if (specF && (r.profession || r.specialty) !== specF) return false;
       if (searchF && !(r.userName||r.userId||'').toLowerCase().includes(searchF)) return false;
@@ -454,11 +461,7 @@
     document.getElementById('requests-table').style.display = 'table';
     document.getElementById('requests-empty').style.display = 'none';
     document.getElementById('requests-tbody').innerHTML = filtered.map((r, i) => {
-      const status = r.selectedPro ? 'selected'
-        : (r.dismissed || r.status === 'cancelled') ? 'dismissed'
-        : r.status === 'completed' ? 'selected'
-        : r.status === 'expired' ? 'expired'
-        : 'pending';
+      const status = reqStatus(r);
       const statusBadge = status === 'selected'
         ? '<span style="background:#0d2b1a;color:#2ecc71;border-radius:6px;padding:3px 10px;font-size:12px">✅ Booking</span>'
         : status === 'dismissed'
