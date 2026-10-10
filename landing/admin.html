@@ -192,7 +192,7 @@
 
     <div class="section-title" style="margin-top:32px;margin-bottom:12px">📋 Αιτήματα Χρηστών</div>
     <div class="filter-row" style="margin-bottom:12px">
-      <select id="req-filter-status" onchange="renderRequests()"><option value="">Όλες οι καταστάσεις</option><option value="pending">Σε αναμονή</option><option value="selected">Booking</option><option value="expired">Έληξε</option><option value="dismissed">Ακυρωμένο</option></select>
+      <select id="req-filter-status" onchange="renderRequests()"><option value="">Όλες οι καταστάσεις</option><option value="pending">Σε αναμονή</option><option value="selected">Booking</option><option value="expired">Έληξε</option><option value="closed">Κλείστηκε (χωρίς booking)</option><option value="dismissed">Ακυρωμένο</option></select>
       <select id="req-filter-spec" onchange="renderRequests()"><option value="">Όλες οι ειδικότητες</option></select>
       <input type="text" id="req-filter-search" placeholder="Αναζήτηση χρήστη..." oninput="renderRequests()" style="min-width:180px">
     </div>
@@ -409,7 +409,11 @@
 
   async function loadRequests() {
     try {
-      const snap = await getDocs(collection(db, 'requests'));
+      const [snap, bookSnap] = await Promise.all([
+        getDocs(collection(db, 'requests')),
+        getDocs(collection(db, 'bookings')).catch(() => null),
+      ]);
+      bookedRequestIds = new Set(bookSnap ? bookSnap.docs.map(d => d.data().requestId).filter(Boolean) : []);
       allRequests = snap.docs.map(d => ({ id: d.id, ...d.data() }));
       // Sort newest first in JS
       allRequests.sort((a, b) => (b.createdAt?.seconds||0) - (a.createdAt?.seconds||0));
@@ -431,13 +435,15 @@
     }
   }
 
-  // Κατάσταση αιτήματος για το admin. Με το booking η εφαρμογή γράφει
-  // status 'completed' ΚΑΙ dismissed: true (για να κρυφτεί η κάρτα από τον
-  // πελάτη) — άρα το 'completed' ελέγχεται ΠΡΙΝ το dismissed, αλλιώς τα
-  // bookings εμφανίζονταν ως "Ακυρώθηκε".
+  // Κατάσταση αιτήματος για το admin. Η εφαρμογή γράφει status 'completed' +
+  // dismissed: true ΚΑΙ όταν γίνει booking ΚΑΙ όταν ο πελάτης πατήσει απλώς
+  // "Κλείσιμο" — άρα "Booking" μόνο αν υπάρχει πραγματική κράτηση (έγγραφο στο
+  // bookings με αυτό το requestId, ή selectedPro).
+  let bookedRequestIds = new Set();
   function reqStatus(r) {
-    if (r.selectedPro || r.status === 'completed') return 'selected';
-    if (r.status === 'cancelled' || r.dismissed) return 'dismissed';
+    if (r.selectedPro || bookedRequestIds.has(r.id)) return 'selected';
+    if (r.status === 'cancelled') return 'dismissed';
+    if (r.status === 'completed' || r.dismissed) return 'closed';
     if (r.status === 'expired') return 'expired';
     return 'pending';
   }
@@ -466,6 +472,8 @@
         ? '<span style="background:#0d2b1a;color:#2ecc71;border-radius:6px;padding:3px 10px;font-size:12px">✅ Booking</span>'
         : status === 'dismissed'
         ? '<span style="background:#2b0d0d;color:#e74c3c;border-radius:6px;padding:3px 10px;font-size:12px">Ακυρώθηκε</span>'
+        : status === 'closed'
+        ? `<span style="background:#1a1a1a;color:#aaa;border-radius:6px;padding:3px 10px;font-size:12px">Κλείστηκε${(r.offersCount||0) > 0 ? ` · ${r.offersCount} προσφ.` : ' · 0 προσφ.'}</span>`
         : status === 'expired'
         ? '<span style="background:#1a1a1a;color:#888;border-radius:6px;padding:3px 10px;font-size:12px">⏱ Έληξε</span>'
         : '<span style="background:#1a1200;color:#c9a84c;border-radius:6px;padding:3px 10px;font-size:12px">Αναμονή</span>';
