@@ -15968,9 +15968,8 @@ class _SearchSpecificProSectionState extends State<_SearchSpecificProSection> {
                     color: kGold, fontSize: 9, fontWeight: FontWeight.w800, letterSpacing: 1.5))),
           ]),
           const SizedBox(height: 12),
-          // Ίδιο μέγεθος/στυλ με το "Γνωρίζεις την ανάγκη σου;"
           const Text('Ψάχνεις κάποιον συγκεκριμένο επαγγελματία;',
-              style: TextStyle(fontFamily: 'Inter', color: Colors.white, fontSize: 28,
+              style: TextStyle(fontFamily: 'Inter', color: Colors.white, fontSize: 19,
                   fontWeight: FontWeight.w800, height: 1.2)),
           const SizedBox(height: 14),
           Row(children: [
