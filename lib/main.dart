@@ -3946,6 +3946,10 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
           padding: const EdgeInsets.symmetric(horizontal: 20),
           child: _activeRequests.isNotEmpty
               ? _ActiveRequestHeroCard(
+                  // Νέο State για κάθε νέο αίτημα — αλλιώς η κάρτα κρατούσε το
+                  // χρονόμετρο/προσφορές του προηγούμενου και δεν έβγαινε σωστά
+                  // η οθόνη αποτελεσμάτων στη λήξη.
+                  key: ValueKey(_activeRequests.first['id']),
                   requests: _activeRequests,
                   onTap: _openMyOffers,
                 )
@@ -4532,16 +4536,21 @@ class _ActiveRequestHeroCard extends StatefulWidget {
   final List<Map<String, dynamic>> requests;
   final VoidCallback onTap;
   const _ActiveRequestHeroCard({
-    required this.requests, required this.onTap});
+    super.key, required this.requests, required this.onTap});
   @override
   State<_ActiveRequestHeroCard> createState() => _ActiveRequestHeroCardState();
 }
 
 class _ActiveRequestHeroCardState extends State<_ActiveRequestHeroCard> {
   Timer? _timer;
+  StreamSubscription? _offersSub;
   // Track seconds left per request
   final Map<String, int> _secondsLeft = {};
   final Map<String, int> _totalSeconds = {};
+  // Πραγματική ώρα λήξης — ο χρόνος που απομένει υπολογίζεται από το ρολόι σε
+  // κάθε tick (όχι με μείωση ανά δευτερόλεπτο), γιατί στο παρασκήνιο τα ticks
+  // "παγώνουν" και μετά η κάρτα έδειχνε ακόμα countdown ενώ είχε λήξει.
+  final Map<String, DateTime> _expiry = {};
   int _offersCount = 0;
   int _prosNotified = 0;
 
@@ -4552,12 +4561,23 @@ class _ActiveRequestHeroCardState extends State<_ActiveRequestHeroCard> {
     _listenOffers();
     _timer = Timer.periodic(const Duration(seconds: 1), (_) {
       if (!mounted) return;
-      setState(() {
-        for (final key in _secondsLeft.keys.toList()) {
-          if (_secondsLeft[key]! > 0) _secondsLeft[key] = _secondsLeft[key]! - 1;
-        }
-      });
+      setState(_refreshSecondsLeft);
     });
+  }
+
+  void _refreshSecondsLeft() {
+    final now = DateTime.now();
+    for (final e in _expiry.entries) {
+      final diff = e.value.difference(now).inSeconds;
+      _secondsLeft[e.key] = diff > 0 ? diff : 0;
+    }
+  }
+
+  @override
+  void didUpdateWidget(covariant _ActiveRequestHeroCard oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    // Ίδιο αίτημα αλλά ενημερωμένα στοιχεία (π.χ. άλλαξε η λήξη) — ξαναϋπολόγισε.
+    _initTimers();
   }
 
   void _initTimers() {
@@ -4566,6 +4586,7 @@ class _ActiveRequestHeroCardState extends State<_ActiveRequestHeroCard> {
       if (exp != null) {
         try {
           final expDate = (exp as dynamic).toDate() as DateTime;
+          _expiry[req['id']] = expDate;
           final diff = expDate.difference(DateTime.now()).inSeconds;
           _secondsLeft[req['id']] = diff > 0 ? diff : 0;
           // Συνολική διάρκεια (για το progress ring) από createdAt→expiresAt,
@@ -4589,7 +4610,7 @@ class _ActiveRequestHeroCardState extends State<_ActiveRequestHeroCard> {
   void _listenOffers() {
     if (widget.requests.isEmpty) return;
     // Παρακολουθεί offers για το πρώτο αίτημα
-    FirebaseFirestore.instance
+    _offersSub = FirebaseFirestore.instance
         .collection('requests')
         .doc(widget.requests.first['id'])
         .snapshots()
@@ -4608,6 +4629,7 @@ class _ActiveRequestHeroCardState extends State<_ActiveRequestHeroCard> {
   @override
   void dispose() {
     _timer?.cancel();
+    _offersSub?.cancel();
     super.dispose();
   }
 
