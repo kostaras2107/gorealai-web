@@ -1918,9 +1918,16 @@ class _LoginScreenState extends State<LoginScreen>
 
   void _showForgotPasswordDialog() {
     final ctrl = TextEditingController(text: _email.text.trim());
+    bool sending = false;
+    void snack(String msg, Color color) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg), backgroundColor: color));
+    }
+    const successMsg = '✅ Εστάλη email επαναφοράς — έλεγξε και τα Ανεπιθύμητα (spam)';
     showDialog(
       context: context,
-      builder: (ctx) => AlertDialog(
+      barrierDismissible: false,
+      builder: (ctx) => StatefulBuilder(builder: (ctx, setD) => AlertDialog(
         backgroundColor: const Color(0xFF111111),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20), side: BorderSide(color: kGold.withValues(alpha: 0.2))),
         title: const Text('Επαναφορά κωδικού', style: TextStyle(color: Colors.white, fontFamily: 'Inter')),
@@ -1929,6 +1936,7 @@ class _LoginScreenState extends State<LoginScreen>
           const SizedBox(height: 16),
           TextField(
             controller: ctrl,
+            enabled: !sending,
             keyboardType: TextInputType.emailAddress,
             style: const TextStyle(color: Colors.white),
             decoration: InputDecoration(
@@ -1938,40 +1946,74 @@ class _LoginScreenState extends State<LoginScreen>
               border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
             ),
           ),
+          if (sending) ...[
+            const SizedBox(height: 14),
+            const Row(children: [
+              SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2, color: kGold)),
+              SizedBox(width: 10),
+              Expanded(child: Text('Αποστολή… μπορεί να πάρει λίγο', style: TextStyle(color: Colors.white60, fontSize: 12))),
+            ]),
+          ],
         ]),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Άκυρο', style: TextStyle(color: Colors.white54))),
           TextButton(
-            onPressed: () async {
+            onPressed: sending ? null : () => Navigator.pop(ctx),
+            child: Text('Άκυρο', style: TextStyle(color: sending ? Colors.white24 : Colors.white54)),
+          ),
+          TextButton(
+            onPressed: sending ? null : () async {
               final email = ctrl.text.trim();
               if (email.isEmpty) return;
+              setD(() => sending = true);
+              void done() { if (ctx.mounted) Navigator.pop(ctx); }
+              int? status;
               try {
+                // 45s: Render free tier cold start μπορεί να πάρει 30–50s
                 final resp = await http.post(
                   Uri.parse('$kBackendUrl/forgot-password'),
                   headers: {'Content-Type': 'application/json'},
                   body: jsonEncode({'email': email}),
-                ).timeout(const Duration(seconds: 10));
-                if (resp.statusCode == 200) {
-                  if (ctx.mounted) {
-                    Navigator.pop(ctx);
-                    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-                      content: Text('✅ Εστάλη email επαναφοράς κωδικού!'),
-                      backgroundColor: Color(0xFF2ECC71),
-                    ));
-                  }
-                } else {
-                  if (ctx.mounted) ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Δεν βρέθηκε λογαριασμός με αυτό το email.'), backgroundColor: Colors.red));
-                }
-              } catch (e) {
-                if (ctx.mounted) ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Σφάλμα σύνδεσης. Δοκίμασε ξανά.'), backgroundColor: Colors.red));
+                ).timeout(const Duration(seconds: 45));
+                status = resp.statusCode;
+              } catch (_) {
+                status = null; // timeout / δίκτυο → fallback σε Firebase
+              }
+              if (status == 200) {
+                done();
+                snack(successMsg, const Color(0xFF2ECC71));
+                return;
+              }
+              if (status == 404) {
+                if (ctx.mounted) setD(() => sending = false);
+                snack('Δεν βρέθηκε λογαριασμός με αυτό το email.', Colors.red);
+                return;
+              }
+              if (status == 429) {
+                if (ctx.mounted) setD(() => sending = false);
+                snack('Πολλές προσπάθειες, δοκίμασε ξανά σε 1 λεπτό', Colors.orange);
+                return;
+              }
+              // Άλλο σφάλμα ή timeout → fallback στο Firebase reset email
+              try {
+                await FirebaseAuth.instance.sendPasswordResetEmail(email: email);
+                done();
+                snack(successMsg, const Color(0xFF2ECC71));
+              } on FirebaseAuthException catch (e) {
+                if (ctx.mounted) setD(() => sending = false);
+                snack(e.code == 'user-not-found'
+                    ? 'Δεν βρέθηκε λογαριασμός με αυτό το email.'
+                    : e.code == 'invalid-email'
+                        ? 'Μη έγκυρο email.'
+                        : 'Σφάλμα σύνδεσης. Δοκίμασε ξανά.', Colors.red);
+              } catch (_) {
+                if (ctx.mounted) setD(() => sending = false);
+                snack('Σφάλμα σύνδεσης. Δοκίμασε ξανά.', Colors.red);
               }
             },
-            child: const Text('Αποστολή', style: TextStyle(color: kGold)),
+            child: Text('Αποστολή', style: TextStyle(color: sending ? Colors.white24 : kGold)),
           ),
         ],
-      ),
+      )),
     );
   }
 
@@ -9353,19 +9395,33 @@ class _RequestScreenState extends State<RequestScreen>
     // πελάτη από νέα αιτήματα αν το μετρούσαμε).
     final user = FirebaseAuth.instance.currentUser;
     if (user != null) {
-      final existing = await FirebaseFirestore.instance
-          .collection('requests')
-          .where('userId', isEqualTo: user.uid)
-          .where('status', isEqualTo: 'active')
-          .get();
+      final QuerySnapshot<Map<String, dynamic>> existing;
+      try {
+        existing = await FirebaseFirestore.instance
+            .collection('requests')
+            .where('userId', isEqualTo: user.uid)
+            .where('status', isEqualTo: 'active')
+            .get();
+      } catch (e) {
+        // Αλλιώς το κουμπί αποστολής μένει "κλειδωμένο" μέχρι να ξανανοίξει η οθόνη
+        _submitLock = false;
+        if (mounted) {
+          ScaffoldMessenger.of(context)
+              .showSnackBar(SnackBar(content: Text('Σφάλμα: $e')));
+        }
+        return;
+      }
       final now = DateTime.now();
       final stillLive = existing.docs.where((doc) {
         final expiresAt = doc.data()['expiresAt'] as Timestamp?;
         return expiresAt == null || expiresAt.toDate().isAfter(now);
       }).length;
       if (stillLive >= 2) {
-        ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Μπορείς να έχεις μέχρι 2 ενεργά αιτήματα!')));
+        _submitLock = false;
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('Μπορείς να έχεις μέχρι 2 ενεργά αιτήματα!')));
+        }
         return;
       }
     }
