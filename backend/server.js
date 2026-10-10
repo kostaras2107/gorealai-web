@@ -35,6 +35,50 @@ const THESSALONIKI_SECTORS = {
 };
 const ALL_SECTORS = { ...ATTICA_SECTORS, ...THESSALONIKI_SECTORS };
 
+// ── Ειδικότητες που γίνονται και εξ αποστάσεως (online) ─────────────
+// ΙΔΙΕΣ με _teacherSpecialties + _remoteExtraSpecialties στην εφαρμογή.
+const TEACHER_SPECIALTIES = new Set([
+  'καθηγητής αγγλικών', 'καθηγητής βιολογίας', 'καθηγητής γαλλικών', 'καθηγητής γερμανικών',
+  'καθηγητής ιταλικών', 'καθηγητής ισπανικών', 'καθηγητής μαθηματικών', 'καθηγητής πληροφορικής',
+  'καθηγητής φυσικής', 'καθηγητής χημείας', 'personal trainer', 'φιλόλογος',
+]);
+const REMOTE_SPECIALTIES = new Set([
+  ...TEACHER_SPECIALTIES,
+  'web developer', 'γραφίστας', 'ψυχολόγος', 'διατροφολόγος', 'λογιστής',
+  'δικηγόρος', 'personal trainer', 'τεχνικός υπολογιστών', 'φωτογράφος',
+]);
+const REMOTE_DEFAULT_BOTH = new Set(['web developer', 'γραφίστας']);
+
+// Τρόπος εξυπηρέτησης επαγγελματία για μία ειδικότητα: remoteModes[ειδ.] →
+// (καθηγητές) το παλιό ενιαίο teachingMode → προεπιλογή.
+function proRemoteMode(pro, specLower) {
+  const m = pro.remoteModes;
+  if (m && typeof m === 'object') {
+    for (const [k, v] of Object.entries(m)) {
+      if (String(k).toLowerCase().trim() === specLower && typeof v === 'string') return v;
+    }
+  }
+  if (TEACHER_SPECIALTIES.has(specLower) && typeof pro.teachingMode === 'string') return pro.teachingMode;
+  return REMOTE_DEFAULT_BOTH.has(specLower) ? 'both' : 'in_person';
+}
+
+// { allowed, skipArea } για ένα αίτημα profLower με reqMode ('in_person'|'online'|'both').
+function remoteDecision(pro, profLower, reqMode) {
+  const prof = (profLower || '').trim();
+  if (!REMOTE_SPECIALTIES.has(prof)) return { allowed: true, skipArea: false };
+  const specs = (Array.isArray(pro.specialties) && pro.specialties.length ? pro.specialties : [pro.specialty])
+      .filter(Boolean).map(s => String(s).toLowerCase());
+  const matched = specs.filter(s => s.includes(prof) || prof.includes(s));
+  const modes = matched.length ? matched.map(s => proRemoteMode(pro, s.trim()))
+      : [REMOTE_DEFAULT_BOTH.has(prof) ? 'both' : 'in_person'];
+  const canOnline = modes.some(m => m === 'online' || m === 'both');
+  const canInPerson = modes.some(m => m === 'in_person' || m === 'both');
+  const mode = reqMode || 'in_person';
+  if (mode === 'online') return { allowed: canOnline, skipArea: true };
+  if (mode === 'both' && canOnline) return { allowed: true, skipArea: true };
+  return { allowed: canInPerson, skipArea: false };
+}
+
 // Αντίστροφος χάρτης: δήμος (lowercase) → τομέας του, για γρήγορο lookup.
 const AREA_TO_SECTOR = {};
 for (const [sector, towns] of Object.entries({ ...ATTICA_SECTORS, ...THESSALONIKI_SECTORS })) {
@@ -1019,15 +1063,13 @@ async function notifyMatchingPros({ profession, location, description, requestId
         }
       }
 
-      // Μαθήματα (καθηγητές/ιδιαίτερα): online καλύπτει όλη την Ελλάδα,
-      // ανεξαρτήτως περιοχής — δια ζώσης συνεχίζει να κοιτάει την περιοχή
-      // όπως πάντα. "both" σημαίνει: ειδοποίησε ΚΑΙ όσους δηλώνουν online
-      // (οπουδήποτε) ΚΑΙ όσους ταιριάζουν με την περιοχή του αιτήματος.
-      const proTeachingMode = d.teachingMode || 'in_person';
-      const proCanOnline = proTeachingMode === 'online' || proTeachingMode === 'both';
-      if (teachingMode === 'online' && !proCanOnline) return;
-      const skipAreaForOnline = teachingMode === 'online' ||
-          (teachingMode === 'both' && proCanOnline);
+      // Online/δια ζώσης ανά ειδικότητα (μαθήματα, Web Developer, Ψυχολόγος
+      // κ.λπ.): online καλύπτει όλη την Ελλάδα, δια ζώσης κοιτάει την περιοχή.
+      // "both" = ειδοποίησε ΚΑΙ όσους κάνουν online (οπουδήποτε) ΚΑΙ όσους
+      // ταιριάζουν με την περιοχή. ΙΔΙΑ λογική με _proLocationOk στην εφαρμογή.
+      const remote = remoteDecision(d, profLower, teachingMode);
+      if (!remote.allowed) return;
+      const skipAreaForOnline = remote.skipArea;
 
       // Match area — συνδυάζει το array (areas) ΚΑΙ το single πεδίο (area),
       // γιατί μπορεί να διαφέρουν (π.χ. το areas να μην έχει ενημερωθεί ποτέ
