@@ -3323,7 +3323,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     // αίτημα (βλ. backend sendExpiryNotification) — αν φιλτράραμε εδώ μόνο
     // 'active', το έγγραφο θα εξαφανιζόταν αμέσως από αυτό το real-time
     // listener την ίδια ακριβώς στιγμή που ο πελάτης παίρνει SMS/email "βρέθηκε
-    // επαγγελματίας!", πριν προλάβει να τρέξει η λογική του 48ωρου grace period
+    // επαγγελματίας!", πριν προλάβει να τρέξει η λογική του 5ήμερου grace period
     // παρακάτω που δείχνει ειδικά αυτή την κάρτα.
     FirebaseFirestore.instance
         .collection('requests')
@@ -3342,11 +3342,13 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
             // ο χρήστης χάνει τελείως αυτή την οθόνη. Το κρύβουμε μόνο αν
             // έχει λήξει εδώ και πολύ ώρα (εγκαταλελειμμένο αίτημα), ώστε να
             // μη μένει για πάντα σαν "ενεργό αίτημα" στην αρχική οθόνη.
+            // 5 ημέρες (όχι 48 ώρες): η κάρτα είναι ο μόνος δρόμος προς τις
+            // προσφορές, και αρκετοί πελάτες μπαίνουν μετά από 2+ μέρες.
             final expiresAt = doc.data()['expiresAt'] as Timestamp?;
             if (expiresAt == null) return true;
             final exp = expiresAt.toDate();
             if (exp.isAfter(now)) return true;
-            return now.difference(exp) < const Duration(hours: 48);
+            return now.difference(exp) < const Duration(days: 5);
           })
           .map((doc) {
         final d = doc.data();
