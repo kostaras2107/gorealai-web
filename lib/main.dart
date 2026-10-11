@@ -11399,6 +11399,104 @@ class _OfferCard extends StatelessWidget {
   String get _proId => (offer['professionalId'] ?? offer['proId'] ?? '').toString();
   String get _photoUrl => (offer['profilePhotoUrl'] ?? '').toString();
 
+  Widget _contactBtn(IconData icon, String label, VoidCallback onTap) => GestureDetector(
+        onTap: onTap,
+        child: Container(
+          height: 42,
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(14),
+            color: kGold.withValues(alpha: 0.08),
+            border: Border.all(color: kGold.withValues(alpha: 0.35)),
+          ),
+          child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [
+            Icon(icon, color: kGold, size: 16),
+            const SizedBox(width: 6),
+            Text(label, style: const TextStyle(color: kGold, fontSize: 12.5, fontWeight: FontWeight.w800)),
+          ]),
+        ),
+      );
+
+  // Κινητό του επαγγελματία: users doc → professionals doc (UID-keyed ή auto-ID).
+  Future<String> _fetchProPhone() async {
+    final fs = FirebaseFirestore.instance;
+    final u = await fs.collection('users').doc(_proId).get();
+    String phone = (u.data()?['phone'] as String? ?? '').trim();
+    if (phone.isEmpty) {
+      final p = await fs.collection('professionals').doc(_proId).get();
+      phone = (p.data()?['phone'] as String? ?? '').trim();
+    }
+    if (phone.isEmpty) {
+      final q = await fs.collection('professionals').where('userId', isEqualTo: _proId).limit(1).get();
+      if (q.docs.isNotEmpty) phone = (q.docs.first.data()['phone'] as String? ?? '').trim();
+    }
+    return phone.replaceAll(RegExp(r'\s+'), '');
+  }
+
+  Future<void> _showPhone(BuildContext context) async {
+    String phone = '';
+    try { phone = await _fetchProPhone(); } catch (_) {}
+    if (!context.mounted) return;
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) => Container(
+        padding: const EdgeInsets.fromLTRB(20, 20, 20, 28),
+        decoration: const BoxDecoration(
+          color: Color(0xFF12100A),
+          borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+        ),
+        child: SafeArea(top: false, child: Column(mainAxisSize: MainAxisSize.min, children: [
+          Text(_name, style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.w800)),
+          const SizedBox(height: 10),
+          Text(phone.isEmpty ? 'Δεν υπάρχει καταχωρημένο κινητό' : phone,
+              style: TextStyle(color: phone.isEmpty ? _g(0.5) : kGold, fontSize: phone.isEmpty ? 14 : 26,
+                  fontWeight: FontWeight.w900, fontFamily: 'Inter', letterSpacing: 1)),
+          const SizedBox(height: 18),
+          if (phone.isNotEmpty)
+            Row(children: [
+              Expanded(child: _PremiumButton(
+                label: '📞 Κλήση',
+                gradient: const LinearGradient(colors: [kGoldLight, kGold]),
+                textColor: Colors.black,
+                fontSize: 13,
+                onTap: () => launchUrl(Uri.parse('tel:$phone')),
+              )),
+              const SizedBox(width: 10),
+              Expanded(child: _PremiumButton(
+                label: 'Αντιγραφή',
+                bgColor: _g(0.06),
+                textColor: _g(0.75),
+                fontSize: 13,
+                onTap: () {
+                  Clipboard.setData(ClipboardData(text: phone));
+                  Navigator.pop(ctx);
+                  ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('Το κινητό αντιγράφηκε')));
+                },
+              )),
+            ]),
+        ])),
+      ),
+    );
+  }
+
+  // Ανοίγει τη συνομιλία με τον επαγγελματία (ίδιο chatId με το προφίλ του).
+  Future<void> _openChat(BuildContext context) async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) return;
+    final userDoc = await FirebaseFirestore.instance.collection('users').doc(user.uid).get();
+    final userName = userDoc.data()?['name'] as String? ?? 'Χρήστης';
+    if (!context.mounted) return;
+    Navigator.push(context, PageRouteBuilder(
+      pageBuilder: (_, __, ___) => ChatScreen(
+        chatId: '${user.uid}_$_proId', currentUserId: user.uid,
+        currentUserName: userName, otherName: _name, isPro: false,
+      ),
+      transitionsBuilder: (_, a, __, c) => FadeTransition(opacity: a, child: c),
+      transitionDuration: const Duration(milliseconds: 300),
+    ));
+  }
+
   @override
   Widget build(BuildContext context) => Container(
         margin: const EdgeInsets.only(bottom: 12),
@@ -11535,6 +11633,16 @@ class _OfferCard extends StatelessWidget {
 
               if ((offer['audioUrl'] as String?)?.isNotEmpty == true) ...[
                 _AudioPlayWidget(url: offer['audioUrl'] as String),
+                const SizedBox(height: 10),
+              ],
+
+              // Τηλέφωνο / Μήνυμα — επικοινωνία πριν την επιλογή επαγγελματία
+              if (_proId.isNotEmpty) ...[
+                Row(children: [
+                  Expanded(child: _contactBtn(Icons.phone_rounded, 'Τηλέφωνο', () => _showPhone(context))),
+                  const SizedBox(width: 10),
+                  Expanded(child: _contactBtn(Icons.chat_bubble_outline_rounded, 'Μήνυμα', () => _openChat(context))),
+                ]),
                 const SizedBox(height: 10),
               ],
 
@@ -16988,6 +17096,49 @@ class _ProPublicProfileScreenState extends State<_ProPublicProfileScreen> {
                     padding: const EdgeInsets.fromLTRB(18, 0, 18, 40),
                     child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
 
+                      // ── CTA: Επικοινωνία — πάνω από το MINI CV, ώστε να φαίνεται
+                      // χωρίς scroll μέχρι το τέλος του προφίλ ──
+                      GestureDetector(
+                        onTap: () async {
+                          final user = FirebaseAuth.instance.currentUser;
+                          if (user == null) {
+                            showGuestSignInPrompt(context,
+                                reason: 'Για να επικοινωνήσεις με τον επαγγελματία χρειάζεσαι δωρεάν λογαριασμό.');
+                            return;
+                          }
+                          final userDoc = await FirebaseFirestore.instance.collection('users').doc(user.uid).get();
+                          final userName = userDoc.data()?['name'] as String? ?? 'Χρήστης';
+                          final proName = _data['name'] as String? ?? 'Επαγγελματίας';
+                          // Use Auth UID (userId field) so badge query matches
+                          final proUid = (_data['userId'] ?? widget.proId) as String;
+                          final chatId = '${user.uid}_$proUid';
+                          if (!mounted) return;
+                          Navigator.push(context, PageRouteBuilder(
+                            pageBuilder: (_, __, ___) => ChatScreen(
+                              chatId: chatId, currentUserId: user.uid,
+                              currentUserName: userName, otherName: proName, isPro: false,
+                            ),
+                            transitionsBuilder: (_, a, __, c) => FadeTransition(opacity: a, child: c),
+                            transitionDuration: const Duration(milliseconds: 300),
+                          ));
+                        },
+                        child: Container(
+                          width: double.infinity, height: 56,
+                          decoration: BoxDecoration(
+                            borderRadius: BorderRadius.circular(18),
+                            gradient: const LinearGradient(colors: [kGoldLight, kGold, kGoldDark]),
+                            boxShadow: [BoxShadow(color: kGold.withValues(alpha: 0.4), blurRadius: 20, offset: const Offset(0, 8))],
+                          ),
+                          child: const Row(mainAxisAlignment: MainAxisAlignment.center, children: [
+                            Icon(Icons.chat_bubble_outline_rounded, color: Colors.black, size: 18),
+                            SizedBox(width: 8),
+                            Text('Επικοινώνησε με τον Επαγγελματία',
+                                style: TextStyle(color: Colors.black, fontSize: 14, fontWeight: FontWeight.w900, letterSpacing: 0.3)),
+                          ]),
+                        ),
+                      ),
+                      const SizedBox(height: 22),
+
                       // ══════════════════════════════════════
                       // MINI CV
                       // ══════════════════════════════════════
@@ -17297,47 +17448,6 @@ class _ProPublicProfileScreenState extends State<_ProPublicProfileScreen> {
                         _buildPublicAlbum(_projects[_portfolioIndex.clamp(0, _projects.length - 1)]),
                         const SizedBox(height: 24),
                       ],
-
-                                      // ── CTA ──
-                      GestureDetector(
-                        onTap: () async {
-                          final user = FirebaseAuth.instance.currentUser;
-                          if (user == null) {
-                            showGuestSignInPrompt(context,
-                                reason: 'Για να επικοινωνήσεις με τον επαγγελματία χρειάζεσαι δωρεάν λογαριασμό.');
-                            return;
-                          }
-                          final userDoc = await FirebaseFirestore.instance.collection('users').doc(user.uid).get();
-                          final userName = userDoc.data()?['name'] as String? ?? 'Χρήστης';
-                          final proName = _data['name'] as String? ?? 'Επαγγελματίας';
-                          // Use Auth UID (userId field) so badge query matches
-                          final proUid = (_data['userId'] ?? widget.proId) as String;
-                          final chatId = '${user.uid}_$proUid';
-                          if (!mounted) return;
-                          Navigator.push(context, PageRouteBuilder(
-                            pageBuilder: (_, __, ___) => ChatScreen(
-                              chatId: chatId, currentUserId: user.uid,
-                              currentUserName: userName, otherName: proName, isPro: false,
-                            ),
-                            transitionsBuilder: (_, a, __, c) => FadeTransition(opacity: a, child: c),
-                            transitionDuration: const Duration(milliseconds: 300),
-                          ));
-                        },
-                        child: Container(
-                          width: double.infinity, height: 56,
-                          decoration: BoxDecoration(
-                            borderRadius: BorderRadius.circular(18),
-                            gradient: const LinearGradient(colors: [kGoldLight, kGold, kGoldDark]),
-                            boxShadow: [BoxShadow(color: kGold.withValues(alpha: 0.4), blurRadius: 20, offset: const Offset(0, 8))],
-                          ),
-                          child: const Row(mainAxisAlignment: MainAxisAlignment.center, children: [
-                            Icon(Icons.chat_bubble_outline_rounded, color: Colors.black, size: 18),
-                            SizedBox(width: 8),
-                            Text('Επικοινώνησε με τον Επαγγελματία',
-                                style: TextStyle(color: Colors.black, fontSize: 14, fontWeight: FontWeight.w900, letterSpacing: 0.3)),
-                          ]),
-                        ),
-                      ),
                     ]),
                   ),
                 ]),
