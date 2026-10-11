@@ -11416,6 +11416,23 @@ class _OfferCard extends StatelessWidget {
         ),
       );
 
+  // Καταγραφή επικοινωνίας (phone_view / call / message) — fire-and-forget,
+  // δεν μπλοκάρει ποτέ τον χρήστη αν αποτύχει.
+  void _logContact(String type) {
+    final uid = FirebaseAuth.instance.currentUser?.uid;
+    if (uid == null) return;
+    FirebaseFirestore.instance.collection('contactEvents').add({
+      'type': type,
+      'userId': uid,
+      'proId': _proId,
+      'proName': _name,
+      'requestId': (offer['requestId'] ?? '').toString(),
+      'offerId': (offer['id'] ?? offer['offerId'] ?? '').toString(),
+      'platform': kIsWeb ? 'web' : (kIsIOSApp ? 'ios' : 'android'),
+      'createdAt': FieldValue.serverTimestamp(),
+    }).ignore();
+  }
+
   // Κινητό του επαγγελματία: users doc → professionals doc (UID-keyed ή auto-ID).
   Future<String> _fetchProPhone() async {
     final fs = FirebaseFirestore.instance;
@@ -11433,6 +11450,7 @@ class _OfferCard extends StatelessWidget {
   }
 
   Future<void> _showPhone(BuildContext context) async {
+    _logContact('phone_view');
     String phone = '';
     try { phone = await _fetchProPhone(); } catch (_) {}
     if (!context.mounted) return;
@@ -11459,7 +11477,10 @@ class _OfferCard extends StatelessWidget {
                 gradient: const LinearGradient(colors: [kGoldLight, kGold]),
                 textColor: Colors.black,
                 fontSize: 13,
-                onTap: () => launchUrl(Uri.parse('tel:$phone')),
+                onTap: () {
+                  _logContact('call');
+                  launchUrl(Uri.parse('tel:$phone'));
+                },
               )),
               const SizedBox(width: 10),
               Expanded(child: _PremiumButton(
@@ -11484,6 +11505,7 @@ class _OfferCard extends StatelessWidget {
   Future<void> _openChat(BuildContext context) async {
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) return;
+    _logContact('message');
     final userDoc = await FirebaseFirestore.instance.collection('users').doc(user.uid).get();
     final userName = userDoc.data()?['name'] as String? ?? 'Χρήστης';
     if (!context.mounted) return;

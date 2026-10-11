@@ -214,5 +214,15 @@ service cloud.firestore {
       // No editing or deleting reviews
       allow update, delete: if false;
     }
+
+    // ─── CONTACT EVENTS ───────────────────────────────────
+    // Καταγραφή όταν ο πελάτης πατάει Τηλέφωνο / Κλήση / Μήνυμα σε προσφορά
+    // (για να ξέρουμε πόση επικοινωνία γίνεται εκτός booking).
+    match /contactEvents/{eventId} {
+      allow create: if request.auth != null
+                    && request.resource.data.userId == request.auth.uid;
+      allow read: if isAdmin();
+      allow update, delete: if false;
+    }
   }
 }
