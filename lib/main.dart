@@ -695,6 +695,17 @@ const List<List<String>> _professionGroups = [
   ['κηπουρός', 'συνεργείο κήπου & εξωτερικών χώρων'],
 ];
 
+// Κινητό του πελάτη (από το προφίλ του) — μπαίνει στο αίτημα ώστε οι
+// επαγγελματίες να μπορούν να τον καλέσουν απευθείας.
+Future<String> _currentUserPhone(String uid) async {
+  try {
+    final d = await FirebaseFirestore.instance.collection('users').doc(uid).get();
+    return (d.data()?['phone'] as String? ?? '').replaceAll(RegExp(r'\s+'), '');
+  } catch (_) {
+    return '';
+  }
+}
+
 bool _matchesProfession(Iterable<String> proSpecialties, String reqProfession, {bool exact = false}) {
   if (reqProfession.isEmpty) return true;
   final specs = proSpecialties.map((s) => s.trim().toLowerCase()).where((s) => s.isNotEmpty).toList();
@@ -7889,6 +7900,28 @@ class _ProfessionalHomeScreenState extends State<ProfessionalHomeScreen> {
                         style: TextStyle(fontSize: 13,
                             color: _g(0.75), height: 1.5)),
 
+                    // Κινητό πελάτη — ο επαγγελματίας μπορεί να καλέσει απευθείας
+                    if ((d['userPhone'] as String?)?.isNotEmpty == true) ...[
+                      const SizedBox(height: 10),
+                      GestureDetector(
+                        onTap: () => launchUrl(Uri.parse('tel:${d['userPhone']}')),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
+                          decoration: BoxDecoration(
+                            borderRadius: BorderRadius.circular(12),
+                            color: kGold.withValues(alpha: 0.08),
+                            border: Border.all(color: kGold.withValues(alpha: 0.3)),
+                          ),
+                          child: Row(mainAxisSize: MainAxisSize.min, children: [
+                            const Icon(Icons.phone_rounded, color: kGold, size: 16),
+                            const SizedBox(width: 8),
+                            Text('Κινητό πελάτη: ${d['userPhone']}',
+                                style: const TextStyle(color: kGold, fontSize: 13, fontWeight: FontWeight.w700)),
+                          ]),
+                        ),
+                      ),
+                    ],
+
                     // Images
                     if ((d['hasImages'] == true || (d['imageCount'] ?? 0) > 0)) ...[
                       const SizedBox(height: 10),
@@ -9448,11 +9481,13 @@ class _RequestScreenState extends State<RequestScreen>
     }
     setState(() => _sending = true);
     try {
+      final userPhone = await _currentUserPhone(widget.userId);
       final docRef = await FirebaseFirestore.instance
           .collection('requests')
           .add({
         'userId': widget.userId,
         'userName': widget.userName,
+        if (userPhone.isNotEmpty) 'userPhone': userPhone,
         'description': _textCtrl.text.trim(),
         'criteria': _selectedCriteria,
         'profession': _selectedProfession ?? '',
@@ -9820,6 +9855,18 @@ Future<void> _notifyProsDirectly(
                     }).toList()),
                   ],
                   const SizedBox(height: 12),
+
+                  // Ενημέρωση: το κινητό του πελάτη στέλνεται με το αίτημα
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 8, left: 4, right: 4),
+                    child: Row(children: [
+                      Icon(Icons.phone_in_talk_rounded, size: 14, color: _g(0.45)),
+                      const SizedBox(width: 6),
+                      Expanded(child: Text(
+                          'Το κινητό σου θα είναι ορατό στους επαγγελματίες που θα λάβουν το αίτημα, ώστε να μπορούν να σε καλέσουν.',
+                          style: TextStyle(color: _g(0.45), fontSize: 11, height: 1.3))),
+                    ]),
+                  ),
 
                   // ══ SEARCH BAR + MIC + SEND — ΕΝΑ ΠΛΑΙΣΙΟ ══
                   AnimatedContainer(
@@ -17847,9 +17894,11 @@ class _EventFormSheetState extends State<_EventFormSheet> {
     final fs = FirebaseFirestore.instance;
     int createdCount = 0;
     try {
+      final userPhone = await _currentUserPhone(widget.userId);
       final docRef = await fs.collection('requests').add({
         'userId': widget.userId,
         'userName': widget.userName,
+        if (userPhone.isNotEmpty) 'userPhone': userPhone,
         'description': description,
         'criteria': 'value',
         'profession': profession,
