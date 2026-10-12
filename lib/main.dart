@@ -26,6 +26,7 @@ import 'package:path_provider/path_provider.dart';
 import 'package:audioplayers/audioplayers.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:firebase_crashlytics/firebase_crashlytics.dart';
+import 'package:firebase_analytics/firebase_analytics.dart';
 import 'package:flutter/foundation.dart' show kIsWeb, defaultTargetPlatform, TargetPlatform;
 import 'package:app_badge_plus/app_badge_plus.dart';
 import 'package:in_app_update/in_app_update.dart';
@@ -734,6 +735,14 @@ class _SharePhoneToggle extends StatelessWidget {
 
 // Κινητό του πελάτη (από το προφίλ του) — μπαίνει στο αίτημα, αν το επιλέξει,
 // ώστε οι επαγγελματίες να μπορούν να τον καλέσουν απευθείας.
+// Event «sign_up» στο Firebase Analytics — το χρησιμοποιεί η Google Ads ως
+// conversion, ώστε να πληρώνουμε για εγγραφές και όχι για σκέτες λήψεις.
+void _logSignUp({required String method, required String role}) {
+  FirebaseAnalytics.instance
+      .logSignUp(signUpMethod: method, parameters: {'role': role})
+      .catchError((_) {});
+}
+
 Future<String> _currentUserPhone(String uid) async {
   try {
     final d = await FirebaseFirestore.instance.collection('users').doc(uid).get();
@@ -1682,6 +1691,8 @@ class _LoginScreenState extends State<LoginScreen>
             : providers.contains('google.com') ? 'google' : 'email',
         'createdAt': FieldValue.serverTimestamp(),
       });
+      _logSignUp(method: providers.contains('apple.com') ? 'apple'
+          : providers.contains('google.com') ? 'google' : 'email', role: 'user');
       if (mounted) Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => const AuthGate()));
     } catch (e) {
       if (mounted) { setState(() => _loading = false); _snack('Σφάλμα αποθήκευσης. Δοκίμασε ξανά.'); }
@@ -1755,6 +1766,7 @@ class _LoginScreenState extends State<LoginScreen>
         },
       };
       await FirebaseFirestore.instance.collection('users').doc(cred.user!.uid).set(userData);
+      _logSignUp(method: 'email', role: _role);
       if (_role == 'professional') {
         await FirebaseFirestore.instance.collection('professionals').doc(cred.user!.uid).set({
           'name': fullName, 'email': _email.text.trim(), 'phone': _phone.text.trim(),
