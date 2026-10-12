@@ -211,7 +211,15 @@ async function sendSms(phone, message) {
 }
 
 // Helper: send email via Zoho (primary) or SendGrid (fallback)
+// Λογαριασμοί ελέγχου (Google/Apple review) χωρίς πραγματικό γραμματοκιβώτιο —
+// κάθε email εκεί γυρίζει πίσω ως bounce στο info@.
+const NO_MAIL_ADDRESSES = new Set(['googlereview@gorealai.gr']);
+
 async function sendEmail({ to, subject, html }) {
+  if (NO_MAIL_ADDRESSES.has(String(to || '').trim().toLowerCase())) {
+    console.log(`📭 Skipped email to review account ${to}: ${subject}`);
+    return;
+  }
   if (zohoTransporter) {
     await zohoTransporter.sendMail({
       from: `GorealPro <${process.env.ZOHO_USER || 'info@gorealai.gr'}>`,
