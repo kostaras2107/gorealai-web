@@ -679,13 +679,32 @@ bool _areaMatchesRequest(Iterable<String> proAreasLower, String reqLocLower) {
   return proAreasLower.any((a) => a == sector || _areaToSector[a] == sector);
 }
 
+// Ατομική ειδικότητα ↔ αντίστοιχο «Συνεργείο …»: ένα αίτημα για τη μία
+// φτάνει και σε όσους δήλωσαν την άλλη (π.χ. «Αλουμινάς» ↔ «Συνεργείο
+// Αλουμινίου & Κουφωμάτων»). ΙΔΙΑ λίστα με PROFESSION_GROUPS στο backend.
+const List<List<String>> _professionGroups = [
+  ['αλουμινάς', 'συνεργείο αλουμινίου & κουφωμάτων'],
+  ['ελαιοχρωματιστής', 'συνεργείο βαφής & διακόσμησης'],
+  ['γυψοσανίδες', 'συνεργείο γυψοσανίδας & οροφής'],
+  ['ηλεκτρολόγος', 'συνεργείο ηλεκτρολόγων'],
+  ['συντήρηση κλιματιστικών', 'ψυκτικός', 'συνεργείο κλιματισμού'],
+  ['ξυλουργός', 'συνεργείο ξυλουργικών εργασιών'],
+  ['πλακάς', 'συνεργείο πλακιδίων & δαπέδων'],
+  ['υδραυλικός', 'συνεργείο υδραυλικών'],
+  ['smart home - συστήματα ασφαλείας', 'συνεργείο smart home & αυτοματισμού'],
+  ['κηπουρός', 'συνεργείο κήπου & εξωτερικών χώρων'],
+];
+
 bool _matchesProfession(Iterable<String> proSpecialties, String reqProfession, {bool exact = false}) {
   if (reqProfession.isEmpty) return true;
-  final specs = proSpecialties.toList();
-  if (specs.isEmpty) return true;
+  final specs = proSpecialties.map((s) => s.trim().toLowerCase()).where((s) => s.isNotEmpty).toList();
+  // Χωρίς δηλωμένη ειδικότητα → κανένα αίτημα (παλιά έπαιρνε ΟΛΑ).
+  if (specs.isEmpty) return false;
   final req = reqProfession.trim().toLowerCase();
-  if (exact) return specs.any((s) => s.trim().toLowerCase() == req);
-  return specs.any((s) => s.contains(req) || req.contains(s));
+  if (exact) return specs.any((s) => s == req);
+  if (specs.any((s) => s.contains(req) || req.contains(s))) return true;
+  final group = _professionGroups.firstWhere((g) => g.contains(req), orElse: () => const []);
+  return group.isNotEmpty && specs.any(group.contains);
 }
 
 // Διαθέσιμες διάρκειες countdown για αιτήματα (κλασικά + G/εκδηλώσεις).
@@ -6204,7 +6223,7 @@ class _ProfessionalHomeScreenState extends State<ProfessionalHomeScreen> {
                 if (data['userId'] == _proId) return false;
                 final expiresAt = data['expiresAt'] as Timestamp?;
                 if (expiresAt != null && expiresAt.toDate().isBefore(DateTime.now())) return false;
-                if (proSpecialties.isNotEmpty) {
+                {
                   final reqProf = (data['profession'] as String? ?? '').toLowerCase();
                   final isEvent = (data['eventType'] as String? ?? '').isNotEmpty;
                   if (reqProf.isNotEmpty && !_matchesProfession(proSpecialties, reqProf, exact: isEvent)) return false;
@@ -7719,7 +7738,7 @@ class _ProfessionalHomeScreenState extends State<ProfessionalHomeScreen> {
               if (expiresAt != null && expiresAt.toDate().isBefore(DateTime.now())) return false;
               // Filter by profession
               final reqProfession = (data['profession'] as String? ?? '').toLowerCase();
-              if (proSpecialties.isNotEmpty && reqProfession.isNotEmpty) {
+              if (reqProfession.isNotEmpty) {
                 final isEvent = (data['eventType'] as String? ?? '').isNotEmpty;
                 if (!_matchesProfession(proSpecialties, reqProfession, exact: isEvent)) return false;
               }

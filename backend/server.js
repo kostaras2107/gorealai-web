@@ -948,6 +948,21 @@ app.post('/forgot-password', rateLimit(5, 60_000), async (req, res) => {
 // συγκεκριμένες sub-specialties, ακόμα κι αν δεν έχουν δηλώσει ρητά το ίδιο
 // το επάγγελμα — π.χ. ένας υδραυλικός με sub-specialty "Αντλίες Θερμότητας"
 // πρέπει να ειδοποιείται και για αιτήματα "Ενδοδαπέδια Θέρμανση".
+// Ατομική ειδικότητα ↔ αντίστοιχο «Συνεργείο …». ΙΔΙΑ λίστα με
+// _professionGroups στην εφαρμογή.
+const PROFESSION_GROUPS = [
+  ['αλουμινάς', 'συνεργείο αλουμινίου & κουφωμάτων'],
+  ['ελαιοχρωματιστής', 'συνεργείο βαφής & διακόσμησης'],
+  ['γυψοσανίδες', 'συνεργείο γυψοσανίδας & οροφής'],
+  ['ηλεκτρολόγος', 'συνεργείο ηλεκτρολόγων'],
+  ['συντήρηση κλιματιστικών', 'ψυκτικός', 'συνεργείο κλιματισμού'],
+  ['ξυλουργός', 'συνεργείο ξυλουργικών εργασιών'],
+  ['πλακάς', 'συνεργείο πλακιδίων & δαπέδων'],
+  ['υδραυλικός', 'συνεργείο υδραυλικών'],
+  ['smart home - συστήματα ασφαλείας', 'συνεργείο smart home & αυτοματισμού'],
+  ['κηπουρός', 'συνεργείο κήπου & εξωτερικών χώρων'],
+];
+
 const PROFESSION_SUBSPECIALTY_SYNONYMS = {
   'ενδοδαπέδια θέρμανση & άλλες μορφές θέρμανσης': [
     'αντλίες θερμότητας', 'λέβητες & θερμοσίφωνες', 'κεντρική θέρμανση',
@@ -1046,6 +1061,8 @@ async function notifyMatchingPros({ profession, location, description, requestId
         const specialty = (d.specialty || '').toLowerCase();
         const specialties = Array.isArray(d.specialties) ? d.specialties.map(s => s.toLowerCase()) : [];
         const allSpecs = specialties.length > 0 ? specialties : (specialty ? [specialty] : []);
+        // Χωρίς δηλωμένη ειδικότητα → καμία ειδοποίηση (παλιά έπαιρνε ΟΛΑ τα αιτήματα).
+        if (allSpecs.length === 0) return;
         if (allSpecs.length > 0) {
           // exactSpecialty (π.χ. αιτήματα εκδηλώσεων): μόνο ακριβές match,
           // ώστε ένας γενικός "Φωτογράφος" να ΜΗΝ ταιριάζει με
@@ -1058,7 +1075,11 @@ async function notifyMatchingPros({ profession, location, description, requestId
             const subSynonyms = PROFESSION_SUBSPECIALTY_SYNONYMS[profLower];
             const subSpecialties = Array.isArray(d.subSpecialties) ? d.subSpecialties.map(s => s.toLowerCase()) : [];
             const synonymMatch = !!subSynonyms && subSpecialties.some(s => subSynonyms.includes(s));
-            if (!synonymMatch) return;
+            // Ατομική ειδικότητα ↔ «Συνεργείο …» (π.χ. Αλουμινάς ↔ Συνεργείο
+            // Αλουμινίου & Κουφωμάτων) — μόνο για κλασικά αιτήματα, όχι exact.
+            const group = exactSpecialty ? null : PROFESSION_GROUPS.find(g => g.includes(profLower.trim()));
+            const groupMatch = !!group && allSpecs.some(s => group.includes(s.trim()));
+            if (!synonymMatch && !groupMatch) return;
           }
         }
       }
