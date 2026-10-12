@@ -695,8 +695,45 @@ const List<List<String>> _professionGroups = [
   ['κηπουρός', 'συνεργείο κήπου & εξωτερικών χώρων'],
 ];
 
-// Κινητό του πελάτη (από το προφίλ του) — μπαίνει στο αίτημα ώστε οι
-// επαγγελματίες να μπορούν να τον καλέσουν απευθείας.
+// Κουτάκι «Να δουν οι επαγγελματίες το κινητό μου» στις φόρμες αιτήματος.
+class _SharePhoneToggle extends StatelessWidget {
+  final bool value;
+  final ValueChanged<bool> onChanged;
+  const _SharePhoneToggle({required this.value, required this.onChanged});
+  @override
+  Widget build(BuildContext context) => GestureDetector(
+        onTap: () => onChanged(!value),
+        child: Padding(
+          padding: const EdgeInsets.only(bottom: 10, left: 4, right: 4),
+          child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            AnimatedContainer(
+              duration: const Duration(milliseconds: 150),
+              width: 18, height: 18,
+              margin: const EdgeInsets.only(top: 1),
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(4),
+                color: value ? kGold : Colors.transparent,
+                border: Border.all(color: value ? kGold : _g(0.3)),
+              ),
+              child: value ? const Icon(Icons.check, size: 13, color: Colors.black) : null,
+            ),
+            const SizedBox(width: 8),
+            Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Text('Να δουν οι επαγγελματίες το κινητό μου',
+                  style: TextStyle(color: _g(0.8), fontSize: 12.5, fontWeight: FontWeight.w600)),
+              const SizedBox(height: 2),
+              Text(value
+                  ? 'Θα μπορούν να σε καλέσουν απευθείας για το αίτημα — συνήθως παίρνεις απάντηση πιο γρήγορα.'
+                  : 'Θα επικοινωνούν μαζί σου μόνο με μηνύματα μέσα από την εφαρμογή.',
+                  style: TextStyle(color: _g(0.45), fontSize: 11, height: 1.3)),
+            ])),
+          ]),
+        ),
+      );
+}
+
+// Κινητό του πελάτη (από το προφίλ του) — μπαίνει στο αίτημα, αν το επιλέξει,
+// ώστε οι επαγγελματίες να μπορούν να τον καλέσουν απευθείας.
 Future<String> _currentUserPhone(String uid) async {
   try {
     final d = await FirebaseFirestore.instance.collection('users').doc(uid).get();
@@ -9428,6 +9465,7 @@ class _RequestScreenState extends State<RequestScreen>
   }
 
   bool _submitLock = false;  // Guard κατά double submit
+  bool _sharePhone = true;   // να φαίνεται το κινητό του πελάτη στους επαγγελματίες
 
   Future<void> _submit() async {
     if (_submitLock) return;
@@ -9481,7 +9519,7 @@ class _RequestScreenState extends State<RequestScreen>
     }
     setState(() => _sending = true);
     try {
-      final userPhone = await _currentUserPhone(widget.userId);
+      final userPhone = _sharePhone ? await _currentUserPhone(widget.userId) : '';
       final docRef = await FirebaseFirestore.instance
           .collection('requests')
           .add({
@@ -9856,16 +9894,10 @@ Future<void> _notifyProsDirectly(
                   ],
                   const SizedBox(height: 12),
 
-                  // Ενημέρωση: το κινητό του πελάτη στέλνεται με το αίτημα
-                  Padding(
-                    padding: const EdgeInsets.only(bottom: 8, left: 4, right: 4),
-                    child: Row(children: [
-                      Icon(Icons.phone_in_talk_rounded, size: 14, color: _g(0.45)),
-                      const SizedBox(width: 6),
-                      Expanded(child: Text(
-                          'Το κινητό σου θα είναι ορατό στους επαγγελματίες που θα λάβουν το αίτημα, ώστε να μπορούν να σε καλέσουν.',
-                          style: TextStyle(color: _g(0.45), fontSize: 11, height: 1.3))),
-                    ]),
+                  // Επιλογή: να δουν οι επαγγελματίες το κινητό του πελάτη
+                  _SharePhoneToggle(
+                    value: _sharePhone,
+                    onChanged: (v) => setState(() => _sharePhone = v),
                   ),
 
                   // ══ SEARCH BAR + MIC + SEND — ΕΝΑ ΠΛΑΙΣΙΟ ══
@@ -17858,6 +17890,7 @@ class _EventFormSheetState extends State<_EventFormSheet> {
   int _durationMinutes = 60;
   final _detailsCtrl = TextEditingController();
   bool _sending = false;
+  bool _sharePhone = true;
 
   @override
   void dispose() {
@@ -17894,7 +17927,7 @@ class _EventFormSheetState extends State<_EventFormSheet> {
     final fs = FirebaseFirestore.instance;
     int createdCount = 0;
     try {
-      final userPhone = await _currentUserPhone(widget.userId);
+      final userPhone = _sharePhone ? await _currentUserPhone(widget.userId) : '';
       final docRef = await fs.collection('requests').add({
         'userId': widget.userId,
         'userName': widget.userName,
@@ -18123,7 +18156,12 @@ class _EventFormSheetState extends State<_EventFormSheet> {
                     borderSide: const BorderSide(color: kGold)),
               ),
             ),
-            const SizedBox(height: 24),
+            const SizedBox(height: 16),
+            _SharePhoneToggle(
+              value: _sharePhone,
+              onChanged: (v) => setState(() => _sharePhone = v),
+            ),
+            const SizedBox(height: 8),
 
             // Submit
             GestureDetector(
