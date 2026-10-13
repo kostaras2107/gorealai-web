@@ -215,7 +215,14 @@ async function sendSms(phone, message) {
 // κάθε email εκεί γυρίζει πίσω ως bounce στο info@.
 const NO_MAIL_ADDRESSES = new Set(['googlereview@gorealai.gr']);
 
+// Τα κουμπιά με linear-gradient δεν εμφανίζονται σε Gmail/Outlook (κυρίως σε
+// iPhone): το gradient πετιέται και μένει μαύρο κείμενο σε σκούρο φόντο.
+// Συμπαγές χρυσό χρώμα που δουλεύει παντού.
+const safeEmailHtml = (html) => String(html || '')
+  .split('background:linear-gradient(135deg,#FFD47A,#C9A84C)').join('background-color:#E8C66A');
+
 async function sendEmail({ to, subject, html }) {
+  html = safeEmailHtml(html);
   if (NO_MAIL_ADDRESSES.has(String(to || '').trim().toLowerCase())) {
     console.log(`📭 Skipped email to review account ${to}: ${subject}`);
     return;
@@ -829,6 +836,7 @@ app.post('/verify-email', rateLimit(5, 60_000), async (req, res) => {
         <h1 style="color:#FFD47A;font-size:20px;margin-bottom:8px;">Επιβεβαίωσε το email σου</h1>
         <p style="color:rgba(255,255,255,0.75);font-size:14px;line-height:1.6;">Καλώς ήρθες στο GorealPro! Πάτα το παρακάτω κουμπί για να επιβεβαιώσεις το email σου και να ενεργοποιήσεις τον λογαριασμό σου.</p>
         <a href="${link}" style="display:inline-block;margin-top:20px;padding:13px 28px;background:linear-gradient(135deg,#FFD47A,#C9A84C);color:#000;border-radius:12px;text-decoration:none;font-weight:800;font-size:14px;">Επιβεβαίωση Email →</a>
+        <p style="color:rgba(255,255,255,0.55);font-size:12px;line-height:1.5;margin-top:18px;">Αν δεν βλέπεις το κουμπί, άνοιξε αυτόν τον σύνδεσμο:<br><a href="${link}" style="color:#FFD47A;word-break:break-all;">${link}</a></p>
         <p style="color:rgba(255,255,255,0.4);font-size:12px;margin-top:20px;">Αν δεν δημιούργησες εσύ αυτόν τον λογαριασμό, αγνόησε αυτό το email.</p>
         <p style="color:rgba(255,255,255,0.2);font-size:11px;margin-top:24px;">GorealPro · gorealai.web.app · info@gorealai.gr</p>
       </div>
@@ -936,6 +944,7 @@ app.post('/forgot-password', rateLimit(5, 60_000), async (req, res) => {
         <h1 style="color:#FFD47A;font-size:20px;margin-bottom:8px;">Επαναφορά κωδικού</h1>
         <p style="color:rgba(255,255,255,0.75);font-size:14px;line-height:1.6;">Ζήτησες επαναφορά κωδικού για τον λογαριασμό σου στο GorealPro. Πάτα το παρακάτω κουμπί για να ορίσεις νέο κωδικό.</p>
         <a href="${link}" style="display:inline-block;margin-top:20px;padding:13px 28px;background:linear-gradient(135deg,#FFD47A,#C9A84C);color:#000;border-radius:12px;text-decoration:none;font-weight:800;font-size:14px;">Επαναφορά Κωδικού →</a>
+        <p style="color:rgba(255,255,255,0.55);font-size:12px;line-height:1.5;margin-top:18px;">Αν δεν βλέπεις το κουμπί, άνοιξε αυτόν τον σύνδεσμο:<br><a href="${link}" style="color:#FFD47A;word-break:break-all;">${link}</a></p>
         <p style="color:rgba(255,255,255,0.4);font-size:12px;margin-top:20px;">Αν δεν το ζήτησες εσύ, αγνόησε αυτό το email.</p>
         <p style="color:rgba(255,255,255,0.2);font-size:11px;margin-top:24px;">GorealPro · gorealai.web.app · info@gorealai.gr</p>
       </div>
