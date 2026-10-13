@@ -155,6 +155,7 @@
       <div class="stat-card"><div class="stat-label">Σύνολο από App Store</div><div class="stat-value" id="ps-ios-total">—</div></div>
       <div class="stat-card"><div class="stat-label">Σήμερα από App Store</div><div class="stat-value" id="ps-ios-today">—</div></div>
       <div class="stat-card"><div class="stat-label">Χρήστες / Επαγγ. (App Store)</div><div class="stat-value" id="ps-ios-split">—</div></div>
+      <div class="stat-card"><div class="stat-label">Χρησιμοποιούν την εφαρμογή iPhone</div><div class="stat-value" id="ps-ios-app">—</div></div>
       <div class="stat-card"><div class="stat-label">Μέσω Web (χωρίς download)</div><div class="stat-value" id="ps-web-total">—</div></div>
     </div>
 
@@ -683,6 +684,7 @@
       document.getElementById('ps-web-total').textContent = s.webTotal ?? '—';
       document.getElementById('ps-ios-total').textContent = s.iosTotal ?? '—';
       document.getElementById('ps-ios-today').textContent = s.iosToday ?? '—';
+      document.getElementById('ps-ios-app').textContent = s.iosAppUsers ?? '—';
       document.getElementById('ps-ios-split').textContent = s.iosTotal == null ? '—' : `${s.iosUsers} / ${s.iosPros}`;
     } catch(e) {
       console.error('loadPlatformStats error:', e);

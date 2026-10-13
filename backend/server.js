@@ -1575,6 +1575,9 @@ app.get('/platform-stats', async (req, res) => {
       androidUsers: 0, androidPros: 0,
       androidUsersToday: 0, androidProsToday: 0,
       iosTotal: 0, iosToday: 0, iosUsers: 0, iosPros: 0,
+      // Όσοι άνοιξαν τελευταία την εφαρμογή από iPhone (pushDebug γράφεται σε
+      // κάθε εκκίνηση) — μετράει και όσους είχαν γραφτεί πρώτα από το web.
+      iosAppUsers: 0,
       // Πόσοι απλοί χρήστες μπήκαν με Google (authMethod: 'google', με
       // υποχρεωτικό επιβεβαιωμένο κινητό) έναντι του παλιού email/password —
       // δείχνει αν όντως βοηθάει η πιο γρήγορη εγγραφή.
@@ -1602,6 +1605,8 @@ app.get('/platform-stats', async (req, res) => {
       } else {
         stats.unknownTotal++;
       }
+
+      if (d.pushDebug && d.pushDebug.platform === 'iOS') stats.iosAppUsers++;
 
       if (d.authMethod === 'google') {
         stats.googleSignups++;
