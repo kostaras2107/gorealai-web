@@ -1584,6 +1584,7 @@ app.get('/platform-stats', async (req, res) => {
       googleSignups: 0, googleSignupsToday: 0,
     };
 
+    const iosNow = {};
     snap.forEach((doc) => {
       const d = doc.data();
       const createdAt = d.createdAt && d.createdAt.toDate ? d.createdAt.toDate() : null;
@@ -1606,13 +1607,26 @@ app.get('/platform-stats', async (req, res) => {
         stats.unknownTotal++;
       }
 
-      if (d.pushDebug && d.pushDebug.platform === 'iOS') stats.iosAppUsers++;
+      if (d.pushDebug && d.pushDebug.platform === 'iOS') iosNow[doc.id] = d.name || '';
 
       if (d.authMethod === 'google') {
         stats.googleSignups++;
         if (isToday) stats.googleSignupsToday++;
       }
     });
+
+    // Το pushDebug κρατά μόνο την ΤΕΛΕΥΤΑΙΑ πλατφόρμα, οπότε όποιος άνοιγε μετά
+    // από web/Android «έφευγε» από τη μέτρηση. Κρατάμε μόνιμη λίστα με όσους
+    // έχουν ανοίξει έστω μία φορά την εφαρμογή iPhone.
+    const iosRef = admin.firestore().collection('admin_analytics').doc('ios_app_users');
+    const known = ((await iosRef.get()).data() || {}).users || {};
+    const added = Object.keys(iosNow).filter((uid) => !known[uid]);
+    if (added.length) {
+      const upd = {};
+      added.forEach((uid) => { upd[uid] = { name: iosNow[uid], firstSeen: new Date() }; });
+      await iosRef.set({ users: upd }, { merge: true });
+    }
+    stats.iosAppUsers = Object.keys(known).length + added.length;
 
     res.json(stats);
   } catch (e) {
