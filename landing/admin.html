@@ -152,6 +152,9 @@
       <div class="stat-card"><div class="stat-label">Σήμερα από Playstore</div><div class="stat-value" id="ps-android-today">—</div></div>
       <div class="stat-card"><div class="stat-label">Χρήστες (Playstore)</div><div class="stat-value" id="ps-users">—</div></div>
       <div class="stat-card"><div class="stat-label">Επαγγελματίες (Playstore)</div><div class="stat-value" id="ps-pros">—</div></div>
+      <div class="stat-card"><div class="stat-label">Σύνολο από App Store</div><div class="stat-value" id="ps-ios-total">—</div></div>
+      <div class="stat-card"><div class="stat-label">Σήμερα από App Store</div><div class="stat-value" id="ps-ios-today">—</div></div>
+      <div class="stat-card"><div class="stat-label">Χρήστες / Επαγγ. (App Store)</div><div class="stat-value" id="ps-ios-split">—</div></div>
       <div class="stat-card"><div class="stat-label">Μέσω Web (χωρίς download)</div><div class="stat-value" id="ps-web-total">—</div></div>
     </div>
 
@@ -678,6 +681,9 @@
       document.getElementById('ps-users').textContent = s.androidUsers ?? '—';
       document.getElementById('ps-pros').textContent = s.androidPros ?? '—';
       document.getElementById('ps-web-total').textContent = s.webTotal ?? '—';
+      document.getElementById('ps-ios-total').textContent = s.iosTotal ?? '—';
+      document.getElementById('ps-ios-today').textContent = s.iosToday ?? '—';
+      document.getElementById('ps-ios-split').textContent = s.iosTotal == null ? '—' : `${s.iosUsers} / ${s.iosPros}`;
     } catch(e) {
       console.error('loadPlatformStats error:', e);
     }
@@ -735,6 +741,8 @@
         <td style="font-size:13px;color:#999">${p.phone||'-'}</td>
         <td>${p.platform==='android'
           ?'<span style="font-size:11px;background:#0d2b1a;color:#2ecc71;border-radius:6px;padding:3px 8px">📲 Play Store</span>'
+          :p.platform==='ios'
+          ?'<span style="font-size:11px;background:#1a1f2b;color:#7ecfff;border-radius:6px;padding:3px 8px">🍎 App Store</span>'
           :p.platform==='web'
           ?'<span style="font-size:11px;background:#1a1a1a;color:#888;border-radius:6px;padding:3px 8px">🌐 Web</span>'
           :'<span style="font-size:11px;color:#555">—</span>'}</td>

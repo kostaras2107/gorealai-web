@@ -1565,6 +1565,7 @@ app.get('/platform-stats', async (req, res) => {
       androidToday: 0, webToday: 0,
       androidUsers: 0, androidPros: 0,
       androidUsersToday: 0, androidProsToday: 0,
+      iosTotal: 0, iosToday: 0, iosUsers: 0, iosPros: 0,
       // Πόσοι απλοί χρήστες μπήκαν με Google (authMethod: 'google', με
       // υποχρεωτικό επιβεβαιωμένο κινητό) έναντι του παλιού email/password —
       // δείχνει αν όντως βοηθάει η πιο γρήγορη εγγραφή.
@@ -1582,6 +1583,10 @@ app.get('/platform-stats', async (req, res) => {
         if (isToday) stats.androidToday++;
         if (isPro) { stats.androidPros++; if (isToday) stats.androidProsToday++; }
         else { stats.androidUsers++; if (isToday) stats.androidUsersToday++; }
+      } else if (d.platform === 'ios') {
+        stats.iosTotal++;
+        if (isToday) stats.iosToday++;
+        if (isPro) stats.iosPros++; else stats.iosUsers++;
       } else if (d.platform === 'web') {
         stats.webTotal++;
         if (isToday) stats.webToday++;

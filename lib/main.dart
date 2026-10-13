@@ -1774,7 +1774,7 @@ class _LoginScreenState extends State<LoginScreen>
           'specialty': _selectedSpecialties.isNotEmpty ? _selectedSpecialties.first : '',
           'areas': _selectedAreas, 'area': _selectedProHomeArea ?? '',
           'is_active': true, 'userId': cred.user!.uid,
-          'platform': kIsWeb ? 'web' : 'android',
+          'platform': kIsWeb ? 'web' : (kIsIOSApp ? 'ios' : 'android'),
           'createdAt': FieldValue.serverTimestamp(),
           'afm': _afm.text.trim(),
           if (selfieUrl != null) 'profilePhotoUrl': selfieUrl,
