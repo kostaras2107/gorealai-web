@@ -5,8 +5,8 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="theme-color" content="#060504" />
-  <title>GorealPro – Βρες τον καλύτερο επαγγελματία</title>
-  <meta name="description" content="Στείλε αίτημα με φωτογραφία, λάβε προσφορές στον χρόνο που εσύ επιλέγεις. Ηλεκτρολόγοι, υδραυλικοί, καθαρίστριες, event planners και πολλοί άλλοι." />
+  <title>GorealPro – Βρες επαγγελματία σε λίγα λεπτά</title>
+  <meta name="description" content="Γράψε τι χρειάζεσαι και πάρε προσφορές από επαγγελματίες της περιοχής σου σε λίγα λεπτά. 430+ επαγγελματίες, 90 ειδικότητες. Δωρεάν σε Google Play και App Store." />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Raleway:wght@700;800;900&display=swap" rel="stylesheet" />
 
@@ -244,6 +244,31 @@
     }
     .btn-secondary:hover { background: rgba(255,255,255,0.09); border-color: rgba(255,255,255,0.22); }
 
+    @media (max-width: 420px) { nav { padding: 14px 16px; } .stat-num { letter-spacing: -0.5px; } }
+    /* STORE BUTTONS */
+    .store-btns { display: flex; flex-direction: column; gap: 12px; width: 100%; max-width: 370px; }
+    .store-btn { display: flex; align-items: center; justify-content: center; gap: 12px; background: #000; color: #fff; border: 1px solid rgba(255,255,255,0.28); border-radius: 14px; padding: 12px 22px; text-decoration: none; transition: transform 0.2s, border-color 0.2s, box-shadow 0.2s; }
+    .store-btn:hover { transform: translateY(-2px); border-color: var(--gold); box-shadow: 0 10px 36px rgba(201,168,76,0.25); }
+    .store-btn span { display: flex; flex-direction: column; text-align: left; font-weight: 700; font-size: 18px; line-height: 1.1; }
+    .store-btn small { font-size: 11px; font-weight: 500; color: rgba(255,255,255,0.7); letter-spacing: 0.2px; }
+    .store-btn.recommended { border-color: var(--gold); box-shadow: 0 8px 36px rgba(201,168,76,0.3); }
+    .hero-store { margin-bottom: 18px; }
+    .hero-more { color: var(--muted2); font-size: 14px; text-decoration: none; margin-bottom: 56px; }
+    .hero-more:hover { color: var(--gold-light); }
+    .dl-qr { display: none; margin: 28px auto 0; text-align: center; position: relative; }
+    .dl-qr img { width: 150px; height: 150px; background: #fff; padding: 8px; border-radius: 12px; border: 2px solid var(--gold); display: block; margin: 0 auto 10px; }
+    .dl-qr span { font-size: 13px; color: var(--muted2); }
+    .rating-box { max-width: 520px; margin: 0 auto; text-align: center; border: 1px solid var(--gold-border); border-radius: 22px; padding: 34px 24px; background: var(--bg2); }
+    .rating-big { font-family: 'Raleway', sans-serif; font-size: 64px; font-weight: 900; line-height: 1; background: linear-gradient(90deg, var(--gold-light), var(--gold)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
+    .rating-stars { color: var(--gold-light); font-size: 24px; letter-spacing: 4px; margin: 10px 0 6px; }
+    .rating-sub { color: var(--muted2); font-size: 14px; line-height: 1.6; }
+    .rating-link { display: inline-block; margin-top: 16px; color: var(--gold-light); font-size: 14px; font-weight: 600; text-decoration: none; }
+    @media (min-width: 768px) {
+      .store-btns { flex-direction: row; max-width: 460px; }
+      .store-btns .store-btn { flex: 1; }
+      .dl-qr { display: block; }
+    }
+
     /* STATS ROW */
     .stats-row {
       display: flex;
@@ -268,7 +293,7 @@
 
     .stat-num {
       font-family: 'Raleway', sans-serif;
-      font-size: clamp(20px, 4.5vw, 28px);
+      font-size: clamp(17px, 4.2vw, 28px);
       font-weight: 900;
       background: linear-gradient(90deg, var(--gold-light), var(--gold));
       -webkit-background-clip: text;
@@ -900,7 +925,7 @@
     <div class="nav-right">
       <a class="nav-link" href="#how">Πώς λειτουργεί</a>
       <a class="nav-link" href="#market">Επενδυτές</a>
-      <a class="nav-cta" href="/app/">Άνοιξε δωρεάν →</a>
+      <a class="nav-cta js-store" href="#download">Κατέβασε →</a>
     </div>
   </nav>
 
@@ -908,39 +933,42 @@
   <section class="hero">
     <div class="hero-eyebrow reveal">
       <span class="live-dot"></span>
-      Διαθέσιμο τώρα · Ελλάδα
+      Τώρα σε Google Play &amp; App Store
     </div>
 
     <h1 class="reveal d1">
-      Το μέλλον των<br/>
-      <span class="gold">επαγγελματικών<br/>υπηρεσιών</span>
+      Βρες επαγγελματία<br/>
+      <span class="gold">σε λίγα λεπτά</span>
     </h1>
 
     <p class="hero-sub reveal d2">
-      Φωτογράφισε το πρόβλημά σου, στείλε αίτημα και λάβε προσφορές από επαγγελματίες κοντά σου στον χρόνο που εσύ επιλέγεις. Δωρεάν, χωρίς δέσμευση.
+      Γράψε τι χρειάζεσαι — με φωτογραφία, βίντεο ή φωνή — και πάρε προσφορές από επαγγελματίες της περιοχής σου, συχνά μέσα σε λίγα λεπτά. Δωρεάν για τον πελάτη, χωρίς δέσμευση.
     </p>
 
-    <div class="hero-btns reveal d3">
-      <a class="btn-primary" href="/app/">⚡ Ξεκίνα δωρεάν</a>
-      <a class="btn-secondary" href="#how">Πώς λειτουργεί</a>
+    <div class="reveal d3" style="width:100%;display:flex;flex-direction:column;align-items:center;">
+      <div class="store-btns hero-store">
+        <a class="store-btn" href="https://play.google.com/store/apps/details?id=gr.gorealai.app" target="_blank" rel="noopener" data-store="android"><svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><path fill="#00D2FF" d="M3.6 1.8 13.9 12 3.6 22.2c-.4-.2-.6-.7-.6-1.2V3c0-.5.2-1 .6-1.2z"/><path fill="#00F076" d="M17.3 8.6 13.9 12 3.6 1.8c.3-.2.8-.2 1.2 0l12.5 6.8z"/><path fill="#FF3A44" d="M17.3 15.4 4.8 22.2c-.4.2-.9.2-1.2 0L13.9 12l3.4 3.4z"/><path fill="#FFD400" d="M21 12c0 .5-.3 1-.8 1.2l-2.9 2.2L13.9 12l3.4-3.4 2.9 2.2c.5.2.8.7.8 1.2z"/></svg><span><small>Διαθέσιμο στο</small>Google Play</span></a>
+        <a class="store-btn" href="https://apps.apple.com/gr/app/gorealpro/id6817919309" target="_blank" rel="noopener" data-store="ios"><svg viewBox="0 0 24 24" width="24" height="24" fill="currentColor" aria-hidden="true"><path d="M16.37 12.62c-.03-2.6 2.12-3.85 2.22-3.91-1.21-1.77-3.09-2.01-3.76-2.04-1.6-.16-3.12.94-3.93.94-.81 0-2.06-.92-3.39-.89-1.74.03-3.35 1.01-4.25 2.57-1.81 3.14-.46 7.79 1.3 10.34.86 1.25 1.89 2.65 3.24 2.6 1.3-.05 1.79-.84 3.36-.84 1.57 0 2.01.84 3.38.81 1.4-.02 2.29-1.27 3.14-2.53.99-1.45 1.4-2.86 1.42-2.93-.03-.01-2.72-1.04-2.73-4.12zM13.8 4.98c.71-.86 1.19-2.06 1.06-3.25-1.02.04-2.26.68-3 1.54-.66.76-1.23 1.98-1.08 3.15 1.14.09 2.3-.58 3.02-1.44z"/></svg><span><small>Κατέβασε από το</small>App Store</span></a>
+      </div>
+      <a class="hero-more" href="#how">Πώς λειτουργεί ↓</a>
     </div>
 
     <div class="stats-row reveal d4">
       <div class="stat-item">
-        <span class="stat-num" data-target="60">60</span>
-        <div class="stat-label">Λεπτά μέση απόκριση</div>
+        <span class="stat-num">1.000+</span>
+        <div class="stat-label">Λήψεις τον 1ο μήνα</div>
       </div>
       <div class="stat-item">
-        <span class="stat-num">Free</span>
-        <div class="stat-label">Δωρεάν χρήση</div>
+        <span class="stat-num">430+</span>
+        <div class="stat-label">Επαγγελματίες</div>
       </div>
       <div class="stat-item">
-        <span class="stat-num">AI</span>
-        <div class="stat-label">Έξυπνη κατάταξη</div>
+        <span class="stat-num">90</span>
+        <div class="stat-label">Ειδικότητες</div>
       </div>
       <div class="stat-item">
-        <span class="stat-num" data-target="50">50</span>
-        <div class="stat-label">Κατηγορίες</div>
+        <span class="stat-num">5,0★</span>
+        <div class="stat-label">Google Play</div>
       </div>
     </div>
   </section>
@@ -949,7 +977,7 @@
   <section class="section" id="how">
     <div class="section-label reveal">Πώς λειτουργεί</div>
     <h2 class="section-title reveal d1">Από το πρόβλημα<br/>στον επαγγελματία</h2>
-    <p class="section-sub reveal d2">4 βήματα — από λεπτά έως ώρες, όχι μέρες.</p>
+    <p class="section-sub reveal d2">4 βήματα — συνήθως λεπτά, όχι μέρες.</p>
     <div class="gold-line reveal d2"></div>
 
     <div class="steps">
@@ -971,19 +999,19 @@
         </div>
       </div>
       <div class="step reveal d2">
-        <div class="step-icon">🤖</div>
+        <div class="step-icon">🏅</div>
         <div class="step-body">
           <div class="step-num-label">Βήμα 03</div>
-          <div class="step-title">AI Κατάταξη προσφορών</div>
-          <div class="step-desc">Το AI αξιολογεί τιμή, αξιολογήσεις, ταχύτητα απόκρισης και portfolio — σου παρουσιάζει τις καλύτερες επιλογές πρώτα.</div>
+          <div class="step-title">Οι 3 καλύτερες προσφορές</div>
+          <div class="step-desc">Ο αλγόριθμος αξιολογεί τιμή, διαθεσιμότητα, αξιολογήσεις και επαλήθευση ΑΦΜ και σου δείχνει τις 3 καλύτερες — με το κριτήριο που διαλέγεις εσύ: φθηνότερη, γρηγορότερη ή καλύτερη σχέση ποιότητας-τιμής.</div>
         </div>
       </div>
       <div class="step reveal d3">
         <div class="step-icon">🏆</div>
         <div class="step-body">
           <div class="step-num-label">Βήμα 04</div>
-          <div class="step-title">Επέλεξε &amp; Κλείσε ραντεβού</div>
-          <div class="step-desc">Διάλεξε τον επαγγελματία που σε εκφράζει, κλείσε ραντεβού απευθείας. Εντελώς δωρεάν.</div>
+          <div class="step-title">Διάλεξε &amp; επικοινώνησε</div>
+          <div class="step-desc">Δες το προφίλ και το mini CV του επαγγελματία, πάρε τηλέφωνο ή στείλε μήνυμα μέσα από την εφαρμογή και κλείσε τη δουλειά. Εντελώς δωρεάν για σένα.</div>
         </div>
       </div>
     </div>
@@ -1084,9 +1112,9 @@
         <div class="feat-desc">Παρακολούθα σε πραγματικό χρόνο πόσες προσφορές έρχονται — live, χωρίς ανανέωση.</div>
       </div>
       <div class="feat-card reveal d2">
-        <div class="feat-icon">🤖</div>
-        <div class="feat-title">AI Κατάταξη</div>
-        <div class="feat-desc">Αξιολόγηση τιμής, ratings, ταχύτητας. Η καλύτερη επιλογή πάντα πρώτη.</div>
+        <div class="feat-icon">🏅</div>
+        <div class="feat-title">Top 3 προσφορές</div>
+        <div class="feat-desc">Βλέπεις μόνο τις 3 καλύτερες, με βάση τιμή, διαθεσιμότητα και αξιολογήσεις.</div>
       </div>
       <div class="feat-card reveal d3">
         <div class="feat-icon">🖼️</div>
@@ -1096,8 +1124,8 @@
       <div class="feat-card wide reveal d1">
         <div class="feat-icon" style="font-size:24px;">📅</div>
         <div>
-          <div class="feat-title">Bookings &amp; Ραντεβού</div>
-          <div class="feat-desc">Κράτησε ραντεβού, λάβε υπενθυμίσεις και διαχειρίσου όλα τα bookings σου σε ένα μέρος — χωρίς τηλεφωνήματα, χωρίς ταλαιπωρία.</div>
+          <div class="feat-title">Τηλέφωνο, μήνυμα &amp; κρατήσεις</div>
+          <div class="feat-desc">Επικοινώνησε με τον επαγγελματία με ένα πάτημα, κλείσε τη δουλειά και κράτα όλα τα αιτήματα και τις κρατήσεις σου σε ένα μέρος.</div>
         </div>
       </div>
     </div>
@@ -1106,39 +1134,21 @@
   <!-- MARKET OPPORTUNITY -->
   <section class="market-section" id="market">
     <div class="section-label reveal" style="text-align:center;margin-bottom:12px;">Ευκαιρία Αγοράς</div>
-    <h2 class="section-title reveal d1" style="margin-bottom:36px;">Μια αγορά δισεκατομμυρίων<br/>που περιμένει ψηφιοποίηση</h2>
+    <h2 class="section-title reveal d1" style="margin-bottom:36px;">Μια τεράστια αγορά<br/>που περιμένει ψηφιοποίηση</h2>
 
     <div class="market-card reveal d2">
       <div class="market-tag">📊 Για Επενδυτές</div>
       <h3>Το Airbnb των επαγγελματικών<br/>υπηρεσιών — στην Ελλάδα πρώτα</h3>
       <p>
-        Η αγορά των home &amp; professional services στην Ελλάδα αξίζει πάνω από <strong>€8 δισ.</strong> ετησίως — και το 90% των συναλλαγών γίνεται ακόμα με τηλεφωνήματα και στόμα-με-στόμα. Το GorealPro φέρνει τεχνολογία AI, real-time matching και photo/video chat σε έναν κλάδο που δεν έχει αλλάξει δεκαετίες. Στόχος: αναπαραγωγή του μοντέλου σε <strong>Κύπρο, Βαλκάνια και Νότια Ευρώπη</strong>.
+        Οι περισσότερες δουλειές για το σπίτι στην Ελλάδα κλείνουν ακόμα με τηλεφωνήματα και συστάσεις. Το GorealPro φέρνει <strong>αντίστροφη δημοπρασία σε πραγματικό χρόνο</strong>, αντιστοίχιση ανά δήμο και αιτήματα με φωτογραφία, βίντεο και φωνή σε έναν κλάδο που δεν έχει αλλάξει εδώ και δεκαετίες. Στόχος: Αττική και Θεσσαλονίκη πρώτα, μετά όλη η Ελλάδα και η <strong>Κύπρος</strong>.
       </p>
       <div class="market-metrics">
-        <div class="market-metric">
-          <span class="metric-val">€8B+</span>
-          <div class="metric-lbl">Μέγεθος αγοράς home services Ελλάδα / έτος</div>
-        </div>
-        <div class="market-metric">
-          <span class="metric-val">90%</span>
-          <div class="metric-lbl">Offline συναλλαγές — ανεκμετάλλευτη ευκαιρία</div>
-        </div>
-        <div class="market-metric">
-          <span class="metric-val">50+</span>
-          <div class="metric-lbl">Κατηγορίες υπηρεσιών ήδη στην πλατφόρμα</div>
-        </div>
-        <div class="market-metric">
-          <span class="metric-val">0%</span>
-          <div class="metric-lbl">Χρέωση χρήστη — freemium για επαγγελματίες</div>
-        </div>
-        <div class="market-metric">
-          <span class="metric-val">&lt;1h</span>
-          <div class="metric-lbl">Μέσος χρόνος από αίτημα σε πρώτη προσφορά</div>
-        </div>
-        <div class="market-metric">
-          <span class="metric-val">3x</span>
-          <div class="metric-lbl">Αγορές επέκτασης · Κύπρος · Βαλκάνια · Νότια Ευρώπη</div>
-        </div>
+        <div class="market-metric"><span class="metric-val">1.000+</span><div class="metric-lbl">Λήψεις στο Google Play τον πρώτο μήνα</div></div>
+        <div class="market-metric"><span class="metric-val">580+</span><div class="metric-lbl">Εγγεγραμμένοι χρήστες</div></div>
+        <div class="market-metric"><span class="metric-val">430+</span><div class="metric-lbl">Επαγγελματίες στην πλατφόρμα</div></div>
+        <div class="market-metric"><span class="metric-val">90</span><div class="metric-lbl">Ειδικότητες σε 9 κατηγορίες</div></div>
+        <div class="market-metric"><span class="metric-val">350+</span><div class="metric-lbl">Δήμοι &amp; περιοχές που καλύπτουν οι επαγγελματίες</div></div>
+        <div class="market-metric"><span class="metric-val">3</span><div class="metric-lbl">Πλατφόρμες · Android · iOS · Web</div></div>
       </div>
     </div>
   </section>
@@ -1154,16 +1164,18 @@
       <div class="cat-chip">🏗️ Ανακαίνιση</div>
       <div class="cat-chip">🎨 Ελαιοχρωματιστής</div>
       <div class="cat-chip">❄️ Κλιματιστικό</div>
-      <div class="cat-chip">🔒 Κλειδαράς</div>
+      <div class="cat-chip">👶 Baby Sitter</div>
       <div class="cat-chip">🪴 Κηπουρός</div>
       <div class="cat-chip">📦 Μετακόμιση</div>
-      <div class="cat-chip">💅 Nail Artist</div>
+      <div class="cat-chip">💅 Τεχνίτρια Νυχιών</div>
       <div class="cat-chip">🖋️ Tattoo Artist</div>
       <div class="cat-chip">💻 Τεχνικός Η/Υ</div>
-      <div class="cat-chip">🐕 Pet Sitter</div>
+      <div class="cat-chip">📚 Ιδιαίτερα Μαθήματα</div>
       <div class="cat-chip">📐 Αρχιτέκτονας</div>
-      <div class="cat-chip">💈 Κομμώτης</div>
+      <div class="cat-chip">🧠 Ψυχολόγος</div>
       <div class="cat-chip">🍽️ Catering</div>
+      <div class="cat-chip">🩺 Νοσηλευτής κατ' οίκον</div>
+      <div class="cat-chip">➕ 70+ ακόμα</div>
     </div>
   </section>
 
@@ -1171,7 +1183,7 @@
   <section class="events-section">
     <div class="section-label reveal" style="text-align:center;margin-bottom:12px;">Event Organizer</div>
     <h2 class="section-title reveal d1" style="margin-bottom:14px;">Οργάνωσε την τέλεια εκδήλωση</h2>
-    <p class="section-sub reveal d2" style="margin-bottom:36px;">Φωτογράφος, catering, στολισμός — όλα με ένα αίτημα.</p>
+    <p class="section-sub reveal d2" style="margin-bottom:36px;">Φωτογράφος, catering, DJ — όλα με ένα αίτημα.</p>
 
     <div class="events-grid">
       <div class="event-card reveal">
@@ -1182,7 +1194,7 @@
       <div class="event-card reveal d1">
         <span class="event-emoji">👶</span>
         <div class="event-title">Βάφτιση</div>
-        <div class="event-desc">Αίθουσα, ανθοδέτης, γλυκά και φωτογραφία — όλα μαζί.</div>
+        <div class="event-desc">Διοργάνωση, φωτογράφος, catering και DJ — όλα μαζί.</div>
       </div>
       <div class="event-card reveal d2">
         <span class="event-emoji">🎉</span>
@@ -1202,13 +1214,14 @@
       <div class="pro-body">
         <div class="pro-label">Για επαγγελματίες</div>
         <h3>Λάβε αιτήματα, κλείσε δουλειές</h3>
-        <p>Εγγραφή δωρεάν. Λαμβάνεις ειδοποίηση όταν ένας πελάτης κοντά σου χρειάζεται τις υπηρεσίες σου. Βλέπεις φωτογραφία του προβλήματος πριν στείλεις προσφορά — ξέρεις ακριβώς τι σε περιμένει.</p>
+        <p>Δωρεάν εγγραφή και <strong>δωρεάν συνδρομή έως το τέλος του 2026</strong>. Λαμβάνεις ειδοποίηση όταν ένας πελάτης κοντά σου χρειάζεται τις υπηρεσίες σου. Βλέπεις φωτογραφία του προβλήματος πριν στείλεις προσφορά — ξέρεις ακριβώς τι σε περιμένει.</p>
         <div class="pro-perks">
           <span class="pro-perk">✓ Δωρεάν εγγραφή</span>
           <span class="pro-perk">✓ Ειδοποιήσεις real-time</span>
           <span class="pro-perk">✓ Portfolio φωτογραφιών</span>
           <span class="pro-perk">✓ Ανάπτυξη αξιολογήσεων</span>
-          <span class="pro-perk">✓ Διαχείριση ραντεβού</span>
+          <span class="pro-perk">✓ Online εξυπηρέτηση ανά ειδικότητα</span>
+          <span class="pro-perk">✓ Δωρεάν έως 31/12/2026</span>
         </div>
       </div>
     </div>
@@ -1218,40 +1231,11 @@
   <section class="testimonials">
     <div class="section-label reveal" style="text-align:center;margin-bottom:12px;">Αξιολογήσεις</div>
     <h2 class="section-title reveal d1" style="margin-bottom:36px;">Τι λένε οι χρήστες</h2>
-
-    <div class="review-grid">
-      <div class="review-card reveal">
-        <div class="review-stars">★★★★★</div>
-        <div class="review-text">"Έστειλα φωτογραφία της σπασμένης πρίζας και σε 10 λεπτά είχα 4 προσφορές. Ο ηλεκτρολόγος ήξερε ακριβώς τι να φέρει!"</div>
-        <div class="review-author">
-          <div class="review-avatar">👩</div>
-          <div><div class="review-name">Ελένη Π.</div><div class="review-role">Χρήστης από Αθήνα</div></div>
-        </div>
-      </div>
-      <div class="review-card reveal d1">
-        <div class="review-stars">★★★★★</div>
-        <div class="review-text">"Ως υδραυλικός, βλέπω φωτογραφία πριν κλείσω τιμή. Τέλος στις εκπλήξεις — 3 νέοι πελάτες την πρώτη εβδομάδα."</div>
-        <div class="review-author">
-          <div class="review-avatar">👨‍🔧</div>
-          <div><div class="review-name">Κώστας Μ.</div><div class="review-role">Επαγγελματίας · Υδραυλικός</div></div>
-        </div>
-      </div>
-      <div class="review-card reveal d2">
-        <div class="review-stars">★★★★★</div>
-        <div class="review-text">"Χρησιμοποίησα το Event Organizer για τη βάφτιση. Βρήκα φωτογράφο, ανθοδέτη και catering μέσα σε μια μέρα!"</div>
-        <div class="review-author">
-          <div class="review-avatar">👨</div>
-          <div><div class="review-name">Γιώργης Δ.</div><div class="review-role">Χρήστης από Θεσσαλονίκη</div></div>
-        </div>
-      </div>
-      <div class="review-card reveal d3">
-        <div class="review-stars">★★★★★</div>
-        <div class="review-text">"Βίντεο από την υγρασία στον τοίχο — ο μονωτής ήρθε με τα σωστά υλικά. Δεν χρειάστηκε δεύτερη επίσκεψη!"</div>
-        <div class="review-author">
-          <div class="review-avatar">👩‍💼</div>
-          <div><div class="review-name">Μαρία Σ.</div><div class="review-role">Χρήστης από Καβάλα</div></div>
-        </div>
-      </div>
+    <div class="rating-box reveal d2">
+      <div class="rating-big">5,0</div>
+      <div class="rating-stars">★★★★★</div>
+      <div class="rating-sub">Μέση βαθμολογία στο Google Play<br/>από τις πρώτες αξιολογήσεις χρηστών</div>
+      <a class="rating-link" href="https://play.google.com/store/apps/details?id=gr.gorealai.app" target="_blank" rel="noopener">Δες τις αξιολογήσεις στο Google Play →</a>
     </div>
   </section>
 
@@ -1259,7 +1243,7 @@
   <div class="trust-bar">
     <div class="trust-item reveal"><span class="trust-check">✓</span> Δωρεάν εγγραφή</div>
     <div class="trust-sep">·</div>
-    <div class="trust-item reveal d1"><span class="trust-check">✓</span> Επαληθευμένοι επαγγελματίες</div>
+    <div class="trust-item reveal d1"><span class="trust-check">✓</span> Επαλήθευση ΑΦΜ επαγγελματιών</div>
     <div class="trust-sep">·</div>
     <div class="trust-item reveal d2"><span class="trust-check">✓</span> Φωτογραφίες &amp; Βίντεο στο chat</div>
     <div class="trust-sep">·</div>
@@ -1267,13 +1251,19 @@
   </div>
 
   <!-- FINAL CTA -->
-  <section class="final-cta">
+  <section class="final-cta" id="download">
     <div class="cta-box reveal">
-      <h2>Έτοιμος να ξεκινήσεις;<br/><span class="gold">Είναι δωρεάν.</span></h2>
-      <p>Εγγραφή δωρεάν. Στείλε το πρώτο σου αίτημα — με φωτογραφία — σε 30 δευτερόλεπτα.</p>
-      <div class="final-btns">
-        <a class="btn-primary" href="/app/">⚡ Ξεκίνα τώρα</a>
-        <a class="btn-secondary" href="/app/?signup=pro">Είμαι επαγγελματίας</a>
+      <h2>Κατέβασε την εφαρμογή<br/><span class="gold">Είναι δωρεάν.</span></h2>
+      <p>Για Android και iPhone. Κάνε εγγραφή σε ένα λεπτό και στείλε το πρώτο σου αίτημα — ή γράψου ως επαγγελματίας και λάβε αιτήματα στην περιοχή σου.</p>
+      <div style="display:flex;justify-content:center;position:relative;">
+      <div class="store-btns">
+        <a class="store-btn" href="https://play.google.com/store/apps/details?id=gr.gorealai.app" target="_blank" rel="noopener" data-store="android"><svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><path fill="#00D2FF" d="M3.6 1.8 13.9 12 3.6 22.2c-.4-.2-.6-.7-.6-1.2V3c0-.5.2-1 .6-1.2z"/><path fill="#00F076" d="M17.3 8.6 13.9 12 3.6 1.8c.3-.2.8-.2 1.2 0l12.5 6.8z"/><path fill="#FF3A44" d="M17.3 15.4 4.8 22.2c-.4.2-.9.2-1.2 0L13.9 12l3.4 3.4z"/><path fill="#FFD400" d="M21 12c0 .5-.3 1-.8 1.2l-2.9 2.2L13.9 12l3.4-3.4 2.9 2.2c.5.2.8.7.8 1.2z"/></svg><span><small>Διαθέσιμο στο</small>Google Play</span></a>
+        <a class="store-btn" href="https://apps.apple.com/gr/app/gorealpro/id6817919309" target="_blank" rel="noopener" data-store="ios"><svg viewBox="0 0 24 24" width="24" height="24" fill="currentColor" aria-hidden="true"><path d="M16.37 12.62c-.03-2.6 2.12-3.85 2.22-3.91-1.21-1.77-3.09-2.01-3.76-2.04-1.6-.16-3.12.94-3.93.94-.81 0-2.06-.92-3.39-.89-1.74.03-3.35 1.01-4.25 2.57-1.81 3.14-.46 7.79 1.3 10.34.86 1.25 1.89 2.65 3.24 2.6 1.3-.05 1.79-.84 3.36-.84 1.57 0 2.01.84 3.38.81 1.4-.02 2.29-1.27 3.14-2.53.99-1.45 1.4-2.86 1.42-2.93-.03-.01-2.72-1.04-2.73-4.12zM13.8 4.98c.71-.86 1.19-2.06 1.06-3.25-1.02.04-2.26.68-3 1.54-.66.76-1.23 1.98-1.08 3.15 1.14.09 2.3-.58 3.02-1.44z"/></svg><span><small>Κατέβασε από το</small>App Store</span></a>
+      </div>
+      </div>
+      <div class="dl-qr">
+        <img src="/img/qr-gorealpro.png" alt="QR για λήψη του GorealPro" width="150" height="150" />
+        <span>Σκάναρε με το κινητό σου — σε πάει στο σωστό κατάστημα</span>
       </div>
     </div>
   </section>
@@ -1284,7 +1274,8 @@
     <div class="footer-links">
       <a href="/privacy.html">Πολιτική Απορρήτου</a>
       <a href="/terms.html">Όροι Χρήσης</a>
-      <a href="/app/">Εφαρμογή</a>
+      <a href="https://play.google.com/store/apps/details?id=gr.gorealai.app" target="_blank" rel="noopener">Google Play</a>
+      <a href="https://apps.apple.com/gr/app/gorealpro/id6817919309" target="_blank" rel="noopener">App Store</a>
     </div>
     <div class="footer-copy">© 2026 GorealPro · Όλα τα δικαιώματα κατοχυρωμένα</div>
   </footer>
@@ -1328,6 +1319,21 @@
     }, { threshold: 0.5 });
 
     document.querySelectorAll('[data-target]').forEach(function(el) { cObs.observe(el); });
+
+    // Κινητό: το κουμπί του nav πάει κατευθείαν στο σωστό κατάστημα και
+    // μπαίνει πρώτο/τονισμένο το κατάλληλο badge. Υπολογιστής: πάει στο QR.
+    (function() {
+      var ua = navigator.userAgent || '';
+      var isIOS = /iPhone|iPad|iPod/.test(ua) || (/Macintosh/.test(ua) && navigator.maxTouchPoints > 1);
+      var isAndroid = /Android/.test(ua);
+      var store = isIOS ? 'https://apps.apple.com/gr/app/gorealpro/id6817919309' : isAndroid ? 'https://play.google.com/store/apps/details?id=gr.gorealai.app' : null;
+      if (!store) return;
+      document.querySelectorAll('.js-store').forEach(function(a) { a.href = store; a.target = '_blank'; a.rel = 'noopener'; });
+      var key = isIOS ? 'ios' : 'android';
+      document.querySelectorAll('.store-btn[data-store="' + key + '"]').forEach(function(a) {
+        a.classList.add('recommended'); a.parentNode.insertBefore(a, a.parentNode.firstChild);
+      });
+    })();
 
     // Nav scroll effect
     window.addEventListener('scroll', function() {
