@@ -1926,6 +1926,30 @@ async function sweepUnnotifiedRequests() {
 }
 setInterval(sweepUnnotifiedRequests, 3 * 60 * 1000);
 
+// Η iOS 2.0.2 γράφει το professionals/{uid}.platform ως 'android' (το users
+// doc είναι σωστό 'ios'). Μέχρι να βγει νέα iOS έκδοση, το admin δείχνει
+// λάθος «Play Store» — διορθώνουμε εδώ από το users doc.
+async function syncIosProPlatform() {
+  if (!firebaseReady) return;
+  try {
+    const db = admin.firestore();
+    const snap = await db.collection('users').where('platform', '==', 'ios').get();
+    for (const u of snap.docs) {
+      if (u.data().role !== 'professional') continue;
+      const ref = db.collection('professionals').doc(u.id);
+      const p = await ref.get();
+      if (p.exists && p.data().platform !== 'ios') {
+        await ref.update({ platform: 'ios' });
+        console.log(`🍎 Fixed pro platform → ios for ${u.data().name || u.id}`);
+      }
+    }
+  } catch (e) {
+    console.error('syncIosProPlatform error:', e.message);
+  }
+}
+setInterval(syncIosProPlatform, 10 * 60 * 1000);
+setTimeout(syncIosProPlatform, 30 * 1000);
+
 // ── Καθάρισμα παλιών φωτογραφιών/βίντεο αιτημάτων (30 μέρες) ──────
 // Οι φωτογραφίες/βίντεο ανεβαίνουν στο Storage χωρίς κανέναν αυτόματο
 // μηχανισμό διαγραφής — έμεναν αποθηκευμένα για πάντα. Καθαρίζουμε μόνο τα
