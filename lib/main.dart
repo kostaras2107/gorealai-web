@@ -9068,6 +9068,10 @@ class _AIInsightsWidget extends StatelessWidget {
     final m2 = RegExp(r'(\d+)\s*τ[μµ]').firstMatch(t);
     final area = m2 != null ? int.tryParse(m2.group(1)!) ?? 0 : 0;
 
+    // Κλειδαράς: άνοιγμα πόρτας / αλλαγή κλειδαριάς (θωρακισμένη πάει προς τα πάνω)
+    if (t.contains('κλειδ') || t.contains('θωρακισμέν')) {
+      return {'low': '40', 'high': '150', 'unit': '€'};
+    }
     if (t.contains('βαψ') || t.contains('βαφ')) {
       if (area > 0) {
         final low = (area * 4).round();
