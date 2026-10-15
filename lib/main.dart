@@ -18022,6 +18022,37 @@ class _EventFormSheetState extends State<_EventFormSheet> {
 
   // Αιτιατική/γενική για σωστά ελληνικά στην περιγραφή του αιτήματος.
   static const Map<String, String> _eventAcc = {'Γάμος': 'γάμο', 'Βάφτιση': 'βάφτιση', 'Πάρτυ': 'πάρτυ'};
+
+  // Παράδειγμα κειμένου ανά εκδήλωση + υπηρεσία ('full' = ολοκληρωμένη διοργάνωση).
+  static const Map<String, Map<String, String>> _eventHints = {
+    'Γάμος': {
+      'full': 'Θέλω υπαίθριο γάμο, στυλ boho, με live μουσική και catering για τη δεξίωση...',
+      'photo': 'Θέλω φωτογράφιση και βίντεο από την προετοιμασία έως το τέλος της δεξίωσης, με άλμπουμ...',
+      'dj': 'Θέλω DJ για τη δεξίωση, με ελληνικά και ξένα, και φωτισμό για την πίστα...',
+      'catering': 'Θέλω μπουφέ για τη δεξίωση με ελληνική κουζίνα, ποτά και σερβιτόρους...',
+      'decor': 'Θέλω στολισμό στην εκκλησία και στο κτήμα, με λευκά λουλούδια και διάδρομο...',
+    },
+    'Βάφτιση': {
+      'full': 'Θέλω οργάνωση βάφτισης για αγοράκι, με στολισμό, catering και φωτογράφο...',
+      'photo': 'Θέλω φωτογράφιση στην εκκλησία και στο τραπέζι μετά, με άλμπουμ...',
+      'dj': 'Θέλω DJ για το τραπέζι μετά τη βάφτιση, με παιδικά τραγούδια για τα παιδιά...',
+      'catering': 'Θέλω μπουφέ για το τραπέζι μετά τη βάφτιση, και κάτι για τα παιδιά...',
+      'decor': 'Θέλω στολισμό στην εκκλησία και στο κτήμα με θέμα αερόστατα, σε μπλε-λευκό...',
+      'favors': 'Θέλω 80 μπομπονιέρες για κοριτσάκι, σε ροζ-λευκό, μαζί με προσκλητήρια...',
+    },
+    'Πάρτυ': {
+      'full': 'Θέλω οργάνωση για πάρτυ γενεθλίων, με DJ, catering και στολισμό...',
+      'photo': 'Θέλω φωτογράφο για 3 ώρες σε πάρτυ γενεθλίων...',
+      'dj': 'Θέλω DJ για πάρτυ γενεθλίων, με ελληνικά και ξένα, για 4 ώρες...',
+      'catering': 'Θέλω finger food και ποτά για πάρτυ γενεθλίων...',
+      'decor': 'Θέλω στολισμό με μπαλόνια και backdrop για παιδικό πάρτυ...',
+    },
+  };
+  String get _detailsHint {
+    final byEvent = _eventHints[widget.eventType] ?? const <String, String>{};
+    final hint = byEvent[widget.service?['id'] ?? 'full'] ?? byEvent['full'] ?? 'Γράψε ό,τι θα βοηθούσε τους επαγγελματίες...';
+    return 'πχ. "$hint"';
+  }
   static const Map<String, String> _eventGen = {'Γάμος': 'γάμου', 'Βάφτιση': 'βάφτισης', 'Πάρτυ': 'πάρτυ'};
 
   @override
@@ -18297,7 +18328,7 @@ class _EventFormSheetState extends State<_EventFormSheet> {
               maxLines: 3,
               style: TextStyle(color: _gw, fontSize: 13),
               decoration: InputDecoration(
-                hintText: 'πχ. "Θέλω υπαίθριο γάμο, στολ boho, με live band..."',
+                hintText: _detailsHint,
                 hintStyle: TextStyle(color: _g(0.25), fontSize: 12),
                 filled: true, fillColor: _g(0.04),
                 border: OutlineInputBorder(borderRadius: BorderRadius.circular(14),
