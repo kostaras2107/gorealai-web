@@ -14373,12 +14373,22 @@ class _ProfileScreenState extends State<ProfileScreen> with WidgetsBindingObserv
                 // Ελάχιστο log πριν διαγραφούν όλα τα ίχνη — αλλιώς μετά τη
                 // διαγραφή δεν υπάρχει κανένας τρόπος να μάθουμε ποιος ήταν.
                 try {
+                  // Ειδικότητες/περιοχή/πότε γράφτηκε — για να φαίνεται στο
+                  // admin ΤΙ επαγγέλματα αποχωρούν και μετά από πόσο καιρό.
+                  Map<String, dynamic> u = const {};
+                  try { u = (await fs.collection('users').doc(uid).get()).data() ?? const {}; } catch (_) {}
+                  final specs = (u['specialties'] as List?)?.map((e) => e.toString()).toList()
+                      ?? [if ((u['specialty'] ?? '').toString().isNotEmpty) u['specialty'].toString()];
                   await fs.collection('deletedAccounts').add({
                     'uid': uid,
                     'name': _name ?? '',
                     'email': _email ?? '',
                     'phone': _phone ?? '',
                     'role': _role,
+                    'specialties': specs,
+                    'area': (u['area'] ?? '').toString(),
+                    'platform': kIsWeb ? 'web' : (kIsIOSApp ? 'ios' : 'android'),
+                    if (u['createdAt'] != null) 'userCreatedAt': u['createdAt'],
                     'deletedAt': FieldValue.serverTimestamp(),
                   });
                 } catch (_) {}

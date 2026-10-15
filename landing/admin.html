@@ -230,6 +230,17 @@
       <div class="empty-state" id="contacts-empty" style="display:none"><div class="empty-icon">📭</div><div>Δεν υπάρχει καταγραφή ακόμα</div></div>
     </div>
 
+    <div class="section-title" style="margin-top:32px;margin-bottom:12px">🗑️ Διαγραφές λογαριασμών</div>
+    <div id="deleted-summary" style="color:#aaa;font-size:13px;margin-bottom:10px;line-height:1.7"></div>
+    <div class="table-wrap" style="margin-bottom:32px">
+      <div class="loading" id="deleted-loading">Φόρτωση...</div>
+      <table id="deleted-table" style="display:none">
+        <thead><tr><th>#</th><th>Διαγραφή</th><th>Όνομα</th><th>Ρόλος</th><th>Επάγγελμα</th><th>Περιοχή</th><th>Έμεινε</th><th>Από</th><th>Κινητό</th><th>Email</th></tr></thead>
+        <tbody id="deleted-tbody"></tbody>
+      </table>
+      <div class="empty-state" id="deleted-empty" style="display:none"><div class="empty-icon">📭</div><div>Καμία διαγραφή</div></div>
+    </div>
+
     <div class="section-title" style="margin-bottom:16px">Επαγγελματίες</div>
     <div class="filter-row">
       <select id="filter-specialty" onchange="filterTable()"><option value="">Όλες οι ειδικότητες</option></select>
@@ -569,6 +580,46 @@
     }
   }
 
+  // ── ΔΙΑΓΡΑΦΕΣ ΛΟΓΑΡΙΑΣΜΩΝ (ποιος έφυγε, τι επάγγελμα, μετά από πόσο) ──
+  async function loadDeletions() {
+    const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+    const secs = t => t?.seconds || (t instanceof Date ? t.getTime()/1000 : 0);
+    try {
+      const snap = await getDocs(collection(db, 'deletedAccounts'));
+      const rows = snap.docs.map(d => d.data()).sort((a, b) => secs(b.deletedAt) - secs(a.deletedAt));
+      document.getElementById('deleted-loading').style.display = 'none';
+      if (!rows.length) { document.getElementById('deleted-empty').style.display = 'block'; return; }
+      const self = rows.filter(r => !r.deletedBy);
+      const day0 = new Date(); day0.setHours(0,0,0,0);
+      const today = self.filter(r => secs(r.deletedAt)*1000 >= day0.getTime()).length;
+      const last7 = self.filter(r => secs(r.deletedAt)*1000 >= Date.now() - 7*864e5).length;
+      const bySpec = {};
+      self.filter(r => r.role === 'professional').forEach(r => (r.specialties && r.specialties.length ? r.specialties : ['(άγνωστο)']).forEach(s => bySpec[s] = (bySpec[s]||0)+1));
+      const top = Object.entries(bySpec).sort((a,b) => b[1]-a[1]).slice(0, 12).map(([s,n]) => `${esc(s)}: <b>${n}</b>`).join(' · ');
+      document.getElementById('deleted-summary').innerHTML =
+        `Διέγραψαν μόνοι τους: <b>${self.length}</b> (σήμερα <b>${today}</b>, 7 ημέρες <b>${last7}</b>) · Επαγγελματίες: <b>${self.filter(r=>r.role==='professional').length}</b> · Πελάτες: <b>${self.filter(r=>r.role!=='professional').length}</b>`
+        + (top ? `<br>Επαγγέλματα που αποχώρησαν: ${top}` : '');
+      const fmt = t => secs(t) ? new Date(secs(t)*1000).toLocaleString('el-GR',{day:'2-digit',month:'2-digit',year:'2-digit',hour:'2-digit',minute:'2-digit'}) : '—';
+      const stay = r => {
+        if (!secs(r.userCreatedAt) || !secs(r.deletedAt)) return '—';
+        const m = Math.round((secs(r.deletedAt) - secs(r.userCreatedAt)) / 60);
+        return m < 60 ? m + ' λεπ.' : m < 48*60 ? Math.round(m/60) + ' ώρες' : Math.round(m/1440) + ' ημέρες';
+      };
+      const plat = p => p === 'ios' ? '🍎 iPhone' : p === 'android' ? '📲 Android' : p === 'web' ? '🌐 Web' : '—';
+      document.getElementById('deleted-tbody').innerHTML = rows.slice(0, 300).map((r, i) =>
+        `<tr${r.deletedBy ? ' style="opacity:.45"' : ''}><td>${i+1}</td><td>${fmt(r.deletedAt)}</td><td>${esc(r.name || '—')}${r.deletedBy ? ' <span style="font-size:11px;color:#888">(από admin)</span>' : ''}</td>`
+        + `<td>${r.role === 'professional' ? 'Επαγγελματίας' : 'Πελάτης'}</td>`
+        + `<td style="max-width:260px">${esc((r.specialties || []).join(', ') || (r.role === 'professional' ? '(άγνωστο)' : '—'))}</td>`
+        + `<td>${esc(r.area || '—')}</td><td>${stay(r)}</td><td>${plat(r.platform)}</td><td>${esc(r.phone || '—')}</td><td>${esc(r.email || '—')}</td></tr>`
+      ).join('');
+      document.getElementById('deleted-table').style.display = 'table';
+    } catch (e) {
+      console.error('deletions load error:', e.code, e.message);
+      document.getElementById('deleted-loading').style.display = 'none';
+      document.getElementById('deleted-empty').style.display = 'block';
+    }
+  }
+
   // ── REAL-TIME listener ──
   async function startProsListener() {
     document.getElementById('loading').style.display = 'block';
@@ -578,6 +629,7 @@
     // Load clicks + user count; requests load separately (non-blocking)
     await Promise.all([loadClicks(), loadUserCount(), loadPlatformStats()]);
     loadRequests().then(loadBookings).then(loadContacts);
+    loadDeletions();
 
     if (unsubPros) unsubPros();
     unsubPros = onSnapshot(collection(db, 'professionals'), async snap => {

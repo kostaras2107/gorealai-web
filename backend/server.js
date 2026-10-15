@@ -1951,6 +1951,49 @@ async function syncIosProPlatform() {
 setInterval(syncIosProPlatform, 10 * 60 * 1000);
 setTimeout(syncIosProPlatform, 30 * 1000);
 
+// Οι παλιές εκδόσεις της εφαρμογής γράφουν στο deletedAccounts μόνο όνομα/
+// email/κινητό/ρόλο — μετά τη διαγραφή δεν μένει τρόπος να δούμε ειδικότητα.
+// Κρατάμε λοιπόν ένα ελαφρύ ευρετήριο όλων των χρηστών (ρόλος, ειδικότητες,
+// περιοχή, πλατφόρμα, ημ. εγγραφής) και συμπληρώνουμε από αυτό κάθε νέα
+// εγγραφή διαγραφής. Οι διαγραμμένοι ΔΕΝ αφαιρούνται από το ευρετήριο.
+async function syncUserIndexAndEnrichDeletions() {
+  if (!firebaseReady) return;
+  try {
+    const db = admin.firestore();
+    const idxRef = db.collection('admin_analytics').doc('user_index');
+    const idx = ((await idxRef.get()).data() || {}).users || {};
+    const snap = await db.collection('users').get();
+    snap.forEach((doc) => {
+      const d = doc.data();
+      const specs = Array.isArray(d.specialties) && d.specialties.length ? d.specialties : (d.specialty ? [d.specialty] : []);
+      const plat = (d.pushDebug && d.pushDebug.platform === 'iOS') ? 'ios' : (d.platform || '');
+      idx[doc.id] = {
+        r: d.role || '', s: specs, a: d.area || '', p: plat,
+        c: d.createdAt && d.createdAt.toMillis ? d.createdAt.toMillis() : (idx[doc.id] && idx[doc.id].c) || null,
+      };
+    });
+    await idxRef.set({ users: idx, updatedAt: new Date() });
+
+    const del = await db.collection('deletedAccounts').get();
+    for (const doc of del.docs) {
+      const d = doc.data();
+      if (d.enriched || (Array.isArray(d.specialties) && d.specialties.length)) continue;
+      const i = idx[d.uid];
+      if (!i) { await doc.ref.update({ enriched: true }); continue; }
+      await doc.ref.update({
+        specialties: i.s || [], area: i.a || '', platform: d.platform || i.p || '',
+        ...(i.c && !d.userCreatedAt ? { userCreatedAt: new Date(i.c) } : {}),
+        enriched: true,
+      });
+      console.log(`🗑️ Enriched deleted account ${d.name || d.uid}: ${(i.s || []).join(', ')}`);
+    }
+  } catch (e) {
+    console.error('syncUserIndexAndEnrichDeletions error:', e.message);
+  }
+}
+setInterval(syncUserIndexAndEnrichDeletions, 10 * 60 * 1000);
+setTimeout(syncUserIndexAndEnrichDeletions, 45 * 1000);
+
 // ── Καθάρισμα παλιών φωτογραφιών/βίντεο αιτημάτων (30 μέρες) ──────
 // Οι φωτογραφίες/βίντεο ανεβαίνουν στο Storage χωρίς κανέναν αυτόματο
 // μηχανισμό διαγραφής — έμεναν αποθηκευμένα για πάντα. Καθαρίζουμε μόνο τα
