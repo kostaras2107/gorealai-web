@@ -8512,10 +8512,10 @@ class _RequestProfessionPickerState extends State<_RequestProfessionPicker> {
     'Ελαιοχρωματιστής', 'Ηλεκτρολόγος', 'Καθαρίστρια', 'Καθηγητής Αγγλικών',
     'Καθηγητής Μαθηματικών', 'Catering', 'Κηπουρός', 'Κλειδαράς', 'Κτίστης',
     'Λογιστής', 'Μεταλλικές Κατασκευές', 'Μετακομίσεις',
-    'Μονώσεις - Διαχείριση & Αντιμετώπιση Υγρασίας', 'Νοσηλευτής κατ\' οίκον', 'Οδοντίατρος',
+    'Μονώσεις - Διαχείριση & Αντιμετώπιση Υγρασίας', 'Μπομπονιέρες', 'Νοσηλευτής κατ\' οίκον', 'Οδοντίατρος',
     'Personal Trainer', 'Πλακάς', 'Συνεργείο Ανακαίνισης',
     'Συνεργείο Βαφής & Διακόσμησης', 'Συνεργείο Ηλεκτρολόγων', 'Συνεργείο Κατασκευών', 'Συνεργείο Κλιματισμού',
-    'Συνεργείο Υδραυλικών', 'Συναρμολόγηση Επίπλων', 'Συντήρηση Κλιματιστικών', 'Tattoo Artist',
+    'Συνεργείο Υδραυλικών', 'Συναρμολόγηση Επίπλων', 'Συντήρηση Κλιματιστικών', 'Στολισμός Εκδηλώσεων', 'Tattoo Artist',
     'Τέντες - Σκίαστρα', 'Τεχνικός Καυστήρων', 'Τεχνικός Υπολογιστών', 'Τεχνίτρια Νυχιών', 'Smart Home - Συστήματα Ασφαλείας', 'Υαλουργός', 'Υδραυλικός',
     'Υπηρεσία Αποξήλωσης', 'Φιλόλογος', 'Φωτογράφος', 'Φωτογράφος Εκδηλώσεων',
     'Web Developer', 'Ξυλουργός', 'Ψυκτικός', 'Ψυχολόγος',
@@ -15036,7 +15036,8 @@ const List<Map<String, dynamic>> _specialtyCategories = [
     'category': 'Εκδηλώσεις',
     'items': [
       'Catering', 'Διοργάνωση Πάρτυ', 'DJ / Μουσική Εκδηλώσεων',
-      'Εκδηλώσεις Βάφτισης', 'Εκδηλώσεις Γάμου', 'Φωτογράφος Εκδηλώσεων'
+      'Εκδηλώσεις Βάφτισης', 'Εκδηλώσεις Γάμου', 'Μπομπονιέρες', 'Στολισμός Εκδηλώσεων',
+      'Φωτογράφος Εκδηλώσεων'
     ]
   },
   {
@@ -17846,9 +17847,9 @@ class _EventOrganizerSheet extends StatelessWidget {
             style: TextStyle(color: _g(0.45), fontSize: 13, height: 1.4)),
         const SizedBox(height: 24),
         ...[
-          {'emoji': '💍', 'title': 'Γάμος', 'subs': 'Φωτογράφος · DJ · Catering'},
-          {'emoji': '🎂', 'title': 'Βάφτιση', 'subs': 'Φωτογράφος · Catering · Στολισμός · Μπομπονιέρες'},
-          {'emoji': '🎉', 'title': 'Πάρτυ', 'subs': 'DJ · Catering · Στολισμός · Φωτογράφος'},
+          {'emoji': '💍', 'title': 'Γάμος', 'subs': 'Διοργάνωση · Φωτογράφος · DJ · Catering · Στολισμός'},
+          {'emoji': '🎂', 'title': 'Βάφτιση', 'subs': 'Διοργάνωση · Φωτογράφος · Catering · Στολισμός · Μπομπονιέρες'},
+          {'emoji': '🎉', 'title': 'Πάρτυ', 'subs': 'Διοργάνωση · DJ · Catering · Στολισμός · Φωτογράφος'},
         ].map((item) => GestureDetector(
           onTap: () {
             Navigator.pop(context);
@@ -17856,7 +17857,7 @@ class _EventOrganizerSheet extends StatelessWidget {
               context: context,
               backgroundColor: Colors.transparent,
               isScrollControlled: true,
-              builder: (_) => _EventFormSheet(
+              builder: (_) => _EventServiceSheet(
                 eventType: item['title']!,
                 emoji: item['emoji']!,
                 userId: userId,
@@ -17890,12 +17891,119 @@ class _EventOrganizerSheet extends StatelessWidget {
   }
 }
 
+// Υπηρεσίες ανά εκδήλωση. 'profession' = ακριβώς η ειδικότητα που δηλώνουν οι
+// επαγγελματίες (exactSpecialty στο backend). Η «Ολοκληρωμένη διοργάνωση»
+// παίρνει την ειδικότητα του τύπου εκδήλωσης (βλ. _eventProfession).
+const List<Map<String, String>> _eventServices = [
+  {'id': 'full', 'emoji': '✨', 'label': 'Ολοκληρωμένη διοργάνωση', 'sub': 'Ένας διοργανωτής για όλα', 'profession': ''},
+  {'id': 'photo', 'emoji': '📷', 'label': 'Φωτογράφος', 'sub': 'Φωτογράφιση & βίντεο', 'profession': 'Φωτογράφος Εκδηλώσεων'},
+  {'id': 'dj', 'emoji': '🎧', 'label': 'DJ / Μουσική', 'sub': 'DJ, ορχήστρα, ήχος', 'profession': 'DJ / Μουσική Εκδηλώσεων'},
+  {'id': 'catering', 'emoji': '🍽️', 'label': 'Catering', 'sub': 'Φαγητό, μπουφές, σερβίρισμα', 'profession': 'Catering'},
+  {'id': 'decor', 'emoji': '💐', 'label': 'Στολισμός', 'sub': 'Λουλούδια, διακόσμηση χώρου', 'profession': 'Στολισμός Εκδηλώσεων'},
+  {'id': 'favors', 'emoji': '🎁', 'label': 'Μπομπονιέρες', 'sub': 'Μπομπονιέρες & προσκλητήρια', 'profession': 'Μπομπονιέρες'},
+];
+
+List<Map<String, String>> _servicesFor(String eventType) => _eventServices
+    .where((s) => s['id'] != 'favors' || eventType == 'Βάφτιση')
+    .toList();
+
+// ══════════════════════════════════════════════════════
+// EVENT SERVICE SHEET — «Τι χρειάζεσαι;» (μετά τον τύπο εκδήλωσης)
+// ══════════════════════════════════════════════════════
+class _EventServiceSheet extends StatelessWidget {
+  final String eventType, emoji, userId, userName;
+  const _EventServiceSheet({required this.eventType, required this.emoji, required this.userId, required this.userName});
+
+  @override
+  Widget build(BuildContext context) {
+    final services = _servicesFor(eventType);
+    return Container(
+      padding: const EdgeInsets.fromLTRB(20, 16, 20, 32),
+      decoration: BoxDecoration(
+        color: const Color(0xFF0A0804),
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
+        border: Border.all(color: kGold.withValues(alpha: 0.2)),
+      ),
+      child: SingleChildScrollView(
+        child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Center(child: Container(width: 36, height: 4,
+              decoration: BoxDecoration(borderRadius: BorderRadius.circular(2), color: _g(0.2)))),
+          const SizedBox(height: 16),
+          Row(children: [
+            GestureDetector(
+              onTap: () {
+                Navigator.pop(context);
+                showModalBottomSheet(
+                  context: context,
+                  backgroundColor: Colors.transparent,
+                  isScrollControlled: true,
+                  builder: (_) => _EventOrganizerSheet(userId: userId, userName: userName),
+                );
+              },
+              child: Icon(Icons.arrow_back_ios, color: _g(0.5), size: 18),
+            ),
+            const SizedBox(width: 8),
+            Text('$emoji $eventType',
+                style: const TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.w700)),
+          ]),
+          const SizedBox(height: 16),
+          const Text('Τι χρειάζεσαι;',
+              style: TextStyle(fontFamily: 'Inter', fontSize: 24, color: Colors.white, fontWeight: FontWeight.w800)),
+          const SizedBox(height: 6),
+          Text('Διάλεξε υπηρεσία — θα ειδοποιηθούν μόνο οι αντίστοιχοι επαγγελματίες.',
+              style: TextStyle(color: _g(0.45), fontSize: 13, height: 1.4)),
+          const SizedBox(height: 18),
+          ...services.map((sv) => GestureDetector(
+            onTap: () {
+              Navigator.pop(context);
+              showModalBottomSheet(
+                context: context,
+                backgroundColor: Colors.transparent,
+                isScrollControlled: true,
+                builder: (_) => _EventFormSheet(
+                  eventType: eventType,
+                  emoji: emoji,
+                  userId: userId,
+                  userName: userName,
+                  service: sv['id'] == 'full' ? null : sv,
+                ),
+              );
+            },
+            child: Container(
+              margin: const EdgeInsets.only(bottom: 10),
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(16),
+                color: sv['id'] == 'full' ? kGold.withValues(alpha: 0.08) : _g(0.04),
+                border: Border.all(color: sv['id'] == 'full' ? kGold.withValues(alpha: 0.35) : _g(0.08)),
+              ),
+              child: Row(children: [
+                Text(sv['emoji']!, style: const TextStyle(fontSize: 22)),
+                const SizedBox(width: 14),
+                Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                  Text(sv['label']!,
+                      style: const TextStyle(color: Colors.white, fontSize: 15, fontWeight: FontWeight.w700)),
+                  const SizedBox(height: 2),
+                  Text(sv['sub']!, style: TextStyle(color: _g(0.35), fontSize: 11)),
+                ])),
+                Icon(Icons.arrow_forward_ios, color: _g(0.25), size: 14),
+              ]),
+            ),
+          )),
+        ]),
+      ),
+    );
+  }
+}
+
 // ══════════════════════════════════════════════════════
 // EVENT FORM SHEET (Γάμος / Βάφτιση / Πάρτυ)
 // ══════════════════════════════════════════════════════
 class _EventFormSheet extends StatefulWidget {
   final String eventType, emoji, userId, userName;
-  const _EventFormSheet({required this.eventType, required this.emoji, required this.userId, required this.userName});
+  // null = ολοκληρωμένη διοργάνωση· αλλιώς μία υπηρεσία από _eventServices
+  final Map<String, String>? service;
+  const _EventFormSheet({required this.eventType, required this.emoji, required this.userId, required this.userName, this.service});
   @override
   State<_EventFormSheet> createState() => _EventFormSheetState();
 }
@@ -17904,11 +18012,17 @@ class _EventFormSheetState extends State<_EventFormSheet> {
   DateTime? _date;
   String? _location;
   double _people = 50;
-  double _budget = 3000;
+  late double _budget = widget.service == null ? 3000 : 800;
+  double get _budgetMin => widget.service == null ? 500 : 100;
+  double get _budgetMax => widget.service == null ? 30000 : 10000;
   int _durationMinutes = 60;
   final _detailsCtrl = TextEditingController();
   bool _sending = false;
   bool _sharePhone = true;
+
+  // Αιτιατική/γενική για σωστά ελληνικά στην περιγραφή του αιτήματος.
+  static const Map<String, String> _eventAcc = {'Γάμος': 'γάμο', 'Βάφτιση': 'βάφτιση', 'Πάρτυ': 'πάρτυ'};
+  static const Map<String, String> _eventGen = {'Γάμος': 'γάμου', 'Βάφτιση': 'βάφτισης', 'Πάρτυ': 'πάρτυ'};
 
   @override
   void dispose() {
@@ -17937,11 +18051,15 @@ class _EventFormSheetState extends State<_EventFormSheet> {
     // περνάει από το ΙΔΙΟ, ήδη δοκιμασμένο pipeline με τα κλασσικά αιτήματα
     // (1ωρο countdown, matching pros, push/badge/email) — αντί για το
     // ξεχωριστό event_requests που δεν το έβλεπε κανένας επαγγελματίας.
-    final description = 'Διοργάνωση ${widget.eventType}'
+    final sv = widget.service;
+    final what = sv == null
+        ? 'Διοργάνωση ${_eventGen[widget.eventType] ?? widget.eventType}'
+        : '${sv['label']} για ${_eventAcc[widget.eventType] ?? widget.eventType}';
+    final description = what +
         '${_date != null ? ' στις ${_date!.day}/${_date!.month}/${_date!.year}' : ''} '
         'για ${_people.round()} άτομα, budget ~${_budget.round()}€.'
         '${_detailsCtrl.text.trim().isNotEmpty ? ' ${_detailsCtrl.text.trim()}' : ''}';
-    final profession = _eventProfession[widget.eventType] ?? widget.eventType;
+    final profession = sv?['profession'] ?? _eventProfession[widget.eventType] ?? widget.eventType;
     final fs = FirebaseFirestore.instance;
     int createdCount = 0;
     try {
@@ -17960,6 +18078,8 @@ class _EventFormSheetState extends State<_EventFormSheet> {
         'expiresAt': Timestamp.fromDate(DateTime.now().add(Duration(minutes: _durationMinutes))),
         'imageCount': 0,
         'eventType': widget.eventType,
+        if (sv != null) 'eventService': sv['id'],
+        'exactSpecialty': true,
       });
       createdCount++;
       http.post(
@@ -18002,11 +18122,25 @@ class _EventFormSheetState extends State<_EventFormSheet> {
                 decoration: BoxDecoration(borderRadius: BorderRadius.circular(2), color: _g(0.2)))),
             const SizedBox(height: 16),
             Row(children: [
-              GestureDetector(onTap: () => Navigator.pop(context),
+              GestureDetector(
+                  onTap: () {
+                    Navigator.pop(context);
+                    showModalBottomSheet(
+                      context: context,
+                      backgroundColor: Colors.transparent,
+                      isScrollControlled: true,
+                      builder: (_) => _EventServiceSheet(eventType: widget.eventType, emoji: widget.emoji,
+                          userId: widget.userId, userName: widget.userName),
+                    );
+                  },
                   child: Icon(Icons.arrow_back_ios, color: _g(0.5), size: 18)),
               const SizedBox(width: 8),
-              Text('${widget.emoji} ${widget.eventType}',
-                  style: const TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.w700)),
+              Expanded(child: Text(
+                  widget.service == null
+                      ? '${widget.emoji} ${widget.eventType}'
+                      : '${widget.emoji} ${widget.eventType} · ${widget.service!['label']}',
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.w700))),
             ]),
             const SizedBox(height: 20),
 
@@ -18140,14 +18274,14 @@ class _EventFormSheetState extends State<_EventFormSheet> {
                 overlayColor: kGold.withValues(alpha: 0.1),
               ),
               child: Slider(
-                value: _budget,
-                min: 500, max: 30000,
+                value: _budget.clamp(_budgetMin, _budgetMax),
+                min: _budgetMin, max: _budgetMax,
                 onChanged: (v) => setState(() => _budget = v),
               ),
             ),
             Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
-              Text('500€', style: TextStyle(color: _g(0.3), fontSize: 10)),
-              Text('30.000€+', style: TextStyle(color: _g(0.3), fontSize: 10)),
+              Text('${_budgetMin.round()}€', style: TextStyle(color: _g(0.3), fontSize: 10)),
+              Text(widget.service == null ? '30.000€+' : '10.000€+', style: TextStyle(color: _g(0.3), fontSize: 10)),
             ]),
             const SizedBox(height: 16),
 

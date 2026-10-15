@@ -283,6 +283,7 @@ const SPECIALTY_EMOJI = {
   'Γραφίστας': '🖌️', 'Διοργάνωση Πάρτυ': '🎉', 'Καθηγητής Αγγλικών': '📚',
   'Γκαραζόπορτες - Ρολά - Συρόμενα': '🚪', 'Τέντες - Σκίαστρα': '⛱️',
   'Catering': '🍽️', 'Βιολογικός Καθαρισμός': '🧼', 'Κτίστης': '🧱', 'Κλειδαράς': '🔑',
+  'Στολισμός Εκδηλώσεων': '💐', 'Μπομπονιέρες': '🎁',
   'Smart Home - Συστήματα Ασφαλείας': '🏠', 'Web Developer': '💻',
 };
 
@@ -1917,7 +1918,7 @@ async function sweepUnnotifiedRequests() {
       await notifyMatchingPros({
         profession: d.profession, location: d.location, description: d.description,
         requestId: doc.id, filterVerifiedOnly: d.filterVerifiedOnly, requesterUserId: d.userId,
-        urgent: d.urgent, teachingMode: d.teachingMode,
+        urgent: d.urgent, teachingMode: d.teachingMode, exactSpecialty: !!d.exactSpecialty,
       });
     }
   } catch (e) {
