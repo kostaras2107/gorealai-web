@@ -2600,8 +2600,7 @@ class _MultiAreaPickerState extends State<_MultiAreaPicker> {
 
   List<String> _filter(List<String> items) {
     if (_query.isEmpty) return items;
-    final q = _normalizeForSearch(_query);
-    return items.where((a) => _normalizeForSearch(a).contains(q)).toList();
+    return items.where((a) => _areaMatchesQuery(a, _query)).toList();
   }
 
   // Τομείς: ταιριάζουν στην αναζήτηση και με το όνομά τους και με τους
@@ -2610,7 +2609,7 @@ class _MultiAreaPickerState extends State<_MultiAreaPicker> {
     if (_query.isEmpty) return sectors;
     final q = _normalizeForSearch(_query);
     return sectors.where((s) => _normalizeForSearch(s).contains(q) ||
-        _sectorTowns(s).any((t) => _normalizeForSearch(t).contains(q))).toList();
+        _sectorTowns(s).any((t) => _areaMatchesQuery(t, _query))).toList();
   }
 
   Widget _sectorHeader(String text) => Padding(
@@ -2709,7 +2708,7 @@ class _MultiAreaPickerState extends State<_MultiAreaPicker> {
             child: Text('ΔΗΜΟΙ',
                 style: TextStyle(fontFamily: 'Inter', fontSize: 9, letterSpacing: 2, color: kGold.withValues(alpha: 0.5))),
           ),
-          ...areas.map(_row),
+          ...areas.map((a) => _row(a, subtitle: _aliasSubtitle(a, _query))),
         ],
       ],
       )),
@@ -8755,7 +8754,8 @@ class _SimpleListPickerState extends State<_SimpleListPicker> {
   Widget build(BuildContext context) {
     final filtered = _query.isEmpty
         ? widget.items
-        : widget.items.where((item) => _foldGreek(item).contains(_foldGreek(_query))).toList();
+        : widget.items.where((item) => _foldGreek(item).contains(_foldGreek(_query)) ||
+            _aliasHits(item, _query).isNotEmpty).toList();
     return Container(
     height: MediaQuery.of(context).size.height * 0.80,
     decoration: const BoxDecoration(
@@ -8843,10 +8843,16 @@ class _SimpleListPickerState extends State<_SimpleListPicker> {
                             color: isSel ? kGold : _g(0.25),
                             width: isSel ? 6 : 1.5))),
                   const SizedBox(width: 12),
-                  Expanded(child: Text(item, style: TextStyle(
-                      color: isSel ? kGold : Colors.white,
-                      fontSize: 14,
-                      fontWeight: isSel ? FontWeight.w600 : FontWeight.w400))),
+                  Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                    Text(item, style: TextStyle(
+                        color: isSel ? kGold : Colors.white,
+                        fontSize: 14,
+                        fontWeight: isSel ? FontWeight.w600 : FontWeight.w400)),
+                    if (_aliasSubtitle(item, _query) != null) ...[
+                      const SizedBox(height: 3),
+                      Text(_aliasSubtitle(item, _query)!, style: TextStyle(color: _g(0.4), fontSize: 11)),
+                    ],
+                  ])),
                   if (isSel) const Icon(Icons.check_rounded, color: kGold, size: 16),
                 ]),
               ),
@@ -15228,6 +15234,67 @@ class _SpecialtyPickerState extends State<_SpecialtyPicker> {
       );
 }
 
+// Γνωστά ονόματα περιοχών που ανήκουν σε δήμο της λίστας (π.χ. Ανάβυσσος →
+// Σαρωνικός). Χρησιμοποιούνται ΜΟΝΟ στην αναζήτηση — το αίτημα/προφίλ κρατάει
+// το όνομα του δήμου, οπότε το matching στο backend δεν αλλάζει.
+const Map<String, List<String>> _areaAliases = {
+  'Σαρωνικός': ['Ανάβυσσος', 'Καλύβια Θορικού', 'Παλαιά Φώκαια', 'Σαρωνίδα', 'Λαγονήσι', 'Κουβαράς', 'Θυμάρι'],
+  'Μαρκόπουλο': ['Πόρτο Ράφτη', 'Αυλάκι'],
+  'Μαραθώνας': ['Νέα Μάκρη', 'Σχινιάς', 'Βαρνάβας', 'Γραμματικό'],
+  'Βούλα': ['Βάρη', 'Βάρκιζα'],
+  'Ραφήνα-Πικέρμι': ['Ραφήνα', 'Πικέρμι', 'Ντράφι'],
+  'Σπάτα-Αρτέμιδα': ['Σπάτα', 'Αρτέμιδα', 'Λούτσα'],
+  'Διόνυσος': ['Άγιος Στέφανος', 'Δροσιά', 'Σταμάτα', 'Ροδόπολη'],
+  'Παιανία': ['Γλυκά Νερά'],
+  'Κηφισιά': ['Νέα Ερυθραία', 'Εκάλη', 'Κεφαλάρι'],
+  'Αμαρούσιο': ['Μαρούσι'],
+  'Πεντέλη': ['Μελίσσια', 'Νέα Πεντέλη'],
+  'Φιλοθέη-Ψυχικό': ['Ψυχικό', 'Νέο Ψυχικό', 'Φιλοθέη'],
+  'Παπάγου-Χολαργός': ['Χολαργός', 'Παπάγου'],
+  'Λυκόβρυση-Πεύκη': ['Πεύκη', 'Λυκόβρυση'],
+  'Ηράκλειο Αττικής': ['Νέο Ηράκλειο'],
+  'Αθήνα': ['Κολωνάκι', 'Παγκράτι', 'Πατήσια', 'Αμπελόκηποι Αθήνας', 'Εξάρχεια', 'Κουκάκι', 'Πλάκα', 'Γκύζη', 'Σεπόλια', 'Κολωνός', 'Πολύγωνο', 'Νέος Κόσμος', 'Μετς', 'Γουδί'],
+  'Δάφνη-Υμηττός': ['Δάφνη', 'Υμηττός'],
+  'Φιλαδέλφεια-Χαλκηδόνα': ['Νέα Φιλαδέλφεια', 'Νέα Χαλκηδόνα'],
+  'Αργυρούπολη-Ελληνικό': ['Αργυρούπολη', 'Ελληνικό'],
+  'Μοσχάτο-Ταύρος': ['Μοσχάτο', 'Ταύρος'],
+  'Άλιμος': ['Καλαμάκι'],
+  'Αγίων Αναργύρων-Καματερό': ['Άγιοι Ανάργυροι', 'Καματερό'],
+  'Νίκαια-Αγ.Ιω.Ρέντης': ['Νίκαια', 'Ρέντης'],
+  'Κερατσίνι-Δραπετσώνα': ['Κερατσίνι', 'Δραπετσώνα'],
+  'Πειραιάς': ['Καστέλλα', 'Νέο Φάληρο', 'Καμίνια', 'Πειραϊκή'],
+  'Ίλιον': ['Νέα Λιόσια'],
+  'Μάνδρα-Ειδυλλία': ['Μάνδρα'],
+  'Ελευσίνα': ['Μαγούλα'],
+  'Λαύριο': ['Κερατέα', 'Λαυρεωτική'],
+  'Αχαρνές': ['Μενίδι', 'Θρακομακεδόνες'],
+  'Ωρωπός': ['Καπανδρίτι', 'Μαλακάσα', 'Αυλώνας', 'Σκάλα Ωρωπού'],
+  'Πυλαία-Χορτιάτης': ['Πανόραμα', 'Πυλαία', 'Χορτιάτης', 'Ασβεστοχώρι'],
+  'Κορδελιό-Ευόσμος': ['Εύοσμος', 'Κορδελιό'],
+  'Νεάπολη-Συκιές': ['Συκιές', 'Νεάπολη'],
+  'Αμπελόκηποι-Μενεμένη': ['Μενεμένη', 'Αμπελόκηποι Θεσσαλονίκης'],
+  'Παύλος Μελάς': ['Πολίχνη', 'Ευκαρπία'],
+  'Δέλτα': ['Σίνδος', 'Χαλάστρα'],
+};
+
+// Τα ψευδώνυμα μιας περιοχής που ταιριάζουν με την αναζήτηση (κενό αν όχι).
+List<String> _aliasHits(String area, String query) {
+  if (query.trim().isEmpty) return const [];
+  final q = _normalizeForSearch(query.trim());
+  return (_areaAliases[area] ?? const <String>[])
+      .where((a) => _normalizeForSearch(a).contains(q)).toList();
+}
+
+bool _areaMatchesQuery(String area, String query) =>
+    _normalizeForSearch(area).contains(_normalizeForSearch(query.trim())) ||
+    _aliasHits(area, query).isNotEmpty;
+
+// Υπότιτλος «Περιλαμβάνει: Ανάβυσσος» όταν το ταίριασμα έγινε από ψευδώνυμο.
+String? _aliasSubtitle(String area, String query) {
+  final hits = _aliasHits(area, query);
+  return hits.isEmpty ? null : 'Περιλαμβάνει: ${hits.join(', ')}';
+}
+
 const List<String> _greekAreas = [
   // ── ΑΤΤΙΚΗ - Κεντρικός Τομέας ──
   'Αθήνα', 'Βύρωνας', 'Γαλάτσι', 'Δάφνη-Υμηττός', 'Ζωγράφου',
@@ -15389,8 +15456,7 @@ class _AreaPickerState extends State<_AreaPicker> {
 
   List<String> get _filtered {
     if (_query.isEmpty) return _greekAreasSorted;
-    final q = _normalizeForSearch(_query);
-    return _greekAreasSorted.where((a) => _normalizeForSearch(a).contains(q)).toList();
+    return _greekAreasSorted.where((a) => _areaMatchesQuery(a, _query)).toList();
   }
 
   @override
