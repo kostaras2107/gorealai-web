@@ -206,6 +206,11 @@
         <thead><tr><th>#</th><th>Χρήστης</th><th>Ειδικότητα</th><th>Περιγραφή</th><th>Ημερομηνία</th><th>Κατάσταση</th></tr></thead>
         <tbody id="requests-tbody"></tbody>
       </table>
+      <div id="requests-more" style="display:none;text-align:center;padding:14px 0 4px">
+        <button onclick="moreRequests(10)" style="background:#1a1400;color:#e8c66a;border:1px solid #5a4a1a;border-radius:10px;padding:9px 18px;font-weight:700;cursor:pointer;margin:0 4px">Δείξε 10 ακόμα ↓</button>
+        <button onclick="moreRequests(100000)" style="background:transparent;color:#888;border:1px solid #333;border-radius:10px;padding:9px 18px;cursor:pointer;margin:0 4px">Όλα</button>
+        <div class="requests-more-info" style="color:#666;font-size:12px;margin-top:8px"></div>
+      </div>
       <div class="empty-state" id="requests-empty" style="display:none"><div class="empty-icon">📭</div><div>Δεν υπάρχουν αιτήματα</div></div>
     </div>
 
@@ -238,6 +243,11 @@
         <thead><tr><th>#</th><th>Διαγραφή</th><th>Όνομα</th><th>Ρόλος</th><th>Επάγγελμα</th><th>Περιοχή</th><th>Έμεινε</th><th>Από</th><th>Κινητό</th><th>Email</th></tr></thead>
         <tbody id="deleted-tbody"></tbody>
       </table>
+      <div id="deleted-more" style="display:none;text-align:center;padding:14px 0 4px">
+        <button onclick="moreDeleted(10)" style="background:#1a1400;color:#e8c66a;border:1px solid #5a4a1a;border-radius:10px;padding:9px 18px;font-weight:700;cursor:pointer;margin:0 4px">Δείξε 10 ακόμα ↓</button>
+        <button onclick="moreDeleted(100000)" style="background:transparent;color:#888;border:1px solid #333;border-radius:10px;padding:9px 18px;cursor:pointer;margin:0 4px">Όλα</button>
+        <div class="deleted-more-info" style="color:#666;font-size:12px;margin-top:8px"></div>
+      </div>
       <div class="empty-state" id="deleted-empty" style="display:none"><div class="empty-icon">📭</div><div>Καμία διαγραφή</div></div>
     </div>
 
@@ -474,7 +484,20 @@
     return 'pending';
   }
 
-  window.renderRequests = function() {
+  // Σελιδοποίηση: πρώτα 10, μετά «Δείξε 10 ακόμα» / «Όλα».
+  const PAGE = 10;
+  function setMore(id, shown, total) {
+    const box = document.getElementById(id);
+    if (!box) return;
+    box.style.display = total > shown ? 'block' : 'none';
+    const info = box.querySelector('.' + id + '-info');
+    if (info) info.textContent = `Εμφανίζονται ${Math.min(shown, total)} από ${total}`;
+  }
+  let reqLimit = PAGE;
+  window.moreRequests = n => { reqLimit += n; renderRequests(true); };
+
+  window.renderRequests = function(keepLimit) {
+    if (keepLimit !== true) reqLimit = PAGE;
     const statusF = document.getElementById('req-filter-status').value;
     const specF = document.getElementById('req-filter-spec').value;
     const searchF = document.getElementById('req-filter-search').value.toLowerCase();
@@ -486,13 +509,15 @@
       return true;
     });
     if (filtered.length === 0) {
+      setMore('requests-more', 0, 0);
       document.getElementById('requests-table').style.display = 'none';
       document.getElementById('requests-empty').style.display = 'block';
       return;
     }
     document.getElementById('requests-table').style.display = 'table';
     document.getElementById('requests-empty').style.display = 'none';
-    document.getElementById('requests-tbody').innerHTML = filtered.map((r, i) => {
+    setMore('requests-more', reqLimit, filtered.length);
+    document.getElementById('requests-tbody').innerHTML = filtered.slice(0, reqLimit).map((r, i) => {
       const status = reqStatus(r);
       const statusBadge = status === 'selected'
         ? '<span style="background:#0d2b1a;color:#2ecc71;border-radius:6px;padding:3px 10px;font-size:12px">✅ Booking</span>'
@@ -581,6 +606,8 @@
   }
 
   // ── ΔΙΑΓΡΑΦΕΣ ΛΟΓΑΡΙΑΣΜΩΝ (ποιος έφυγε, τι επάγγελμα, μετά από πόσο) ──
+  let delRows = [], delLimit = 10, renderDeletedRows = () => {};
+  window.moreDeleted = n => { delLimit += n; renderDeletedRows(); };
   async function loadDeletions() {
     const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
     const secs = t => t?.seconds || (t instanceof Date ? t.getTime()/1000 : 0);
@@ -606,12 +633,15 @@
         return m < 60 ? m + ' λεπ.' : m < 48*60 ? Math.round(m/60) + ' ώρες' : Math.round(m/1440) + ' ημέρες';
       };
       const plat = p => p === 'ios' ? '🍎 iPhone' : p === 'android' ? '📲 Android' : p === 'web' ? '🌐 Web' : '—';
-      document.getElementById('deleted-tbody').innerHTML = rows.slice(0, 300).map((r, i) =>
+      delRows = rows;
+      renderDeletedRows = () => { setMore('deleted-more', delLimit, delRows.length);
+      document.getElementById('deleted-tbody').innerHTML = delRows.slice(0, delLimit).map((r, i) =>
         `<tr${r.deletedBy ? ' style="opacity:.45"' : ''}><td>${i+1}</td><td>${fmt(r.deletedAt)}</td><td>${esc(r.name || '—')}${r.deletedBy ? ' <span style="font-size:11px;color:#888">(από admin)</span>' : ''}</td>`
         + `<td>${r.role === 'professional' ? 'Επαγγελματίας' : 'Πελάτης'}</td>`
         + `<td style="max-width:260px">${esc((r.specialties || []).join(', ') || (r.role === 'professional' ? '(άγνωστο)' : '—'))}</td>`
         + `<td>${esc(r.area || '—')}</td><td>${stay(r)}</td><td>${plat(r.platform)}</td><td>${esc(r.phone || '—')}</td><td>${esc(r.email || '—')}</td></tr>`
-      ).join('');
+      ).join(''); };
+      renderDeletedRows();
       document.getElementById('deleted-table').style.display = 'table';
     } catch (e) {
       console.error('deletions load error:', e.code, e.message);
