@@ -80,6 +80,7 @@ flutter:
     - assets/images/gorealpro_wordmark.png
     - assets/images/gorealpro_pro_only.png
     - assets/svc/
+    - assets/svcph/
 
 flutter_launcher_icons:
   android: true

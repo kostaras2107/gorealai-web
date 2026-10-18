@@ -3390,6 +3390,64 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   '🪜': 'ladder.png',
   };
 
+  // Πραγματικές φωτογραφίες ανά ειδικότητα (CC0 — StockSnap/Flickr/Wikimedia,
+  // βλ. assets/svcph/CREDITS.txt). Ό,τι λείπει → 3D εικονίδιο.
+  static const Map<String, String> _svcPhotos = {
+    'Ηλεκτρολόγος': 'electrician.jpg',
+    'Συνεργείο Ηλεκτρολόγων': 'electric_team.jpg',
+    'Υδραυλικός': 'plumber.jpg',
+    'Συνεργείο Υδραυλικών': 'plumbing_team.jpg',
+    'Ελαιοχρωματιστής': 'painter.jpg',
+    'Συνεργείο Βαφής & Διακόσμησης': 'painting_team.jpg',
+    'Συνεργείο Ανακαίνισης': 'renovation.jpg',
+    'Ενδοδαπέδια Θέρμανση & Άλλες Μορφές Θέρμανσης': 'heating.jpg',
+    'Συνεργείο Θέρμανσης': 'heating_team.jpg',
+    'Καθαρίστρια': 'cleaning.jpg',
+    'Βιολογικός Καθαρισμός': 'deep_cleaning.jpg',
+    'Γυψοσανίδες': 'drywall.jpg',
+    'Συνεργείο Γυψοσανίδας & Οροφής': 'ceiling.jpg',
+    'Baby Sitter': 'babysitter.jpg',
+    'Μονώσεις - Διαχείριση & Αντιμετώπιση Υγρασίας': 'insulation.jpg',
+    'Συνεργείο Κατασκευών': 'construction.jpg',
+    'Ξυλουργός': 'carpenter.jpg',
+    'Συνεργείο Ξυλουργικών Εργασιών': 'carpentry_team.jpg',
+    'Πλακάς': 'tiles.jpg',
+    'Συνεργείο Πλακιδίων & Δαπέδων': 'tiles_team.jpg',
+    'Μετακομίσεις': 'moving.jpg',
+    'Νοσηλευτής κατ' οίκον': 'nurse.jpg',
+    'Υπηρεσία Αποξήλωσης': 'demolition.jpg',
+    'Μεταλλικές Κατασκευές': 'welding.jpg',
+    'Εκδηλώσεις Γάμου': 'wedding.jpg',
+    'Συντήρηση Κλιματιστικών': 'ac.jpg',
+    'Συνεργείο Κλιματισμού': 'ac_team.jpg',
+    'Ψυκτικός': 'refrigeration.jpg',
+    'Εγκατάσταση Ηλιακών': 'solar.jpg',
+    'Φωτογράφος': 'photographer.jpg',
+    'Φωτογράφος Εκδηλώσεων': 'event_photographer.jpg',
+    'Συνεργείο Αλουμινίου & Κουφωμάτων': 'windows.jpg',
+    'Αλουμινάς': 'aluminium.jpg',
+    'Εκδηλώσεις Βάφτισης': 'baptism.jpg',
+    'DJ / Μουσική Εκδηλώσεων': 'dj.jpg',
+    'Γυάλισμα Μαρμάρων': 'marble.jpg',
+    'Συνεργείο Κήπου & Εξωτερικών Χώρων': 'garden_team.jpg',
+    'Κηπουρός': 'gardener.jpg',
+    'Makeup Artist': 'makeup.jpg',
+    'Αποφράξεις': 'drain.jpg',
+    'Τεχνίτρια Νυχιών': 'nails.jpg',
+    'Γραφίστας': 'graphic.jpg',
+    'Διοργάνωση Πάρτυ': 'party.jpg',
+    'Καθηγητής Αγγλικών': 'tutor.jpg',
+    'Γκαραζόπορτες - Ρολά - Συρόμενα': 'garage.jpg',
+    'Τέντες - Σκίαστρα': 'awning.jpg',
+    'Catering': 'catering.jpg',
+    'Κτίστης': 'mason.jpg',
+    'Κλειδαράς': 'locksmith.jpg',
+    'Στολισμός Εκδηλώσεων': 'decoration.jpg',
+    'Μπομπονιέρες': 'favors.jpg',
+    'Smart Home - Συστήματα Ασφαλείας': 'security.jpg',
+    'Web Developer': 'webdev.jpg',
+  };
+
   Widget _svcIcon(String emoji) {
     final f = _svcIcons[emoji];
     if (f == null) return Text(emoji, style: const TextStyle(fontSize: 30));
@@ -4219,7 +4277,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
           ]),
         ),
         SizedBox(
-          height: 90,
+          height: 116,
           child: ListView(
             scrollDirection: Axis.horizontal,
             padding: const EdgeInsets.symmetric(horizontal: 20),
@@ -4227,45 +4285,46 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                 .map((c) => GestureDetector(
                       onTap: () => _openRequestWithProfession(c['profession']!),
                       child: Container(
-                        width: 80,
+                        width: 100,
                         margin: const EdgeInsets.only(right: 10),
                         decoration: BoxDecoration(
-                            borderRadius: BorderRadius.circular(16),
-                            gradient: LinearGradient(
-                              begin: Alignment.topLeft,
-                              end: Alignment.bottomRight,
-                              colors: [
-                                kGold.withValues(alpha: 0.08),
-                                const Color(0xFF0A0A18),
-                              ],
-                            ),
-                            border: Border.all(
-                                color: kGold.withValues(alpha: 0.18), width: 1),
-                            boxShadow: [
-                              BoxShadow(
-                                  color: kGold.withValues(alpha: 0.1),
-                                  blurRadius: 6,
-                                  offset: const Offset(0, 2)),
-                              BoxShadow(
-                                  color: Colors.black.withValues(alpha: 0.5),
-                                  blurRadius: 8,
-                                  offset: const Offset(0, 2)),
-                            ]),
-                        child: Column(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              _svcIcon(c['emoji']!),
-                              const SizedBox(height: 6),
-                              Text(c['label']!,
-                                  textAlign: TextAlign.center,
-                                  maxLines: 2,
-                                  overflow: TextOverflow.ellipsis,
-                                  style: TextStyle(
-                                      fontSize: 9,
-                                      color: _g(0.75),
-                                      fontWeight: FontWeight.w600,
-                                      letterSpacing: 0.2)),
-                            ]),
+                          borderRadius: BorderRadius.circular(16),
+                          border: Border.all(color: kGold.withValues(alpha: 0.25), width: 1),
+                          boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.5), blurRadius: 8, offset: const Offset(0, 2))],
+                        ),
+                        child: ClipRRect(
+                          borderRadius: BorderRadius.circular(15),
+                          child: _svcPhotos[c['profession']] != null
+                              ? Stack(fit: StackFit.expand, children: [
+                                  Image.asset('assets/svcph/${_svcPhotos[c['profession']]}', fit: BoxFit.cover,
+                                      errorBuilder: (_, __, ___) => Container(color: const Color(0xFF1A160C))),
+                                  const DecoratedBox(decoration: BoxDecoration(gradient: LinearGradient(
+                                      begin: Alignment.topCenter, end: Alignment.bottomCenter,
+                                      stops: [0.35, 1.0],
+                                      colors: [Colors.transparent, Color(0xE6000000)]))),
+                                  Positioned(left: 6, right: 6, bottom: 7,
+                                    child: Text(c['label']!,
+                                        textAlign: TextAlign.center, maxLines: 2, overflow: TextOverflow.ellipsis,
+                                        style: const TextStyle(fontSize: 10, height: 1.15, color: Colors.white,
+                                            fontWeight: FontWeight.w700,
+                                            shadows: [Shadow(color: Colors.black, blurRadius: 4)]))),
+                                ])
+                              : Container(
+                                  decoration: BoxDecoration(gradient: LinearGradient(
+                                      begin: Alignment.topLeft, end: Alignment.bottomRight,
+                                      colors: [kGold.withValues(alpha: 0.08), const Color(0xFF0A0A18)])),
+                                  child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
+                                    _svcIcon(c['emoji']!),
+                                    const SizedBox(height: 6),
+                                    Padding(
+                                      padding: const EdgeInsets.symmetric(horizontal: 4),
+                                      child: Text(c['label']!,
+                                          textAlign: TextAlign.center, maxLines: 2, overflow: TextOverflow.ellipsis,
+                                          style: TextStyle(fontSize: 10, color: _g(0.8), fontWeight: FontWeight.w600)),
+                                    ),
+                                  ]),
+                                ),
+                        ),
                       ),
                     ))
                 .toList(),
