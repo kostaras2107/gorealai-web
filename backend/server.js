@@ -1992,6 +1992,62 @@ async function syncUserIndexAndEnrichDeletions() {
   }
 }
 setInterval(syncUserIndexAndEnrichDeletions, 10 * 60 * 1000);
+
+// Η εφαρμογή iPhone ΔΕΝ δείχνει τιμές συνδρομής (κανόνες Apple), οπότε οι
+// επαγγελματίες που μπαίνουν από iPhone μαθαίνουν τη συνδρομή από 1/1/2027
+// μόνο με αυτό το email. Τιμή από την ΚΥΡΙΑ ειδικότητα — ίδιος κανόνας με
+// το _subscriptionPrice της εφαρμογής. Στέλνεται μία φορά (subNoticeSentAt)
+// και μόνο πριν το 2027 (μετά το κείμενο «από 1/1/2027» δεν ισχύει).
+function subscriptionPriceFor(specialty) {
+  const s = String(specialty || '').toLowerCase();
+  if (s.includes('συνεργείο')) return '59,99';
+  if (s.includes('γάμο') || s.includes('βάφτιση') || s.includes('πάρτ')) return '29,99';
+  return '19,99';
+}
+async function notifyIosProsAboutSubscription() {
+  if (!firebaseReady || Date.now() >= Date.UTC(2026, 11, 31, 22, 0)) return;
+  try {
+    const db = admin.firestore();
+    const snap = await db.collection('users').where('role', '==', 'professional').get();
+    const esc = (s) => String(s || '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+    for (const doc of snap.docs) {
+      const d = doc.data();
+      const ios = (d.pushDebug && d.pushDebug.platform === 'iOS') || d.platform === 'ios';
+      if (!ios || d.subNoticeSentAt) continue;
+      // Δώσε χρόνο να ολοκληρωθεί η εγγραφή (ειδικότητες κ.λπ.)
+      const created = d.createdAt && d.createdAt.toMillis ? d.createdAt.toMillis() : 0;
+      if (created && Date.now() - created < 10 * 60 * 1000) continue;
+      const specs = Array.isArray(d.specialties) && d.specialties.length ? d.specialties : (d.specialty ? [d.specialty] : []);
+      if (!specs.length) continue;
+      let email = d.email;
+      try { email = (await admin.auth().getUser(doc.id)).email || email; } catch (_) {}
+      if (!email) continue;
+      const spec = specs[0];
+      const price = subscriptionPriceFor(spec);
+      const first = String(d.name || '').trim().split(/\s+/)[0] || '';
+      const html = `<div style="font-family:Arial,sans-serif;max-width:520px;margin:0 auto;background:#0A0800;color:#fff;border-radius:16px;padding:32px;border:1px solid rgba(201,168,76,0.3)">
+<h1 style="color:#FFD47A;font-size:20px;margin:0 0 14px;">Ενημέρωση για τη συνδρομή επαγγελματιών</h1>
+<p style="color:rgba(255,255,255,0.85);font-size:14px;line-height:1.6;">Καλησπέρα ${esc(first)},</p>
+<p style="color:rgba(255,255,255,0.85);font-size:14px;line-height:1.6;">σας ευχαριστούμε που είστε μέλος του GorealPro ως <strong style="color:#FFD47A">${esc(spec)}</strong>!</p>
+<p style="color:rgba(255,255,255,0.85);font-size:14px;line-height:1.6;">Θέλουμε να σας ενημερώσουμε έγκαιρα: μέχρι <strong>31/12/2026</strong> η χρήση της πλατφόρμας είναι <strong>εντελώς δωρεάν</strong>. Από <strong>1/1/2027</strong> θα ισχύει μηνιαία συνδρομή <strong style="color:#FFD47A">${price}€ + ΦΠΑ</strong> για την κατηγορία σας, ώστε να συνεχίσετε να λαμβάνετε αιτήματα πελατών.</p>
+<p style="color:rgba(255,255,255,0.85);font-size:14px;line-height:1.6;">Δεν χρειάζεται να κάνετε τίποτα τώρα. Τον Δεκέμβριο θα σας στείλουμε οδηγίες για την ενεργοποίηση. Η συνδρομή ενεργοποιείται μόνο αν το επιλέξετε εσείς και ακυρώνεται όποτε θέλετε — δεν υπάρχει καμία αυτόματη χρέωση.</p>
+<p style="color:rgba(255,255,255,0.6);font-size:13px;line-height:1.6;margin-top:18px;">Για οποιαδήποτε απορία: info@gorealai.gr · 6937102492<br>Η ομάδα του GorealPro</p></div>`;
+      // Σημειώνουμε ΠΡΙΝ την αποστολή ώστε να μη σταλεί ποτέ διπλό.
+      await doc.ref.update({ subNoticeSentAt: admin.firestore.FieldValue.serverTimestamp(), subNoticePrice: price });
+      try {
+        await sendEmail({ to: email, subject: 'GorealPro: Ενημέρωση για τη συνδρομή επαγγελματιών από 1/1/2027', html });
+        console.log(`💳 Subscription notice → ${email} (${spec}, ${price}€)`);
+      } catch (e) {
+        await doc.ref.update({ subNoticeSentAt: admin.firestore.FieldValue.delete(), subNoticePrice: admin.firestore.FieldValue.delete() });
+        console.error('subscription notice email error:', e.message);
+      }
+    }
+  } catch (e) {
+    console.error('notifyIosProsAboutSubscription error:', e.message);
+  }
+}
+setInterval(notifyIosProsAboutSubscription, 15 * 60 * 1000);
+setTimeout(notifyIosProsAboutSubscription, 60 * 1000);
 setTimeout(syncUserIndexAndEnrichDeletions, 45 * 1000);
 
 // ── Καθάρισμα παλιών φωτογραφιών/βίντεο αιτημάτων (30 μέρες) ──────
