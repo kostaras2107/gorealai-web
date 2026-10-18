@@ -17048,7 +17048,7 @@ class _ProStoriesSectionState extends State<_ProStoriesSection> {
             ]),
           ),
           SizedBox(
-            height: 112,
+            height: 136,
             child: ListView.separated(
               scrollDirection: Axis.horizontal,
               padding: const EdgeInsets.symmetric(horizontal: 16),
@@ -17067,12 +17067,12 @@ class _ProStoriesSectionState extends State<_ProStoriesSection> {
                     if (mounted) setState(() {});
                   },
                   child: SizedBox(
-                    width: 72,
+                    width: 90,
                     child: Column(children: [
                       Stack(clipBehavior: Clip.none, children: [
                         Container(
-                          width: 68, height: 68,
-                          padding: const EdgeInsets.all(2.5),
+                          width: 86, height: 86,
+                          padding: const EdgeInsets.all(3),
                           decoration: BoxDecoration(
                             shape: BoxShape.circle,
                             gradient: seen ? null : const LinearGradient(
@@ -17104,9 +17104,9 @@ class _ProStoriesSectionState extends State<_ProStoriesSection> {
                       ]),
                       const SizedBox(height: 6),
                       Text(p.firstName, maxLines: 1, overflow: TextOverflow.ellipsis,
-                          style: TextStyle(color: seen ? _g(0.55) : Colors.white, fontSize: 11, fontWeight: FontWeight.w600)),
+                          style: TextStyle(color: seen ? _g(0.55) : Colors.white, fontSize: 12, fontWeight: FontWeight.w600)),
                       Text(p.specialty, maxLines: 1, overflow: TextOverflow.ellipsis,
-                          style: TextStyle(color: _g(0.4), fontSize: 9.5)),
+                          style: TextStyle(color: _g(0.4), fontSize: 10.5)),
                     ]),
                   ),
                 );
@@ -17122,7 +17122,7 @@ class _ProStoriesSectionState extends State<_ProStoriesSection> {
 Widget _storyInitials(_StoryPro p) => Container(
       color: const Color(0xFF2A2214),
       alignment: Alignment.center,
-      child: Text(p.initials, style: const TextStyle(color: kGoldLight, fontSize: 18, fontWeight: FontWeight.w800)),
+      child: Text(p.initials, style: const TextStyle(color: kGoldLight, fontSize: 22, fontWeight: FontWeight.w800)),
     );
 
 class _ProStoriesViewer extends StatefulWidget {
@@ -17161,13 +17161,27 @@ class _ProStoriesViewerState extends State<_ProStoriesViewer> {
     ));
   }
 
-  void _askOffer() {
-    if (FirebaseAuth.instance.currentUser == null) {
-      showGuestSignInPrompt(context, reason: 'Για να ζητήσεις προσφορά χρειάζεσαι λογαριασμό.');
+  // Ανοίγει απευθείας τη συνομιλία με τον επαγγελματία (ίδιο chatId με το
+  // «Στείλε μήνυμα» του προφίλ) — συνεχίζει την υπάρχουσα αν έχουν ξαναμιλήσει.
+  Future<void> _openChat() async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) {
+      showGuestSignInPrompt(context, reason: 'Για να στείλεις μήνυμα χρειάζεσαι λογαριασμό.');
       return;
     }
+    final proUid = (_p.data['userId'] ?? _p.id).toString();
+    if (proUid == user.uid) return;
+    String userName = 'Χρήστης';
+    try {
+      userName = ((await FirebaseFirestore.instance.collection('users').doc(user.uid).get())
+              .data()?['name'] ?? 'Χρήστης').toString();
+    } catch (_) {}
+    if (!mounted) return;
     Navigator.push(context, PageRouteBuilder(
-      pageBuilder: (_, __, ___) => DirectRequestScreen(pro: {..._p.data, 'id': _p.id}),
+      pageBuilder: (_, __, ___) => ChatScreen(
+        chatId: '${user.uid}_$proUid', currentUserId: user.uid,
+        currentUserName: userName, otherName: _p.name, isPro: false,
+      ),
       transitionsBuilder: (_, a, __, c) => FadeTransition(opacity: a, child: c),
     ));
   }
@@ -17272,13 +17286,17 @@ class _ProStoriesViewerState extends State<_ProStoriesViewer> {
               )),
               const SizedBox(width: 10),
               Expanded(flex: 2, child: GestureDetector(
-                onTap: _askOffer,
+                onTap: _openChat,
                 child: Container(
                   padding: const EdgeInsets.symmetric(vertical: 13),
                   decoration: BoxDecoration(borderRadius: BorderRadius.circular(14),
                       gradient: const LinearGradient(colors: [kGoldLight, kGold])),
-                  child: const Center(child: Text('Ζήτα προσφορά',
-                      style: TextStyle(color: Colors.black, fontSize: 13.5, fontWeight: FontWeight.w900))),
+                  child: const Row(mainAxisAlignment: MainAxisAlignment.center, children: [
+                    Icon(Icons.chat_bubble_rounded, color: Colors.black, size: 17),
+                    SizedBox(width: 7),
+                    Text('Στείλε μήνυμα',
+                        style: TextStyle(color: Colors.black, fontSize: 13.5, fontWeight: FontWeight.w900)),
+                  ]),
                 ),
               )),
             ]),
