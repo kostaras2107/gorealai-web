@@ -17035,16 +17035,35 @@ class _ProStoriesSectionState extends State<_ProStoriesSection> {
         return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
           Padding(
             padding: const EdgeInsets.fromLTRB(20, 0, 20, 12),
-            child: Row(children: [
-              Container(width: 3, height: 20,
-                  decoration: BoxDecoration(borderRadius: BorderRadius.circular(2),
-                      gradient: const LinearGradient(begin: Alignment.topCenter, end: Alignment.bottomCenter,
-                          colors: [kGoldLight, kGold]))),
-              const SizedBox(width: 10),
-              const Text('Δες τη δουλειά τους',
-                  style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.w700, letterSpacing: 0.3)),
-              const Spacer(),
-              Text('${pros.length} επαγγελματίες', style: TextStyle(color: _g(0.4), fontSize: 11)),
+            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Row(children: [
+                Container(width: 3, height: 20,
+                    decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(2),
+                        gradient: const LinearGradient(begin: Alignment.topCenter, end: Alignment.bottomCenter,
+                            colors: [Color(0xFFEE1D52), Color(0xFF69C9D0)]),
+                        boxShadow: [BoxShadow(color: const Color(0xFF69C9D0).withValues(alpha: 0.5), blurRadius: 6)])),
+                const SizedBox(width: 10),
+                const Text('TikTok Shorts',
+                    style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.w700, letterSpacing: 0.3)),
+                const SizedBox(width: 8),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(20),
+                    gradient: const LinearGradient(colors: [Color(0xFFEE1D52), Color(0xFF69C9D0)]),
+                  ),
+                  child: const Text('✨ ULTRA', style: TextStyle(color: Colors.white, fontSize: 9, fontWeight: FontWeight.w900, letterSpacing: 0.5)),
+                ),
+                const Spacer(),
+                Text('${pros.length} επαγγελματίες', style: TextStyle(color: _g(0.4), fontSize: 11)),
+              ]),
+              const SizedBox(height: 6),
+              const Padding(
+                padding: EdgeInsets.only(left: 13),
+                child: Text('Δες τη δουλειά τους',
+                    style: TextStyle(color: kGold, fontSize: 13, fontWeight: FontWeight.w600, letterSpacing: 0.2)),
+              ),
             ]),
           ),
           SizedBox(
