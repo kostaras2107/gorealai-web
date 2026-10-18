@@ -2048,6 +2048,56 @@ async function notifyIosProsAboutSubscription() {
 }
 setInterval(notifyIosProsAboutSubscription, 15 * 60 * 1000);
 setTimeout(notifyIosProsAboutSubscription, 60 * 1000);
+
+// ── Αυτόματη αφαίρεση TikTok shorts που δεν υπάρχουν πλέον ────────────────
+// Κάθε 6 ώρες ελέγχει κάθε link μέσω TikTok oEmbed. Διαγραμμένο / ιδιωτικό
+// βίντεο → 400/404. Αφαιρείται μόνο μετά από 2 διαδοχικές αποτυχίες (ώστε
+// ένα στιγμιαίο πρόβλημα του TikTok να μη σβήσει υπαρκτό βίντεο). Σφάλματα
+// δικτύου / 429 / 5xx δεν μετράνε. Οι αποτυχίες κρατιούνται στο
+// admin_analytics/tiktok_check και τα αφαιρεμένα στο tiktok_removed.
+async function cleanupDeadTikTokShorts() {
+  if (!firebaseReady) return;
+  try {
+    const db = admin.firestore();
+    const stateRef = db.collection('admin_analytics').doc('tiktok_check');
+    const fails = ((await stateRef.get()).data() || {}).fails || {};
+    const newFails = {};
+    const snap = await db.collection('professionals').get();
+    for (const doc of snap.docs) {
+      const d = doc.data();
+      const urls = Array.isArray(d.tiktokShorts) ? d.tiktokShorts.filter((u) => typeof u === 'string') : [];
+      if (!urls.length) continue;
+      const dead = [];
+      for (const url of urls) {
+        let status = 0;
+        try {
+          const r = await fetch(`https://www.tiktok.com/oembed?url=${encodeURIComponent(url)}`, { signal: AbortSignal.timeout(10_000) });
+          status = r.status;
+        } catch (_) { status = 0; }
+        await new Promise((r) => setTimeout(r, 400));
+        const key = Buffer.from(url).toString('base64url').slice(0, 1400);
+        if (status === 400 || status === 404) {
+          const n = (fails[key] || 0) + 1;
+          if (n >= 2) dead.push(url); else newFails[key] = n;
+        }
+      }
+      if (!dead.length) continue;
+      const kept = urls.filter((u) => !dead.includes(u));
+      await doc.ref.set({ tiktokShorts: kept }, { merge: true });
+      const uid = d.userId || doc.id;
+      await db.collection('users').doc(uid).set({ tiktokShorts: kept }, { merge: true }).catch(() => {});
+      await db.collection('admin_analytics').doc('tiktok_removed').set({
+        log: admin.firestore.FieldValue.arrayUnion(...dead.map((url) => ({ proId: doc.id, name: d.name || '', url, at: new Date().toISOString() }))),
+      }, { merge: true });
+      console.log(`TikTok cleanup: removed ${dead.length} from ${d.name || doc.id}`);
+    }
+    await stateRef.set({ fails: newFails, lastRun: new Date().toISOString() });
+  } catch (e) {
+    console.error('cleanupDeadTikTokShorts error:', e.message);
+  }
+}
+setInterval(cleanupDeadTikTokShorts, 6 * 60 * 60 * 1000);
+setTimeout(cleanupDeadTikTokShorts, 3 * 60 * 1000);
 setTimeout(syncUserIndexAndEnrichDeletions, 45 * 1000);
 
 // ── Καθάρισμα παλιών φωτογραφιών/βίντεο αιτημάτων (30 μέρες) ──────
