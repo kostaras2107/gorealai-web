@@ -3341,6 +3341,62 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   // Δημοφιλείς υπηρεσίες — ξεκινάει με αυτό το στατικό fallback και
   // αντικαθίσταται από τα πραγματικά top ειδικότητες μόλις απαντήσει το
   // backend, ώστε η αρχική να μην είναι ποτέ άδεια/σπασμένη αν αργήσει.
+  // Τρισδιάστατα εικονίδια (Microsoft Fluent Emoji 3D, MIT) για τις
+  // δημοφιλείς υπηρεσίες — αντί για τα επίπεδα emoji του συστήματος.
+  // Κλειδί το emoji που στέλνει το backend· ό,τι λείπει δείχνεται ως emoji.
+  static const Map<String, String> _svcIcons = {
+  '🏗️': 'building_construction.png',
+  '⚡': 'high_voltage.png',
+  '🎨': 'artist_palette.png',
+  '🔧': 'wrench.png',
+  '💧': 'droplet.png',
+  '🧱': 'brick.png',
+  '🏢': 'office_building.png',
+  '🪵': 'wood.png',
+  '📦': 'package.png',
+  '🩺': 'stethoscope.png',
+  '🔨': 'hammer.png',
+  '⚙️': 'gear.png',
+  '🧹': 'broom.png',
+  '💍': 'ring.png',
+  '❄️': 'snowflake.png',
+  '☀️': 'sun.png',
+  '📷': 'camera.png',
+  '🪟': 'window.png',
+  '👶': 'baby.png',
+  '🎧': 'headphone.png',
+  '🧊': 'ice.png',
+  '✨': 'sparkles.png',
+  '🌿': 'herb.png',
+  '💄': 'lipstick.png',
+  '🚿': 'shower.png',
+  '💅': 'nail_polish.png',
+  '🍼': 'baby_bottle.png',
+  '🖌️': 'paintbrush.png',
+  '🎉': 'party_popper.png',
+  '📚': 'books.png',
+  '🚪': 'door.png',
+  '⛱️': 'umbrella_on_ground.png',
+  '🍽️': 'fork_and_knife_with_plate.png',
+  '🧼': 'soap.png',
+  '🔑': 'key.png',
+  '💐': 'bouquet.png',
+  '🎁': 'wrapped_gift.png',
+  '🏠': 'house.png',
+  '💻': 'laptop.png',
+  '🛠️': 'hammer_and_wrench.png',
+  '🔥': 'fire.png',
+  '🧰': 'toolbox.png',
+  '🪜': 'ladder.png',
+  };
+
+  Widget _svcIcon(String emoji) {
+    final f = _svcIcons[emoji];
+    if (f == null) return Text(emoji, style: const TextStyle(fontSize: 30));
+    return Image.asset('assets/svc/$f', width: 40, height: 40, filterQuality: FilterQuality.medium,
+        errorBuilder: (_, __, ___) => Text(emoji, style: const TextStyle(fontSize: 30)));
+  }
+
   List<Map<String, String>> _popularServices = const [
     {'emoji': '⚡', 'label': 'Ηλεκτρολόγος', 'profession': 'Ηλεκτρολόγος'},
     {'emoji': '🔧', 'label': 'Υδραυλικός', 'profession': 'Υδραυλικός'},
@@ -4198,8 +4254,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                         child: Column(
                             mainAxisAlignment: MainAxisAlignment.center,
                             children: [
-                              Text(c['emoji']!,
-                                  style: const TextStyle(fontSize: 26)),
+                              _svcIcon(c['emoji']!),
                               const SizedBox(height: 6),
                               Text(c['label']!,
                                   textAlign: TextAlign.center,
