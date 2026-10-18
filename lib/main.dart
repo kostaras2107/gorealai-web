@@ -4265,44 +4265,8 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
 
         const SizedBox(height: 28),
 
-        // TIK TOK SHORTS
-        Padding(
-          padding: const EdgeInsets.fromLTRB(20, 0, 20, 12),
-          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            Row(children: [
-              Container(width: 3, height: 20,
-                  decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(2),
-                      gradient: const LinearGradient(begin: Alignment.topCenter, end: Alignment.bottomCenter,
-                          colors: [Color(0xFFEE1D52), Color(0xFF69C9D0)]),
-                      boxShadow: [BoxShadow(color: const Color(0xFF69C9D0).withValues(alpha: 0.5), blurRadius: 6)])),
-              const SizedBox(width: 10),
-              const Text('TikTok Shorts',
-                  style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.w700, letterSpacing: 0.3)),
-              const SizedBox(width: 8),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(20),
-                  gradient: const LinearGradient(colors: [Color(0xFFEE1D52), Color(0xFF69C9D0)]),
-                ),
-                child: const Text('✨ ULTRA', style: TextStyle(color: Colors.white, fontSize: 9, fontWeight: FontWeight.w900, letterSpacing: 0.5)),
-              ),
-            ]),
-            const SizedBox(height: 8),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(8),
-                color: kGold.withValues(alpha: 0.12),
-                border: Border.all(color: kGold.withValues(alpha: 0.4)),
-              ),
-              child: const Text('🎬 Παρουσίασε τη δουλειά σου μέσω βίντεο',
-                  style: TextStyle(color: kGold, fontSize: 9, fontWeight: FontWeight.w800, letterSpacing: 0.3)),
-            ),
-          ]),
-        ),
-        const _TikTokShortsCarousel(),
+        // ΒΙΝΤΕΟ ΕΠΑΓΓΕΛΜΑΤΙΩΝ — stories (ένας κύκλος ανά επαγγελματία)
+        const _ProStoriesSection(),
 
         const SizedBox(height: 28),
 
@@ -16975,6 +16939,349 @@ class _FullscreenTikTokViewer extends StatelessWidget {
                 child: const Icon(Icons.close, color: Colors.white, size: 20),
               ),
             ),
+          ),
+        ]),
+      ),
+    );
+  }
+}
+
+// ══════════════════════════════════════════════════════
+// ΒΙΝΤΕΟ ΕΠΑΓΓΕΛΜΑΤΙΩΝ — STORIES
+// Ένας κύκλος ανά επαγγελματία (όσα βίντεο κι αν έχει), σειρά που αλλάζει
+// κάθε μέρα ώστε να φαίνονται όλοι δίκαια — πρώτα όσοι έχουν φωτογραφία
+// προφίλ και καλή βαθμολογία. Πάτημα → πλήρης οθόνη με τα βίντεό του,
+// επόμενος/προηγούμενος επαγγελματίας και «Ζήτα προσφορά».
+// ══════════════════════════════════════════════════════
+class _StoryPro {
+  final String id;
+  final Map<String, dynamic> data;
+  final List<String> videoIds;
+  final List<String> urls;
+  _StoryPro(this.id, this.data, this.videoIds, this.urls);
+  String get name => (data['name'] ?? data['displayName'] ?? 'Επαγγελματίας').toString();
+  String get firstName => name.trim().split(RegExp(r'\s+')).first;
+  String get specialty {
+    final specs = (data['specialties'] as List?)?.whereType<String>().toList() ?? const <String>[];
+    return specs.isNotEmpty ? specs.first : (data['specialty'] ?? '').toString();
+  }
+  String get photo => (data['profilePhotoUrl'] ?? '').toString();
+  double get rating => _combinedRating(data);
+  String get initials {
+    final parts = name.trim().split(RegExp(r'\s+')).where((w) => w.isNotEmpty).toList();
+    if (parts.isEmpty) return '?';
+    return (parts.first[0] + (parts.length > 1 ? parts[1][0] : '')).toUpperCase();
+  }
+}
+
+class _ProStoriesSection extends StatefulWidget {
+  const _ProStoriesSection();
+  @override
+  State<_ProStoriesSection> createState() => _ProStoriesSectionState();
+}
+
+class _ProStoriesSectionState extends State<_ProStoriesSection> {
+  static final Set<String> _seen = {};
+  static bool _seenLoaded = false;
+
+  @override
+  void initState() {
+    super.initState();
+    if (!_seenLoaded) {
+      _seenLoaded = true;
+      SharedPreferences.getInstance().then((p) {
+        _seen.addAll(p.getStringList('seenStoryPros') ?? const []);
+        if (mounted) setState(() {});
+      }).catchError((_) {});
+    }
+  }
+
+  void _markSeen(String id) {
+    if (_seen.add(id)) {
+      SharedPreferences.getInstance().then((p) => p.setStringList('seenStoryPros', _seen.toList())).catchError((_) => false);
+    }
+  }
+
+  List<_StoryPro> _build(List<QueryDocumentSnapshot> docs) {
+    final byUser = <String, _StoryPro>{};
+    for (final doc in docs) {
+      final d = doc.data() as Map<String, dynamic>;
+      final urls = ((d['tiktokShorts'] as List?) ?? const []).whereType<String>()
+          .where((u) => extractTikTokVideoId(u) != null).toList();
+      if (urls.isEmpty) continue;
+      final key = (d['userId'] ?? doc.id).toString();
+      if (byUser.containsKey(key) && byUser[key]!.urls.length >= urls.length) continue;
+      byUser[key] = _StoryPro(doc.id, d, urls.map((u) => extractTikTokVideoId(u)!).toList(), urls);
+    }
+    final list = byUser.values.toList();
+    // Τυχαία σειρά που αλλάζει μία φορά τη μέρα (ίδια για όλη τη μέρα).
+    final day = DateTime.now().difference(DateTime(2026, 1, 1)).inDays;
+    list.shuffle(Random(day));
+    int score(_StoryPro p) => (p.photo.isNotEmpty ? 2 : 0) + (p.rating >= 4.5 ? 1 : 0);
+    // Σταθερή ταξινόμηση: όσοι έχουν φωτογραφία/καλή βαθμολογία μπροστά.
+    final indexed = list.asMap().entries.toList()
+      ..sort((a, b) { final c = score(b.value).compareTo(score(a.value)); return c != 0 ? c : a.key.compareTo(b.key); });
+    return indexed.map((e) => e.value).toList();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return StreamBuilder<QuerySnapshot>(
+      stream: FirebaseFirestore.instance.collection('professionals').where('is_active', isEqualTo: true).snapshots(),
+      builder: (context, snap) {
+        if (!snap.hasData) return const SizedBox.shrink();
+        final pros = _build(snap.data!.docs);
+        if (pros.isEmpty) return const SizedBox.shrink();
+        return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(20, 0, 20, 12),
+            child: Row(children: [
+              Container(width: 3, height: 20,
+                  decoration: BoxDecoration(borderRadius: BorderRadius.circular(2),
+                      gradient: const LinearGradient(begin: Alignment.topCenter, end: Alignment.bottomCenter,
+                          colors: [kGoldLight, kGold]))),
+              const SizedBox(width: 10),
+              const Text('Δες τη δουλειά τους',
+                  style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.w700, letterSpacing: 0.3)),
+              const Spacer(),
+              Text('${pros.length} επαγγελματίες', style: TextStyle(color: _g(0.4), fontSize: 11)),
+            ]),
+          ),
+          SizedBox(
+            height: 112,
+            child: ListView.separated(
+              scrollDirection: Axis.horizontal,
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              itemCount: pros.length,
+              separatorBuilder: (_, __) => const SizedBox(width: 12),
+              itemBuilder: (_, i) {
+                final p = pros[i];
+                final seen = _seen.contains(p.id);
+                return GestureDetector(
+                  onTap: () async {
+                    _markSeen(p.id);
+                    await Navigator.push(context, PageRouteBuilder(
+                      pageBuilder: (_, __, ___) => _ProStoriesViewer(pros: pros, startIndex: i, onSeen: _markSeen),
+                      transitionsBuilder: (_, a, __, c) => FadeTransition(opacity: a, child: c),
+                    ));
+                    if (mounted) setState(() {});
+                  },
+                  child: SizedBox(
+                    width: 72,
+                    child: Column(children: [
+                      Stack(clipBehavior: Clip.none, children: [
+                        Container(
+                          width: 68, height: 68,
+                          padding: const EdgeInsets.all(2.5),
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            gradient: seen ? null : const LinearGradient(
+                                begin: Alignment.topLeft, end: Alignment.bottomRight,
+                                colors: [kGoldLight, kGold, Color(0xFF8C6A1E)]),
+                            border: seen ? Border.all(color: _g(0.18), width: 1.5) : null,
+                          ),
+                          child: Container(
+                            padding: const EdgeInsets.all(2),
+                            decoration: const BoxDecoration(shape: BoxShape.circle, color: Color(0xFF0A0804)),
+                            child: ClipOval(
+                              child: p.photo.isNotEmpty
+                                  ? Image.network(p.photo, fit: BoxFit.cover,
+                                      errorBuilder: (_, __, ___) => _storyInitials(p))
+                                  : _storyInitials(p),
+                            ),
+                          ),
+                        ),
+                        if (p.videoIds.length > 1)
+                          Positioned(
+                            right: -2, bottom: 2,
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
+                              decoration: BoxDecoration(color: const Color(0xFF0A0804), borderRadius: BorderRadius.circular(8),
+                                  border: Border.all(color: kGold.withValues(alpha: 0.7))),
+                              child: Text('${p.videoIds.length}', style: const TextStyle(color: kGold, fontSize: 9, fontWeight: FontWeight.w800)),
+                            ),
+                          ),
+                      ]),
+                      const SizedBox(height: 6),
+                      Text(p.firstName, maxLines: 1, overflow: TextOverflow.ellipsis,
+                          style: TextStyle(color: seen ? _g(0.55) : Colors.white, fontSize: 11, fontWeight: FontWeight.w600)),
+                      Text(p.specialty, maxLines: 1, overflow: TextOverflow.ellipsis,
+                          style: TextStyle(color: _g(0.4), fontSize: 9.5)),
+                    ]),
+                  ),
+                );
+              },
+            ),
+          ),
+        ]);
+      },
+    );
+  }
+}
+
+Widget _storyInitials(_StoryPro p) => Container(
+      color: const Color(0xFF2A2214),
+      alignment: Alignment.center,
+      child: Text(p.initials, style: const TextStyle(color: kGoldLight, fontSize: 18, fontWeight: FontWeight.w800)),
+    );
+
+class _ProStoriesViewer extends StatefulWidget {
+  final List<_StoryPro> pros;
+  final int startIndex;
+  final void Function(String id) onSeen;
+  const _ProStoriesViewer({required this.pros, required this.startIndex, required this.onSeen});
+  @override
+  State<_ProStoriesViewer> createState() => _ProStoriesViewerState();
+}
+
+class _ProStoriesViewerState extends State<_ProStoriesViewer> {
+  late int _pro = widget.startIndex;
+  int _video = 0;
+
+  _StoryPro get _p => widget.pros[_pro];
+
+  void _goPro(int delta) {
+    final next = _pro + delta;
+    if (next < 0 || next >= widget.pros.length) { if (delta > 0) Navigator.pop(context); return; }
+    setState(() { _pro = next; _video = 0; });
+    widget.onSeen(_p.id);
+  }
+
+  void _goVideo(int delta) {
+    final next = _video + delta;
+    if (next < 0) { _goPro(-1); return; }
+    if (next >= _p.videoIds.length) { _goPro(1); return; }
+    setState(() => _video = next);
+  }
+
+  void _openProfile() {
+    Navigator.push(context, PageRouteBuilder(
+      pageBuilder: (_, __, ___) => _ProPublicProfileScreen(proId: _p.id, proData: _p.data),
+      transitionsBuilder: (_, a, __, c) => FadeTransition(opacity: a, child: c),
+    ));
+  }
+
+  void _askOffer() {
+    if (FirebaseAuth.instance.currentUser == null) {
+      showGuestSignInPrompt(context, reason: 'Για να ζητήσεις προσφορά χρειάζεσαι λογαριασμό.');
+      return;
+    }
+    Navigator.push(context, PageRouteBuilder(
+      pageBuilder: (_, __, ___) => DirectRequestScreen(pro: {..._p.data, 'id': _p.id}),
+      transitionsBuilder: (_, a, __, c) => FadeTransition(opacity: a, child: c),
+    ));
+  }
+
+  Widget _circleBtn(IconData icon, VoidCallback onTap, {double size = 40}) => GestureDetector(
+        onTap: onTap,
+        child: Container(
+          width: size, height: size,
+          decoration: BoxDecoration(shape: BoxShape.circle, color: Colors.black.withValues(alpha: 0.55),
+              border: Border.all(color: kGold.withValues(alpha: 0.35))),
+          child: Icon(icon, color: Colors.white, size: size * 0.55),
+        ),
+      );
+
+  @override
+  Widget build(BuildContext context) {
+    final p = _p;
+    final rating = p.rating;
+    return Scaffold(
+      backgroundColor: Colors.black,
+      body: SafeArea(
+        child: Column(children: [
+          // Μπάρες προόδου — μία ανά βίντεο του επαγγελματία
+          Padding(
+            padding: const EdgeInsets.fromLTRB(12, 10, 12, 0),
+            child: Row(children: List.generate(p.videoIds.length, (i) => Expanded(
+              child: GestureDetector(
+                onTap: () => setState(() => _video = i),
+                child: Container(
+                  height: 3,
+                  margin: const EdgeInsets.symmetric(horizontal: 2),
+                  decoration: BoxDecoration(borderRadius: BorderRadius.circular(2),
+                      color: i <= _video ? kGold : Colors.white.withValues(alpha: 0.22)),
+                ),
+              ),
+            ))),
+          ),
+          // Επικεφαλίδα: επαγγελματίας + κλείσιμο
+          Padding(
+            padding: const EdgeInsets.fromLTRB(12, 10, 8, 8),
+            child: Row(children: [
+              GestureDetector(
+                onTap: _openProfile,
+                child: Container(
+                  width: 38, height: 38,
+                  padding: const EdgeInsets.all(1.5),
+                  decoration: const BoxDecoration(shape: BoxShape.circle, gradient: LinearGradient(colors: [kGoldLight, kGold])),
+                  child: ClipOval(child: p.photo.isNotEmpty
+                      ? Image.network(p.photo, fit: BoxFit.cover, errorBuilder: (_, __, ___) => _storyInitials(p))
+                      : _storyInitials(p)),
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(child: GestureDetector(
+                onTap: _openProfile,
+                child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                  Text(p.name, maxLines: 1, overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.w700)),
+                  Text(rating > 0 ? '${p.specialty} · ★ ${rating.toStringAsFixed(1)}' : p.specialty,
+                      maxLines: 1, overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(color: kGold, fontSize: 11.5, fontWeight: FontWeight.w600)),
+                ]),
+              )),
+              if (p.videoIds.length > 1)
+                Padding(
+                  padding: const EdgeInsets.only(right: 8),
+                  child: Text('${_video + 1}/${p.videoIds.length}', style: TextStyle(color: Colors.white.withValues(alpha: 0.6), fontSize: 12)),
+                ),
+              IconButton(icon: const Icon(Icons.close, color: Colors.white), onPressed: () => Navigator.pop(context)),
+            ]),
+          ),
+          // Βίντεο + βελάκια
+          Expanded(
+            child: Stack(children: [
+              Positioned.fill(child: Center(
+                key: ValueKey('${p.id}_${p.videoIds[_video]}'),
+                child: tiktok_embed.buildTikTokEmbed(p.videoIds[_video], muted: false),
+              )),
+              Positioned(left: 6, top: 0, bottom: 0,
+                  child: Center(child: _circleBtn(Icons.chevron_left_rounded, () => _goVideo(-1)))),
+              Positioned(right: 6, top: 0, bottom: 0,
+                  child: Center(child: _circleBtn(Icons.chevron_right_rounded, () => _goVideo(1)))),
+            ]),
+          ),
+          // Κάτω μπάρα: προφίλ + προσφορά
+          Container(
+            padding: const EdgeInsets.fromLTRB(16, 12, 16, 14),
+            decoration: BoxDecoration(
+              color: const Color(0xFF0A0804),
+              border: Border(top: BorderSide(color: kGold.withValues(alpha: 0.25))),
+            ),
+            child: Row(children: [
+              Expanded(child: GestureDetector(
+                onTap: _openProfile,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(vertical: 13),
+                  decoration: BoxDecoration(borderRadius: BorderRadius.circular(14),
+                      border: Border.all(color: kGold.withValues(alpha: 0.6))),
+                  child: const Center(child: Text('Δες προφίλ',
+                      style: TextStyle(color: kGold, fontSize: 13.5, fontWeight: FontWeight.w800))),
+                ),
+              )),
+              const SizedBox(width: 10),
+              Expanded(flex: 2, child: GestureDetector(
+                onTap: _askOffer,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(vertical: 13),
+                  decoration: BoxDecoration(borderRadius: BorderRadius.circular(14),
+                      gradient: const LinearGradient(colors: [kGoldLight, kGold])),
+                  child: const Center(child: Text('Ζήτα προσφορά',
+                      style: TextStyle(color: Colors.black, fontSize: 13.5, fontWeight: FontWeight.w900))),
+                ),
+              )),
+            ]),
           ),
         ]),
       ),
