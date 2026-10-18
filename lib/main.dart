@@ -3414,7 +3414,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     'Πλακάς': 'tiles.jpg',
     'Συνεργείο Πλακιδίων & Δαπέδων': 'tiles_team.jpg',
     'Μετακομίσεις': 'moving.jpg',
-    'Νοσηλευτής κατ' οίκον': 'nurse.jpg',
+    "Νοσηλευτής κατ' οίκον": 'nurse.jpg',
     'Υπηρεσία Αποξήλωσης': 'demolition.jpg',
     'Μεταλλικές Κατασκευές': 'welding.jpg',
     'Εκδηλώσεις Γάμου': 'wedding.jpg',
