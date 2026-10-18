@@ -17048,7 +17048,7 @@ class _ProStoriesSectionState extends State<_ProStoriesSection> {
             ]),
           ),
           SizedBox(
-            height: 136,
+            height: 160,
             child: ListView.separated(
               scrollDirection: Axis.horizontal,
               padding: const EdgeInsets.symmetric(horizontal: 16),
@@ -17067,12 +17067,12 @@ class _ProStoriesSectionState extends State<_ProStoriesSection> {
                     if (mounted) setState(() {});
                   },
                   child: SizedBox(
-                    width: 90,
+                    width: 110,
                     child: Column(children: [
                       Stack(clipBehavior: Clip.none, children: [
                         Container(
-                          width: 86, height: 86,
-                          padding: const EdgeInsets.all(3),
+                          width: 106, height: 106,
+                          padding: const EdgeInsets.all(3.5),
                           decoration: BoxDecoration(
                             shape: BoxShape.circle,
                             gradient: seen ? null : const LinearGradient(
@@ -17122,7 +17122,7 @@ class _ProStoriesSectionState extends State<_ProStoriesSection> {
 Widget _storyInitials(_StoryPro p) => Container(
       color: const Color(0xFF2A2214),
       alignment: Alignment.center,
-      child: Text(p.initials, style: const TextStyle(color: kGoldLight, fontSize: 22, fontWeight: FontWeight.w800)),
+      child: Text(p.initials, style: const TextStyle(color: kGoldLight, fontSize: 28, fontWeight: FontWeight.w800)),
     );
 
 class _ProStoriesViewer extends StatefulWidget {
