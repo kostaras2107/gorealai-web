@@ -12443,20 +12443,26 @@ class _RequestHistoryScreenState extends State<RequestHistoryScreen> {
                         color: kGold, size: 16)),
               ),
               const SizedBox(width: 14),
-              Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                const Text('Επαγγελματίες που επέλεξες',
-                    style: TextStyle(
-                        fontFamily: 'Inter',
-                        fontSize: 20,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.white)),
+              Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                // FittedBox: σε στενά κινητά ο τίτλος μικραίνει αντί να κόβεται
+                const FittedBox(
+                  fit: BoxFit.scaleDown,
+                  alignment: Alignment.centerLeft,
+                  child: Text('Επαγγελματίες που επέλεξες',
+                      maxLines: 1,
+                      style: TextStyle(
+                          fontFamily: 'Inter',
+                          fontSize: 20,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.white)),
+                ),
                 const SizedBox(height: 4),
                 Container(width: 40, height: 3,
                     decoration: BoxDecoration(
                         color: kGold,
                         borderRadius: BorderRadius.circular(2),
                         boxShadow: [BoxShadow(color: kGold.withValues(alpha: 0.6), blurRadius: 6)])),
-              ]),
+              ])),
             ]),
           ),
           const SizedBox(height: 16),
