@@ -4220,73 +4220,6 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
         ),
         const SizedBox(height: 28),
 
-        // ΠΩΣ ΛΕΙΤΟΥΡΓΕΙ — στους πελάτες μόνο μέχρι να στείλουν το πρώτο τους αίτημα
-        if (_isPro || !_hasEverRequested) ...[
-        Padding(
-          padding: const EdgeInsets.fromLTRB(20, 0, 20, 12),
-          child: Row(children: [
-            Container(width: 3, height: 20,
-                decoration: BoxDecoration(
-                    color: kGold,
-                    borderRadius: BorderRadius.circular(2),
-                    boxShadow: [BoxShadow(color: kGold.withValues(alpha: 0.6), blurRadius: 6)])),
-            const SizedBox(width: 10),
-            Text('Πώς λειτουργεί;',
-                style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 16,
-                    fontWeight: FontWeight.w700,
-                    letterSpacing: 0.3)),
-          ]),
-        ),
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 20),
-          child: _isPro
-              ? Column(children: [
-                  _HowItWorksStep(
-                      num: '1',
-                      emoji: '📝',
-                      title: 'Οι πελάτες στέλνουν το αίτημα',
-                      subtitle: 'Περιγράφουν τι χρειάζονται, με κείμενο ή φωτογραφίες'),
-                  const SizedBox(height: 10),
-                  _HowItWorksStep(
-                      num: '2',
-                      emoji: '💰',
-                      title: 'Ετοιμάζεις την προσφορά σου',
-                      subtitle: 'Μπες στην καρτέλα «Επαγγελματίες» → Αιτήματα και στείλε την προσφορά σου'),
-                  const SizedBox(height: 10),
-                  _HowItWorksStep(
-                      num: '3',
-                      emoji: '✅',
-                      title: 'Ο πελάτης αποφασίζει',
-                      subtitle: 'Αν αποδεχτεί την προσφορά σου, δημιουργείται αυτόματα το booking'),
-                ])
-              : Column(children: [
-            _HowItWorksStep(
-                num: '1',
-                emoji: '📝',
-                title: 'Περιέγραψε το αίτημα',
-                subtitle: 'Γράψε ή μίλα για αυτό που χρειάζεσαι'),
-            const SizedBox(height: 10),
-            _HowItWorksStep(
-                num: '2',
-                emoji: '⏱️',
-                title: 'Οι επαγγελματίες ετοιμάζουν προσφορές',
-                subtitle: 'Λαμβάνεις τις προσφορές στον χρόνο που επέλεξες'),
-            const SizedBox(height: 10),
-            _HowItWorksStep(
-                num: '3',
-                emoji: '🏆',
-                title: 'Επέλεξε την καλύτερη',
-                subtitle: 'Σου προτείνουμε τις 3 κορυφαίες'),
-          ]),
-        ),
-
-        const SizedBox(height: 28),
-        ],
-
-        const _SearchSpecificProSection(),
-
         // ΚΑΤΗΓΟΡΙΕΣ
         Padding(
           padding: const EdgeInsets.fromLTRB(20, 0, 20, 12),
@@ -4361,6 +4294,73 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
         ),
 
         const SizedBox(height: 28),
+
+        // ΠΩΣ ΛΕΙΤΟΥΡΓΕΙ — στους πελάτες μόνο μέχρι να στείλουν το πρώτο τους αίτημα
+        if (_isPro || !_hasEverRequested) ...[
+        Padding(
+          padding: const EdgeInsets.fromLTRB(20, 0, 20, 12),
+          child: Row(children: [
+            Container(width: 3, height: 20,
+                decoration: BoxDecoration(
+                    color: kGold,
+                    borderRadius: BorderRadius.circular(2),
+                    boxShadow: [BoxShadow(color: kGold.withValues(alpha: 0.6), blurRadius: 6)])),
+            const SizedBox(width: 10),
+            Text('Πώς λειτουργεί;',
+                style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 16,
+                    fontWeight: FontWeight.w700,
+                    letterSpacing: 0.3)),
+          ]),
+        ),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 20),
+          child: _isPro
+              ? Column(children: [
+                  _HowItWorksStep(
+                      num: '1',
+                      emoji: '📝',
+                      title: 'Οι πελάτες στέλνουν το αίτημα',
+                      subtitle: 'Περιγράφουν τι χρειάζονται, με κείμενο ή φωτογραφίες'),
+                  const SizedBox(height: 10),
+                  _HowItWorksStep(
+                      num: '2',
+                      emoji: '💰',
+                      title: 'Ετοιμάζεις την προσφορά σου',
+                      subtitle: 'Μπες στην καρτέλα «Επαγγελματίες» → Αιτήματα και στείλε την προσφορά σου'),
+                  const SizedBox(height: 10),
+                  _HowItWorksStep(
+                      num: '3',
+                      emoji: '✅',
+                      title: 'Ο πελάτης αποφασίζει',
+                      subtitle: 'Αν αποδεχτεί την προσφορά σου, δημιουργείται αυτόματα το booking'),
+                ])
+              : Column(children: [
+            _HowItWorksStep(
+                num: '1',
+                emoji: '📝',
+                title: 'Περιέγραψε το αίτημα',
+                subtitle: 'Γράψε ή μίλα για αυτό που χρειάζεσαι'),
+            const SizedBox(height: 10),
+            _HowItWorksStep(
+                num: '2',
+                emoji: '⏱️',
+                title: 'Οι επαγγελματίες ετοιμάζουν προσφορές',
+                subtitle: 'Λαμβάνεις τις προσφορές στον χρόνο που επέλεξες'),
+            const SizedBox(height: 10),
+            _HowItWorksStep(
+                num: '3',
+                emoji: '🏆',
+                title: 'Επέλεξε την καλύτερη',
+                subtitle: 'Σου προτείνουμε τις 3 κορυφαίες'),
+          ]),
+        ),
+
+        const SizedBox(height: 28),
+        ],
+
+        const _SearchSpecificProSection(),
 
         // ΕΠΑΓΓΕΛΜΑΤΙΕΣ ΚΟΝΤΑ ΣΟΥ
         Padding(
