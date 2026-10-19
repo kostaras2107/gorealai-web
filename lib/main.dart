@@ -3455,6 +3455,35 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
         errorBuilder: (_, __, ___) => Text(emoji, style: const TextStyle(fontSize: 30)));
   }
 
+  bool _showProSearch = false;
+  bool _showHowItWorks = true;
+  int? _activeProsCount;
+
+  Widget _trustItem(String t) => Row(mainAxisSize: MainAxisSize.min, children: [
+        const Icon(Icons.check_circle_rounded, color: kGold, size: 14),
+        const SizedBox(width: 4),
+        Text(t, style: TextStyle(color: _g(0.75), fontSize: 12, fontWeight: FontWeight.w600)),
+      ]);
+
+  // Μετράει τις επισκέψεις στην αρχική· το «Πώς λειτουργεί» φαίνεται μόνο τις 3 πρώτες.
+  Future<void> _loadHomePrefs() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final n = (prefs.getInt('homeVisits') ?? 0) + 1;
+      await prefs.setInt('homeVisits', n);
+      if (mounted) setState(() => _showHowItWorks = n <= 3);
+    } catch (_) {}
+  }
+
+  // Πραγματικός αριθμός ενεργών επαγγελματιών για τη γραμμή εμπιστοσύνης.
+  Future<void> _loadProsCount() async {
+    try {
+      final agg = await FirebaseFirestore.instance.collection('professionals')
+          .where('is_active', isEqualTo: true).count().get();
+      if (mounted) setState(() => _activeProsCount = agg.count);
+    } catch (_) {}
+  }
+
   List<Map<String, String>> _popularServices = const [
     {'emoji': '⚡', 'label': 'Ηλεκτρολόγος', 'profession': 'Ηλεκτρολόγος'},
     {'emoji': '🔧', 'label': 'Υδραυλικός', 'profession': 'Υδραυλικός'},
@@ -3498,6 +3527,8 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     WidgetsBinding.instance.addObserver(this);
     _loadProfile();
     _loadPopularServices();
+    _loadHomePrefs();
+    _loadProsCount();
     _setOnline(true);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) AppUpdateService.check(context);
@@ -3708,7 +3739,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
         ));
   }
 
-  void _openRequestWithProfession(String profession) {
+  void _openRequestWithProfession(String? profession, {String? text}) {
     Navigator.push(
         context,
         PageRouteBuilder(
@@ -3716,7 +3747,8 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
           pageBuilder: (_, __, ___) => RequestScreen(
               userId: FirebaseAuth.instance.currentUser?.uid ?? _userId ?? '',
               userName: _userName ?? 'Χρήστης',
-              initialProfession: profession),
+              initialProfession: profession,
+              initialText: text),
           transitionsBuilder: (_, a, __, c) => SlideTransition(
               position: Tween<Offset>(
                       begin: const Offset(0, 1), end: Offset.zero)
@@ -4153,17 +4185,17 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                   text: 'Γεια σου, ',
                   style: TextStyle(
                       fontFamily: 'Inter',
-                      fontSize: 26,
+                      fontSize: 22,
                       color: Colors.white)),
               TextSpan(
                   text: _vocative(_userName),
                   style: const TextStyle(
                       fontFamily: 'Inter',
-                      fontSize: 26,
+                      fontSize: 22,
                       fontStyle: FontStyle.italic,
                       color: kGold)),
               const TextSpan(
-                  text: ' 👋', style: TextStyle(fontSize: 24)),
+                  text: ' 👋', style: TextStyle(fontSize: 20)),
             ])),
             const SizedBox(height: 6),
             Text(_isPro
@@ -4189,74 +4221,32 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                   requests: _activeRequests,
                   onTap: _openMyOffers,
                 )
-              : _EmptyHeroCard(onTap: _openRequest, isPro: _isPro),
+              : _isPro
+                  ? _EmptyHeroCard(onTap: _openRequest, isPro: true)
+                  : _HomeSearchHero(
+                      onSubmit: (prof, text) => _openRequestWithProfession(prof, text: text)),
         ),
-        const SizedBox(height: 28),
-
-        // ΠΩΣ ΛΕΙΤΟΥΡΓΕΙ
+        // Αναζήτηση συγκεκριμένου επαγγελματία — δευτερεύουσα, ανοίγει με πάτημα
         Padding(
-          padding: const EdgeInsets.fromLTRB(20, 0, 20, 12),
-          child: Row(children: [
-            Container(width: 3, height: 20,
-                decoration: BoxDecoration(
-                    color: kGold,
-                    borderRadius: BorderRadius.circular(2),
-                    boxShadow: [BoxShadow(color: kGold.withValues(alpha: 0.6), blurRadius: 6)])),
-            const SizedBox(width: 10),
-            Text('Πώς λειτουργεί;',
-                style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 16,
-                    fontWeight: FontWeight.w700,
-                    letterSpacing: 0.3)),
-          ]),
+          padding: const EdgeInsets.fromLTRB(20, 10, 20, 0),
+          child: GestureDetector(
+            onTap: () => setState(() => _showProSearch = !_showProSearch),
+            child: Row(children: [
+              const Icon(Icons.search_rounded, color: kGold, size: 18),
+              const SizedBox(width: 6),
+              Text('Ψάχνεις συγκεκριμένο επαγγελματία;',
+                  style: TextStyle(color: _g(0.75), fontSize: 13, fontWeight: FontWeight.w600)),
+              const Spacer(),
+              Icon(_showProSearch ? Icons.keyboard_arrow_up_rounded : Icons.keyboard_arrow_down_rounded,
+                  color: _g(0.6), size: 20),
+            ]),
+          ),
         ),
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 20),
-          child: _isPro
-              ? Column(children: [
-                  _HowItWorksStep(
-                      num: '1',
-                      emoji: '📝',
-                      title: 'Οι πελάτες στέλνουν το αίτημα',
-                      subtitle: 'Περιγράφουν τι χρειάζονται, με κείμενο ή φωτογραφίες'),
-                  const SizedBox(height: 10),
-                  _HowItWorksStep(
-                      num: '2',
-                      emoji: '💰',
-                      title: 'Ετοιμάζεις την προσφορά σου',
-                      subtitle: 'Μπες στην καρτέλα «Επαγγελματίες» → Αιτήματα και στείλε την προσφορά σου'),
-                  const SizedBox(height: 10),
-                  _HowItWorksStep(
-                      num: '3',
-                      emoji: '✅',
-                      title: 'Ο πελάτης αποφασίζει',
-                      subtitle: 'Αν αποδεχτεί την προσφορά σου, δημιουργείται αυτόματα το booking'),
-                ])
-              : Column(children: [
-            _HowItWorksStep(
-                num: '1',
-                emoji: '📝',
-                title: 'Περιέγραψε το αίτημα',
-                subtitle: 'Γράψε ή μίλα για αυτό που χρειάζεσαι'),
-            const SizedBox(height: 10),
-            _HowItWorksStep(
-                num: '2',
-                emoji: '⏱️',
-                title: 'Οι επαγγελματίες ετοιμάζουν προσφορές',
-                subtitle: 'Λαμβάνεις τις προσφορές στον χρόνο που επέλεξες'),
-            const SizedBox(height: 10),
-            _HowItWorksStep(
-                num: '3',
-                emoji: '🏆',
-                title: 'Επέλεξε την καλύτερη',
-                subtitle: 'Το AI σου προτείνει τις 3 κορυφαίες'),
-          ]),
-        ),
-
-        const SizedBox(height: 28),
-
-        const _SearchSpecificProSection(),
+        if (_showProSearch) ...[
+          const SizedBox(height: 12),
+          const _SearchSpecificProSection(),
+        ],
+        const SizedBox(height: 24),
 
         // ΚΑΤΗΓΟΡΙΕΣ
         Padding(
@@ -4331,7 +4321,86 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
           ),
         ),
 
+        if (!_isPro) ...[
+          const SizedBox(height: 14),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 20),
+            child: Wrap(spacing: 14, runSpacing: 6, children: [
+              if ((_activeProsCount ?? 0) >= 50)
+                _trustItem('${(_activeProsCount! ~/ 50) * 50}+ επαγγελματίες'),
+              _trustItem('Δωρεάν για σένα'),
+              _trustItem('Χωρίς δέσμευση'),
+            ]),
+          ),
+        ],
         const SizedBox(height: 28),
+
+        // «Πώς λειτουργεί» μόνο στις πρώτες επισκέψεις — μετά κρύβεται
+        if (_showHowItWorks) ...[
+        // ΠΩΣ ΛΕΙΤΟΥΡΓΕΙ
+        Padding(
+          padding: const EdgeInsets.fromLTRB(20, 0, 20, 12),
+          child: Row(children: [
+            Container(width: 3, height: 20,
+                decoration: BoxDecoration(
+                    color: kGold,
+                    borderRadius: BorderRadius.circular(2),
+                    boxShadow: [BoxShadow(color: kGold.withValues(alpha: 0.6), blurRadius: 6)])),
+            const SizedBox(width: 10),
+            Text('Πώς λειτουργεί;',
+                style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 16,
+                    fontWeight: FontWeight.w700,
+                    letterSpacing: 0.3)),
+          ]),
+        ),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 20),
+          child: _isPro
+              ? Column(children: [
+                  _HowItWorksStep(
+                      num: '1',
+                      emoji: '📝',
+                      title: 'Οι πελάτες στέλνουν το αίτημα',
+                      subtitle: 'Περιγράφουν τι χρειάζονται, με κείμενο ή φωτογραφίες'),
+                  const SizedBox(height: 10),
+                  _HowItWorksStep(
+                      num: '2',
+                      emoji: '💰',
+                      title: 'Ετοιμάζεις την προσφορά σου',
+                      subtitle: 'Μπες στην καρτέλα «Επαγγελματίες» → Αιτήματα και στείλε την προσφορά σου'),
+                  const SizedBox(height: 10),
+                  _HowItWorksStep(
+                      num: '3',
+                      emoji: '✅',
+                      title: 'Ο πελάτης αποφασίζει',
+                      subtitle: 'Αν αποδεχτεί την προσφορά σου, δημιουργείται αυτόματα το booking'),
+                ])
+              : Column(children: [
+            _HowItWorksStep(
+                num: '1',
+                emoji: '📝',
+                title: 'Περιέγραψε το αίτημα',
+                subtitle: 'Γράψε ή μίλα για αυτό που χρειάζεσαι'),
+            const SizedBox(height: 10),
+            _HowItWorksStep(
+                num: '2',
+                emoji: '⏱️',
+                title: 'Οι επαγγελματίες ετοιμάζουν προσφορές',
+                subtitle: 'Λαμβάνεις τις προσφορές στον χρόνο που επέλεξες'),
+            const SizedBox(height: 10),
+            _HowItWorksStep(
+                num: '3',
+                emoji: '🏆',
+                title: 'Επέλεξε την καλύτερη',
+                subtitle: 'Συγκρίνεις τιμές, κριτικές και προφίλ'),
+          ]),
+        ),
+          const SizedBox(height: 28),
+        ],
+
+
 
         // ΕΠΑΓΓΕΛΜΑΤΙΕΣ ΚΟΝΤΑ ΣΟΥ
         Padding(
@@ -4346,33 +4415,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
               const SizedBox(width: 10),
               const Text('Προτεινόμενοι Επαγγελματίες',
                   style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.w700, letterSpacing: 0.3)),
-              const Spacer(),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(8),
-                  color: kGreen.withValues(alpha: 0.12),
-                  border: Border.all(color: kGreen.withValues(alpha: 0.4)),
-                  boxShadow: [BoxShadow(color: kGreen.withValues(alpha: 0.15), blurRadius: 8)],
-                ),
-                child: Row(mainAxisSize: MainAxisSize.min, children: [
-                  Container(width: 5, height: 5,
-                      decoration: const BoxDecoration(shape: BoxShape.circle, color: kGreen)),
-                  const SizedBox(width: 4),
-                  const Text('LIVE', style: TextStyle(color: kGreen, fontSize: 9, fontWeight: FontWeight.w800, letterSpacing: 1)),
-                ]),
-              ),
             ]),
-            const SizedBox(height: 8),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(8),
-                color: kGold.withValues(alpha: 0.12),
-                border: Border.all(color: kGold.withValues(alpha: 0.4)),
-              ),
-              child: const Text('✓ Ολοκληρωμένο Προφίλ', style: TextStyle(color: kGold, fontSize: 9, fontWeight: FontWeight.w800, letterSpacing: 0.3)),
-            ),
           ]),
         ),
         const _NearbyProsSection(),
@@ -4657,6 +4700,145 @@ class _LiveActivityFeedState extends State<_LiveActivityFeed>
   }
 }
 
+// ── Αρχική πελάτη: ένα πεδίο «Τι χρειάζεσαι;» ως η μία κύρια ενέργεια ──
+// Καθώς γράφει, προτείνει ειδικότητες· με πάτημα σε πρόταση ή στο κουμπί
+// ανοίγει το αίτημα με την ειδικότητα (αν βρέθηκε) και το κείμενο έτοιμα.
+class _HomeSearchHero extends StatefulWidget {
+  final void Function(String? profession, String? text) onSubmit;
+  const _HomeSearchHero({required this.onSubmit});
+  @override
+  State<_HomeSearchHero> createState() => _HomeSearchHeroState();
+}
+
+class _HomeSearchHeroState extends State<_HomeSearchHero> {
+  final _ctrl = TextEditingController();
+  final _focus = FocusNode();
+  List<String> _suggestions = [];
+
+  @override
+  void initState() {
+    super.initState();
+    _focus.addListener(() { if (mounted) setState(() {}); });
+  }
+
+  @override
+  void dispose() { _ctrl.dispose(); _focus.dispose(); super.dispose(); }
+
+  void _onChanged(String v) {
+    final q = _normalizeForSearch(v.trim());
+    if (q.length < 2) { setState(() => _suggestions = []); return; }
+    final words = q.split(RegExp(r'\s+')).where((w) => w.length >= 3).toList();
+    final starts = <String>[], contains = <String>[];
+    for (final sp in _allSpecialtiesSorted) {
+      final n = _normalizeForSearch(sp);
+      if (n.startsWith(q) || n.split(RegExp(r'[\s/&-]+')).any((w) => w.startsWith(q))) {
+        starts.add(sp);
+      } else if (n.contains(q) ||
+          words.any((w) => n.contains(w.substring(0, w.length > 5 ? 5 : w.length)))) {
+        contains.add(sp);
+      }
+    }
+    setState(() => _suggestions = [...starts, ...contains].take(5).toList());
+  }
+
+  void _submit({String? profession}) {
+    final text = _ctrl.text.trim();
+    String? prof = profession;
+    if (prof == null && text.isNotEmpty) {
+      final n = _normalizeForSearch(text);
+      for (final sp in _allSpecialtiesSorted) {
+        if (_normalizeForSearch(sp) == n) { prof = sp; break; }
+      }
+    }
+    // Αν έγραψε μόνο το όνομα της ειδικότητας, δεν το βάζουμε και ως περιγραφή.
+    final justProfession = prof != null &&
+        (text.isEmpty || _normalizeForSearch(text) == _normalizeForSearch(prof));
+    _focus.unfocus();
+    widget.onSubmit(prof, justProfession || text.isEmpty ? null : text);
+  }
+
+  @override
+  Widget build(BuildContext context) => Container(
+        padding: const EdgeInsets.fromLTRB(18, 20, 18, 18),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(22),
+          gradient: LinearGradient(
+              begin: Alignment.topLeft, end: Alignment.bottomRight,
+              colors: [kGold.withValues(alpha: 0.14), const Color(0xFF0E0C08)]),
+          border: Border.all(color: kGold.withValues(alpha: 0.35), width: 1.2),
+        ),
+        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          const Text('Τι χρειάζεσαι;',
+              style: TextStyle(fontFamily: 'Inter', fontSize: 24,
+                  fontWeight: FontWeight.w800, color: Colors.white, height: 1.2)),
+          const SizedBox(height: 6),
+          Text('Γράψε το και οι επαγγελματίες της περιοχής σου σού στέλνουν προσφορές.',
+              style: TextStyle(fontSize: 13.5, color: _g(0.7), height: 1.4)),
+          const SizedBox(height: 14),
+          Container(
+            decoration: BoxDecoration(
+              color: Colors.white.withValues(alpha: 0.06),
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(color: _focus.hasFocus ? kGold : _g(0.15)),
+            ),
+            child: TextField(
+              controller: _ctrl,
+              focusNode: _focus,
+              onChanged: _onChanged,
+              onSubmitted: (_) => _submit(),
+              textInputAction: TextInputAction.search,
+              style: const TextStyle(color: Colors.white, fontSize: 15),
+              decoration: InputDecoration(
+                border: InputBorder.none,
+                prefixIcon: const Icon(Icons.search_rounded, color: kGold),
+                suffixIcon: _ctrl.text.isEmpty
+                    ? null
+                    : IconButton(
+                        icon: Icon(Icons.close_rounded, color: _g(0.5), size: 18),
+                        onPressed: () { _ctrl.clear(); _onChanged(''); }),
+                hintText: 'π.χ. υδραυλικός, βάψιμο σαλονιού',
+                hintStyle: TextStyle(color: _g(0.4), fontSize: 14),
+                contentPadding: const EdgeInsets.symmetric(vertical: 15),
+              ),
+            ),
+          ),
+          if (_suggestions.isNotEmpty) ...[
+            const SizedBox(height: 6),
+            ..._suggestions.map((sp) => InkWell(
+                  onTap: () => _submit(profession: sp),
+                  borderRadius: BorderRadius.circular(10),
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 11),
+                    child: Row(children: [
+                      Icon(Icons.north_west_rounded, color: _g(0.4), size: 16),
+                      const SizedBox(width: 10),
+                      Expanded(child: Text(sp,
+                          style: const TextStyle(color: Colors.white, fontSize: 14,
+                              fontWeight: FontWeight.w600))),
+                      Icon(Icons.chevron_right_rounded, color: _g(0.4), size: 18),
+                    ]),
+                  ),
+                )),
+          ],
+          const SizedBox(height: 14),
+          GestureDetector(
+            onTap: _submit,
+            child: Container(
+              width: double.infinity,
+              padding: const EdgeInsets.symmetric(vertical: 15),
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(14),
+                gradient: const LinearGradient(colors: [kGoldLight, kGold, kGoldDark]),
+              ),
+              child: const Center(child: Text('Πάρε προσφορές δωρεάν',
+                  style: TextStyle(color: Colors.black, fontSize: 15.5,
+                      fontWeight: FontWeight.w800))),
+            ),
+          ),
+        ]),
+      );
+}
+
 // ── Empty Hero Card (no active requests) ──
 class _EmptyHeroCard extends StatelessWidget {
   final VoidCallback onTap;
@@ -4681,25 +4863,6 @@ class _EmptyHeroCard extends StatelessWidget {
         ],
       ),
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Row(children: [
-          Container(padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-              decoration: BoxDecoration(borderRadius: BorderRadius.circular(8),
-                  color: kGold.withValues(alpha: 0.15)),
-              child: const Text('✦ AI REVERSE AUCTION', style: TextStyle(
-                  color: kGold, fontSize: 9, fontWeight: FontWeight.w800, letterSpacing: 1.5))),
-          const Spacer(),
-          Container(padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-              decoration: BoxDecoration(borderRadius: BorderRadius.circular(10),
-                  color: kGreen.withValues(alpha: 0.12)),
-              child: Row(mainAxisSize: MainAxisSize.min, children: [
-                Container(width: 5, height: 5,
-                    decoration: const BoxDecoration(shape: BoxShape.circle, color: kGreen)),
-                const SizedBox(width: 5),
-                const Text('Άμεση απόκριση', style: TextStyle(
-                    color: kGreen, fontSize: 9, fontWeight: FontWeight.w700)),
-              ])),
-        ]),
-        const SizedBox(height: 18),
         Text(isPro ? 'Χρειάζεσαι έναν άλλον επαγγελματία;' : 'Γνωρίζεις την ανάγκη σου;',
             style: const TextStyle(fontFamily: 'Inter', fontSize: 28,
                 fontWeight: FontWeight.w800, color: Colors.white, height: 1.2)),
@@ -4711,7 +4874,7 @@ class _EmptyHeroCard extends StatelessWidget {
         const SizedBox(height: 6),
         Text(isPro
               ? 'Οι πελάτες σε βρίσκουν αυτόματα μέσω του προφίλ σου — δεν χρειάζεται να στείλεις αίτημα για αυτό.'
-              : 'Στείλε αίτημα → το AI ειδοποιεί επαγγελματίες ή συνεργεία → παίρνεις τις 3 καλύτερες προσφορές στον χρόνο που εσύ επιλέγεις.',
+              : 'Στείλε αίτημα → ειδοποιούνται οι επαγγελματίες της περιοχής σου → παίρνεις προσφορές στον χρόνο που εσύ επιλέγεις.',
             style: TextStyle(fontSize: 12, color: _g(0.5), height: 1.5)),
         const SizedBox(height: 20),
         Container(
@@ -5297,12 +5460,12 @@ class _BottomNav extends StatelessWidget {
               Row(
                   children: [
                     Expanded(child: Center(child: _HNavItem(icon: Icons.home_rounded, label: 'Αρχική',
-                        active: navIndex == 0, onTap: onHome, showLabel: false))),
+                        active: navIndex == 0, onTap: onHome))),
 
                     // Μηνύματα με unread badge
                     Expanded(child: Center(child: Stack(clipBehavior: Clip.none, children: [
                       _HNavItem(icon: Icons.chat_bubble_outline_rounded, label: 'Μηνύματα',
-                          active: navIndex == 4, onTap: onMessages, showLabel: false, goldIcon: true),
+                          active: navIndex == 4, onTap: onMessages, goldIcon: true),
                       if (unreadMessages > 0)
                         Positioned(
                           top: 2, right: 6,
@@ -5327,16 +5490,18 @@ class _BottomNav extends StatelessWidget {
                     // Θέση-κράτηση για το G FAB (το ίδιο το κουμπί κεντράρεται
                     // ξεχωριστά παρακάτω, ώστε να μην επηρεάζεται από την
                     // ασυμμετρία στο πλάτος avatar (38) vs υπόλοιπα εικονίδια).
-                    const SizedBox(width: 64, height: 64),
+                    const SizedBox(width: 72, height: 64),
 
                     Expanded(child: Center(child: _HNavItem(icon: Icons.history_rounded, label: 'Ιστορικό',
-                        active: navIndex == 2, onTap: onHistory, showLabel: false, goldIcon: true))),
+                        active: navIndex == 2, onTap: onHistory, goldIcon: true))),
 
                     // Avatar profile
                     Expanded(child: Center(child: GestureDetector(
                       onTap: onProfile,
-                      child: Container(
-                        width: 38, height: 38,
+                      behavior: HitTestBehavior.opaque,
+                      child: Column(mainAxisSize: MainAxisSize.min, children: [
+                      Container(
+                        width: 26, height: 26,
                         decoration: BoxDecoration(
                           shape: BoxShape.circle,
                           color: navIndex == 3
@@ -5361,8 +5526,12 @@ class _BottomNav extends StatelessWidget {
                                     ? userName![0].toUpperCase() : 'G',
                                 style: const TextStyle(
                                     color: kGold,
-                                    fontSize: 16, fontWeight: FontWeight.bold)))),
+                                    fontSize: 12, fontWeight: FontWeight.bold)))),
                       ),
+                      const SizedBox(height: 3),
+                      Text('Προφίλ', style: TextStyle(fontFamily: 'Inter', fontSize: 10,
+                          color: navIndex == 3 ? kGold : _g(0.55))),
+                      ]),
                     ))),
                   ]),
 
@@ -5372,7 +5541,9 @@ class _BottomNav extends StatelessWidget {
               // των υπόλοιπων εικονιδίων γύρω του.
               GestureDetector(
                 onTap: onFab,
-                child: Stack(clipBehavior: Clip.none, children: [
+                behavior: HitTestBehavior.opaque,
+                child: Column(mainAxisSize: MainAxisSize.min, children: [
+                Stack(clipBehavior: Clip.none, children: [
                   Positioned.fill(child: TweenAnimationBuilder<double>(
                     tween: Tween(begin: 0.9, end: 1.12),
                     duration: const Duration(milliseconds: 1200),
@@ -5389,7 +5560,7 @@ class _BottomNav extends StatelessWidget {
                     onEnd: () {},
                   )),
                   Container(
-                    width: 64, height: 64,
+                    width: 50, height: 50,
                     decoration: BoxDecoration(
                       shape: BoxShape.circle,
                       gradient: const RadialGradient(colors: [kGoldLight, kGold, kGoldDark]),
@@ -5401,11 +5572,15 @@ class _BottomNav extends StatelessWidget {
                     child: Center(child: Transform.translate(
                       offset: const Offset(0, -1.5),
                       child: const Text('G', style: TextStyle(
-                          fontFamily: 'Inter', fontSize: 30,
+                          fontFamily: 'Inter', fontSize: 24,
                           fontWeight: FontWeight.bold,
                           color: Colors.black, height: 1)),
                     )),
                   ),
+                ]),
+                const SizedBox(height: 3),
+                const Text('Εκδηλώσεις', style: TextStyle(fontFamily: 'Inter', fontSize: 10,
+                    color: kGold, fontWeight: FontWeight.w600)),
                 ]),
               ),
             ],
@@ -9228,10 +9403,10 @@ class _InsightRow extends StatelessWidget {
 // ═══════════════════════════════════════
 class RequestScreen extends StatefulWidget {
   final String userId, userName;
-  final String? initialProfession, initialLocation;
+  final String? initialProfession, initialLocation, initialText;
   const RequestScreen(
       {required this.userId, required this.userName,
-      this.initialProfession, this.initialLocation,
+      this.initialProfession, this.initialLocation, this.initialText,
       super.key});
   @override
   State<RequestScreen> createState() => _RequestScreenState();
@@ -9356,6 +9531,9 @@ class _RequestScreenState extends State<RequestScreen>
         vsync: this, duration: const Duration(milliseconds: 1000))
       ..repeat(reverse: true);
     _textCtrl.addListener(() => setState(() {}));
+    if (widget.initialText != null && widget.initialText!.trim().isNotEmpty) {
+      _textCtrl.text = widget.initialText!.trim();
+    }
     if (widget.initialProfession != null) {
       _selectedProfession = widget.initialProfession;
     }
@@ -16035,8 +16213,8 @@ class _HNavItem extends StatelessWidget {
               Text(label,
                   style: TextStyle(
                       fontFamily: 'Inter',
-                      fontSize: 9,
-                      color: active ? kGold : _g(0.3),
+                      fontSize: 10,
+                      color: active ? kGold : _g(0.55),
                       fontWeight: active ? FontWeight.w600 : FontWeight.w400)),
             ],
             if (active) ...[
@@ -17166,15 +17344,6 @@ class _ProStoriesSectionState extends State<_ProStoriesSection> {
                 const SizedBox(width: 10),
                 const Text('TikTok Shorts',
                     style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.w700, letterSpacing: 0.3)),
-                const SizedBox(width: 8),
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
-                  decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(20),
-                    gradient: const LinearGradient(colors: [Color(0xFFEE1D52), Color(0xFF69C9D0)]),
-                  ),
-                  child: const Text('✨ ULTRA', style: TextStyle(color: Colors.white, fontSize: 9, fontWeight: FontWeight.w900, letterSpacing: 0.5)),
-                ),
                 const Spacer(),
                 Text('${pros.length} επαγγελματίες', style: TextStyle(color: _g(0.4), fontSize: 11)),
               ]),
