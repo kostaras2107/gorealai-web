@@ -3455,6 +3455,28 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
         errorBuilder: (_, __, ___) => Text(emoji, style: const TextStyle(fontSize: 30)));
   }
 
+  // Αν ο πελάτης έχει στείλει ποτέ αίτημα (κρατιέται και τοπικά για να μην
+  // «αναβοσβήνει» το «Πώς λειτουργεί» σε κάθε άνοιγμα).
+  bool _hasEverRequested = false;
+
+  Future<void> _checkEverRequested() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      if (prefs.getBool('hasEverRequested') == true) {
+        if (mounted) setState(() => _hasEverRequested = true);
+        return;
+      }
+      final uid = FirebaseAuth.instance.currentUser?.uid;
+      if (uid == null) return;
+      final q = await FirebaseFirestore.instance.collection('requests')
+          .where('userId', isEqualTo: uid).limit(1).get();
+      if (q.docs.isNotEmpty) {
+        await prefs.setBool('hasEverRequested', true);
+        if (mounted) setState(() => _hasEverRequested = true);
+      }
+    } catch (_) {}
+  }
+
   List<Map<String, String>> _popularServices = const [
     {'emoji': '⚡', 'label': 'Ηλεκτρολόγος', 'profession': 'Ηλεκτρολόγος'},
     {'emoji': '🔧', 'label': 'Υδραυλικός', 'profession': 'Υδραυλικός'},
@@ -3498,6 +3520,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     WidgetsBinding.instance.addObserver(this);
     _loadProfile();
     _loadPopularServices();
+    _checkEverRequested();
     _setOnline(true);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) AppUpdateService.check(context);
@@ -3568,6 +3591,10 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       // παλιό όριο 2 τα έκρυβε σιωπηλά από την αρχική οθόνη.
       final limited = activeReqs.take(6).toList();
 
+      if (snap.docs.isNotEmpty && !_hasEverRequested) {
+        _hasEverRequested = true;
+        SharedPreferences.getInstance().then((p) => p.setBool('hasEverRequested', true)).catchError((_) => false);
+      }
       if (limited.isNotEmpty) {
         setState(() => _activeRequests = limited);
       } else {
@@ -4193,7 +4220,8 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
         ),
         const SizedBox(height: 28),
 
-        // ΠΩΣ ΛΕΙΤΟΥΡΓΕΙ
+        // ΠΩΣ ΛΕΙΤΟΥΡΓΕΙ — στους πελάτες μόνο μέχρι να στείλουν το πρώτο τους αίτημα
+        if (_isPro || !_hasEverRequested) ...[
         Padding(
           padding: const EdgeInsets.fromLTRB(20, 0, 20, 12),
           child: Row(children: [
@@ -4250,11 +4278,12 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                 num: '3',
                 emoji: '🏆',
                 title: 'Επέλεξε την καλύτερη',
-                subtitle: 'Το AI σου προτείνει τις 3 κορυφαίες'),
+                subtitle: 'Σου προτείνουμε τις 3 κορυφαίες'),
           ]),
         ),
 
         const SizedBox(height: 28),
+        ],
 
         const _SearchSpecificProSection(),
 
@@ -4685,7 +4714,7 @@ class _EmptyHeroCard extends StatelessWidget {
           Container(padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
               decoration: BoxDecoration(borderRadius: BorderRadius.circular(8),
                   color: kGold.withValues(alpha: 0.15)),
-              child: const Text('✦ AI REVERSE AUCTION', style: TextStyle(
+              child: const Text('✦ REVERSE AUCTION', style: TextStyle(
                   color: kGold, fontSize: 9, fontWeight: FontWeight.w800, letterSpacing: 1.5))),
           const Spacer(),
           Container(padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
@@ -4711,7 +4740,7 @@ class _EmptyHeroCard extends StatelessWidget {
         const SizedBox(height: 6),
         Text(isPro
               ? 'Οι πελάτες σε βρίσκουν αυτόματα μέσω του προφίλ σου — δεν χρειάζεται να στείλεις αίτημα για αυτό.'
-              : 'Στείλε αίτημα → το AI ειδοποιεί επαγγελματίες ή συνεργεία → παίρνεις τις 3 καλύτερες προσφορές στον χρόνο που εσύ επιλέγεις.',
+              : 'Στείλε αίτημα → ειδοποιούνται αυτόματα επαγγελματίες ή συνεργεία → παίρνεις τις 3 καλύτερες προσφορές στον χρόνο που εσύ επιλέγεις.',
             style: TextStyle(fontSize: 12, color: _g(0.5), height: 1.5)),
         const SizedBox(height: 20),
         Container(
@@ -4922,7 +4951,7 @@ class _ActiveRequestHeroCardState extends State<_ActiveRequestHeroCard> {
                 const SizedBox(height: 6),
                 _StatRow(icon: '🔥', label: '$_offersCount προσφορές μέχρι τώρα', highlight: _offersCount > 0),
                 const SizedBox(height: 6),
-                _StatRow(icon: '🤖', label: 'AI αναλύει & κατατάσσει'),
+                _StatRow(icon: '📊', label: 'Αυτόματη κατάταξη προσφορών'),
               ])),
             ]),
           ] else ...[
@@ -9190,7 +9219,7 @@ class _AIInsightsWidget extends StatelessWidget {
         Row(children: [
           const Text('🤖', style: TextStyle(fontSize: 14)),
           const SizedBox(width: 6),
-          const Text('AI Ανάλυση', style: TextStyle(
+          const Text('Ανάλυση', style: TextStyle(
               color: kGold, fontSize: 11, fontWeight: FontWeight.w700)),
         ]),
         const SizedBox(height: 10),
@@ -9877,7 +9906,7 @@ Future<void> _notifyProsDirectly(
                       fontFamily: 'Inter', fontSize: 26,
                       fontWeight: FontWeight.w800, color: Colors.white)),
                   const SizedBox(height: 4),
-                  Text('Οι επαγγελματίες ανταγωνίζονται — το AI επιλέγει τους 3 καλύτερους.',
+                  Text('Οι επαγγελματίες ανταγωνίζονται — σου δείχνουμε τους 3 καλύτερους.',
                       style: TextStyle(fontSize: 12,
                           color: _g(0.4))),
                   const SizedBox(height: 12),
@@ -10568,7 +10597,7 @@ class _WaitingScreenState extends State<WaitingScreen>
           body: jsonEncode({
             'token': fcmToken,
             'title': '🏆 Οι προσφορές σου είναι έτοιμες!',
-            'body': 'Το AI επέλεξε τις 3 καλύτερες για σένα. Δες τώρα!',
+            'body': 'Επιλέξαμε τις 3 καλύτερες για σένα. Δες τώρα!',
             'data': {'type': 'offers_ready', 'requestId': widget.requestId},
           }),
         ).timeout(const Duration(seconds: 6));
@@ -10578,7 +10607,7 @@ class _WaitingScreenState extends State<WaitingScreen>
           .collection('users').doc(widget.userId)
           .collection('notifications').add({
         'title': '🏆 Οι προσφορές σου είναι έτοιμες!',
-        'body': 'Το AI επέλεξε τις 3 καλύτερες. Πάτα εδώ για να δεις!',
+        'body': 'Επιλέξαμε τις 3 καλύτερες. Πάτα εδώ για να δεις!',
         'isRead': false,
         'type': 'offers_ready',
         'requestId': widget.requestId,
@@ -11447,7 +11476,7 @@ class _OffersScreenState extends State<OffersScreen>
                           child: CircularProgressIndicator(
                               color: kGold, strokeWidth: 2)),
                       const SizedBox(height: 20),
-                      const Text('✦ AI αξιολογεί τις προσφορές...',
+                      const Text('✦ Αξιολογούμε τις προσφορές...',
                           style: TextStyle(
                               color: kGold,
                               fontSize: 13,
@@ -11507,7 +11536,7 @@ class _OffersScreenState extends State<OffersScreen>
                                       _g(0.5),
                                   height: 1.4),
                               children: [
-                                const TextSpan(text: 'AI επέλεξε βάσει '),
+                                const TextSpan(text: 'Επιλογή βάσει '),
                                 TextSpan(
                                     text: _criteriaLabel(),
                                     style: const TextStyle(
@@ -13074,7 +13103,7 @@ class _AiMemoryScreenState extends State<AiMemoryScreen>
         padding: const EdgeInsets.fromLTRB(20, 16, 20, 0),
         child: Row(children: [
           const Expanded(
-              child: Text('AI Σημειώσεις',
+              child: Text('Σημειώσεις',
                   style: TextStyle(
                       fontFamily: 'Inter',
                       fontSize: 20,
@@ -13757,7 +13786,7 @@ class _ProfileScreenState extends State<ProfileScreen> with WidgetsBindingObserv
     crossAxisAlignment: CrossAxisAlignment.start,
     children: [
       _premiumFeature('📋', 'Απεριόριστα αιτήματα ανά μήνα'),
-      _premiumFeature('🤖', 'Προτεραιότητα στο AI matching'),
+      _premiumFeature('🎯', 'Προτεραιότητα στην αντιστοίχιση με πελάτες'),
       _premiumFeature('🏆', 'Badge "Επαληθευμένος Επαγγελματίας"'),
       _premiumFeature('📊', 'Αναλυτικά στατιστικά & insights'),
       _premiumFeature('🚫', 'Χωρίς διαφημίσεις'),
@@ -18387,7 +18416,7 @@ class _EventOrganizerSheet extends StatelessWidget {
         const Text('Τι οργανώνεις;',
             style: TextStyle(fontFamily: 'Inter', fontSize: 26, color: Colors.white, fontWeight: FontWeight.w800)),
         const SizedBox(height: 6),
-        Text('Επέλεξε κατηγορία και το AI σου βρίσκει\nτους καλύτερους επαγγελματίες.',
+        Text('Επέλεξε κατηγορία και βρες\nτους καλύτερους επαγγελματίες.',
             style: TextStyle(color: _g(0.45), fontSize: 13, height: 1.4)),
         const SizedBox(height: 24),
         ...[
@@ -21549,7 +21578,7 @@ class _EventOrganizerScreenState extends State<EventOrganizerScreen> {
                 style: TextStyle(fontFamily: 'Inter', fontSize: 30, fontWeight: FontWeight.w900, color: Colors.white)),
           ),
           const SizedBox(height: 6),
-          Text('Επέλεξε κατηγορία και το AI σου βρίσκει\nτους καλύτερους επαγγελματίες.',
+          Text('Επέλεξε κατηγορία και βρες\nτους καλύτερους επαγγελματίες.',
               style: TextStyle(color: _g(0.45), fontSize: 14, height: 1.5)),
         ]),
       ),
