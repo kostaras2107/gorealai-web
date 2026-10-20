@@ -192,7 +192,12 @@ function normalizePhone(phone) {
   return p;
 }
 
+// Τα SMS είναι ΚΛΕΙΣΤΑ (απόφαση 20/10/2026): οι ειδοποιήσεις πάνε μόνο με
+// push, email και μέσα στην εφαρμογή. Για να ξανανοίξουν: SMS_ENABLED = true.
+const SMS_ENABLED = false;
+
 async function sendSms(phone, message) {
+  if (!SMS_ENABLED) return;
   const apiKey = process.env.INFINIREACH_API_KEY;
   const fromPhone = process.env.INFINIREACH_PHONE; // your Android number e.g. +306944048588
   if (!apiKey || !fromPhone || !phone) return;
