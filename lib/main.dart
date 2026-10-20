@@ -7,7 +7,7 @@ import 'tiktok_embed_stub.dart' if (dart.library.html) 'tiktok_embed_web.dart' a
 import 'package:image_picker/image_picker.dart';
 import 'dart:ui';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart' show Clipboard, ClipboardData;
+import 'package:flutter/services.dart' show Clipboard, ClipboardData, PlatformException;
 import 'package:http/http.dart' as http;
 import 'package:url_launcher/url_launcher.dart';
 import 'package:firebase_core/firebase_core.dart';
@@ -446,7 +446,14 @@ Future<void> main() async {
   if (!kIsWeb) {
     FlutterError.onError = FirebaseCrashlytics.instance.recordFlutterFatalError;
     PlatformDispatcher.instance.onError = (error, stack) {
-      FirebaseCrashlytics.instance.recordError(error, stack, fatal: true);
+      // Αναμενόμενα, μη κρίσιμα σφάλματα — δεν κλείνουν την εφαρμογή, οπότε
+      // καταγράφονται ως non-fatal για να μη «φουσκώνουν» τα crashes:
+      //  • Firestore χωρίς σύνδεση (unavailable / deadline-exceeded)
+      //  • image_picker όταν ο χρήστης πατήσει 2 φορές (already_active)
+      final benign = (error is FirebaseException &&
+              (error.code == 'unavailable' || error.code == 'deadline-exceeded')) ||
+          (error is PlatformException && error.code == 'already_active');
+      FirebaseCrashlytics.instance.recordError(error, stack, fatal: !benign);
       return true;
     };
     // google_sign_in 7.x: πρέπει να καλεστεί ΜΙΑ φορά πριν από κάθε άλλη
@@ -740,7 +747,7 @@ class _SharePhoneToggle extends StatelessWidget {
 void _logSignUp({required String method, required String role}) {
   FirebaseAnalytics.instance
       .logSignUp(signUpMethod: method, parameters: {'role': role})
-      .catchError((_) {});
+      .ignore();
 }
 
 Future<String> _currentUserPhone(String uid) async {
@@ -5779,7 +5786,7 @@ class _ProfessionalHomeScreenState extends State<ProfessionalHomeScreen> {
     final uid = FirebaseAuth.instance.currentUser?.uid;
     if (uid != null) {
       FirebaseFirestore.instance.collection('users').doc(uid)
-          .set({'remoteModesPrompted': true}, SetOptions(merge: true)).catchError((_) {});
+          .set({'remoteModesPrompted': true}, SetOptions(merge: true)).ignore();
     }
     await showModalBottomSheet(
       context: context,
@@ -9685,7 +9692,7 @@ class _RequestScreenState extends State<RequestScreen>
         Uri.parse('$kBackendUrl/schedule-expiry-notification'),
         headers: {'Content-Type': 'application/json'},
         body: jsonEncode({'requestId': docRef.id}),
-      ).timeout(const Duration(seconds: 8)).catchError((_) {});
+      ).timeout(const Duration(seconds: 8)).ignore();
 
       // Server για AI categorization + pro notifications
       try {
@@ -9804,7 +9811,7 @@ class _RequestScreenState extends State<RequestScreen>
             'urgent': _durationMinutes == 15,
             if (_isRemoteCapable(_selectedProfession)) 'teachingMode': _effectiveMode,
           }),
-        ).timeout(const Duration(seconds: 60)).catchError((_) {});
+        ).timeout(const Duration(seconds: 60)).ignore();
 
       if (!mounted) return;
       Navigator.pushReplacement(
@@ -11488,7 +11495,7 @@ class _OffersScreenState extends State<OffersScreen>
                       FirebaseFirestore.instance
                           .collection('requests')
                           .doc(widget.requestId)
-                          .update({'dismissed': true}).catchError((_) {});
+                          .update({'dismissed': true}).ignore();
                     },
                   ),
                 ]),
@@ -17227,7 +17234,7 @@ class _ProStoriesSectionState extends State<_ProStoriesSection> {
       SharedPreferences.getInstance().then((p) {
         _seen.addAll(p.getStringList('seenStoryPros') ?? const []);
         if (mounted) setState(() {});
-      }).catchError((_) {});
+      }).ignore();
     }
   }
 
@@ -18783,7 +18790,7 @@ class _EventFormSheetState extends State<_EventFormSheet> {
           'exactSpecialty': true,
           'requesterUserId': widget.userId,
         }),
-      ).timeout(const Duration(seconds: 60)).catchError((_) {});
+      ).timeout(const Duration(seconds: 60)).ignore();
     } catch (_) {}
 
     if (!mounted) return;
@@ -19333,7 +19340,7 @@ class _ProPortfolioScreenState extends State<ProPortfolioScreen> {
     if (url.isNotEmpty) {
       http.get(Uri.parse(url)).timeout(const Duration(seconds: 10)).then((res) {
         if (res.statusCode == 200 && mounted) setState(() => _photoBytes = res.bodyBytes);
-      }).catchError((_) {});
+      }).ignore();
     }
     final proId = (widget.pro['id'] ?? widget.pro['uid'] ?? '') as String;
     if (proId.isNotEmpty) {
@@ -19343,7 +19350,7 @@ class _ProPortfolioScreenState extends State<ProPortfolioScreen> {
         final r = ((d['averageRating'] ?? 0) as num).toDouble();
         final c = ((d['reviewCount'] ?? 0) as num).toInt();
         if (c > 0) setState(() { _liveRating = r; _liveReviewCount = c; });
-      }).catchError((_) {});
+      }).ignore();
     }
     final googlePlaceId = (widget.pro['googlePlaceId'] ?? '') as String;
     if (googlePlaceId.isNotEmpty) {
@@ -20568,7 +20575,7 @@ class _ChatScreenState extends State<ChatScreen> {
             'reportedId': _otherUid ?? '',
             'reason': reason,
             'chatId': widget.chatId,
-          })).catchError((_) {});
+          })).ignore();
       if (mounted) ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Η αναφορά στάλθηκε. Ευχαριστούμε.')));
     } catch (_) {}
@@ -20708,7 +20715,7 @@ class _ChatScreenState extends State<ChatScreen> {
               'senderName': widget.currentUserName,
               'messagePreview': '🎤 Ηχητικό μήνυμα',
             }),
-          ).timeout(const Duration(seconds: 30)).catchError((_) {});
+          ).timeout(const Duration(seconds: 30)).ignore();
         }
       } else {
         final userId = chatParts2.isNotEmpty ? chatParts2[0] : '';
@@ -20721,7 +20728,7 @@ class _ChatScreenState extends State<ChatScreen> {
               'proName': widget.currentUserName,
               'messagePreview': '🎤 Ηχητικό μήνυμα',
             }),
-          ).timeout(const Duration(seconds: 30)).catchError((_) {});
+          ).timeout(const Duration(seconds: 30)).ignore();
         }
       }
     } catch (e) {
@@ -20902,7 +20909,7 @@ class _ChatScreenState extends State<ChatScreen> {
               'senderName': widget.currentUserName,
               'messagePreview': previewText,
             }),
-          ).timeout(const Duration(seconds: 30)).catchError((_) {});
+          ).timeout(const Duration(seconds: 30)).ignore();
         }
       } else {
         // Pro → User: notify the user
@@ -20916,7 +20923,7 @@ class _ChatScreenState extends State<ChatScreen> {
               'proName': widget.currentUserName,
               'messagePreview': previewText,
             }),
-          ).timeout(const Duration(seconds: 30)).catchError((_) {});
+          ).timeout(const Duration(seconds: 30)).ignore();
         }
       }
 
