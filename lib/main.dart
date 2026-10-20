@@ -4225,6 +4225,9 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                 )
               : _EmptyHeroCard(onTap: _openRequest, isPro: _isPro),
         ),
+        // «Πώς πήγε;» — αξιολόγηση επαγγελματιών 2 μέρες μετά τη λήξη αιτήματος
+        if (_userId != null && _userId!.isNotEmpty)
+          _RatePromptCard(userId: _userId!),
         const SizedBox(height: 28),
 
         // ΚΑΤΗΓΟΡΙΕΣ
@@ -4691,6 +4694,149 @@ class _LiveActivityFeedState extends State<_LiveActivityFeed>
     }).toList(),
   );
   }
+}
+
+// ── «Πώς πήγε;» — κάρτα αξιολόγησης μετά από αίτημα ──
+// Ο server (sendRatingPrompts) βάζει ratingPromptOpen/ratingPrompt στο αίτημα
+// 2 μέρες μετά τη λήξη του. Εδώ ο πελάτης αξιολογεί όποιον συνεργάστηκε, χωρίς
+// να χρειάζεται να είχε πατήσει «Αποδέχομαι».
+class _RatePromptCard extends StatelessWidget {
+  final String userId;
+  const _RatePromptCard({required this.userId});
+
+  Future<void> _close(String requestId) => FirebaseFirestore.instance
+      .collection('requests').doc(requestId)
+      .update({'ratingPromptOpen': false}).catchError((Object _) {});
+
+  Future<void> _rate(BuildContext context, String requestId, Map<String, dynamic> pro,
+      List<Map<String, dynamic>> remaining) async {
+    final proName = (pro['proName'] ?? 'Επαγγελματίας').toString();
+    final res = await showDialog<Map<String, dynamic>>(
+      context: context,
+      builder: (_) => _RatingDialog(proName: proName),
+    );
+    if (res == null) return;
+    final proId = (pro['proId'] ?? '').toString();
+    if (proId.isEmpty) return;
+    final rating = (res['rating'] as int?) ?? 0;
+    final comment = (res['comment'] as String?) ?? '';
+    final fs = FirebaseFirestore.instance;
+    try {
+      String userName = 'Χρήστης';
+      try {
+        final u = await fs.collection('users').doc(userId).get();
+        final n = (u.data()?['displayName'] ?? u.data()?['name'] ?? '').toString().trim();
+        if (n.isNotEmpty) userName = n;
+      } catch (_) {}
+      // Ίδιο έγγραφο (userId_proId) με την αξιολόγηση από το ιστορικό — μία ανά ζευγάρι
+      await fs.collection('reviews').doc('${userId}_$proId').set({
+        'rating': rating,
+        'comment': comment,
+        'userId': userId,
+        'userName': userName,
+        'proId': proId,
+        'proName': proName,
+        'requestId': requestId,
+        'source': pro['contacted'] == true ? 'contacted' : 'offer',
+        'timestamp': FieldValue.serverTimestamp(),
+      });
+      final all = await fs.collection('reviews').where('proId', isEqualTo: proId).get();
+      final count = all.docs.length;
+      final avg = count == 0 ? 0.0 : all.docs.fold<double>(
+          0, (s, d) => s + ((d.data()['rating'] as num?)?.toDouble() ?? 0)) / count;
+      await fs.collection('professionals').doc(proId)
+          .set({'reviewCount': count, 'averageRating': avg}, SetOptions(merge: true));
+      await fs.collection('users').doc(proId)
+          .set({'reviewCount': count, 'averageRating': avg}, SetOptions(merge: true))
+          .catchError((Object _) {});
+      final left = remaining.where((p) => p['proId'] != proId).toList();
+      await fs.collection('requests').doc(requestId).update({
+        'ratingPrompt': left,
+        if (left.isEmpty) 'ratingPromptOpen': false,
+      });
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+            content: Text('Ευχαριστούμε! Η αξιολόγηση για ${proName.split(' ').first} καταχωρήθηκε ⭐'),
+            backgroundColor: kGold.withValues(alpha: 0.9)));
+      }
+    } catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Δεν αποθηκεύτηκε η αξιολόγηση. Δοκίμασε ξανά.')));
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) => StreamBuilder<QuerySnapshot>(
+        stream: FirebaseFirestore.instance.collection('requests')
+            .where('userId', isEqualTo: userId)
+            .where('ratingPromptOpen', isEqualTo: true)
+            .limit(1).snapshots(),
+        builder: (context, snap) {
+          if (!snap.hasData || snap.data!.docs.isEmpty) return const SizedBox.shrink();
+          final doc = snap.data!.docs.first;
+          final d = doc.data() as Map<String, dynamic>;
+          final pros = ((d['ratingPrompt'] as List?) ?? const [])
+              .whereType<Map>().map((m) => Map<String, dynamic>.from(m)).toList();
+          if (pros.isEmpty) return const SizedBox.shrink();
+          final desc = (d['description'] ?? d['profession'] ?? '').toString().trim();
+          final shortDesc = desc.length > 50 ? '${desc.substring(0, 50)}…' : desc;
+          return Padding(
+            padding: const EdgeInsets.fromLTRB(20, 16, 20, 0),
+            child: Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(18),
+                color: kGold.withValues(alpha: 0.08),
+                border: Border.all(color: kGold.withValues(alpha: 0.4)),
+              ),
+              child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                Row(children: [
+                  const Text('⭐', style: TextStyle(fontSize: 20)),
+                  const SizedBox(width: 8),
+                  Expanded(child: Text('Πώς πήγε «$shortDesc»;',
+                      maxLines: 2, overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(color: Colors.white, fontSize: 15, fontWeight: FontWeight.w800))),
+                  GestureDetector(
+                    onTap: () => _close(doc.id),
+                    child: Icon(Icons.close_rounded, color: _g(0.4), size: 18),
+                  ),
+                ]),
+                const SizedBox(height: 6),
+                Text('Συνεργάστηκες με κάποιον; Πάτα πάνω του για να τον αξιολογήσεις.',
+                    style: TextStyle(color: _g(0.65), fontSize: 12.5, height: 1.35)),
+                const SizedBox(height: 12),
+                Wrap(spacing: 8, runSpacing: 8, children: [
+                  ...pros.map((p) => GestureDetector(
+                        onTap: () => _rate(context, doc.id, p, pros),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
+                          decoration: BoxDecoration(
+                            borderRadius: BorderRadius.circular(20),
+                            gradient: const LinearGradient(colors: [kGoldLight, kGold]),
+                          ),
+                          child: Text('⭐ ${p['proName'] ?? ''}',
+                              style: const TextStyle(color: Colors.black, fontSize: 12.5, fontWeight: FontWeight.w800)),
+                        ),
+                      )),
+                  GestureDetector(
+                    onTap: () => _close(doc.id),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(20),
+                        border: Border.all(color: _g(0.2)),
+                      ),
+                      child: Text('Κανέναν', style: TextStyle(color: _g(0.7), fontSize: 12.5)),
+                    ),
+                  ),
+                ]),
+              ]),
+            ),
+          );
+        },
+      );
 }
 
 // ── Empty Hero Card (no active requests) ──

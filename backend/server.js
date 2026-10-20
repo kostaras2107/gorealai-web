@@ -2111,6 +2111,113 @@ async function cleanupDeadTikTokShorts() {
 }
 setInterval(cleanupDeadTikTokShorts, 6 * 60 * 60 * 1000);
 setTimeout(cleanupDeadTikTokShorts, 3 * 60 * 1000);
+
+// ── Ερώτηση αξιολόγησης 2 μέρες μετά τη λήξη του αιτήματος ───────────────
+// Πολλοί πελάτες δεν πατάνε ποτέ «Αποδέχομαι» — τηλεφωνούν ή στέλνουν μήνυμα.
+// Μία φορά ανά αίτημα με προσφορές: push + email + ειδοποίηση εντός εφαρμογής,
+// και το αίτημα παίρνει ratingPromptOpen/ratingPrompt ώστε η αρχική οθόνη να
+// δείξει κάρτα «Πώς πήγε;». Προτεραιότητα σε όσους ήρθε σε επαφή (αποδοχή,
+// μηνύματα, προβολή/κλήση κινητού)· αλλιώς όλοι όσοι έστειλαν προσφορά.
+// ΚΛΕΙΣΤΟ μέχρι να κυκλοφορήσει η έκδοση με την κάρτα αξιολόγησης (2.0.8) —
+// αλλιώς οι χρήστες παλιών εκδόσεων παίρνουν ειδοποίηση χωρίς πού να αξιολογήσουν.
+const RATING_PROMPTS_ENABLED = false;
+
+async function sendRatingPrompts() {
+  if (!firebaseReady || !RATING_PROMPTS_ENABLED) return;
+  try {
+    const db = admin.firestore();
+    const now = Date.now();
+    const from = admin.firestore.Timestamp.fromMillis(now - 5 * 24 * 3600 * 1000);
+    const to = admin.firestore.Timestamp.fromMillis(now - 2 * 24 * 3600 * 1000);
+    const snap = await db.collection('requests').where('expiresAt', '>=', from).where('expiresAt', '<=', to).get();
+    for (const doc of snap.docs) {
+      const r = doc.data();
+      if (r.ratingPromptSentAt || !r.userId) continue;
+      // Δεν βασιζόμαστε στο offersCount: προσφορές που ήρθαν μετά τη λήξη δεν το αυξάνουν.
+      const offers = (await db.collection('offers').where('requestId', '==', doc.id).get()).docs.map((d) => d.data());
+      if (!offers.length) { await doc.ref.update({ ratingPromptSentAt: admin.firestore.FieldValue.serverTimestamp() }); continue; }
+
+      // Επαφές: αποδοχή, κλήση/προβολή κινητού, μηνύματα μετά το αίτημα
+      const contacted = new Set();
+      if (r.selectedPro) contacted.add(String(r.selectedPro));
+      try {
+        const ev = await db.collection('contactEvents').where('requestId', '==', doc.id).get();
+        ev.docs.forEach((e) => { if (e.data().proId) contacted.add(String(e.data().proId)); });
+      } catch (_) {}
+      const createdMs = r.createdAt && r.createdAt.toMillis ? r.createdAt.toMillis() : 0;
+      const pros = [];
+      const seen = new Set();
+      for (const o of offers) {
+        const proId = String(o.professionalId || '');
+        if (!proId || seen.has(proId)) continue;
+        seen.add(proId);
+        // Έχει ήδη αξιολογήσει αυτόν τον επαγγελματία → δεν ξαναρωτάμε
+        const rev = await db.collection('reviews').doc(`${r.userId}_${proId}`).get().catch(() => null);
+        if (rev && rev.exists) continue;
+        let isContacted = contacted.has(proId);
+        if (!isContacted) {
+          const chat = await db.collection('chats').doc(`${r.userId}_${proId}`).get().catch(() => null);
+          const lm = chat && chat.exists ? chat.data().lastMessageAt : null;
+          if (lm && lm.toMillis && lm.toMillis() > createdMs) isContacted = true;
+        }
+        pros.push({ proId, proName: String(o.professionalName || 'Επαγγελματίας'), contacted: isContacted });
+      }
+      const anyContacted = pros.some((p) => p.contacted);
+      const list = (anyContacted ? pros.filter((p) => p.contacted) : pros).slice(0, 5);
+      if (!list.length) { await doc.ref.update({ ratingPromptSentAt: admin.firestore.FieldValue.serverTimestamp() }); continue; }
+
+      const descShort = String(r.description || r.profession || 'το αίτημά σου').trim().slice(0, 60);
+      const title = `⭐ Πώς πήγε «${descShort}»;`;
+      const body = list.length === 1
+        ? `Συνεργάστηκες με ${list[0].proName}; Αξιολόγησέ τον σε 10 δευτερόλεπτα.`
+        : 'Συνεργάστηκες με κάποιον από τους επαγγελματίες; Αξιολόγησέ τον σε 10 δευτερόλεπτα.';
+
+      await doc.ref.update({
+        ratingPromptSentAt: admin.firestore.FieldValue.serverTimestamp(),
+        ratingPromptOpen: true,
+        ratingPrompt: list,
+      });
+      await db.collection('users').doc(r.userId).collection('notifications').add({
+        title, body, type: 'rate_pros', requestId: doc.id, isRead: false,
+        createdAt: admin.firestore.FieldValue.serverTimestamp(),
+      }).catch(() => {});
+
+      const u = (await db.collection('users').doc(r.userId).get().catch(() => null));
+      const ud = u && u.exists ? u.data() : {};
+      if (ud.fcmToken) {
+        admin.messaging().send({
+          token: ud.fcmToken,
+          notification: { title, body },
+          android: { priority: 'high', notification: { channelId: 'gorealai_channel', sound: 'default', icon: 'ic_launcher', title, body } },
+          apns: { payload: { aps: { alert: { title, body }, sound: 'default' } } },
+          data: { type: 'rate_pros', requestId: doc.id },
+        }).catch((e) => console.error('rating prompt push error:', e.message));
+      }
+      let email = ud.email || '';
+      try { const a = await admin.auth().getUser(r.userId); if (a.email) email = a.email; } catch (_) {}
+      if (email) {
+        const esc = (s) => String(s || '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+        const first = String(ud.name || r.userName || '').trim().split(/\s+/)[0] || '';
+        const names = list.map((p) => `<li style="margin:4px 0;">${esc(p.proName)}</li>`).join('');
+        const html = `<div style="font-family:Arial,sans-serif;max-width:480px;margin:0 auto;background:#0A0800;color:#fff;border-radius:16px;padding:32px;border:1px solid rgba(201,168,76,0.3)">
+<h1 style="color:#FFD47A;font-size:20px;margin:0 0 12px;">⭐ Πώς πήγε;</h1>
+<p style="color:rgba(255,255,255,0.85);font-size:14px;line-height:1.6;">Καλησπέρα${first ? ' ' + esc(first) : ''},</p>
+<p style="color:rgba(255,255,255,0.85);font-size:14px;line-height:1.6;">πριν λίγες μέρες ζήτησες προσφορές για <strong style="color:#FFD47A">«${esc(descShort)}»</strong>. Συνεργάστηκες με κάποιον από αυτούς;</p>
+<ul style="color:#fff;font-size:14px;padding-left:20px;">${names}</ul>
+<p style="color:rgba(255,255,255,0.85);font-size:14px;line-height:1.6;">Η αξιολόγησή σου παίρνει 10 δευτερόλεπτα και βοηθάει άλλους να βρουν καλούς επαγγελματίες.</p>
+<a href="https://gorealai.web.app/app" style="display:inline-block;margin-top:14px;padding:13px 28px;background:linear-gradient(135deg,#FFD47A,#C9A84C);color:#000;border-radius:12px;text-decoration:none;font-weight:800;font-size:14px;">Αξιολόγησε τώρα →</a>
+<p style="color:rgba(255,255,255,0.4);font-size:12px;margin-top:20px;">Άνοιξε την εφαρμογή GorealPro — θα δεις την αξιολόγηση στην αρχική οθόνη.</p>
+<p style="color:rgba(255,255,255,0.2);font-size:11px;margin-top:16px;">GorealPro · info@gorealai.gr</p></div>`;
+        sendEmail({ to: email, subject: `⭐ Πώς πήγε «${descShort}»;`, html }).catch(() => {});
+      }
+      console.log(`⭐ Rating prompt → ${r.userName || r.userId} (${list.length} pros) for request ${doc.id}`);
+    }
+  } catch (e) {
+    console.error('sendRatingPrompts error:', e.message);
+  }
+}
+setInterval(sendRatingPrompts, 30 * 60 * 1000);
+setTimeout(sendRatingPrompts, 4 * 60 * 1000);
 setTimeout(syncUserIndexAndEnrichDeletions, 45 * 1000);
 
 // ── Καθάρισμα παλιών φωτογραφιών/βίντεο αιτημάτων (30 μέρες) ──────
