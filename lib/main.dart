@@ -11184,6 +11184,8 @@ class OffersScreen extends StatefulWidget {
 class _OffersScreenState extends State<OffersScreen>
     with TickerProviderStateMixin {
   List<Map<String, dynamic>> _offers = [];
+  // Προσφορές πέρα από τις 3 καλύτερες — δείχνονται αχνές από κάτω.
+  List<Map<String, dynamic>> _otherOffers = [];
   bool _loading = true;
   bool _selecting = false;
   late AnimationController _fadeCtrl;
@@ -11254,11 +11256,13 @@ class _OffersScreenState extends State<OffersScreen>
       if (res.statusCode == 200) {
         final data = jsonDecode(res.body);
         final offers = (data['offers'] as List?) ?? [];
+        final others = (data['others'] as List?) ?? [];
         if (offers.isNotEmpty) {
           await Future.delayed(const Duration(milliseconds: 800));
           if (mounted) {
             setState(() {
               _offers = offers.cast();
+              _otherOffers = others.map((o) => Map<String, dynamic>.from(o as Map)).toList();
               _loading = false;
             });
             return;
@@ -11301,6 +11305,7 @@ class _OffersScreenState extends State<OffersScreen>
               ..sort((a, b) =>
                   _offerScore(b, widget.criteria).compareTo(_offerScore(a, widget.criteria)));
             _offers = sorted.take(3).toList();
+            _otherOffers = sorted.skip(3).toList();
             _loading = false;
           });
           return;
@@ -11543,7 +11548,7 @@ class _OffersScreenState extends State<OffersScreen>
                   decoration: BoxDecoration(
                       borderRadius: BorderRadius.circular(10),
                       color: kGold.withValues(alpha: 0.1)),
-                  child: Text('${_offers.length} προσφορές ✦',
+                  child: Text('${_offers.length + _otherOffers.length} προσφορές ✦',
                       style: const TextStyle(
                           color: kGold,
                           fontSize: 9,
@@ -11633,7 +11638,7 @@ class _OffersScreenState extends State<OffersScreen>
                                         fontWeight: FontWeight.w600)),
                                 TextSpan(
                                     text:
-                                        ' από ${_offers.length} προσφορές'),
+                                        ' από ${_offers.length + _otherOffers.length} προσφορές'),
                               ],
                             ))),
                           ]),
@@ -11646,6 +11651,28 @@ class _OffersScreenState extends State<OffersScreen>
                               onSelect: () =>
                                   _selectOffer(e.value),
                             )),
+                        // Υπόλοιπες προσφορές — αχνές, αλλά μπορεί να τις δει και να τις επιλέξει
+                        if (_otherOffers.isNotEmpty) ...[
+                          const SizedBox(height: 10),
+                          Row(children: [
+                            Expanded(child: Divider(color: _g(0.12))),
+                            Padding(
+                              padding: const EdgeInsets.symmetric(horizontal: 10),
+                              child: Text('Υπόλοιπες προσφορές (${_otherOffers.length})',
+                                  style: TextStyle(color: _g(0.5), fontSize: 12, fontWeight: FontWeight.w600)),
+                            ),
+                            Expanded(child: Divider(color: _g(0.12))),
+                          ]),
+                          const SizedBox(height: 12),
+                          ..._otherOffers.map((o) => Opacity(
+                                opacity: 0.5,
+                                child: _OfferCard(
+                                  offer: o,
+                                  isBest: false,
+                                  onSelect: () => _selectOffer(o),
+                                ),
+                              )),
+                        ],
                         const SizedBox(height: 8),
                         GestureDetector(
                           onTap: () async {

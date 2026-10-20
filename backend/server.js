@@ -581,9 +581,13 @@ app.get('/get-offers/:requestId', rateLimit(60, 60_000), async (req, res) => {
     // χωρίς reviews, χωρίς verified, όλοι "τιμή μετά από αυτοψία"), κερδίζει
     // όποιος έστειλε προσφορά πρώτος — πάντα διαθέσιμο, δίκαιο σήμα ταχύτητας.
     scored.sort((a, b) => b._score - a._score || a._createdAtMs - b._createdAtMs);
-    const top = scored.slice(0, 3).map(({ _score, _createdAtMs, ...rest }) => rest);
+    const clean = scored.map(({ _score, _createdAtMs, ...rest }) => rest);
+    const top = clean.slice(0, 3);
+    // Οι υπόλοιπες (με τη σειρά κατάταξης) — η εφαρμογή τις δείχνει αχνές κάτω
+    // από τις 3 καλύτερες. Ξεχωριστό πεδίο ώστε οι παλιές εκδόσεις να μην αλλάζουν.
+    const others = clean.slice(3);
 
-    res.json({ offers: top, criteria, totalOffers: offers.length });
+    res.json({ offers: top, others, criteria, totalOffers: offers.length });
   } catch (e) {
     console.error('get-offers error:', e.message);
     res.status(500).json({ offers: [] });
