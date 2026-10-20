@@ -7961,7 +7961,8 @@ class _ProfessionalHomeScreenState extends State<ProfessionalHomeScreen> {
             final criteriaEmoji = criteria == 'cheap' ? '💰' : criteria == 'value' ? '⭐' : '⚡';
             final criteriaLabel = criteria == 'cheap' ? 'Φθηνότερο' : criteria == 'value' ? 'Value' : 'Άμεσα';
             final profession = d['profession'] as String? ?? '';
-            final location = d['location'] as String? ?? '';
+            final location = [d['location'], d['locationDetail']]
+                .whereType<String>().where((x) => x.trim().isNotEmpty).join(' · ');
             final expiresAt = d['expiresAt'] as Timestamp?;
             final now = DateTime.now();
             final remaining = expiresAt != null
@@ -8920,6 +8921,8 @@ class _SimpleListPickerState extends State<_SimpleListPicker> {
           return GestureDetector(
             onTap: isDisabled ? null : () {
               setState(() => _sel = item);
+              final hits = _aliasHits(item, _query);
+              _lastAreaAliasPick = hits.length == 1 ? hits.first : null;
               Future.delayed(const Duration(milliseconds: 150), () {
                 Navigator.pop(context, item);
               });
@@ -9284,6 +9287,7 @@ class _RequestScreenState extends State<RequestScreen>
   bool _showTip = false;
   String? _selectedProfession;
   String? _selectedLocation;
+  String? _locationDetail; // οικισμός μέσα στον δήμο (π.χ. Ανάβυσσος), μόνο για εμφάνιση
 
   // Ενδεικτικό παράδειγμα περιγραφής ανά επάγγελμα, ώστε το hint text στο
   // πεδίο περιγραφής να αλλάζει όταν ο χρήστης επιλέξει επάγγελμα, αντί να
@@ -9661,6 +9665,7 @@ class _RequestScreenState extends State<RequestScreen>
         'criteria': _selectedCriteria,
         'profession': _selectedProfession ?? '',
         'location': _selectedLocation ?? '',
+        if ((_locationDetail ?? '').isNotEmpty) 'locationDetail': _locationDetail,
         'status': 'active',
         'offersCount': 0,
         'createdAt': FieldValue.serverTimestamp(),
@@ -9964,7 +9969,15 @@ Future<void> _notifyProsDirectly(
                           ),
                         );
                         if (v == null) return;
-                        if (mounted) setState(() => _selectedLocation = v);
+                        final alias = _lastAreaAliasPick;
+                        _lastAreaAliasPick = null;
+                        if (mounted) {
+                          setState(() {
+                            if (v != _selectedLocation) _locationDetail = null;
+                            _selectedLocation = v;
+                            if (alias != null) _locationDetail = alias;
+                          });
+                        }
                       },
                       child: Container(
                         height: 44,
@@ -9994,6 +10007,75 @@ Future<void> _notifyProsDirectly(
                       ),
                     )),
                   ]),
+
+                  // «Πού ακριβώς;» — οικισμός μέσα σε μεγάλο δήμο (προαιρετικό),
+                  // ώστε ο επαγγελματίας να μη χρειάζεται να ρωτάει «πού βρίσκεστε;».
+                  if ((_areaAliases[_selectedLocation] ?? const <String>[]).isNotEmpty) ...[
+                    const SizedBox(height: 10),
+                    Text('📍 Πού ακριβώς; (προαιρετικό)',
+                        style: TextStyle(fontSize: 12, color: _g(0.6), fontWeight: FontWeight.w600)),
+                    const SizedBox(height: 6),
+                    Wrap(spacing: 6, runSpacing: 6, children: [
+                      ...[
+                        ..._areaAliases[_selectedLocation]!,
+                        if (_locationDetail != null && !_areaAliases[_selectedLocation]!.contains(_locationDetail))
+                          _locationDetail!,
+                      ].map((a) {
+                        final sel = _locationDetail == a;
+                        return GestureDetector(
+                          onTap: () => setState(() => _locationDetail = sel ? null : a),
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 7),
+                            decoration: BoxDecoration(
+                              borderRadius: BorderRadius.circular(20),
+                              color: sel ? kGold.withValues(alpha: 0.18) : _g(0.05),
+                              border: Border.all(color: sel ? kGold : _g(0.15)),
+                            ),
+                            child: Text(a, style: TextStyle(fontSize: 12,
+                                color: sel ? kGold : _g(0.8),
+                                fontWeight: sel ? FontWeight.w700 : FontWeight.w500)),
+                          ),
+                        );
+                      }),
+                      GestureDetector(
+                        onTap: () async {
+                          final ctrl = TextEditingController();
+                          final v = await showDialog<String>(
+                            context: context,
+                            builder: (dCtx) => AlertDialog(
+                              backgroundColor: const Color(0xFF15120A),
+                              title: const Text('Πού ακριβώς;', style: TextStyle(color: Colors.white, fontSize: 16)),
+                              content: TextField(
+                                controller: ctrl,
+                                autofocus: true,
+                                style: const TextStyle(color: Colors.white),
+                                decoration: InputDecoration(
+                                  hintText: 'π.χ. οικισμός ή γειτονιά',
+                                  hintStyle: TextStyle(color: _g(0.4)),
+                                ),
+                              ),
+                              actions: [
+                                TextButton(onPressed: () => Navigator.pop(dCtx),
+                                    child: Text('Ακύρωση', style: TextStyle(color: _g(0.5)))),
+                                TextButton(onPressed: () => Navigator.pop(dCtx, ctrl.text.trim()),
+                                    child: const Text('OK', style: TextStyle(color: kGold, fontWeight: FontWeight.bold))),
+                              ],
+                            ),
+                          );
+                          if (v != null && v.isNotEmpty && mounted) setState(() => _locationDetail = v);
+                        },
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 7),
+                          decoration: BoxDecoration(
+                            borderRadius: BorderRadius.circular(20),
+                            color: _g(0.05),
+                            border: Border.all(color: _g(0.15)),
+                          ),
+                          child: Text('✏️ Άλλο', style: TextStyle(fontSize: 12, color: _g(0.8))),
+                        ),
+                      ),
+                    ]),
+                  ],
 
                   // Δια ζώσης / Online — για μαθήματα και ειδικότητες που γίνονται
                   // και εξ αποστάσεως (Web Developer, Ψυχολόγος κ.λπ.). Online =
@@ -15403,6 +15485,10 @@ const Map<String, List<String>> _areaAliases = {
   'Παύλος Μελάς': ['Πολίχνη', 'Ευκαρπία'],
   'Δέλτα': ['Σίνδος', 'Χαλάστρα'],
 };
+
+// Όταν ο χρήστης βρίσκει τον δήμο γράφοντας οικισμό (π.χ. «Ανάβυσσος» → Σαρωνικός),
+// το _SimpleListPicker κρατάει εδώ τον οικισμό, για να τον συμπληρώσει η φόρμα.
+String? _lastAreaAliasPick;
 
 // Τα ψευδώνυμα μιας περιοχής που ταιριάζουν με την αναζήτηση (κενό αν όχι).
 List<String> _aliasHits(String area, String query) {

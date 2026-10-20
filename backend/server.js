@@ -1044,7 +1044,7 @@ async function notifyMatchingPros({ profession, location, description, requestId
     // δεν τα πληρούν, άρα δεν πρέπει να τους στέλνουμε ειδοποίηση για κάτι που
     // δεν θα δουν. Διαβάζονται από το έγγραφο του αιτήματος (δεν έρχονται
     // στο body του endpoint).
-    let filterWithPhoto = false, filterMinRating = 0, clientPhone = '';
+    let filterWithPhoto = false, filterMinRating = 0, clientPhone = '', locationDetail = '';
     if (requestId) {
       try {
         const reqDoc = await admin.firestore().collection('requests').doc(requestId).get();
@@ -1053,6 +1053,8 @@ async function notifyMatchingPros({ profession, location, description, requestId
           filterMinRating = Number(reqDoc.data().filterMinRating) || 0;
           // Κινητό πελάτη — μπαίνει στο email/SMS ώστε ο επαγγελματίας να καλέσει απευθείας.
           clientPhone = String(reqDoc.data().userPhone || '').replace(/\s+/g, '');
+          // Οικισμός μέσα στον δήμο (π.χ. Σαρωνικός → Ανάβυσσος) — μόνο για εμφάνιση.
+          locationDetail = String(reqDoc.data().locationDetail || '').trim();
         }
       } catch (_) {}
     }
@@ -1167,13 +1169,14 @@ async function notifyMatchingPros({ profession, location, description, requestId
       return { success: true, sent: 0 };
     }
 
-    const subject = `${urgent ? '🚨 ΕΠΕΙΓΟΝ — ' : ''}🔔 Νέο αίτημα${profession ? ` για ${profession}` : ''}${location ? ` — ${location}` : ''}`;
+    const locLabel = locationDetail ? `${location} · ${locationDetail}` : location;
+    const subject = `${urgent ? '🚨 ΕΠΕΙΓΟΝ — ' : ''}🔔 Νέο αίτημα${profession ? ` για ${profession}` : ''}${locLabel ? ` — ${locLabel}` : ''}`;
     const html = `
       <div style="font-family:Arial,sans-serif;max-width:480px;margin:0 auto;background:#0A0800;color:#fff;border-radius:16px;padding:32px;border:1px solid rgba(201,168,76,0.3)">
         ${urgent ? `<p style="display:inline-block;background:#ff4d4d;color:#fff;font-size:12px;font-weight:800;padding:4px 12px;border-radius:20px;margin-bottom:10px;">🚨 ΕΠΕΙΓΟΝ — απαντά μέσα σε 15 λεπτά</p>` : ''}
         <h1 style="color:#FFD47A;font-size:22px;margin-bottom:4px;">🔔 Νέο Αίτημα!</h1>
         ${profession ? `<p style="color:#C9A84C;font-size:15px;margin:4px 0;font-weight:700;">${profession}</p>` : ''}
-        ${location ? `<p style="color:rgba(255,255,255,0.5);font-size:13px;margin:4px 0;">📍 ${location}</p>` : ''}
+        ${locLabel ? `<p style="color:rgba(255,255,255,0.5);font-size:13px;margin:4px 0;">📍 ${locLabel}</p>` : ''}
         ${description ? `<p style="color:rgba(255,255,255,0.7);font-size:14px;margin:16px 0;line-height:1.6;border-left:3px solid rgba(201,168,76,0.4);padding-left:12px;">${description.substring(0, 200)}</p>` : ''}
         ${clientPhone ? `<p style="color:#FFD47A;font-size:14px;margin:8px 0;font-weight:700;">📞 Κινητό πελάτη: <a href="tel:${clientPhone}" style="color:#FFD47A;">${clientPhone}</a></p>` : ''}
         <a href="https://gorealai.web.app/app" style="display:inline-block;margin-top:20px;padding:13px 28px;background:linear-gradient(135deg,#FFD47A,#C9A84C);color:#000;border-radius:12px;text-decoration:none;font-weight:800;font-size:14px;">Δες το αίτημα →</a>
@@ -1200,13 +1203,13 @@ async function notifyMatchingPros({ profession, location, description, requestId
       const normalizedPhone = normalizePhone(p.phone);
       if (normalizedPhone && !smsPhonesSent.has(normalizedPhone)) {
         smsPhonesSent.add(normalizedPhone);
-        const smsText = `🔔 Νέο αίτημα GorealPro${profession ? ` για ${profession}` : ''}!\n${description ? description.substring(0, 100) : ''}${clientPhone ? `\nΚινητό πελάτη: ${clientPhone}` : ''}\nΔες το: https://gorealai.web.app/app`;
+        const smsText = `🔔 Νέο αίτημα GorealPro${profession ? ` για ${profession}` : ''}${locLabel ? ` — ${locLabel}` : ''}!\n${description ? description.substring(0, 100) : ''}${clientPhone ? `\nΚινητό πελάτη: ${clientPhone}` : ''}\nΔες το: https://gorealai.web.app/app`;
         sendSms(p.phone, smsText); // fire-and-forget
       }
       // Push notification + in-app badge entry (fire-and-forget, doesn't block the loop)
       if (p.fcmToken) {
         const pushTitle = `${urgent ? '🚨 ΕΠΕΙΓΟΝ — ' : ''}🔔 Νέο αίτημα${profession ? ` για ${profession}` : ''}!`;
-        const pushBody = description ? description.substring(0, 100) : 'Δες το αίτημα στην εφαρμογή';
+        const pushBody = `${locLabel ? `📍 ${locLabel} · ` : ''}${description ? description.substring(0, 100) : 'Δες το αίτημα στην εφαρμογή'}`;
         admin.messaging().send({
           token: p.fcmToken,
           notification: { title: pushTitle, body: pushBody },
