@@ -2218,8 +2218,8 @@ async function sendRatingPrompts() {
 <p style="color:rgba(255,255,255,0.85);font-size:14px;line-height:1.6;">πριν λίγες μέρες ζήτησες προσφορές για <strong style="color:#FFD47A">«${esc(descShort)}»</strong>. Συνεργάστηκες με κάποιον από αυτούς;</p>
 <ul style="color:#fff;font-size:14px;padding-left:20px;">${names}</ul>
 <p style="color:rgba(255,255,255,0.85);font-size:14px;line-height:1.6;">Η αξιολόγησή σου παίρνει 10 δευτερόλεπτα και βοηθάει άλλους να βρουν καλούς επαγγελματίες.</p>
-<a href="https://gorealai.web.app/app" style="display:inline-block;margin-top:14px;padding:13px 28px;background:linear-gradient(135deg,#FFD47A,#C9A84C);color:#000;border-radius:12px;text-decoration:none;font-weight:800;font-size:14px;">Αξιολόγησε τώρα →</a>
-<p style="color:rgba(255,255,255,0.4);font-size:12px;margin-top:20px;">Άνοιξε την εφαρμογή GorealPro — θα δεις την αξιολόγηση στην αρχική οθόνη.</p>
+<a href="https://gorealai.web.app/open" style="display:inline-block;margin-top:14px;padding:13px 28px;background:linear-gradient(135deg,#FFD47A,#C9A84C);color:#000;border-radius:12px;text-decoration:none;font-weight:800;font-size:14px;">Αξιολόγησε τώρα →</a>
+<p style="color:rgba(255,255,255,0.4);font-size:12px;margin-top:20px;">Ανοίγει την εφαρμογή GorealPro στο κινητό σου — η αξιολόγηση εμφανίζεται μόλις μπεις.</p>
 <p style="color:rgba(255,255,255,0.2);font-size:11px;margin-top:16px;">GorealPro · info@gorealai.gr</p></div>`;
         sendEmail({ to: email, subject: `⭐ Πώς πήγε «${descShort}»;`, html }).catch(() => {});
       }

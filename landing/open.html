@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="el">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>GorealPro — Άνοιγμα εφαρμογής</title>
+  <script>
+    // Ανοίγει την ΕΦΑΡΜΟΓΗ του κινητού (όχι το web) από links σε email:
+    //  • Android → intent:// (ανοίγει το GorealPro αν υπάρχει, αλλιώς Google Play)
+    //  • iPhone  → App Store (εκεί υπάρχει κουμπί «Άνοιγμα» αν είναι εγκατεστημένη)
+    //  • Υπολογιστής → η web εφαρμογή
+    var ua = navigator.userAgent || "";
+    var isIOS = /iPhone|iPad|iPod/.test(ua) || (/Macintosh/.test(ua) && navigator.maxTouchPoints > 1);
+    var isAndroid = /Android/i.test(ua);
+    var PLAY = "https://play.google.com/store/apps/details?id=gr.gorealai.app";
+    var APPSTORE = "https://apps.apple.com/gr/app/gorealpro/id6817919309";
+    var WEB = "https://gorealai.web.app/app";
+    var TARGET = isAndroid
+      ? "intent://open#Intent;action=android.intent.action.MAIN;category=android.intent.category.LAUNCHER;package=gr.gorealai.app;S.browser_fallback_url=" + encodeURIComponent(PLAY) + ";end"
+      : (isIOS ? APPSTORE : WEB);
+    window.location.replace(TARGET);
+    document.addEventListener("DOMContentLoaded", function () {
+      document.getElementById("open-link").href = TARGET;
+    });
+  </script>
+  <style>
+    body{margin:0;min-height:100vh;display:flex;align-items:center;justify-content:center;background:#0A0800;color:#fff;font-family:Arial,sans-serif;text-align:center;padding:24px;box-sizing:border-box}
+    a{display:inline-block;margin-top:18px;padding:14px 28px;border-radius:12px;background:#E8C66A;color:#000;font-weight:800;text-decoration:none}
+    p{color:rgba(255,255,255,.7);font-size:14px}
+  </style>
+</head>
+<body>
+  <div>
+    <h2 style="color:#FFD47A">Άνοιγμα GorealPro…</h2>
+    <p>Αν δεν άνοιξε αυτόματα, πάτα το κουμπί.</p>
+    <a id="open-link" href="https://gorealai.web.app/app">Άνοιξε την εφαρμογή</a>
+  </div>
+</body>
+</html>

@@ -4701,24 +4701,135 @@ class _LiveActivityFeedState extends State<_LiveActivityFeed>
 // Ο server (sendRatingPrompts) βάζει ratingPromptOpen/ratingPrompt στο αίτημα
 // 2 μέρες μετά τη λήξη του. Εδώ ο πελάτης αξιολογεί όποιον συνεργάστηκε, χωρίς
 // να χρειάζεται να είχε πατήσει «Αποδέχομαι».
-class _RatePromptCard extends StatelessWidget {
+class _RatePromptCard extends StatefulWidget {
   final String userId;
   const _RatePromptCard({required this.userId});
+  @override
+  State<_RatePromptCard> createState() => _RatePromptCardState();
+}
+
+class _RatePromptCardState extends State<_RatePromptCard> {
+  // Αιτήματα για τα οποία έχει ήδη ανοίξει το παράθυρο σε αυτό το άνοιγμα της
+  // εφαρμογής — «Αργότερα» = ξαναεμφανίζεται στο επόμενο άνοιγμα.
+  static final Set<String> _shownThisSession = {};
+  StreamSubscription<QuerySnapshot>? _sub;
+  bool _dialogOpen = false;
+
+  String get userId => widget.userId;
+
+  @override
+  void initState() {
+    super.initState();
+    _sub = FirebaseFirestore.instance.collection('requests')
+        .where('userId', isEqualTo: userId)
+        .where('ratingPromptOpen', isEqualTo: true)
+        .limit(1).snapshots().listen((snap) {
+      if (!mounted || _dialogOpen || snap.docs.isEmpty) return;
+      final doc = snap.docs.first;
+      if (_shownThisSession.contains(doc.id)) return;
+      final d = doc.data() as Map<String, dynamic>;
+      final pros = ((d['ratingPrompt'] as List?) ?? const [])
+          .whereType<Map>().map((m) => Map<String, dynamic>.from(m)).toList();
+      if (pros.isEmpty) return;
+      _shownThisSession.add(doc.id);
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) _showPopup(doc.id, d, pros);
+      });
+    }, onError: (Object _) {});
+  }
+
+  @override
+  void dispose() { _sub?.cancel(); super.dispose(); }
 
   Future<void> _close(String requestId) => FirebaseFirestore.instance
       .collection('requests').doc(requestId)
       .update({'ratingPromptOpen': false}).catchError((Object _) {});
 
-  Future<void> _rate(BuildContext context, String requestId, Map<String, dynamic> pro,
+  Future<void> _showPopup(String requestId, Map<String, dynamic> d, List<Map<String, dynamic>> pros) async {
+    _dialogOpen = true;
+    final desc = (d['description'] ?? d['profession'] ?? '').toString().trim();
+    final shortDesc = desc.length > 60 ? '${desc.substring(0, 60)}…' : desc;
+    final picked = await showDialog<Object>(
+      context: context,
+      barrierDismissible: false,
+      barrierColor: Colors.black.withValues(alpha: 0.8),
+      builder: (ctx) => Dialog(
+        backgroundColor: Colors.transparent,
+        insetPadding: const EdgeInsets.symmetric(horizontal: 22),
+        child: Container(
+          padding: const EdgeInsets.fromLTRB(22, 26, 22, 18),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(26),
+            gradient: const LinearGradient(begin: Alignment.topCenter, end: Alignment.bottomCenter,
+                colors: [Color(0xFF231B0A), Color(0xFF0E0B05)]),
+            border: Border.all(color: kGold.withValues(alpha: 0.5), width: 1.2),
+            boxShadow: [BoxShadow(color: kGold.withValues(alpha: 0.18), blurRadius: 30)],
+          ),
+          child: Column(mainAxisSize: MainAxisSize.min, children: [
+            const Text('⭐', style: TextStyle(fontSize: 44)),
+            const SizedBox(height: 10),
+            const Text('Πώς πήγε;', textAlign: TextAlign.center,
+                style: TextStyle(color: Colors.white, fontSize: 22, fontWeight: FontWeight.w900)),
+            const SizedBox(height: 8),
+            Text('«$shortDesc»', textAlign: TextAlign.center,
+                style: const TextStyle(color: kGold, fontSize: 14, fontWeight: FontWeight.w600, height: 1.35)),
+            const SizedBox(height: 12),
+            Text('Συνεργάστηκες με κάποιον από αυτούς;\nΠάτα πάνω του για να τον αξιολογήσεις.',
+                textAlign: TextAlign.center,
+                style: TextStyle(color: _g(0.7), fontSize: 13.5, height: 1.45)),
+            const SizedBox(height: 18),
+            ...pros.map((p) => Padding(
+                  padding: const EdgeInsets.only(bottom: 10),
+                  child: GestureDetector(
+                    onTap: () => Navigator.pop(ctx, p),
+                    child: Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 14),
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(14),
+                        gradient: const LinearGradient(colors: [kGoldLight, kGold]),
+                      ),
+                      child: Text('⭐  ${p['proName'] ?? ''}', textAlign: TextAlign.center,
+                          maxLines: 1, overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(color: Colors.black, fontSize: 14.5, fontWeight: FontWeight.w800)),
+                    ),
+                  ),
+                )),
+            const SizedBox(height: 4),
+            Row(children: [
+              Expanded(child: TextButton(
+                onPressed: () => Navigator.pop(ctx, 'none'),
+                child: Text('Κανέναν', style: TextStyle(color: _g(0.75), fontSize: 14, fontWeight: FontWeight.w600)),
+              )),
+              Expanded(child: TextButton(
+                onPressed: () => Navigator.pop(ctx, 'later'),
+                child: Text('Αργότερα', style: TextStyle(color: _g(0.5), fontSize: 14)),
+              )),
+            ]),
+          ]),
+        ),
+      ),
+    );
+    _dialogOpen = false;
+    if (!mounted) return;
+    if (picked == 'none') { await _close(requestId); return; }
+    if (picked is Map<String, dynamic>) {
+      final ok = await _rate(context, requestId, picked, pros);
+      // Αν έμειναν κι άλλοι, ξαναδείξε το παράθυρο για τους υπόλοιπους
+      if (ok) _shownThisSession.remove(requestId);
+    }
+  }
+
+  Future<bool> _rate(BuildContext context, String requestId, Map<String, dynamic> pro,
       List<Map<String, dynamic>> remaining) async {
     final proName = (pro['proName'] ?? 'Επαγγελματίας').toString();
     final res = await showDialog<Map<String, dynamic>>(
       context: context,
       builder: (_) => _RatingDialog(proName: proName),
     );
-    if (res == null) return;
+    if (res == null) { _shownThisSession.remove(requestId); return false; }
     final proId = (pro['proId'] ?? '').toString();
-    if (proId.isEmpty) return;
+    if (proId.isEmpty) return false;
     final rating = (res['rating'] as int?) ?? 0;
     final comment = (res['comment'] as String?) ?? '';
     final fs = FirebaseFirestore.instance;
@@ -4760,84 +4871,19 @@ class _RatePromptCard extends StatelessWidget {
             content: Text('Ευχαριστούμε! Η αξιολόγηση για ${proName.split(' ').first} καταχωρήθηκε ⭐'),
             backgroundColor: kGold.withValues(alpha: 0.9)));
       }
+      return true;
     } catch (e) {
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(content: Text('Δεν αποθηκεύτηκε η αξιολόγηση. Δοκίμασε ξανά.')));
       }
+      return false;
     }
   }
 
+  // Δεν δείχνει τίποτα μέσα στην αρχική — μόνο το παράθυρο πάνω από αυτή.
   @override
-  Widget build(BuildContext context) => StreamBuilder<QuerySnapshot>(
-        stream: FirebaseFirestore.instance.collection('requests')
-            .where('userId', isEqualTo: userId)
-            .where('ratingPromptOpen', isEqualTo: true)
-            .limit(1).snapshots(),
-        builder: (context, snap) {
-          if (!snap.hasData || snap.data!.docs.isEmpty) return const SizedBox.shrink();
-          final doc = snap.data!.docs.first;
-          final d = doc.data() as Map<String, dynamic>;
-          final pros = ((d['ratingPrompt'] as List?) ?? const [])
-              .whereType<Map>().map((m) => Map<String, dynamic>.from(m)).toList();
-          if (pros.isEmpty) return const SizedBox.shrink();
-          final desc = (d['description'] ?? d['profession'] ?? '').toString().trim();
-          final shortDesc = desc.length > 50 ? '${desc.substring(0, 50)}…' : desc;
-          return Padding(
-            padding: const EdgeInsets.fromLTRB(20, 16, 20, 0),
-            child: Container(
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(18),
-                color: kGold.withValues(alpha: 0.08),
-                border: Border.all(color: kGold.withValues(alpha: 0.4)),
-              ),
-              child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                Row(children: [
-                  const Text('⭐', style: TextStyle(fontSize: 20)),
-                  const SizedBox(width: 8),
-                  Expanded(child: Text('Πώς πήγε «$shortDesc»;',
-                      maxLines: 2, overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(color: Colors.white, fontSize: 15, fontWeight: FontWeight.w800))),
-                  GestureDetector(
-                    onTap: () => _close(doc.id),
-                    child: Icon(Icons.close_rounded, color: _g(0.4), size: 18),
-                  ),
-                ]),
-                const SizedBox(height: 6),
-                Text('Συνεργάστηκες με κάποιον; Πάτα πάνω του για να τον αξιολογήσεις.',
-                    style: TextStyle(color: _g(0.65), fontSize: 12.5, height: 1.35)),
-                const SizedBox(height: 12),
-                Wrap(spacing: 8, runSpacing: 8, children: [
-                  ...pros.map((p) => GestureDetector(
-                        onTap: () => _rate(context, doc.id, p, pros),
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
-                          decoration: BoxDecoration(
-                            borderRadius: BorderRadius.circular(20),
-                            gradient: const LinearGradient(colors: [kGoldLight, kGold]),
-                          ),
-                          child: Text('⭐ ${p['proName'] ?? ''}',
-                              style: const TextStyle(color: Colors.black, fontSize: 12.5, fontWeight: FontWeight.w800)),
-                        ),
-                      )),
-                  GestureDetector(
-                    onTap: () => _close(doc.id),
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
-                      decoration: BoxDecoration(
-                        borderRadius: BorderRadius.circular(20),
-                        border: Border.all(color: _g(0.2)),
-                      ),
-                      child: Text('Κανέναν', style: TextStyle(color: _g(0.7), fontSize: 12.5)),
-                    ),
-                  ),
-                ]),
-              ]),
-            ),
-          );
-        },
-      );
+  Widget build(BuildContext context) => const SizedBox.shrink();
 }
 
 // ── Empty Hero Card (no active requests) ──
