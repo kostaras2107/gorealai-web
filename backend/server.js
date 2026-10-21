@@ -2237,8 +2237,8 @@ setTimeout(sendRatingPrompts, 4 * 60 * 1000);
 // σταδιακά — η Google κόβει κριτικές που μαζεύονται απότομα). Σημαδεύει
 // users/{uid}.storeReviewAskAt. Κουμπί ανά πλατφόρμα (iPhone → App Store,
 // Android → Google Play, άγνωστο → και τα δύο).
-const STORE_REVIEW_ASK_ENABLED = false;
-const STORE_REVIEW_ASK_PER_HOUR = 10;
+const STORE_REVIEW_ASK_ENABLED = true;
+const STORE_REVIEW_ASK_PER_HOUR = 5;
 const PLAY_REVIEW_URL = 'https://play.google.com/store/apps/details?id=gr.gorealai.app&showAllReviews=true';
 const APPSTORE_REVIEW_URL = 'https://apps.apple.com/gr/app/gorealpro/id6817919309?action=write-review';
 
