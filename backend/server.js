@@ -2231,6 +2231,74 @@ async function sendRatingPrompts() {
 }
 setInterval(sendRatingPrompts, 30 * 60 * 1000);
 setTimeout(sendRatingPrompts, 4 * 60 * 1000);
+
+// ── Email «Αξιολόγησέ μας στο Google Play / App Store» σε όλους (μία φορά) ──
+// 10 email ανά ώρα, ώστε να μη φύγουν όλα μαζί (και οι κριτικές να έρθουν
+// σταδιακά — η Google κόβει κριτικές που μαζεύονται απότομα). Σημαδεύει
+// users/{uid}.storeReviewAskAt. Κουμπί ανά πλατφόρμα (iPhone → App Store,
+// Android → Google Play, άγνωστο → και τα δύο).
+const STORE_REVIEW_ASK_ENABLED = false;
+const STORE_REVIEW_ASK_PER_HOUR = 10;
+const PLAY_REVIEW_URL = 'https://play.google.com/store/apps/details?id=gr.gorealai.app&showAllReviews=true';
+const APPSTORE_REVIEW_URL = 'https://apps.apple.com/gr/app/gorealpro/id6817919309?action=write-review';
+
+function storeReviewEmailHtml({ first, isPro, platform }) {
+  const esc = (s) => String(s || '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+  const btn = (href, label) => `<a href="${href}" style="display:inline-block;margin:8px 6px 0 0;padding:13px 24px;background-color:#E8C66A;color:#000;border-radius:12px;text-decoration:none;font-weight:800;font-size:14px;">${label}</a>`;
+  const buttons = platform === 'ios' ? btn(APPSTORE_REVIEW_URL, '⭐ Αξιολόγηση στο App Store')
+    : platform === 'android' ? btn(PLAY_REVIEW_URL, '⭐ Αξιολόγηση στο Google Play')
+    : btn(PLAY_REVIEW_URL, '⭐ Google Play (Android)') + btn(APPSTORE_REVIEW_URL, '⭐ App Store (iPhone)');
+  const why = isPro
+    ? 'Κάθε κριτική μάς βοηθάει να εμφανιζόμαστε πιο ψηλά στα stores, άρα να έρχονται περισσότεροι πελάτες — και περισσότερα αιτήματα για εσάς.'
+    : 'Κάθε κριτική μάς βοηθάει να μας βρίσκουν περισσότεροι άνθρωποι, άρα να μπαίνουν περισσότεροι και καλύτεροι επαγγελματίες για εσάς.';
+  return `<div style="font-family:Arial,sans-serif;max-width:520px;margin:0 auto;background:#0A0800;color:#fff;border-radius:16px;padding:32px;border:1px solid rgba(201,168,76,0.3)">
+<h1 style="color:#FFD47A;font-size:20px;margin:0 0 14px;">Μας κάνετε μια μικρή χάρη; ⭐</h1>
+<p style="color:rgba(255,255,255,0.85);font-size:14px;line-height:1.6;">Καλησπέρα${first ? ' ' + esc(first) : ''},</p>
+<p style="color:rgba(255,255,255,0.85);font-size:14px;line-height:1.6;">σας ευχαριστούμε που είστε μαζί μας στο GorealPro! Σε λιγότερο από ενάμιση μήνα ξεπεράσαμε τις 1.500 λήψεις — και αυτό το οφείλουμε σε εσάς.</p>
+<p style="color:rgba(255,255,255,0.85);font-size:14px;line-height:1.6;">Είμαστε μια μικρή ελληνική ομάδα χωρίς μεγάλο προϋπολογισμό για διαφήμιση. ${why}</p>
+<p style="color:rgba(255,255,255,0.85);font-size:14px;line-height:1.6;">Αν σας αρέσει η εφαρμογή, θα μας βοηθούσε πολύ να αφήσετε μια σύντομη, ειλικρινή αξιολόγηση. Σας παίρνει ένα λεπτό:</p>
+<div style="margin:6px 0 4px;">${buttons}</div>
+<p style="color:rgba(255,255,255,0.6);font-size:13px;line-height:1.6;margin-top:18px;">Αν κάτι δεν σας άρεσε, πείτε μας το πρώτα σε εμάς στο info@gorealai.gr — θέλουμε να το διορθώσουμε.</p>
+<p style="color:rgba(255,255,255,0.6);font-size:13px;line-height:1.6;">Σας ευχαριστούμε από καρδιάς,<br>Κώστας · GorealPro</p></div>`;
+}
+
+async function sendStoreReviewAsks() {
+  if (!firebaseReady || !STORE_REVIEW_ASK_ENABLED) return;
+  try {
+    const db = admin.firestore();
+    const snap = await db.collection('users').get();
+    let iosUsers = {};
+    try { iosUsers = ((await db.collection('admin_analytics').doc('ios_app_users').get()).data() || {}).users || {}; } catch (_) {}
+    let sent = 0;
+    for (const doc of snap.docs) {
+      if (sent >= STORE_REVIEW_ASK_PER_HOUR) break;
+      const d = doc.data();
+      if (d.storeReviewAskAt) continue;
+      let email = '';
+      try { email = (await admin.auth().getUser(doc.id)).email || ''; } catch (_) {}
+      if (!email) email = d.email || '';
+      if (!email || NO_MAIL_ADDRESSES.has(email.toLowerCase()) || /demo|review/i.test(String(d.name || ''))) {
+        await doc.ref.set({ storeReviewAskAt: admin.firestore.FieldValue.serverTimestamp(), storeReviewAskSkipped: true }, { merge: true });
+        continue;
+      }
+      const p = String(d.platform || (d.pushDebug && d.pushDebug.platform) || '').toLowerCase();
+      const platform = iosUsers[doc.id] || p === 'ios' ? 'ios' : (p === 'android' ? 'android' : 'unknown');
+      const first = String(d.name || d.displayName || '').trim().split(/\s+/)[0] || '';
+      const html = storeReviewEmailHtml({ first, isPro: d.role === 'professional', platform });
+      // Σήμανση ΠΡΙΝ την αποστολή: αν κάτι κολλήσει, δεν ξαναστέλνεται ποτέ διπλό
+      await doc.ref.set({ storeReviewAskAt: admin.firestore.FieldValue.serverTimestamp(), storeReviewAskPlatform: platform }, { merge: true });
+      try {
+        await sendEmail({ to: email, subject: 'Μας κάνετε μια μικρή χάρη; ⭐ GorealPro', html });
+        sent++;
+      } catch (e) { console.error('store review ask email error:', e.message); }
+    }
+    if (sent) console.log(`⭐ Store review ask: sent ${sent} emails`);
+  } catch (e) {
+    console.error('sendStoreReviewAsks error:', e.message);
+  }
+}
+setInterval(sendStoreReviewAsks, 60 * 60 * 1000);
+setTimeout(sendStoreReviewAsks, 5 * 60 * 1000);
 setTimeout(syncUserIndexAndEnrichDeletions, 45 * 1000);
 
 // ── Καθάρισμα παλιών φωτογραφιών/βίντεο αιτημάτων (30 μέρες) ──────
