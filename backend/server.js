@@ -2118,9 +2118,10 @@ setTimeout(cleanupDeadTikTokShorts, 3 * 60 * 1000);
 // και το αίτημα παίρνει ratingPromptOpen/ratingPrompt ώστε η αρχική οθόνη να
 // δείξει κάρτα «Πώς πήγε;». Προτεραιότητα σε όσους ήρθε σε επαφή (αποδοχή,
 // μηνύματα, προβολή/κλήση κινητού)· αλλιώς όλοι όσοι έστειλαν προσφορά.
-// ΚΛΕΙΣΤΟ μέχρι να κυκλοφορήσει η έκδοση με την κάρτα αξιολόγησης (2.0.8) —
-// αλλιώς οι χρήστες παλιών εκδόσεων παίρνουν ειδοποίηση χωρίς πού να αξιολογήσουν.
-const RATING_PROMPTS_ENABLED = false;
+// Η κάρτα αξιολόγησης υπάρχει από την 2.0.8. Android 2.0.8 κυκλοφόρησε 20/10/2026·
+// στο iPhone μένει κλειστό μέχρι να εγκριθεί η 2.0.8 εκεί (τότε → true).
+const RATING_PROMPTS_ENABLED = true;
+const RATING_PROMPTS_IOS = false;
 
 async function sendRatingPrompts() {
   if (!firebaseReady || !RATING_PROMPTS_ENABLED) return;
@@ -2130,9 +2131,21 @@ async function sendRatingPrompts() {
     const from = admin.firestore.Timestamp.fromMillis(now - 5 * 24 * 3600 * 1000);
     const to = admin.firestore.Timestamp.fromMillis(now - 2 * 24 * 3600 * 1000);
     const snap = await db.collection('requests').where('expiresAt', '>=', from).where('expiresAt', '<=', to).get();
+    let iosUsers = {};
+    if (!RATING_PROMPTS_IOS) {
+      try { iosUsers = ((await db.collection('admin_analytics').doc('ios_app_users').get()).data() || {}).users || {}; } catch (_) {}
+    }
     for (const doc of snap.docs) {
       const r = doc.data();
       if (r.ratingPromptSentAt || !r.userId) continue;
+      if (!RATING_PROMPTS_IOS && iosUsers[r.userId]) continue;
+      // Χρήστες iPhone: παράλειψη (ΧΩΡΙΣ σήμανση ως σταλμένο) μέχρι να βγει η 2.0.8 στο iOS
+      if (!RATING_PROMPTS_IOS) {
+        const uSnap = await db.collection('users').doc(r.userId).get().catch(() => null);
+        const u0 = uSnap && uSnap.exists ? uSnap.data() : {};
+        const plat = String(u0.platform || (u0.pushDebug && u0.pushDebug.platform) || '').toLowerCase();
+        if (plat === 'ios') continue;
+      }
       // Δεν βασιζόμαστε στο offersCount: προσφορές που ήρθαν μετά τη λήξη δεν το αυξάνουν.
       const offers = (await db.collection('offers').where('requestId', '==', doc.id).get()).docs.map((d) => d.data());
       if (!offers.length) { await doc.ref.update({ ratingPromptSentAt: admin.firestore.FieldValue.serverTimestamp() }); continue; }
