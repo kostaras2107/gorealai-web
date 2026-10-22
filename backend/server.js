@@ -2187,7 +2187,7 @@ setTimeout(cleanupDeadTikTokShorts, 3 * 60 * 1000);
 // Η κάρτα αξιολόγησης υπάρχει από την 2.0.8. Android 2.0.8 κυκλοφόρησε 20/10/2026·
 // στο iPhone μένει κλειστό μέχρι να εγκριθεί η 2.0.8 εκεί (τότε → true).
 const RATING_PROMPTS_ENABLED = true;
-const RATING_PROMPTS_IOS = false;
+const RATING_PROMPTS_IOS = true;
 
 async function sendRatingPrompts() {
   if (!firebaseReady || !RATING_PROMPTS_ENABLED) return;
