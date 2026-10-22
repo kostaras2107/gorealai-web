@@ -157,6 +157,7 @@
       <div class="stat-card"><div class="stat-label">Χρήστες / Επαγγ. (App Store)</div><div class="stat-value" id="ps-ios-split">—</div></div>
       <div class="stat-card"><div class="stat-label">Χρησιμοποιούν την εφαρμογή iPhone</div><div class="stat-value" id="ps-ios-app">—</div></div>
       <div class="stat-card"><div class="stat-label">Μέσω Web (χωρίς download)</div><div class="stat-value" id="ps-web-total">—</div></div>
+      <div class="stat-card"><div class="stat-label">Εγγραφές με Google (σύνολο / σήμερα)</div><div class="stat-value" id="ps-google">—</div></div>
     </div>
 
     <div class="stats-grid">
@@ -768,6 +769,7 @@
       document.getElementById('ps-ios-today').textContent = s.iosToday ?? '—';
       document.getElementById('ps-ios-app').textContent = s.iosAppUsers ?? '—';
       document.getElementById('ps-ios-split').textContent = s.iosTotal == null ? '—' : `${s.iosUsers} / ${s.iosPros}`;
+      document.getElementById('ps-google').textContent = s.googleSignups == null ? '—' : `${s.googleSignups} / ${s.googleSignupsToday ?? 0}`;
     } catch(e) {
       console.error('loadPlatformStats error:', e);
     }
