@@ -1246,6 +1246,8 @@ async function notifyMatchingPros({ profession, location, description, requestId
         await admin.firestore().collection('requests').doc(requestId).update({
           prosNotified: sent,
           notifiedProNames: sentPros,
+          // uids — για την ειδοποίηση «ο πελάτης βρήκε επαγγελματία» (/request-found)
+          notifiedProIds: matching.map((p) => p.uid),
         });
       } catch (_) {}
     }
@@ -1467,6 +1469,70 @@ app.post('/notify-new-request', rateLimit(60, 60_000), async (req, res) => {
   } catch (e) {
     console.error('notify-new-request error:', e.message);
     res.status(500).json({ error: e.message });
+  }
+});
+
+// ── Ο πελάτης βρήκε επαγγελματία → κλείσιμο αιτήματος & ενημέρωση των άλλων ──
+// POST /request-found { requestId, userId }
+// Το αίτημα γίνεται status 'found' (εξαφανίζεται από τις λίστες των
+// επαγγελματιών μαζί με το κινητό του πελάτη) και όσοι ειδοποιήθηκαν παίρνουν
+// push + ειδοποίηση εντός εφαρμογής να μην τον καλούν άλλο.
+app.post('/request-found', rateLimit(20, 60_000), async (req, res) => {
+  const { requestId, userId } = req.body || {};
+  if (!firebaseReady || !requestId || !userId) return res.status(400).json({ success: false });
+  try {
+    const db = admin.firestore();
+    const ref = db.collection('requests').doc(String(requestId));
+    const snap = await ref.get();
+    if (!snap.exists || snap.data().userId !== userId) return res.status(403).json({ success: false });
+    const r = snap.data();
+    if (r.foundNoticeSentAt) return res.json({ success: true, already: true });
+    await ref.update({ status: 'found', foundAt: admin.firestore.FieldValue.serverTimestamp(), foundNoticeSentAt: admin.firestore.FieldValue.serverTimestamp() });
+
+    // Παραλήπτες: όσοι ειδοποιήθηκαν + όσοι έστειλαν προσφορά
+    const ids = new Set(Array.isArray(r.notifiedProIds) ? r.notifiedProIds : []);
+    // Παλαιότερα αιτήματα έχουν μόνο ονόματα — αντιστοίχιση όνομα → uid
+    if (!ids.size && Array.isArray(r.notifiedProNames) && r.notifiedProNames.length) {
+      const want = new Set(r.notifiedProNames.map((n) => String(n).trim()));
+      const pros = await db.collection('professionals').get();
+      pros.docs.forEach((p) => {
+        const d = p.data();
+        if (want.has(String(d.name || d.displayName || '').trim())) ids.add(String(d.userId || p.id));
+      });
+    }
+    const offers = await db.collection('offers').where('requestId', '==', String(requestId)).get();
+    offers.docs.forEach((o) => { if (o.data().professionalId) ids.add(String(o.data().professionalId)); });
+    ids.delete(userId);
+
+    const title = '✅ Το αίτημα έκλεισε';
+    const what = [r.profession, r.location].filter(Boolean).join(' · ');
+    const body = `Ο πελάτης ${r.userName || ''} βρήκε επαγγελματία${what ? ` (${what})` : ''}. Δεν χρειάζεται να τον καλέσετε — ευχαριστούμε για το ενδιαφέρον!`;
+    let pushed = 0;
+    await Promise.all([...ids].map(async (uid) => {
+      try {
+        const u = await db.collection('users').doc(uid).get();
+        const tok = u.exists ? u.data().fcmToken : null;
+        await db.collection('users').doc(uid).collection('notifications').add({
+          title, body, type: 'request_found', requestId: String(requestId), isRead: false,
+          createdAt: admin.firestore.FieldValue.serverTimestamp(),
+        });
+        if (tok) {
+          await admin.messaging().send({
+            token: tok,
+            notification: { title, body },
+            android: { notification: { channelId: 'gorealai_channel', icon: 'ic_launcher', title, body } },
+            apns: { payload: { aps: { alert: { title, body } } } },
+            data: { type: 'request_found', requestId: String(requestId) },
+          });
+          pushed++;
+        }
+      } catch (_) {}
+    }));
+    console.log(`✅ Request ${requestId} found — notified ${ids.size} pros (${pushed} push)`);
+    res.json({ success: true, notified: ids.size });
+  } catch (e) {
+    console.error('request-found error:', e.message);
+    res.status(500).json({ success: false });
   }
 });
 

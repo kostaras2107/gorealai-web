@@ -10799,6 +10799,72 @@ class _WaitingScreenState extends State<WaitingScreen>
     }, onError: (Object _) {});
   }
 
+  // «Βρήκα επαγγελματία» — κλείνει το αίτημα και ενημερώνει τους υπόλοιπους
+  // επαγγελματίες να μην καλούν (μέσω /request-found στον server).
+  Future<void> _confirmFound(BuildContext context) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => Dialog(
+        backgroundColor: Colors.transparent,
+        child: Container(
+          padding: const EdgeInsets.all(22),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(22),
+            color: const Color(0xFF0D0A04),
+            border: Border.all(color: kGreen.withValues(alpha: 0.4)),
+          ),
+          child: Column(mainAxisSize: MainAxisSize.min, children: [
+            const Text('🤝', style: TextStyle(fontSize: 44)),
+            const SizedBox(height: 12),
+            const Text('Βρήκες επαγγελματία;', style: TextStyle(
+                fontFamily: 'Inter', fontSize: 18,
+                fontWeight: FontWeight.w800, color: Colors.white)),
+            const SizedBox(height: 8),
+            Text('Το αίτημα θα κλείσει και θα ενημερώσουμε τους υπόλοιπους επαγγελματίες ότι δεν χρειάζεται να σε καλέσουν.',
+                textAlign: TextAlign.center,
+                style: TextStyle(fontSize: 12.5, color: _g(0.6), height: 1.5)),
+            const SizedBox(height: 20),
+            Row(children: [
+              Expanded(child: _PremiumButton(
+                label: 'Όχι ακόμα',
+                bgColor: _g(0.06),
+                textColor: Colors.white70,
+                onTap: () => Navigator.pop(ctx, false),
+              )),
+              const SizedBox(width: 10),
+              Expanded(child: _PremiumButton(
+                label: 'Ναι, βρήκα',
+                bgColor: kGreen.withValues(alpha: 0.15),
+                borderColor: kGreen.withValues(alpha: 0.5),
+                textColor: kGreen,
+                onTap: () => Navigator.pop(ctx, true),
+              )),
+            ]),
+          ]),
+        ),
+      ),
+    );
+    if (confirmed != true || !mounted) return;
+    _timer?.cancel();
+    try {
+      final res = await http.post(
+        Uri.parse('$kBackendUrl/request-found'),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({'requestId': widget.requestId, 'userId': widget.userId}),
+      ).timeout(const Duration(seconds: 20));
+      if (res.statusCode != 200) throw Exception('status ${res.statusCode}');
+    } catch (_) {
+      // Ο server δεν απάντησε — κλείσε τουλάχιστον το αίτημα (χωρίς ειδοποίηση)
+      await FirebaseFirestore.instance.collection('requests').doc(widget.requestId)
+          .update({'status': 'found'}).catchError((Object _) {});
+    }
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: const Text('Τέλεια! Το αίτημα έκλεισε και ενημερώσαμε τους υπόλοιπους επαγγελματίες ✅'),
+        backgroundColor: kGreen.withValues(alpha: 0.9)));
+    Navigator.popUntil(context, (r) => r.isFirst);
+  }
+
   Future<void> _confirmCancel(BuildContext context) async {
     final confirmed = await showDialog<bool>(
       context: context,
@@ -10818,7 +10884,7 @@ class _WaitingScreenState extends State<WaitingScreen>
                 fontFamily: 'Inter', fontSize: 18,
                 fontWeight: FontWeight.w800, color: Colors.white)),
             const SizedBox(height: 8),
-            Text('Το αίτημα θα διαγραφεί και οι επαγγελματίες δεν θα μπορούν να στείλουν προσφορά.',
+            Text('Το αίτημα θα διαγραφεί και οι επαγγελματίες δεν θα μπορούν να στείλουν προσφορά.\nΑν βρήκες ήδη επαγγελματία, πάτα καλύτερα «✅ Βρήκα».',
                 textAlign: TextAlign.center,
                 style: TextStyle(fontSize: 12, color: _g(0.5), height: 1.5)),
             const SizedBox(height: 20),
@@ -10961,6 +11027,19 @@ class _WaitingScreenState extends State<WaitingScreen>
                   ]),
                 ),
                 const SizedBox(width: 8),
+                GestureDetector(
+                  onTap: () => _confirmFound(context),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                    decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(10),
+                        color: kGreen.withValues(alpha: 0.12),
+                        border: Border.all(color: kGreen.withValues(alpha: 0.45))),
+                    child: const Text('✅ Βρήκα', style: TextStyle(
+                        color: kGreen, fontSize: 9, fontWeight: FontWeight.w800)),
+                  ),
+                ),
+                const SizedBox(width: 6),
                 GestureDetector(
                   onTap: () => _confirmCancel(context),
                   child: Container(
