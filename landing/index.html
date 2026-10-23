@@ -958,11 +958,11 @@
 
     <div class="stats-row reveal d4">
       <div class="stat-item">
-        <span class="stat-num">1.500+</span>
-        <div class="stat-label">Λήψεις σε 1,5 μήνα</div>
+        <span class="stat-num" data-stat="downloads">1.500+</span>
+        <div class="stat-label">Λήψεις</div>
       </div>
       <div class="stat-item">
-        <span class="stat-num">480+</span>
+        <span class="stat-num" data-stat="pros">480+</span>
         <div class="stat-label">Επαγγελματίες</div>
       </div>
       <div class="stat-item">
@@ -1146,9 +1146,9 @@
         Οι περισσότερες δουλειές για το σπίτι στην Ελλάδα κλείνουν ακόμα με τηλεφωνήματα και συστάσεις. Το GorealPro φέρνει <strong>αντίστροφη δημοπρασία σε πραγματικό χρόνο</strong>, αντιστοίχιση ανά δήμο και αιτήματα με φωτογραφία, βίντεο και φωνή σε έναν κλάδο που δεν έχει αλλάξει εδώ και δεκαετίες. Στόχος: Αττική και Θεσσαλονίκη πρώτα, μετά όλη η Ελλάδα και η <strong>Κύπρος</strong>.
       </p>
       <div class="market-metrics">
-        <div class="market-metric"><span class="metric-val">1.500+</span><div class="metric-lbl">Λήψεις σε Android &amp; iPhone σε 1,5 μήνα</div></div>
-        <div class="market-metric"><span class="metric-val">680+</span><div class="metric-lbl">Εγγεγραμμένοι χρήστες</div></div>
-        <div class="market-metric"><span class="metric-val">480+</span><div class="metric-lbl">Επαγγελματίες στην πλατφόρμα</div></div>
+        <div class="market-metric"><span class="metric-val" data-stat="downloads">1.500+</span><div class="metric-lbl">Λήψεις σε Android &amp; iPhone</div></div>
+        <div class="market-metric"><span class="metric-val" data-stat="users">680+</span><div class="metric-lbl">Εγγεγραμμένοι χρήστες</div></div>
+        <div class="market-metric"><span class="metric-val" data-stat="pros">480+</span><div class="metric-lbl">Επαγγελματίες στην πλατφόρμα</div></div>
         <div class="market-metric"><span class="metric-val">90+</span><div class="metric-lbl">Ειδικότητες σε 9 κατηγορίες</div></div>
         <div class="market-metric"><span class="metric-val">350+</span><div class="metric-lbl">Δήμοι &amp; περιοχές που καλύπτουν οι επαγγελματίες</div></div>
         <div class="market-metric"><span class="metric-val">3</span><div class="metric-lbl">Πλατφόρμες · Android · iOS · Web</div></div>
@@ -1350,5 +1350,18 @@
     }, { passive: true });
   </script>
 
+<script>
+  // Ζωντανά νούμερα (στρογγυλεμένα προς τα κάτω) — αν αποτύχει, μένουν τα στατικά.
+  (function(){
+    var round=function(n){var step=n>=10000?1000:n>=2000?100:n>=500?50:10;return Math.floor(n/step)*step;};
+    var fmt=function(n){return round(n).toLocaleString('el-GR')+'+';};
+    fetch('https://ai-backend-kkt7.onrender.com/public-stats').then(function(r){return r.json();}).then(function(s){
+      ['downloads','pros','users'].forEach(function(k){
+        if(!s[k]||s[k]<10)return;
+        document.querySelectorAll('[data-stat="'+k+'"]').forEach(function(el){el.textContent=fmt(s[k]);});
+      });
+    }).catch(function(){});
+  })();
+</script>
 </body>
 </html>

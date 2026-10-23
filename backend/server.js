@@ -1536,6 +1536,42 @@ app.post('/request-found', rateLimit(20, 60_000), async (req, res) => {
   }
 });
 
+// ── Δημόσια στατιστικά για τη landing page (στρογγυλεμένα προς τα κάτω) ──
+// GET /public-stats → { downloads, pros, users, updatedAt }
+// Λήψεις = εγκαταστάσεις Google Play (από τη δημόσια σελίδα του Play) +
+// χρήστες iPhone (κάτω όριο λήψεων App Store — η Apple δεν δίνει δημόσιο νούμερο).
+// Cache 6 ωρών ώστε να μη χτυπάμε Play/Firestore σε κάθε επίσκεψη.
+let _publicStatsCache = null;
+let _publicStatsAt = 0;
+app.get('/public-stats', rateLimit(120, 60_000), async (req, res) => {
+  res.set('Access-Control-Allow-Origin', '*');
+  if (_publicStatsCache && Date.now() - _publicStatsAt < 6 * 3600 * 1000) return res.json(_publicStatsCache);
+  if (!firebaseReady) return res.status(503).json({ error: 'not ready' });
+  try {
+    const db = admin.firestore();
+    let play = 0;
+    try {
+      const html = await (await fetch('https://play.google.com/store/apps/details?id=gr.gorealai.app&hl=el&gl=GR',
+        { headers: { 'User-Agent': 'Mozilla/5.0' }, signal: AbortSignal.timeout(10_000) })).text();
+      const m = html.match(/\["([\d.,+]+)",(\d+),(\d+),"([^"]+)"\]/);
+      if (m) play = Number(m[3]) || 0;
+    } catch (_) {}
+    let ios = 0;
+    try { ios = Object.keys(((await db.collection('admin_analytics').doc('ios_app_users').get()).data() || {}).users || {}).length; } catch (_) {}
+    const pros = (await db.collection('professionals').where('is_active', '==', true).count().get()).data().count;
+    const users = (await db.collection('users').count().get()).data().count;
+    // Αν το Play δεν απάντησε, κράτα την προηγούμενη τιμή αντί για 0
+    const downloads = play ? play + ios : (_publicStatsCache ? _publicStatsCache.downloads : 0);
+    _publicStatsCache = { downloads, pros, users, updatedAt: new Date().toISOString() };
+    _publicStatsAt = Date.now();
+    res.json(_publicStatsCache);
+  } catch (e) {
+    console.error('public-stats error:', e.message);
+    if (_publicStatsCache) return res.json(_publicStatsCache);
+    res.status(500).json({ error: 'failed' });
+  }
+});
+
 // ── Notify user/pro of new chat message ──────────────────────────────
 // POST /notify-chat-message
 // Body: { fcmToken, senderName, messagePreview }
