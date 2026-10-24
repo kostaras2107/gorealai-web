@@ -1877,6 +1877,110 @@ app.get('/early-subscribe', rateLimit(20, 60_000), async (req, res) => {
   }
 });
 
+// ── «Κλείδωσε την έκπτωση» — email ενδιαφέροντος (από 1/11/2026) ──
+// Χωρίς κάρτα: ο επαγγελματίας πατάει ένα προσωπικό κουμπί στο email και
+// καταγράφεται earlyInterestAt — έτσι μετράμε ΑΠΟ ΝΩΡΙΣ πόσοι εν δυνάμει θα
+// πληρώσουν, πριν υπάρξει επιχείρηση/Stripe live. Όταν ενεργοποιηθεί το Stripe,
+// στέλνουμε σε αυτούς το /early-subscribe link (κάρτα, −25% × 3 μήνες).
+// Αποστολή 5 email/ώρα (όπως οι αξιολογήσεις), μία φορά ανά επαγγελματία
+// (users/{uid}.earlyInterestMailAt). Τίποτα από αυτά δεν εμφανίζεται μέσα στις
+// εφαρμογές iOS/Android (κανόνες Apple/Google για εξωτερικές πληρωμές).
+const EARLY_INTEREST_MAIL_ENABLED = false; // ενεργοποιείται μόλις εγκριθεί το κείμενο
+const EARLY_INTEREST_MAIL_START = new Date(Date.UTC(2026, 10, 1, 7, 0)); // 1/11/2026 09:00 ώρα Ελλάδας
+const EARLY_INTEREST_MAIL_PER_HOUR = 5;
+const BACKEND_URL = 'https://ai-backend-kkt7.onrender.com';
+
+const fmtEuro = (cents) => (Math.floor(cents) / 100).toFixed(2).replace('.', ',');
+
+function earlyInterestEmailHtml({ first, specialty, link }) {
+  const esc = (s) => String(s || '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+  const tier = SUB_TIERS[subscriptionPriceFor(specialty)];
+  const full = fmtEuro(tier.cents);
+  const disc = fmtEuro(tier.cents * 0.75);
+  const p = (t, extra = '') => `<p style="color:rgba(255,255,255,0.85);font-size:14px;line-height:1.6;${extra}">${t}</p>`;
+  return `<div style="font-family:Arial,sans-serif;max-width:520px;margin:0 auto;background:#0A0800;color:#fff;border-radius:16px;padding:32px;border:1px solid rgba(201,168,76,0.3)">
+<h1 style="color:#FFD47A;font-size:20px;margin:0 0 14px;">Κλειδώστε 25% έκπτωση 🔒</h1>
+${p(`Καλησπέρα${first ? ' ' + esc(first) : ''},`)}
+${p('σας ευχαριστούμε που είστε μαζί μας στο GorealPro! Όπως σας έχουμε ενημερώσει, <b>από 1/1/2027</b> ξεκινά η μηνιαία συνδρομή για τους επαγγελματίες. Μέχρι τότε όλα παραμένουν <b>δωρεάν</b>.')}
+${p(`Για την ειδικότητά σας${specialty ? ' (' + esc(specialty) + ')' : ''} η συνδρομή είναι <b>${full} €/μήνα</b> + ΦΠΑ.`)}
+<div style="background:rgba(232,198,106,0.08);border:1px solid rgba(232,198,106,0.35);border-radius:12px;padding:16px 18px;margin:16px 0;">
+<p style="color:#FFD47A;font-size:15px;font-weight:800;margin:0 0 6px;">Προσφορά για όσους δηλώσουν από τώρα</p>
+<p style="color:rgba(255,255,255,0.9);font-size:14px;line-height:1.6;margin:0;"><b>−25% τους 3 πρώτους μήνες:</b> ${disc} € αντί για ${full} € (+ ΦΠΑ).</p>
+</div>
+${p('Πατήστε το κουμπί για να κλειδώσετε την έκπτωση. <b>Δεν χρειάζεται κάρτα ούτε πληρωμή τώρα</b> — τον Δεκέμβριο θα σας στείλουμε τον σύνδεσμο ενεργοποίησης με την έκπτωση ήδη περασμένη.')}
+<a href="${link}" style="display:inline-block;margin-top:6px;padding:14px 28px;background-color:#E8C66A;color:#000;border-radius:12px;text-decoration:none;font-weight:800;font-size:15px;">✅ Κλείδωσε την έκπτωση 25%</a>
+${p('Αν δεν σας ενδιαφέρει, απλώς αγνοήστε αυτό το email.', 'color:rgba(255,255,255,0.6);font-size:13px;margin-top:22px;')}
+${p('Για οποιαδήποτε απορία: info@gorealai.gr<br>Σας ευχαριστούμε,<br>Κώστας · GorealPro', 'color:rgba(255,255,255,0.6);font-size:13px;')}</div>`;
+}
+
+async function sendEarlyInterestEmails() {
+  if (!firebaseReady || !EARLY_INTEREST_MAIL_ENABLED || Date.now() < EARLY_INTEREST_MAIL_START.getTime()) return;
+  try {
+    const db = admin.firestore();
+    const snap = await db.collection('users').where('role', '==', 'professional').get();
+    let sent = 0, attempts = 0;
+    for (const doc of snap.docs) {
+      // Όριο σε προσπάθειες, ίδια λογική με sendStoreReviewAsks
+      if (attempts >= EARLY_INTEREST_MAIL_PER_HOUR) break;
+      const d = doc.data();
+      if (d.earlyInterestMailAt || d.earlyInterestAt || d.isOwner) continue;
+      let email = '';
+      try { email = (await admin.auth().getUser(doc.id)).email || ''; } catch (_) {}
+      if (!email) email = d.email || '';
+      if (!email || NO_MAIL_ADDRESSES.has(email.toLowerCase()) || /demo|review/i.test(String(d.name || ''))) {
+        await doc.ref.set({ earlyInterestMailAt: admin.firestore.FieldValue.serverTimestamp(), earlyInterestMailSkipped: true }, { merge: true });
+        continue;
+      }
+      const token = d.earlyToken || crypto.randomBytes(12).toString('hex');
+      const link = `${BACKEND_URL}/early-interest?u=${encodeURIComponent(doc.id)}&t=${token}`;
+      const specialty = (Array.isArray(d.specialties) && d.specialties[0]) || d.specialty || '';
+      const first = String(d.name || d.displayName || '').trim().split(/\s+/)[0] || '';
+      attempts++;
+      // Σήμανση ΠΡΙΝ την αποστολή: δεν ξαναστέλνεται ποτέ διπλό
+      await doc.ref.set({ earlyToken: token, earlyInterestMailAt: admin.firestore.FieldValue.serverTimestamp() }, { merge: true });
+      try {
+        await sendEmail({ to: email, subject: 'Κλειδώστε 25% έκπτωση στη συνδρομή GorealPro 🔒', html: earlyInterestEmailHtml({ first, specialty, link }) });
+        sent++;
+      } catch (e) {
+        console.error('early interest email error:', e.message);
+        await doc.ref.update({ earlyInterestMailAt: admin.firestore.FieldValue.delete() }).catch(() => {});
+        break;
+      }
+    }
+    if (sent) console.log(`🔒 Early-interest emails: sent ${sent}`);
+  } catch (e) {
+    console.error('sendEarlyInterestEmails error:', e.message);
+  }
+}
+setInterval(sendEarlyInterestEmails, 60 * 60 * 1000);
+setTimeout(sendEarlyInterestEmails, 7 * 60 * 1000);
+
+// GET /early-interest?u=<uid>&t=<token> — το κουμπί του email
+app.get('/early-interest', rateLimit(20, 60_000), async (req, res) => {
+  const uid = String(req.query.u || '');
+  const t = String(req.query.t || '');
+  const page = (title, msg, status = 200) => res.status(status).send(`<!doctype html><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>GorealPro</title><body style="font-family:Arial,sans-serif;background:#0A0800;color:#fff;text-align:center;padding:60px 20px;margin:0"><div style="max-width:460px;margin:0 auto"><h1 style="color:#FFD47A;font-size:24px">${title}</h1><p style="font-size:16px;line-height:1.6;color:rgba(255,255,255,.85)">${msg}</p><p style="font-size:14px;color:rgba(255,255,255,.6)">Για απορίες: <a style="color:#FFD47A" href="mailto:info@gorealai.gr">info@gorealai.gr</a></p></div></body>`);
+  if (!firebaseReady) return page('GorealPro', 'Η υπηρεσία δεν είναι διαθέσιμη αυτή τη στιγμή. Δοκιμάστε ξανά σε λίγο.', 503);
+  if (!uid || uid.includes('/') || !t) return page('GorealPro', 'Ο σύνδεσμος δεν είναι έγκυρος.', 400);
+  try {
+    const ref = admin.firestore().collection('users').doc(uid);
+    const d = (await ref.get()).data();
+    const good = String((d && d.earlyToken) || '');
+    if (!d || !good || t.length !== good.length || !crypto.timingSafeEqual(Buffer.from(t), Buffer.from(good))) return page('GorealPro', 'Ο σύνδεσμος δεν είναι έγκυρος.', 400);
+    const specialty = (Array.isArray(d.specialties) && d.specialties[0]) || d.specialty || '';
+    await ref.set({
+      ...(d.earlyInterestAt ? {} : { earlyInterestAt: admin.firestore.FieldValue.serverTimestamp() }),
+      earlyInterestClicks: admin.firestore.FieldValue.increment(1),
+      earlyInterestTier: SUB_TIERS[subscriptionPriceFor(specialty)].key,
+    }, { merge: true });
+    if (!d.earlyInterestAt) console.log(`🔒 Early interest: ${d.name || uid} (${specialty})`);
+    page('Η έκπτωση κλειδώθηκε! 🎉', 'Σας ευχαριστούμε! Κρατήσαμε για εσάς <b style="color:#FFD47A">25% έκπτωση τους 3 πρώτους μήνες</b> της συνδρομής. Δεν χρειάζεται να κάνετε κάτι άλλο τώρα — τον Δεκέμβριο θα σας στείλουμε τον σύνδεσμο ενεργοποίησης.');
+  } catch (e) {
+    console.error('early-interest error:', e.message);
+    page('GorealPro', 'Κάτι πήγε στραβά. Δοκιμάστε ξανά σε λίγο.', 500);
+  }
+});
+
 // ── Stripe Webhook (payment success → update Firestore) ──────────
 // POST /stripe-webhook
 app.post('/stripe-webhook', express.raw({ type: 'application/json' }), async (req, res) => {
