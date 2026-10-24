@@ -1765,7 +1765,7 @@ const SUB_TIERS = {
   '29,99': { key: 'gorealpro_events_monthly', cents: 2999, name: 'GorealPro Pro — Εκδηλώσεις' },
   '59,99': { key: 'gorealpro_garage_monthly', cents: 5999, name: 'GorealPro Pro — Συνεργεία' },
 };
-const EARLY_COUPON_ID = 'GOREALPRO_EARLY10_3M';
+const EARLY_COUPON_ID = 'GOREALPRO_EARLY25_3M';
 
 // Τα αντικείμενα του Stripe (προϊόν, 3 τιμές, ΦΠΑ 24%, κουπόνι) φτιάχνονται
 // αυτόματα την πρώτη φορά και μετά βρίσκονται με lookup_key/metadata — έτσι
@@ -1794,7 +1794,7 @@ async function stripeCatalog() {
   let vat = rates.data.find((r) => r.metadata && r.metadata.app === 'gorealpro');
   if (!vat) vat = await stripe.taxRates.create({ display_name: 'ΦΠΑ', percentage: 24, inclusive: false, country: 'GR', metadata: { app: 'gorealpro' } });
   try { await stripe.coupons.retrieve(EARLY_COUPON_ID); } catch (_) {
-    await stripe.coupons.create({ id: EARLY_COUPON_ID, percent_off: 10, duration: 'repeating', duration_in_months: 3, name: 'Πρώιμη εγγραφή −10% (3 μήνες)' });
+    await stripe.coupons.create({ id: EARLY_COUPON_ID, percent_off: 25, duration: 'repeating', duration_in_months: 3, name: 'Πρώιμη εγγραφή −25% (3 μήνες)' });
   }
   stripeCatalogCache = { prices, vatId: vat.id };
   return stripeCatalogCache;
@@ -1843,7 +1843,7 @@ app.post('/create-checkout-session', rateLimit(10, 60_000), async (req, res) => 
 
 // ── Πρώιμη εγγραφή (email μέσα Νοεμβρίου) ────────────────────────
 // Προσωπικό link ανά επαγγελματία: /early-subscribe?u=<uid>&t=<token>.
-// Ανοίγει το Stripe με −10% για τις 3 πρώτες μηνιαίες χρεώσεις (από 1/1/2027).
+// Ανοίγει το Stripe με −25% για τις 3 πρώτες μηνιαίες χρεώσεις (από 1/1/2027).
 // Το token (HMAC) εμποδίζει να φτιάξει κάποιος link για άλλον χρήστη μαντεύοντας uid.
 // Σημαδεύει earlyLinkClickedAt/earlyLinkClicks για να μετράμε πόσοι το πάτησαν.
 function earlyToken(uid) {
