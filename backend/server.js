@@ -2371,9 +2371,11 @@ async function sendStoreReviewAsks() {
     const snap = await db.collection('users').get();
     let iosUsers = {};
     try { iosUsers = ((await db.collection('admin_analytics').doc('ios_app_users').get()).data() || {}).users || {}; } catch (_) {}
-    let sent = 0;
+    let sent = 0, attempts = 0;
     for (const doc of snap.docs) {
-      if (sent >= STORE_REVIEW_ASK_PER_HOUR) break;
+      // Όριο σε ΠΡΟΣΠΑΘΕΙΕΣ (όχι επιτυχίες): αλλιώς, αν ο πάροχος email απορρίπτει,
+      // ο βρόχος «περνάει» όλους τους χρήστες σημειώνοντάς τους χωρίς να σταλεί τίποτα.
+      if (attempts >= STORE_REVIEW_ASK_PER_HOUR) break;
       const d = doc.data();
       if (d.storeReviewAskAt) continue;
       let email = '';
@@ -2387,12 +2389,18 @@ async function sendStoreReviewAsks() {
       const platform = iosUsers[doc.id] || p === 'ios' ? 'ios' : (p === 'android' ? 'android' : 'unknown');
       const first = String(d.name || d.displayName || '').trim().split(/\s+/)[0] || '';
       const html = storeReviewEmailHtml({ first, isPro: d.role === 'professional', platform });
+      attempts++;
       // Σήμανση ΠΡΙΝ την αποστολή: αν κάτι κολλήσει, δεν ξαναστέλνεται ποτέ διπλό
       await doc.ref.set({ storeReviewAskAt: admin.firestore.FieldValue.serverTimestamp(), storeReviewAskPlatform: platform }, { merge: true });
       try {
         await sendEmail({ to: email, subject: 'Μας κάνετε μια μικρή χάρη; ⭐ GorealPro', html });
         sent++;
-      } catch (e) { console.error('store review ask email error:', e.message); }
+      } catch (e) {
+        // Αποτυχία → ξε-σημείωσε (να ξαναδοκιμαστεί αργότερα) και σταμάτα για αυτή την ώρα
+        console.error('store review ask email error:', e.message);
+        await doc.ref.update({ storeReviewAskAt: admin.firestore.FieldValue.delete(), storeReviewAskPlatform: admin.firestore.FieldValue.delete() }).catch(() => {});
+        break;
+      }
     }
     if (sent) console.log(`⭐ Store review ask: sent ${sent} emails`);
   } catch (e) {
