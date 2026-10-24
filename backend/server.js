@@ -2,6 +2,7 @@ require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
 const admin = require('firebase-admin');
+const crypto = require('crypto');
 const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY || '');
 const sgMail = require('@sendgrid/mail');
 const nodemailer = require('nodemailer');
@@ -123,7 +124,10 @@ setInterval(() => {
 }, 10 * 60 * 1000);
 
 app.use(cors());
-app.use(express.json());
+// Το Stripe webhook χρειάζεται το ΑΚΑΤΕΡΓΑΣΤΟ body για τον έλεγχο υπογραφής —
+// το express.json() εδώ το κατανάλωνε πριν φτάσει στο express.raw() της
+// διαδρομής, οπότε το constructEvent αποτύγχανε πάντα και κανείς δεν γινόταν Premium.
+app.use(express.json({ verify: (req, _res, buf) => { if (req.originalUrl.startsWith('/stripe-webhook')) req.rawBody = buf; } }));
 
 // ── Ξύπνα-και-σκάναρε: ο sweepUnnotifiedRequests() τρέχει και σε κάθε
 // εισερχόμενο request (όχι μόνο μέσω setInterval), γιατί το Render free
@@ -1752,41 +1756,125 @@ app.get('/platform-stats', async (req, res) => {
 });
 
 // ── Stripe Checkout Session ──────────────────────────────────────
+// Οι συνδρομές πληρώνονται από 1/1/2027 (ώρα Ελλάδας). Όποιος γραφτεί νωρίτερα
+// βάζει κάρτα τώρα αλλά η πρώτη χρέωση γίνεται τότε (trial μέχρι εκείνη τη στιγμή).
+const PAID_SUBS_START = new Date(Date.UTC(2026, 11, 31, 22, 0));
+// Τιμή από την ΚΥΡΙΑ ειδικότητα — ίδιος κανόνας με subscriptionPriceFor / _subscriptionPrice.
+const SUB_TIERS = {
+  '19,99': { key: 'gorealpro_standard_monthly', cents: 1999, name: 'GorealPro Pro' },
+  '29,99': { key: 'gorealpro_events_monthly', cents: 2999, name: 'GorealPro Pro — Εκδηλώσεις' },
+  '59,99': { key: 'gorealpro_garage_monthly', cents: 5999, name: 'GorealPro Pro — Συνεργεία' },
+};
+const EARLY_COUPON_ID = 'GOREALPRO_EARLY10_3M';
+
+// Τα αντικείμενα του Stripe (προϊόν, 3 τιμές, ΦΠΑ 24%, κουπόνι) φτιάχνονται
+// αυτόματα την πρώτη φορά και μετά βρίσκονται με lookup_key/metadata — έτσι
+// αρκεί μόνο το STRIPE_SECRET_KEY στο Render, χωρίς χειροκίνητα IDs.
+let stripeCatalogCache = null;
+async function stripeCatalog() {
+  if (stripeCatalogCache) return stripeCatalogCache;
+  const keys = Object.values(SUB_TIERS).map((t) => t.key);
+  const existing = await stripe.prices.list({ lookup_keys: keys, active: true, limit: 10 });
+  const prices = {};
+  existing.data.forEach((p) => { prices[p.lookup_key] = p.id; });
+  if (keys.some((k) => !prices[k])) {
+    const products = await stripe.products.list({ active: true, limit: 100 });
+    let product = products.data.find((p) => p.metadata && p.metadata.app === 'gorealpro');
+    if (!product) product = await stripe.products.create({ name: 'GorealPro Pro', metadata: { app: 'gorealpro' } });
+    for (const t of Object.values(SUB_TIERS)) {
+      if (prices[t.key]) continue;
+      const p = await stripe.prices.create({
+        product: product.id, currency: 'eur', unit_amount: t.cents, nickname: t.name,
+        recurring: { interval: 'month' }, lookup_key: t.key, tax_behavior: 'exclusive',
+      });
+      prices[t.key] = p.id;
+    }
+  }
+  const rates = await stripe.taxRates.list({ active: true, limit: 100 });
+  let vat = rates.data.find((r) => r.metadata && r.metadata.app === 'gorealpro');
+  if (!vat) vat = await stripe.taxRates.create({ display_name: 'ΦΠΑ', percentage: 24, inclusive: false, country: 'GR', metadata: { app: 'gorealpro' } });
+  try { await stripe.coupons.retrieve(EARLY_COUPON_ID); } catch (_) {
+    await stripe.coupons.create({ id: EARLY_COUPON_ID, percent_off: 10, duration: 'repeating', duration_in_months: 3, name: 'Πρώιμη εγγραφή −10% (3 μήνες)' });
+  }
+  stripeCatalogCache = { prices, vatId: vat.id };
+  return stripeCatalogCache;
+}
+
+async function createProCheckoutSession({ userId, email, early }) {
+  const cat = await stripeCatalog();
+  let d = {};
+  if (userId && firebaseReady) { try { d = (await admin.firestore().collection('users').doc(userId).get()).data() || {}; } catch (_) {} }
+  const primary = (Array.isArray(d.specialties) && d.specialties[0]) || d.specialty || '';
+  const tier = SUB_TIERS[subscriptionPriceFor(primary)];
+  if (!email && userId) { try { email = (await admin.auth().getUser(userId)).email || ''; } catch (_) {} }
+  const trial = Date.now() < PAID_SUBS_START.getTime() - 49 * 3600 * 1000; // το Stripe θέλει trial_end ≥ 48 ώρες μπροστά
+  const meta = { userId: userId || '', tier: tier.key, early: early ? '1' : '' };
+  return stripe.checkout.sessions.create({
+    mode: 'subscription',
+    payment_method_types: ['card'],
+    ...(email ? { customer_email: email } : {}),
+    line_items: [{ price: cat.prices[tier.key], quantity: 1 }],
+    ...(early ? { discounts: [{ coupon: EARLY_COUPON_ID }] } : {}),
+    success_url: `https://gorealai.web.app/app?payment=success${early ? '&early=1' : ''}`,
+    cancel_url: 'https://gorealai.web.app/app?payment=cancelled',
+    metadata: meta,
+    subscription_data: {
+      metadata: meta,
+      default_tax_rates: [cat.vatId],
+      ...(trial ? { trial_end: Math.floor(PAID_SUBS_START.getTime() / 1000) } : {}),
+    },
+  });
+}
+
 // POST /create-checkout-session
 // Body: { userId, email }
 app.post('/create-checkout-session', rateLimit(10, 60_000), async (req, res) => {
   const { userId, email } = req.body;
-
-  if (!process.env.STRIPE_SECRET_KEY) {
-    return res.status(503).json({ error: 'Stripe not configured' });
-  }
-
-  if (!process.env.STRIPE_PRICE_ID) {
-    return res.status(503).json({ error: 'STRIPE_PRICE_ID not set' });
-  }
-
+  if (!process.env.STRIPE_SECRET_KEY) return res.status(503).json({ error: 'Stripe not configured' });
   try {
-    const session = await stripe.checkout.sessions.create({
-      mode: 'subscription',
-      payment_method_types: ['card'],
-      customer_email: email,
-      line_items: [{
-        price: process.env.STRIPE_PRICE_ID,
-        quantity: 1,
-      }],
-      success_url: `https://gorealai.web.app/app?payment=success&userId=${userId}`,
-      cancel_url: `https://gorealai.web.app/app?payment=cancelled`,
-      metadata: { userId },
-      subscription_data: {
-        metadata: { userId },
-      },
-    });
-
-    console.log(`💳 Checkout session created for ${email}`);
+    const session = await createProCheckoutSession({ userId, email, early: false });
+    console.log(`💳 Checkout session created for ${email || userId}`);
     res.json({ url: session.url, sessionId: session.id });
   } catch (e) {
     console.error('Stripe error:', e.message);
     res.status(500).json({ error: e.message });
+  }
+});
+
+// ── Πρώιμη εγγραφή (email μέσα Νοεμβρίου) ────────────────────────
+// Προσωπικό link ανά επαγγελματία: /early-subscribe?u=<uid>&t=<token>.
+// Ανοίγει το Stripe με −10% για τις 3 πρώτες μηνιαίες χρεώσεις (από 1/1/2027).
+// Το token (HMAC) εμποδίζει να φτιάξει κάποιος link για άλλον χρήστη μαντεύοντας uid.
+// Σημαδεύει earlyLinkClickedAt/earlyLinkClicks για να μετράμε πόσοι το πάτησαν.
+function earlyToken(uid) {
+  return crypto.createHmac('sha256', process.env.STRIPE_SECRET_KEY || 'x').update('early:' + uid).digest('hex').slice(0, 24);
+}
+// eslint-disable-next-line no-unused-vars
+function earlySubscribeLink(uid) {
+  return `https://ai-backend-kkt7.onrender.com/early-subscribe?u=${encodeURIComponent(uid)}&t=${earlyToken(uid)}`;
+}
+app.get('/early-subscribe', rateLimit(20, 60_000), async (req, res) => {
+  const uid = String(req.query.u || '');
+  const page = (msg) => res.status(400).send(`<!doctype html><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><body style="font-family:Arial,sans-serif;background:#0A0800;color:#fff;text-align:center;padding:60px 20px"><h2 style="color:#FFD47A">GorealPro</h2><p>${msg}</p><p><a style="color:#FFD47A" href="mailto:info@gorealai.gr">info@gorealai.gr</a></p></body>`);
+  if (!process.env.STRIPE_SECRET_KEY || !firebaseReady) return page('Η εγγραφή δεν είναι διαθέσιμη αυτή τη στιγμή. Δοκιμάστε ξανά σε λίγο.');
+  const t = String(req.query.t || '');
+  const good = earlyToken(uid);
+  if (!uid || t.length !== good.length || !crypto.timingSafeEqual(Buffer.from(t), Buffer.from(good))) return page('Ο σύνδεσμος δεν είναι έγκυρος.');
+  try {
+    const ref = admin.firestore().collection('users').doc(uid);
+    const d = (await ref.get()).data();
+    if (!d) return page('Δεν βρέθηκε ο λογαριασμός σας.');
+    if (d.isPremium && d.stripeSubscriptionId) return page('Έχετε ήδη ενεργή συνδρομή — δεν χρειάζεται να κάνετε κάτι άλλο. Ευχαριστούμε!');
+    await ref.set({
+      ...(d.earlyLinkClickedAt ? {} : { earlyLinkClickedAt: admin.firestore.FieldValue.serverTimestamp() }),
+      earlyLinkClicks: admin.firestore.FieldValue.increment(1),
+    }, { merge: true });
+    const session = await createProCheckoutSession({ userId: uid, early: true });
+    console.log(`🐣 Early-subscribe checkout for ${d.name || uid}`);
+    res.redirect(303, session.url);
+  } catch (e) {
+    console.error('early-subscribe error:', e.message);
+    page('Κάτι πήγε στραβά. Δοκιμάστε ξανά σε λίγο.');
   }
 });
 
@@ -1800,7 +1888,7 @@ app.post('/stripe-webhook', express.raw({ type: 'application/json' }), async (re
 
   let event;
   try {
-    event = stripe.webhooks.constructEvent(req.body, sig, webhookSecret);
+    event = stripe.webhooks.constructEvent(req.rawBody || req.body, sig, webhookSecret);
   } catch (e) {
     console.error('Webhook signature error:', e.message);
     return res.status(400).send(`Webhook Error: ${e.message}`);
@@ -1816,6 +1904,8 @@ app.post('/stripe-webhook', express.raw({ type: 'application/json' }), async (re
           stripeCustomerId: session.customer,
           stripeSubscriptionId: session.subscription,
           premiumSince: admin.firestore.FieldValue.serverTimestamp(),
+          subscriptionTier: session.metadata?.tier || '',
+          ...(session.metadata?.early === '1' ? { earlyBirdAt: admin.firestore.FieldValue.serverTimestamp() } : {}),
         });
         console.log(`👑 User ${userId} upgraded to Premium`);
       } catch (e) {
