@@ -9862,6 +9862,46 @@ class _RequestScreenState extends State<RequestScreen>
         }
         return;
       }
+      // Επαγγελματίας που στέλνει αίτημα για τη ΔΙΚΗ του ειδικότητα — συνήθως
+      // νομίζει ότι έτσι δηλώνει τι δουλειές κάνει (π.χ. «ενδιαφέρομαι για
+      // βάψιμο»). Τον ρωτάμε πριν ειδοποιηθούν άσκοπα δεκάδες συνάδελφοι.
+      try {
+        final ud = (await FirebaseFirestore.instance.collection('users').doc(user.uid).get()).data() ?? {};
+        if (ud['role'] == 'professional') {
+          final mySpecs = <String>{
+            ...((ud['specialties'] as List?) ?? const []).whereType<String>(),
+            if (ud['specialty'] is String) ud['specialty'] as String,
+          };
+          final pros = await FirebaseFirestore.instance.collection('professionals')
+              .where('userId', isEqualTo: user.uid).limit(1).get();
+          for (final d in pros.docs) {
+            mySpecs.addAll(((d.data()['specialties'] as List?) ?? const []).whereType<String>());
+          }
+          final prof = _selectedProfession ?? '';
+          if (prof.isNotEmpty && mySpecs.isNotEmpty && _matchesProfession(mySpecs, prof) && mounted) {
+            final go = await showDialog<bool>(
+              context: context,
+              builder: (ctx) => AlertDialog(
+                backgroundColor: const Color(0xFF15120A),
+                title: const Text('Ψάχνεις εσύ επαγγελματία;',
+                    style: TextStyle(color: Colors.white, fontSize: 17, fontWeight: FontWeight.w800)),
+                content: Text(
+                    'Το αίτημα είναι για να βρεις εσύ κάποιον επαγγελματία και θα σταλεί σε συναδέλφους σου.\n\n'
+                    'Αν θέλεις να λαμβάνεις δουλειές ως «$prof», δεν χρειάζεται αίτημα: τα αιτήματα των πελατών '
+                    'σου έρχονται αυτόματα στην καρτέλα «Αιτήματα».',
+                    style: TextStyle(color: _g(0.8), fontSize: 14, height: 1.45)),
+                actions: [
+                  TextButton(onPressed: () => Navigator.pop(ctx, false),
+                      child: const Text('Ακύρωση', style: TextStyle(color: kGold, fontWeight: FontWeight.w700))),
+                  TextButton(onPressed: () => Navigator.pop(ctx, true),
+                      child: Text('Ναι, χρειάζομαι επαγγελματία', style: TextStyle(color: _g(0.6)))),
+                ],
+              ),
+            );
+            if (go != true) { _submitLock = false; return; }
+          }
+        }
+      } catch (_) {}
     }
     setState(() => _sending = true);
     try {
