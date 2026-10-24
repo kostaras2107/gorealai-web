@@ -2335,11 +2335,11 @@ setInterval(sendRatingPrompts, 30 * 60 * 1000);
 setTimeout(sendRatingPrompts, 4 * 60 * 1000);
 
 // ── Email «Αξιολόγησέ μας στο Google Play / App Store» σε όλους (μία φορά) ──
-// 10 email ανά ώρα, ώστε να μη φύγουν όλα μαζί (και οι κριτικές να έρθουν
+// 5 email ανά ώρα, ώστε να μη φύγουν όλα μαζί (και οι κριτικές να έρθουν
 // σταδιακά — η Google κόβει κριτικές που μαζεύονται απότομα). Σημαδεύει
 // users/{uid}.storeReviewAskAt. Κουμπί ανά πλατφόρμα (iPhone → App Store,
 // Android → Google Play, άγνωστο → και τα δύο).
-const STORE_REVIEW_ASK_ENABLED = false; // παύση 24/10: Zoho «Unusual sending activity»
+const STORE_REVIEW_ASK_ENABLED = true; // ξανά ενεργό 24/10 (το Zoho «Unusual sending activity» λύθηκε)
 const STORE_REVIEW_ASK_PER_HOUR = 5;
 const PLAY_REVIEW_URL = 'https://play.google.com/store/apps/details?id=gr.gorealai.app&showAllReviews=true';
 const APPSTORE_REVIEW_URL = 'https://apps.apple.com/gr/app/gorealpro/id6817919309?action=write-review';
