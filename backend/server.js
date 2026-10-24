@@ -147,12 +147,14 @@ app.use((req, res, next) => {
 
 // ── Firebase Admin Init ──────────────────────────────────────────
 let firebaseReady = false;
+let earlyLinkSecret = ''; // για τα προσωπικά links πρώιμης εγγραφής (βλ. earlyToken)
 try {
   // Support both env var names
   const rawKey = process.env.FIREBASE_SERVICE_ACCOUNT || process.env.FIREBASE_KEY;
   const serviceAccount = rawKey ? JSON.parse(rawKey) : null;
 
   if (serviceAccount) {
+    earlyLinkSecret = String(serviceAccount.private_key || '');
     admin.initializeApp({
       credential: admin.credential.cert(serviceAccount),
     });
@@ -1844,10 +1846,12 @@ app.post('/create-checkout-session', rateLimit(10, 60_000), async (req, res) => 
 // ── Πρώιμη εγγραφή (email μέσα Νοεμβρίου) ────────────────────────
 // Προσωπικό link ανά επαγγελματία: /early-subscribe?u=<uid>&t=<token>.
 // Ανοίγει το Stripe με −25% για τις 3 πρώτες μηνιαίες χρεώσεις (από 1/1/2027).
-// Το token (HMAC) εμποδίζει να φτιάξει κάποιος link για άλλον χρήστη μαντεύοντας uid.
+// Το token (HMAC με το ιδιωτικό κλειδί του Firebase service account — το έχουν
+// μόνο ο server και τα τοπικά scripts αποστολής) εμποδίζει να φτιάξει κάποιος
+// link για άλλον χρήστη μαντεύοντας uid.
 // Σημαδεύει earlyLinkClickedAt/earlyLinkClicks για να μετράμε πόσοι το πάτησαν.
 function earlyToken(uid) {
-  return crypto.createHmac('sha256', process.env.STRIPE_SECRET_KEY || 'x').update('early:' + uid).digest('hex').slice(0, 24);
+  return crypto.createHmac('sha256', earlyLinkSecret || 'x').update('early:' + uid).digest('hex').slice(0, 24);
 }
 // eslint-disable-next-line no-unused-vars
 function earlySubscribeLink(uid) {
