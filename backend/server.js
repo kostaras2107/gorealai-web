@@ -1815,7 +1815,9 @@ async function createProCheckoutSession({ userId, email, early }) {
     ...(email ? { customer_email: email } : {}),
     line_items: [{ price: cat.prices[tier.key], quantity: 1 }],
     ...(early ? { discounts: [{ coupon: EARLY_COUPON_ID }] } : {}),
-    success_url: `https://gorealai.web.app/app?payment=success${early ? '&early=1' : ''}`,
+    // Από το email ο επαγγελματίας συνήθως δεν είναι συνδεδεμένος στο web app — αντί
+    // για τη σελίδα εισόδου του δείχνουμε απλή σελίδα «Ευχαριστούμε».
+    success_url: early ? 'https://ai-backend-kkt7.onrender.com/early-subscribe/thanks' : 'https://gorealai.web.app/app?payment=success',
     cancel_url: 'https://gorealai.web.app/app?payment=cancelled',
     metadata: meta,
     subscription_data: {
@@ -1847,6 +1849,9 @@ app.post('/create-checkout-session', rateLimit(10, 60_000), async (req, res) => 
 // Το token είναι τυχαίο, αποθηκευμένο στο users/{uid}.earlyToken (το γράφει το
 // script αποστολής του email) — έτσι κανείς δεν φτιάχνει link για άλλον χρήστη.
 // Σημαδεύει earlyLinkClickedAt/earlyLinkClicks για να μετράμε πόσοι το πάτησαν.
+app.get('/early-subscribe/thanks', (req, res) => {
+  res.send(`<!doctype html><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>GorealPro</title><body style="font-family:Arial,sans-serif;background:#0A0800;color:#fff;text-align:center;padding:60px 20px;margin:0"><div style="max-width:460px;margin:0 auto"><h1 style="color:#FFD47A;font-size:26px">Ευχαριστούμε! 🎉</h1><p style="font-size:16px;line-height:1.6;color:rgba(255,255,255,.85)">Η πρώιμη εγγραφή σας ολοκληρώθηκε. Μέχρι 31/12/2026 δεν χρεώνεστε τίποτα και η έκπτωση <b style="color:#FFD47A">25% για τους 3 πρώτους μήνες</b> έχει κλειδώσει για εσάς.</p><p style="font-size:14px;line-height:1.6;color:rgba(255,255,255,.6)">Μπορείτε να κλείσετε αυτή τη σελίδα και να συνεχίσετε κανονικά από την εφαρμογή. Για οποιαδήποτε απορία: <a style="color:#FFD47A" href="mailto:info@gorealai.gr">info@gorealai.gr</a></p></div></body>`);
+});
 app.get('/early-subscribe', rateLimit(20, 60_000), async (req, res) => {
   const uid = String(req.query.u || '');
   const page = (msg) => res.status(400).send(`<!doctype html><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><body style="font-family:Arial,sans-serif;background:#0A0800;color:#fff;text-align:center;padding:60px 20px"><h2 style="color:#FFD47A">GorealPro</h2><p>${msg}</p><p><a style="color:#FFD47A" href="mailto:info@gorealai.gr">info@gorealai.gr</a></p></body>`);
