@@ -147,14 +147,12 @@ app.use((req, res, next) => {
 
 // ── Firebase Admin Init ──────────────────────────────────────────
 let firebaseReady = false;
-let earlyLinkSecret = ''; // για τα προσωπικά links πρώιμης εγγραφής (βλ. earlyToken)
 try {
   // Support both env var names
   const rawKey = process.env.FIREBASE_SERVICE_ACCOUNT || process.env.FIREBASE_KEY;
   const serviceAccount = rawKey ? JSON.parse(rawKey) : null;
 
   if (serviceAccount) {
-    earlyLinkSecret = String(serviceAccount.private_key || '');
     admin.initializeApp({
       credential: admin.credential.cert(serviceAccount),
     });
@@ -1846,28 +1844,20 @@ app.post('/create-checkout-session', rateLimit(10, 60_000), async (req, res) => 
 // ── Πρώιμη εγγραφή (email μέσα Νοεμβρίου) ────────────────────────
 // Προσωπικό link ανά επαγγελματία: /early-subscribe?u=<uid>&t=<token>.
 // Ανοίγει το Stripe με −25% για τις 3 πρώτες μηνιαίες χρεώσεις (από 1/1/2027).
-// Το token (HMAC με το ιδιωτικό κλειδί του Firebase service account — το έχουν
-// μόνο ο server και τα τοπικά scripts αποστολής) εμποδίζει να φτιάξει κάποιος
-// link για άλλον χρήστη μαντεύοντας uid.
+// Το token είναι τυχαίο, αποθηκευμένο στο users/{uid}.earlyToken (το γράφει το
+// script αποστολής του email) — έτσι κανείς δεν φτιάχνει link για άλλον χρήστη.
 // Σημαδεύει earlyLinkClickedAt/earlyLinkClicks για να μετράμε πόσοι το πάτησαν.
-function earlyToken(uid) {
-  return crypto.createHmac('sha256', earlyLinkSecret || 'x').update('early:' + uid).digest('hex').slice(0, 24);
-}
-// eslint-disable-next-line no-unused-vars
-function earlySubscribeLink(uid) {
-  return `https://ai-backend-kkt7.onrender.com/early-subscribe?u=${encodeURIComponent(uid)}&t=${earlyToken(uid)}`;
-}
 app.get('/early-subscribe', rateLimit(20, 60_000), async (req, res) => {
   const uid = String(req.query.u || '');
   const page = (msg) => res.status(400).send(`<!doctype html><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><body style="font-family:Arial,sans-serif;background:#0A0800;color:#fff;text-align:center;padding:60px 20px"><h2 style="color:#FFD47A">GorealPro</h2><p>${msg}</p><p><a style="color:#FFD47A" href="mailto:info@gorealai.gr">info@gorealai.gr</a></p></body>`);
   if (!process.env.STRIPE_SECRET_KEY || !firebaseReady) return page('Η εγγραφή δεν είναι διαθέσιμη αυτή τη στιγμή. Δοκιμάστε ξανά σε λίγο.');
   const t = String(req.query.t || '');
-  const good = earlyToken(uid);
-  if (!uid || t.length !== good.length || !crypto.timingSafeEqual(Buffer.from(t), Buffer.from(good))) return page('Ο σύνδεσμος δεν είναι έγκυρος.');
+  if (!uid || uid.includes('/') || !t) return page('Ο σύνδεσμος δεν είναι έγκυρος.');
   try {
     const ref = admin.firestore().collection('users').doc(uid);
     const d = (await ref.get()).data();
-    if (!d) return page('Δεν βρέθηκε ο λογαριασμός σας.');
+    const good = String((d && d.earlyToken) || '');
+    if (!d || !good || t.length !== good.length || !crypto.timingSafeEqual(Buffer.from(t), Buffer.from(good))) return page('Ο σύνδεσμος δεν είναι έγκυρος.');
     if (d.isPremium && d.stripeSubscriptionId) return page('Έχετε ήδη ενεργή συνδρομή — δεν χρειάζεται να κάνετε κάτι άλλο. Ευχαριστούμε!');
     await ref.set({
       ...(d.earlyLinkClickedAt ? {} : { earlyLinkClickedAt: admin.firestore.FieldValue.serverTimestamp() }),
