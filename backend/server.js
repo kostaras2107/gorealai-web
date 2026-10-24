@@ -1885,7 +1885,7 @@ app.get('/early-subscribe', rateLimit(20, 60_000), async (req, res) => {
 // Αποστολή 5 email/ώρα (όπως οι αξιολογήσεις), μία φορά ανά επαγγελματία
 // (users/{uid}.earlyInterestMailAt). Τίποτα από αυτά δεν εμφανίζεται μέσα στις
 // εφαρμογές iOS/Android (κανόνες Apple/Google για εξωτερικές πληρωμές).
-const EARLY_INTEREST_MAIL_ENABLED = false; // ενεργοποιείται μόλις εγκριθεί το κείμενο
+const EARLY_INTEREST_MAIL_ENABLED = true; // εγκρίθηκε 25/10 — ξεκινά μόνο του 1/11 09:00
 const EARLY_INTEREST_MAIL_START = new Date(Date.UTC(2026, 10, 1, 7, 0)); // 1/11/2026 09:00 ώρα Ελλάδας
 const EARLY_INTEREST_MAIL_PER_HOUR = 5;
 const BACKEND_URL = 'https://ai-backend-kkt7.onrender.com';
@@ -1910,7 +1910,7 @@ ${p(`Για την ειδικότητά σας${specialty ? ' (' + esc(specialty
 ${p('Πατήστε το κουμπί για να κλειδώσετε την έκπτωση. <b>Δεν χρειάζεται κάρτα ούτε πληρωμή τώρα</b> — τον Δεκέμβριο θα σας στείλουμε τον σύνδεσμο ενεργοποίησης με την έκπτωση ήδη περασμένη.')}
 <a href="${link}" style="display:inline-block;margin-top:6px;padding:14px 28px;background-color:#E8C66A;color:#000;border-radius:12px;text-decoration:none;font-weight:800;font-size:15px;">✅ Κλείδωσε την έκπτωση 25%</a>
 ${p('Αν δεν σας ενδιαφέρει, απλώς αγνοήστε αυτό το email.', 'color:rgba(255,255,255,0.6);font-size:13px;margin-top:22px;')}
-${p('Για οποιαδήποτε απορία: info@gorealai.gr<br>Σας ευχαριστούμε,<br>Κώστας · GorealPro', 'color:rgba(255,255,255,0.6);font-size:13px;')}</div>`;
+${p('Για οποιαδήποτε απορία: info@gorealai.gr', 'color:rgba(255,255,255,0.6);font-size:13px;')}${p('Σας ευχαριστούμε,<br><b style="color:#fff">Κωνσταντίνος Μποσινάκος</b><br>GorealPro · 📞 <a href="tel:+306937102492" style="color:#FFD47A;text-decoration:none;">693 710 2492</a>', 'color:rgba(255,255,255,0.75);font-size:13px;')}</div>`;
 }
 
 async function sendEarlyInterestEmails() {
