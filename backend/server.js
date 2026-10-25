@@ -511,6 +511,31 @@ app.post('/booking-response', rateLimit(20, 60_000), async (req, res) => {
 });
 
 // ── Smart offer ranking ──────────────────────────────────────────
+const isSafetyProfession = (s) => s === 'Baby Sitter' || s.startsWith('Νοσηλευτ');
+
+// POST /verification-submitted — ο επαγγελματίας ανέβασε ταυτότητα + ποινικό
+// μητρώο (verifications/{uid}, status pending). Στέλνει email στον admin για να
+// το ελέγξει από το admin.html.
+app.post('/verification-submitted', rateLimit(5, 60_000), async (req, res) => {
+  const uid = String((req.body && req.body.userId) || '');
+  if (!firebaseReady || !uid || uid.includes('/')) return res.json({ ok: false });
+  try {
+    const v = (await admin.firestore().collection('verifications').doc(uid).get()).data();
+    if (!v || v.status !== 'pending' || v.adminNotifiedAt) return res.json({ ok: true });
+    await admin.firestore().collection('verifications').doc(uid).update({ adminNotifiedAt: admin.firestore.FieldValue.serverTimestamp() });
+    const esc = (s) => String(s || '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+    await sendEmail({
+      to: 'info@gorealai.gr',
+      subject: `🛡️ Νέα επαλήθευση: ${v.name || uid}`,
+      html: `<p>Ο/Η <b>${esc(v.name)}</b> (${esc((v.specialties || []).join(', '))}, ${esc(v.phone)}) έστειλε ταυτότητα και ποινικό μητρώο για έλεγχο.</p><p><a href="https://gorealai.web.app/admin.html">Άνοιξε το admin → 🛡️ Επαληθεύσεις</a></p>`,
+    });
+    res.json({ ok: true });
+  } catch (e) {
+    console.error('verification-submitted error:', e.message);
+    res.json({ ok: false });
+  }
+});
+
 // GET /get-offers/:requestId
 // Επιστρέφει τις 3 καλύτερες προσφορές, με κατάταξη που εξαρτάται από το
 // κριτήριο που επέλεξε ο πελάτης όταν έστειλε το αίτημα (criteria:
@@ -524,6 +549,8 @@ app.get('/get-offers/:requestId', rateLimit(60, 60_000), async (req, res) => {
   try {
     const reqDoc = await admin.firestore().collection('requests').doc(requestId).get();
     const criteria = reqDoc.exists ? (reqDoc.data().criteria || 'cheap') : 'cheap';
+    // Baby Sitter / Νοσηλευτής: οι επαληθευμένοι (ταυτότητα + ποινικό) πάνε πρώτοι
+    const safetyCheck = reqDoc.exists && isSafetyProfession(String(reqDoc.data().profession || ''));
 
     const offersSnap = await admin.firestore().collection('offers')
       .where('requestId', '==', requestId).limit(50).get();
@@ -540,9 +567,12 @@ app.get('/get-offers/:requestId', rateLimit(60, 60_000), async (req, res) => {
             o.reviewCount = p.reviewCount || 0;
             o.verified = p.afmValid === true;
             if (p.profilePhotoUrl) o.profilePhotoUrl = p.profilePhotoUrl;
+            const su = p.safetyVerifiedUntil;
+            o.safetyVerified = !!(su && su.toMillis && su.toMillis() > Date.now());
           }
         } catch (_) {}
       }
+      if (safetyCheck) o.safetyCheck = true;
       return o;
     }));
 
@@ -584,7 +614,8 @@ app.get('/get-offers/:requestId', rateLimit(60, 60_000), async (req, res) => {
     // Αν δύο προσφορές ισοπαλήσουν ακριβώς σε score (π.χ. όλοι καινούριοι,
     // χωρίς reviews, χωρίς verified, όλοι "τιμή μετά από αυτοψία"), κερδίζει
     // όποιος έστειλε προσφορά πρώτος — πάντα διαθέσιμο, δίκαιο σήμα ταχύτητας.
-    scored.sort((a, b) => b._score - a._score || a._createdAtMs - b._createdAtMs);
+    scored.sort((a, b) => (safetyCheck ? (b.safetyVerified ? 1 : 0) - (a.safetyVerified ? 1 : 0) : 0)
+      || b._score - a._score || a._createdAtMs - b._createdAtMs);
     const clean = scored.map(({ _score, _createdAtMs, ...rest }) => rest);
     const top = clean.slice(0, 3);
     // Οι υπόλοιπες (με τη σειρά κατάταξης) — η εφαρμογή τις δείχνει αχνές κάτω

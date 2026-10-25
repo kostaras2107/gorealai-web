@@ -11674,6 +11674,7 @@ class _OffersScreenState extends State<OffersScreen>
               final p = proDoc.data()!;
               o['rating'] = _combinedRating(p);
               o['verified'] = p['afmValid'] == true;
+              o['safetyVerified'] = _isSafetyVerified(p);
               if ((p['profilePhotoUrl'] as String? ?? '').isNotEmpty) {
                 o['profilePhotoUrl'] = p['profilePhotoUrl'];
               }
@@ -12025,6 +12026,20 @@ class _OffersScreenState extends State<OffersScreen>
                           ]),
                         ),
                         const SizedBox(height: 16),
+                        if (_offers.any((o) => o['safetyCheck'] == true))
+                          Container(
+                            margin: const EdgeInsets.only(bottom: 14),
+                            padding: const EdgeInsets.all(12),
+                            decoration: BoxDecoration(
+                              borderRadius: BorderRadius.circular(14),
+                              color: const Color(0xFF1E8E4E).withValues(alpha: 0.08),
+                              border: Border.all(color: const Color(0xFF3DDC84).withValues(alpha: 0.35)),
+                            ),
+                            child: Text(
+                              '🛡️ Για τη φροντίδα παιδιών ή ηλικιωμένων προτίμησε επαγγελματίες με το σήμα «Επαληθευμένη» '
+                              '(ελέγξαμε ταυτότητα & ποινικό μητρώο). Πριν ξεκινήσετε, κανόνισε μια γνωριμία και ζήτα συστάσεις.',
+                              style: TextStyle(color: _g(0.8), fontSize: 12.5, height: 1.45)),
+                          ),
                         ..._offers.asMap().entries.map((e) =>
                             _OfferCard(
                               offer: e.value,
@@ -12104,6 +12119,239 @@ class _OffersScreenState extends State<OffersScreen>
 }
 
 // ── Offer Card ──
+// ── Επαλήθευση ασφαλείας (Baby Sitter / Νοσηλευτής κατ' οίκον) ──
+// Ο επαγγελματίας ανεβάζει ταυτότητα + ποινικό μητρώο, ο admin εγκρίνει από το
+// admin.html και γράφει professionals/{uid}.safetyVerifiedUntil (1 χρόνος). Τα
+// αρχεία σβήνονται μετά τον έλεγχο — κρατάμε μόνο την ημερομηνία.
+bool _isSafetyProfession(String s) => s == 'Baby Sitter' || s.startsWith('Νοσηλευτ');
+
+bool _needsSafetyCheck(Iterable<dynamic> specs) =>
+    specs.whereType<String>().any(_isSafetyProfession);
+
+bool _isSafetyVerified(Map<String, dynamic> d) {
+  final v = d['safetyVerifiedUntil'];
+  if (v is Timestamp) return v.toDate().isAfter(DateTime.now());
+  return d['safetyVerified'] == true; // από το /get-offers
+}
+
+class _SafetyBadge extends StatelessWidget {
+  final bool verified;
+  const _SafetyBadge({required this.verified});
+  @override
+  Widget build(BuildContext context) => Container(
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(8),
+          color: verified ? const Color(0xFF1E8E4E).withValues(alpha: 0.16) : _g(0.05),
+          border: Border.all(color: verified ? const Color(0xFF3DDC84).withValues(alpha: 0.5) : _g(0.12)),
+        ),
+        child: Text(
+          verified ? '🛡️ Επαληθευμένη · Ταυτότητα & Ποινικό Μητρώο' : 'Χωρίς επαλήθευση ταυτότητας',
+          style: TextStyle(
+            color: verified ? const Color(0xFF6FE3A1) : _g(0.45),
+            fontSize: 10.5, fontWeight: verified ? FontWeight.w800 : FontWeight.w500),
+        ),
+      );
+}
+
+class _SafetyVerificationScreen extends StatefulWidget {
+  const _SafetyVerificationScreen();
+  @override
+  State<_SafetyVerificationScreen> createState() => _SafetyVerificationScreenState();
+}
+
+class _SafetyVerificationScreenState extends State<_SafetyVerificationScreen> {
+  bool _loading = true, _sending = false;
+  Map<String, dynamic> _ver = {};
+  Map<String, dynamic> _pro = {};
+  Uint8List? _idBytes, _crimBytes;
+
+  String get _uid => FirebaseAuth.instance.currentUser?.uid ?? '';
+
+  @override
+  void initState() { super.initState(); _load(); }
+
+  Future<void> _load() async {
+    try {
+      final fs = FirebaseFirestore.instance;
+      final v = await fs.collection('verifications').doc(_uid).get();
+      final p = await fs.collection('professionals').doc(_uid).get();
+      _ver = v.data() ?? {};
+      _pro = p.data() ?? {};
+    } catch (_) {}
+    if (mounted) setState(() => _loading = false);
+  }
+
+  Future<void> _pick(bool isId) async {
+    final src = await showModalBottomSheet<ImageSource>(
+      context: context,
+      backgroundColor: const Color(0xFF12100A),
+      builder: (ctx) => SafeArea(child: Column(mainAxisSize: MainAxisSize.min, children: [
+        if (!kIsWeb)
+          ListTile(leading: const Icon(Icons.photo_camera, color: kGold),
+              title: const Text('Φωτογραφία με την κάμερα', style: TextStyle(color: Colors.white)),
+              onTap: () => Navigator.pop(ctx, ImageSource.camera)),
+        ListTile(leading: const Icon(Icons.photo_library, color: kGold),
+            title: Text(kIsWeb ? 'Επιλογή αρχείου εικόνας' : 'Από τη συλλογή / screenshot', style: const TextStyle(color: Colors.white)),
+            onTap: () => Navigator.pop(ctx, ImageSource.gallery)),
+      ])),
+    );
+    if (src == null) return;
+    try {
+      final f = await ImagePicker().pickImage(source: src, imageQuality: 85, maxWidth: 2000);
+      if (f == null) return;
+      final b = await f.readAsBytes();
+      if (!mounted) return;
+      setState(() { if (isId) { _idBytes = b; } else { _crimBytes = b; } });
+    } catch (_) {}
+  }
+
+  Future<void> _submit() async {
+    if (_idBytes == null || _crimBytes == null || _sending) return;
+    setState(() => _sending = true);
+    try {
+      final st = FirebaseStorage.instance;
+      final idRef = st.ref('verification/$_uid/id.jpg');
+      final crRef = st.ref('verification/$_uid/criminal.jpg');
+      await idRef.putData(_idBytes!, SettableMetadata(contentType: 'image/jpeg'));
+      await crRef.putData(_crimBytes!, SettableMetadata(contentType: 'image/jpeg'));
+      final u = (await FirebaseFirestore.instance.collection('users').doc(_uid).get()).data() ?? {};
+      await FirebaseFirestore.instance.collection('verifications').doc(_uid).set({
+        'userId': _uid,
+        'name': (_pro['name'] ?? u['name'] ?? '').toString(),
+        'phone': (_pro['phone'] ?? u['phone'] ?? '').toString(),
+        'email': FirebaseAuth.instance.currentUser?.email ?? '',
+        'specialties': _pro['specialties'] ?? [u['specialty'] ?? ''],
+        'status': 'pending',
+        'idPath': idRef.fullPath,
+        'criminalPath': crRef.fullPath,
+        'submittedAt': FieldValue.serverTimestamp(),
+      });
+      // Ειδοποίηση στον admin (email) — fire-and-forget
+      http.post(Uri.parse('$kBackendUrl/verification-submitted'),
+          headers: {'Content-Type': 'application/json'},
+          body: jsonEncode({'userId': _uid})).ignore();
+      await _load();
+      if (mounted) {
+        setState(() { _idBytes = null; _crimBytes = null; });
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+            content: Text('Στάλθηκαν για έλεγχο ✓ Θα ενημερωθείς μόλις εγκριθούν.'), backgroundColor: Colors.green));
+      }
+    } catch (e) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+          content: Text('Η αποστολή απέτυχε. Δοκίμασε ξανά.'), backgroundColor: Colors.red));
+    }
+    if (mounted) setState(() => _sending = false);
+  }
+
+  Widget _tile(String title, String sub, Uint8List? bytes, VoidCallback onTap) => GestureDetector(
+        onTap: onTap,
+        child: Container(
+          margin: const EdgeInsets.only(bottom: 12),
+          padding: const EdgeInsets.all(14),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(16),
+            color: _g(0.04),
+            border: Border.all(color: bytes != null ? const Color(0xFF3DDC84).withValues(alpha: 0.6) : kGold.withValues(alpha: 0.3)),
+          ),
+          child: Row(children: [
+            Container(
+              width: 64, height: 64,
+              clipBehavior: Clip.antiAlias,
+              decoration: BoxDecoration(borderRadius: BorderRadius.circular(12), color: kGold.withValues(alpha: 0.08)),
+              child: bytes != null
+                  ? Image.memory(bytes, fit: BoxFit.cover)
+                  : const Icon(Icons.add_a_photo_outlined, color: kGold),
+            ),
+            const SizedBox(width: 14),
+            Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Text(title, style: const TextStyle(color: Colors.white, fontSize: 14.5, fontWeight: FontWeight.w800)),
+              const SizedBox(height: 3),
+              Text(bytes != null ? 'Επιλέχθηκε ✓ — πάτα για αλλαγή' : sub,
+                  style: TextStyle(color: bytes != null ? const Color(0xFF6FE3A1) : _g(0.5), fontSize: 12, height: 1.35)),
+            ])),
+          ]),
+        ),
+      );
+
+  @override
+  Widget build(BuildContext context) {
+    final verified = _isSafetyVerified(_pro);
+    final status = (_ver['status'] ?? '').toString();
+    final until = _pro['safetyVerifiedUntil'] is Timestamp ? (_pro['safetyVerifiedUntil'] as Timestamp).toDate() : null;
+    final expired = until != null && !verified;
+    String fmt(DateTime d) => '${d.day}/${d.month}/${d.year}';
+    final canSubmit = !verified && status != 'pending';
+    return Scaffold(
+      backgroundColor: kBg,
+      appBar: AppBar(backgroundColor: kBg, foregroundColor: Colors.white,
+          title: const Text('Επαλήθευση ασφαλείας', style: TextStyle(fontSize: 17))),
+      body: _loading
+          ? const Center(child: CircularProgressIndicator(color: kGold))
+          : ListView(padding: const EdgeInsets.fromLTRB(18, 8, 18, 30), children: [
+              const Text('🛡️', style: TextStyle(fontSize: 40), textAlign: TextAlign.center),
+              const SizedBox(height: 8),
+              Text(
+                'Οι γονείς και οι οικογένειες εμπιστεύονται πιο εύκολα επαγγελματίες με επαλήθευση. '
+                'Με το σήμα «Επαληθευμένη» εμφανίζεσαι πρώτη στις προσφορές για Baby Sitter και Νοσηλευτή κατ\' οίκον.',
+                textAlign: TextAlign.center,
+                style: TextStyle(color: _g(0.75), fontSize: 13.5, height: 1.5)),
+              const SizedBox(height: 18),
+              if (verified)
+                _statusBox('✅ Είσαι επαληθευμένη/ος', 'Το σήμα φαίνεται στο προφίλ και στις προσφορές σου μέχρι ${fmt(until!)}.', const Color(0xFF3DDC84))
+              else if (status == 'pending')
+                _statusBox('⏳ Σε έλεγχο', 'Λάβαμε τα έγγραφά σου. Θα ενημερωθείς μόλις ολοκληρωθεί ο έλεγχος (συνήθως 1–2 εργάσιμες).', kGold)
+              else if (status == 'rejected')
+                _statusBox('❌ Δεν εγκρίθηκε', '${(_ver['rejectReason'] ?? 'Τα έγγραφα δεν ήταν ευανάγνωστα.').toString()}\nΜπορείς να τα στείλεις ξανά παρακάτω.', Colors.redAccent)
+              else if (expired)
+                _statusBox('⌛ Η επαλήθευση έληξε', 'Έληξε στις ${fmt(until)}. Στείλε νέο ποινικό μητρώο για να την ανανεώσεις.', Colors.orangeAccent),
+              if (canSubmit) ...[
+                const SizedBox(height: 6),
+                _tile('1. Ταυτότητα (μπροστινή όψη)', 'Καθαρή φωτογραφία — να φαίνονται όνομα και φωτογραφία', _idBytes, () => _pick(true)),
+                _tile('2. Αντίγραφο Ποινικού Μητρώου', 'Screenshot ή φωτογραφία του πιστοποιητικού (έκδοση τελευταίων 3 μηνών)', _crimBytes, () => _pick(false)),
+                GestureDetector(
+                  onTap: () => launchUrl(Uri.parse('https://www.gov.gr/ipiresies/dikaiosune/poiniko-metroo/antigrapho-poinikou-metroou'),
+                      mode: LaunchMode.externalApplication),
+                  child: Padding(
+                    padding: const EdgeInsets.only(bottom: 16, top: 2),
+                    child: Text('Δεν το έχεις; Βγάλ\' το δωρεάν από το gov.gr με κωδικούς Taxisnet →',
+                        style: TextStyle(color: kGold, fontSize: 12.5, decoration: TextDecoration.underline, decorationColor: kGold.withValues(alpha: 0.6))),
+                  ),
+                ),
+                _PremiumButton(
+                  label: _sending ? 'Αποστολή…' : 'Αποστολή για έλεγχο',
+                  gradient: (_idBytes != null && _crimBytes != null && !_sending)
+                      ? const LinearGradient(colors: [kGoldLight, kGold]) : null,
+                  bgColor: _g(0.08),
+                  textColor: (_idBytes != null && _crimBytes != null) ? Colors.black : _g(0.4),
+                  onTap: _submit,
+                ),
+              ],
+              const SizedBox(height: 18),
+              Text(
+                '🔒 Τα έγγραφα τα βλέπει μόνο η ομάδα του GorealPro και διαγράφονται αμέσως μετά τον έλεγχο. '
+                'Κρατάμε μόνο την ημερομηνία επαλήθευσης. Η επαλήθευση ισχύει 1 χρόνο.',
+                style: TextStyle(color: _g(0.45), fontSize: 11.5, height: 1.5)),
+            ]),
+    );
+  }
+
+  Widget _statusBox(String title, String body, Color c) => Container(
+        margin: const EdgeInsets.only(bottom: 14),
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(14),
+          color: c.withValues(alpha: 0.08),
+          border: Border.all(color: c.withValues(alpha: 0.45)),
+        ),
+        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Text(title, style: TextStyle(color: c, fontSize: 15, fontWeight: FontWeight.w800)),
+          const SizedBox(height: 5),
+          Text(body, style: TextStyle(color: _g(0.75), fontSize: 13, height: 1.45)),
+        ]),
+      );
+}
+
 class _OfferCard extends StatelessWidget {
   final Map<String, dynamic> offer;
   final bool isBest;
@@ -12337,6 +12585,10 @@ class _OfferCard extends StatelessWidget {
                               color: _g(0.5),
                               fontSize: 10)),
                     ]),
+                    if (offer['safetyVerified'] == true || offer['safetyCheck'] == true) ...[
+                      const SizedBox(height: 6),
+                      _SafetyBadge(verified: offer['safetyVerified'] == true),
+                    ],
                   ])),
                   if (_proId.isNotEmpty)
                     Icon(Icons.chevron_right_rounded, color: _g(0.25), size: 20),
@@ -13876,6 +14128,7 @@ class _ProfileScreenState extends State<ProfileScreen> with WidgetsBindingObserv
   String _afm = '';
   bool _afmValid = false;
   bool _afmSaving = false;
+  List<String> _specialties = [];
   final _nameCtrl = TextEditingController();
   final _cityCtrl = TextEditingController();
   final _oldPassCtrl = TextEditingController();
@@ -13947,6 +14200,10 @@ class _ProfileScreenState extends State<ProfileScreen> with WidgetsBindingObserv
       _afm = (data['afm'] as String? ?? '').trim();
       _afmCtrl.text = _afm;
       _afmValid = data['afmValid'] == true;
+      _specialties = [
+        ...((data['specialties'] as List?)?.whereType<String>() ?? const <String>[]),
+        if ((data['specialty'] ?? '').toString().isNotEmpty) data['specialty'].toString(),
+      ];
       _nameCtrl.text = _name ?? '';
       _cityCtrl.text = _city ?? '';
       _biometricOn = prefs.getBool('biometric_enabled') ?? true;
@@ -14793,6 +15050,14 @@ class _ProfileScreenState extends State<ProfileScreen> with WidgetsBindingObserv
                         label: 'ΑΦΜ',
                         value: _afm.isEmpty ? 'Δεν έχει προστεθεί' : (_afmValid ? '$_afm ✓' : _afm),
                         onTap: _showAfmDialog),
+                  if (_role == 'professional' && _needsSafetyCheck(_specialties))
+                    _ProfileRow(
+                        icon: Icons.shield_outlined,
+                        emoji: '🛡️',
+                        label: 'Επαλήθευση ασφαλείας',
+                        value: 'Ταυτότητα & Ποινικό Μητρώο',
+                        onTap: () => Navigator.push(context,
+                            MaterialPageRoute(builder: (_) => const _SafetyVerificationScreen()))),
 
                   const SizedBox(height: 20),
                   _sectionHeader('ΕΙΔΟΠΟΙΗΣΕΙΣ'),
@@ -18247,6 +18512,10 @@ class _ProPublicProfileScreenState extends State<_ProPublicProfileScreen> {
                       const SizedBox(height: 14),
                       Text(name, textAlign: TextAlign.center,
                           style: const TextStyle(color: Colors.white, fontSize: 22, fontWeight: FontWeight.w900, fontFamily: 'Inter', letterSpacing: 0.3)),
+                      if (_needsSafetyCheck(specialties) || _isSafetyVerified(_data)) ...[
+                        const SizedBox(height: 8),
+                        _SafetyBadge(verified: _isSafetyVerified(_data)),
+                      ],
                       if (specialties.isNotEmpty) ...[
                         const SizedBox(height: 6),
                         Text(specialties.take(3).join('  ·  '),

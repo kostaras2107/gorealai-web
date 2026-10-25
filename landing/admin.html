@@ -251,6 +251,9 @@
       <div class="empty-state" id="deleted-empty" style="display:none"><div class="empty-icon">📭</div><div>Καμία διαγραφή</div></div>
     </div>
 
+    <div class="section-title" style="margin-top:32px;margin-bottom:12px">🛡️ Επαληθεύσεις ασφαλείας (Baby Sitter / Νοσηλευτές) <span id="ver-count" style="color:#e8c66a"></span></div>
+    <div id="ver-box" style="margin-bottom:32px;color:#aaa;font-size:13px">Φόρτωση...</div>
+
     <div class="section-title" style="margin-top:32px;margin-bottom:12px">🔒 Κλείδωσαν την έκπτωση 25% (email από 1/11)</div>
     <div style="margin-bottom:12px"><button id="interest-btn" onclick="toggleEarlyInterest()" style="background:#1a1400;color:#e8c66a;border:1px solid #5a4a1a;border-radius:10px;padding:9px 18px;font-weight:700;cursor:pointer">🔒 Δείξε ποιοι πάτησαν το κουμπί</button></div>
     <div id="interest-box" style="display:none">
@@ -285,7 +288,8 @@
 <script type="module">
   import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
   import { getAuth, signOut, onAuthStateChanged, signInWithEmailAndPassword, createUserWithEmailAndPassword, sendPasswordResetEmail, updateProfile } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
-  import { getFirestore, collection, addDoc, getDoc, getDocs, doc, updateDoc, deleteDoc, serverTimestamp, onSnapshot, getCountFromServer, query, where, orderBy, limit } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+  import { getFirestore, collection, addDoc, getDoc, getDocs, doc, updateDoc, deleteDoc, serverTimestamp, onSnapshot, getCountFromServer, query, where, orderBy, limit, Timestamp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+  import { getStorage, ref as sRef, getDownloadURL, deleteObject } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-storage.js";
 
   const firebaseConfig = {
     apiKey:"AIzaSyDjRV1CA5FD144UTyIAc_U5oYbSpzw2aFM",
@@ -298,6 +302,7 @@
   const app = initializeApp(firebaseConfig);
   const auth = getAuth(app);
   const db = getFirestore(app);
+  const storage = getStorage(app);
   let allPros = [];
   let unsubPros = null;
 
@@ -664,6 +669,69 @@
     }
   }
 
+  // ── ΕΠΑΛΗΘΕΥΣΕΙΣ ΑΣΦΑΛΕΙΑΣ ──
+  // Ο επαγγελματίας (Baby Sitter / Νοσηλευτής) ανεβάζει ταυτότητα + ποινικό
+  // μητρώο → verifications/{uid} status 'pending'. Έγκριση: γράφει
+  // professionals/{uid}.safetyVerifiedUntil (+1 χρόνος). Και στις δύο περιπτώσεις
+  // τα αρχεία σβήνονται — κρατάμε μόνο ημερομηνίες.
+  let verUnsub = null;
+  function startVerificationsListener() {
+    if (verUnsub) return;
+    const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+    const fmt = t => t?.seconds ? new Date(t.seconds * 1000).toLocaleString('el-GR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : '—';
+    verUnsub = onSnapshot(collection(db, 'verifications'), async snap => {
+      const rows = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+      const pending = rows.filter(r => r.status === 'pending').sort((a, b) => (a.submittedAt?.seconds || 0) - (b.submittedAt?.seconds || 0));
+      const done = rows.filter(r => r.status !== 'pending').sort((a, b) => (b.decidedAt?.seconds || 0) - (a.decidedAt?.seconds || 0)).slice(0, 15);
+      document.getElementById('ver-count').textContent = pending.length ? `(${pending.length} σε αναμονή)` : '';
+      const box = document.getElementById('ver-box');
+      if (!rows.length) { box.innerHTML = 'Δεν έχει σταλεί καμία αίτηση ακόμα.'; return; }
+      let html = '';
+      for (const r of pending) {
+        let idUrl = '', crUrl = '';
+        try { idUrl = await getDownloadURL(sRef(storage, r.idPath)); } catch (_) {}
+        try { crUrl = await getDownloadURL(sRef(storage, r.criminalPath)); } catch (_) {}
+        const img = (u, label) => `<a href="${u || '#'}" target="_blank" style="color:#e8c66a;font-size:12px;text-align:center">${u ? `<img src="${u}" style="width:260px;max-width:100%;border-radius:10px;display:block;margin-bottom:4px">` : '(δεν βρέθηκε) '}${label}</a>`;
+        html += `<div style="background:#14110a;border:1px solid #5a4a1a;border-radius:14px;padding:14px;margin-bottom:12px">
+          <div style="color:#fff;font-size:15px;font-weight:700">${esc(r.name)} <span style="color:#888;font-weight:400;font-size:12px">· ${esc((r.specialties || []).join(', '))} · ${esc(r.phone)} · ${esc(r.email)} · στάλθηκε ${fmt(r.submittedAt)}</span></div>
+          <div style="display:flex;gap:12px;flex-wrap:wrap;margin:12px 0">${img(idUrl, '🪪 Ταυτότητα (άνοιγμα)')}${img(crUrl, '📄 Ποινικό μητρώο (άνοιγμα)')}</div>
+          <div style="color:#aaa;font-size:12px;margin-bottom:10px">Έλεγξε: ίδιο όνομα με το προφίλ, η φωτογραφία ταιριάζει, το ποινικό είναι «λευκό» (χωρίς καταδίκες) και έκδοσης τελευταίων 3 μηνών.</div>
+          <button onclick="decideVerification('${r.id}', true)" style="background:#1e8e4e;color:#fff;border:0;border-radius:10px;padding:9px 18px;font-weight:700;cursor:pointer;margin-right:8px">✅ Έγκριση (1 χρόνος)</button>
+          <button onclick="decideVerification('${r.id}', false)" style="background:transparent;color:#ff6b6b;border:1px solid #ff6b6b;border-radius:10px;padding:9px 18px;font-weight:700;cursor:pointer">❌ Απόρριψη</button>
+        </div>`;
+      }
+      if (!pending.length) html += '<div style="margin-bottom:10px">Καμία αίτηση σε αναμονή ✓</div>';
+      if (done.length) html += '<div style="color:#888;font-size:12px;line-height:1.8">Πρόσφατες αποφάσεις: ' + done.map(r => `${r.status === 'verified' ? '✅' : '❌'} ${esc(r.name)} (${fmt(r.decidedAt)})`).join(' · ') + '</div>';
+      box.innerHTML = html;
+    }, e => { document.getElementById('ver-box').textContent = 'Σφάλμα φόρτωσης: ' + e.message; });
+  }
+  window.decideVerification = async (uid, approve) => {
+    let reason = '';
+    if (!approve) {
+      reason = prompt('Λόγος απόρριψης (θα τον δει ο επαγγελματίας):', 'Τα έγγραφα δεν ήταν ευανάγνωστα. Στείλε πιο καθαρές φωτογραφίες.');
+      if (reason === null) return;
+    } else if (!confirm('Έγκριση επαλήθευσης για 1 χρόνο; Τα αρχεία θα διαγραφούν.')) return;
+    try {
+      const vRef = doc(db, 'verifications', uid);
+      const v = (await getDoc(vRef)).data() || {};
+      if (approve) {
+        const until = new Date(); until.setFullYear(until.getFullYear() + 1);
+        const patch = { safetyVerifiedAt: serverTimestamp(), safetyVerifiedUntil: Timestamp.fromDate(until) };
+        // Οι παλιοί λογαριασμοί έχουν professionals doc με auto-ID (πεδίο userId)
+        const own = await getDoc(doc(db, 'professionals', uid));
+        if (own.exists()) await updateDoc(own.ref, patch);
+        else for (const d of (await getDocs(query(collection(db, 'professionals'), where('userId', '==', uid)))).docs) await updateDoc(d.ref, patch);
+      }
+      for (const p of [v.idPath, v.criminalPath]) { if (p) { try { await deleteObject(sRef(storage, p)); } catch (_) {} } }
+      await updateDoc(vRef, { status: approve ? 'verified' : 'rejected', rejectReason: approve ? '' : reason, decidedAt: serverTimestamp(), idPath: '', criminalPath: '' });
+      await addDoc(collection(db, 'users', uid, 'notifications'), {
+        title: approve ? '🛡️ Η επαλήθευσή σου εγκρίθηκε!' : 'Η επαλήθευση δεν εγκρίθηκε',
+        body: approve ? 'Το σήμα «Επαληθευμένη» φαίνεται πλέον στο προφίλ και στις προσφορές σου.' : reason,
+        type: 'safety_verification', isRead: false, createdAt: serverTimestamp(),
+      });
+    } catch (e) { alert('Σφάλμα: ' + e.message); }
+  };
+
   // ── ΚΛΕΙΔΩΣΑΝ ΤΗΝ ΕΚΠΤΩΣΗ (email «Κλείδωσε 25%» από 1/11/2026) ──
   // Ο server γράφει users.earlyInterestMailAt όταν στέλνει το email και
   // users.earlyInterestAt όταν ο επαγγελματίας πατήσει το κουμπί. Φορτώνει μόνο
@@ -718,6 +786,7 @@
     await Promise.all([loadClicks(), loadUserCount(), loadPlatformStats()]);
     loadRequests().then(loadBookings).then(loadContacts);
     loadDeletions();
+    startVerificationsListener();
 
     if (unsubPros) unsubPros();
     unsubPros = onSnapshot(collection(db, 'professionals'), async snap => {

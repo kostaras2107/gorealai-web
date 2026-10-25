@@ -77,11 +77,25 @@ service cloud.firestore {
       allow read: if true;
       // Any authenticated user can create (self-registration via app)
       allow create: if request.auth != null;
-      // Only the owner or the real admin can update/delete
+      // Only the owner or the real admin can update/delete. Το σήμα
+      // επαλήθευσης ασφαλείας (safetyVerified*) το γράφει μόνο ο admin.
       allow update: if request.auth != null
-                    && (resource.data.userId == request.auth.uid || isAdmin());
+                    && ((resource.data.userId == request.auth.uid
+                         && !request.resource.data.diff(resource.data).affectedKeys()
+                            .hasAny(['safetyVerifiedAt', 'safetyVerifiedUntil']))
+                        || isAdmin());
       allow delete: if request.auth != null
                     && (resource.data.userId == request.auth.uid || isAdmin());
+    }
+
+    // ─── ΕΠΑΛΗΘΕΥΣΗ ΑΣΦΑΛΕΙΑΣ (Baby Sitter / Νοσηλευτής) ──
+    // Ο επαγγελματίας στέλνει αίτηση (μόνο status 'pending'), την έγκριση/
+    // απόρριψη τη γράφει μόνο ο admin. Το adminNotifiedAt το γράφει ο server.
+    match /verifications/{uid} {
+      allow read: if request.auth != null && (request.auth.uid == uid || isAdmin());
+      allow create, update: if request.auth != null && request.auth.uid == uid
+                    && request.resource.data.status == 'pending';
+      allow update, delete: if isAdmin();
     }
 
     // ─── DELETED ACCOUNTS (audit log) ──────────────────────
