@@ -1900,7 +1900,7 @@ function earlyInterestEmailHtml({ first, specialty, link }) {
   const p = (t, extra = '') => `<p style="color:rgba(255,255,255,0.85);font-size:14px;line-height:1.6;${extra}">${t}</p>`;
   return `<div style="font-family:Arial,sans-serif;max-width:520px;margin:0 auto;background:#0A0800;color:#fff;border-radius:16px;padding:32px;border:1px solid rgba(201,168,76,0.3)">
 <h1 style="color:#FFD47A;font-size:20px;margin:0 0 14px;">Κλειδώστε 25% έκπτωση 🔒</h1>
-${p(`Καλησπέρα${first ? ' ' + esc(first) : ''},`)}
+${p('Καλημέρα σας,')}
 ${p('σας ευχαριστούμε που είστε μαζί μας στο GorealPro! Όπως σας έχουμε ενημερώσει, <b>από 1/1/2027</b> ξεκινά η μηνιαία συνδρομή για τους επαγγελματίες. Μέχρι τότε όλα παραμένουν <b>δωρεάν</b>.')}
 ${p(`Για την ειδικότητά σας${specialty ? ' (' + esc(specialty) + ')' : ''} η συνδρομή είναι <b>${full} €/μήνα</b> + ΦΠΑ.`)}
 <div style="background:rgba(232,198,106,0.08);border:1px solid rgba(232,198,106,0.35);border-radius:12px;padding:16px 18px;margin:16px 0;">
