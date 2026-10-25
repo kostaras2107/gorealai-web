@@ -15173,7 +15173,61 @@ class _ProfileScreenState extends State<ProfileScreen> with WidgetsBindingObserv
     );
   }
 
-  void _showDeleteAccountDialog() {
+  // Πρώτο βήμα πριν τη διαγραφή: θυμίζει τι χάνει (οι επαγγελματίες είναι
+  // δωρεάν μέχρι 31/12/2026) και προτείνει να μείνει. Μόνο αν πατήσει
+  // «Συνέχεια» ανοίγει η κανονική επιβεβαίωση διαγραφής.
+  Future<void> _showDeleteAccountDialog() async {
+    final isPro = _role == 'professional';
+    final daysFree = DateTime(2027, 1, 1).difference(DateTime.now()).inDays;
+    final proceed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: const Color(0xFF111111),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20), side: BorderSide(color: kGold.withValues(alpha: 0.35))),
+        title: const Text('Πριν φύγεις… 💛', style: TextStyle(color: Colors.white, fontFamily: 'Inter')),
+        content: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
+          if (isPro && daysFree > 0) ...[
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(14),
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(14),
+                color: kGold.withValues(alpha: 0.08),
+                border: Border.all(color: kGold.withValues(alpha: 0.4)),
+              ),
+              child: Column(children: [
+                Text('$daysFree μέρες', style: const TextStyle(color: kGold, fontSize: 30, fontWeight: FontWeight.w900)),
+                const SizedBox(height: 2),
+                const Text('σου μένουν ακόμα εντελώς δωρεάν', textAlign: TextAlign.center,
+                    style: TextStyle(color: Colors.white, fontSize: 13.5, fontWeight: FontWeight.w600)),
+              ]),
+            ),
+            const SizedBox(height: 14),
+            const Text('Μέχρι τις 31/12 λαμβάνεις αιτήματα πελατών από την περιοχή σου χωρίς καμία χρέωση και χωρίς προμήθεια.',
+                style: TextStyle(color: Colors.white70, fontSize: 13, height: 1.45)),
+          ] else
+            const Text('Το GorealPro είναι πάντα δωρεάν για σένα — στείλε αίτημα και λάβε προσφορές από επαγγελματίες της περιοχής σου.',
+                style: TextStyle(color: Colors.white70, fontSize: 13, height: 1.45)),
+          const SizedBox(height: 12),
+          Text(isPro
+                  ? 'Αν σε ενοχλούν οι ειδοποιήσεις ή σου έρχονται λάθος αιτήματα, μπορείς να αλλάξεις ειδικότητες ή να μας πεις στο info@gorealai.gr / 6937102492.'
+                  : 'Αν κάτι δεν πήγε καλά, πες μας στο info@gorealai.gr / 6937102492 — θα σε βοηθήσουμε.',
+              style: const TextStyle(color: Colors.white54, fontSize: 12, height: 1.45)),
+        ]),
+        actionsAlignment: MainAxisAlignment.spaceBetween,
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx, true),
+              child: const Text('Συνέχεια στη διαγραφή', style: TextStyle(color: Colors.white38, fontSize: 12.5))),
+          TextButton(onPressed: () => Navigator.pop(ctx, false),
+              child: const Text('Μένω 💛', style: TextStyle(color: kGold, fontWeight: FontWeight.w800, fontSize: 15))),
+        ],
+      ),
+    );
+    if (proceed != true || !mounted) return;
+    _showDeleteConfirmDialog();
+  }
+
+  void _showDeleteConfirmDialog() {
     final passCtrl = TextEditingController();
     bool showPass = false;
     // Οι λογαριασμοί Apple/Google δεν έχουν κωδικό — η επιβεβαίωση γίνεται
@@ -15188,7 +15242,7 @@ class _ProfileScreenState extends State<ProfileScreen> with WidgetsBindingObserv
       builder: (ctx) => StatefulBuilder(builder: (ctx, setSt) => AlertDialog(
         backgroundColor: const Color(0xFF111111),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20), side: BorderSide(color: Colors.red.withValues(alpha: 0.3))),
-        title: const Text('Διαγραφή λογαριασμού', style: TextStyle(color: Colors.red, fontFamily: 'Inter')),
+        title: const Text('Είσαι σίγουρος/η ότι θες να διαγράψεις τον λογαριασμό σου;', style: TextStyle(color: Colors.red, fontFamily: 'Inter', fontSize: 18)),
         content: Column(mainAxisSize: MainAxisSize.min, children: [
           const Text('Αυτή η ενέργεια είναι μη αναστρέψιμη. Όλα τα δεδομένα σου θα διαγραφούν οριστικά.', style: TextStyle(color: Colors.white60, fontSize: 13)),
           const SizedBox(height: 16),
