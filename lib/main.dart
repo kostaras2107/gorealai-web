@@ -32,6 +32,8 @@ import 'package:app_badge_plus/app_badge_plus.dart';
 import 'package:in_app_update/in_app_update.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+import 'package:timezone/data/latest_all.dart' as tzdata;
+import 'package:timezone/timezone.dart' as tz;
 
 // ═══════════════════════════════════════
 // CONSTANTS
@@ -133,6 +135,58 @@ class NotificationService {
       dbg['error'] = '$e';
       await writeDebug();
     }
+  }
+
+  // Υπενθύμιση εγγραφής: όποιος κατέβασε την εφαρμογή (π.χ. από Google Ads)
+  // αλλά δεν έφτιαξε λογαριασμό δεν υπάρχει στη βάση, οπότε δεν μπορούμε να
+  // του στείλουμε push από τον server. Το ίδιο το κινητό προγραμματίζει μια
+  // τοπική ειδοποίηση για την επόμενη μέρα στις 19:00· ακυρώνεται μόλις
+  // συνδεθεί. Μόνο Android (εκεί τρέχουν οι διαφημίσεις εγκατάστασης) και
+  // μόνο αν δεν έχει συνδεθεί ποτέ σε αυτή τη συσκευή.
+  static const _signupReminderId = 9001;
+  static bool _tzReady = false;
+
+  static Future<void> scheduleSignupReminder() async {
+    if (kIsWeb || defaultTargetPlatform != TargetPlatform.android) return;
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      if (prefs.getBool('everSignedIn') == true) return;
+      if (!_tzReady) {
+        tzdata.initializeTimeZones();
+        tz.setLocalLocation(tz.getLocation('Europe/Athens'));
+        _tzReady = true;
+      }
+      final now = tz.TZDateTime.now(tz.local);
+      final when = tz.TZDateTime(tz.local, now.year, now.month, now.day + 1, 19);
+      await _localNotifs.zonedSchedule(
+        _signupReminderId,
+        'Χρειάζεσαι μάστορα ή επαγγελματία; 🔧',
+        'Ολοκλήρωσε την εγγραφή σου και λάβε δωρεάν προσφορές από επαγγελματίες της περιοχής σου.',
+        when,
+        NotificationDetails(
+          android: AndroidNotificationDetails(
+            _channel.id, _channel.name,
+            channelDescription: _channel.description,
+            importance: Importance.high,
+            priority: Priority.high,
+            icon: '@mipmap/ic_launcher',
+          ),
+        ),
+        androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
+        uiLocalNotificationDateInterpretation: UILocalNotificationDateInterpretation.absoluteTime,
+      );
+    } catch (e) {
+      debugPrint('scheduleSignupReminder error: $e');
+    }
+  }
+
+  static Future<void> cancelSignupReminder() async {
+    if (kIsWeb) return;
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setBool('everSignedIn', true);
+      await _localNotifs.cancel(_signupReminderId);
+    } catch (_) {}
   }
 
   static Future<void> init() async {
@@ -980,6 +1034,7 @@ class AuthGate extends StatelessWidget {
               body: Center(child: CircularProgressIndicator(color: kGold)));
         }
         if (!snapshot.hasData) {
+          NotificationService.scheduleSignupReminder();
           return ValueListenableBuilder<bool>(
             valueListenable: kGuestMode,
             builder: (_, guest, __) =>
@@ -1038,6 +1093,7 @@ class _AuthGateRoleCheckState extends State<_AuthGateRoleCheck> {
     // στο main() τρέχει πριν υπάρχει συνδεδεμένος χρήστης, οπότε δεν αρκεί μόνο
     // αυτό (βλ. σχόλιο στο saveTokenForCurrentUser()).
     NotificationService.saveTokenForCurrentUser();
+    NotificationService.cancelSignupReminder();
   }
 
   // Το welcome email στέλνεται εδώ, την πρώτη φορά που ο AuthGate βλέπει τον
