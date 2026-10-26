@@ -773,6 +773,17 @@
     .event-card:hover { background: rgba(201,168,76,0.1); transform: translateY(-3px); }
 
     .event-emoji { font-size: 42px; margin-bottom: 14px; display: block; }
+    .event-card { overflow: hidden; }
+    .event-img { display: block; width: calc(100% + 40px); height: 150px; object-fit: cover; margin: -30px -20px 18px; border-bottom: 1px solid rgba(201,168,76,0.25); }
+    .step-icon, .feat-icon, .chat-icons span { color: var(--gold); }
+    .chat-icons span { display: inline-flex; }
+    .photo-badge { display: inline-flex; align-items: center; color: #fff; }
+    .chat-avatar-photo { background: url('/img/cat-electrician.jpg') center/cover !important; }
+    .cat-chip { display: inline-flex; align-items: center; gap: 9px; }
+    .cat-img { width: 26px; height: 26px; border-radius: 50%; object-fit: cover; margin-left: -8px; border: 1px solid rgba(201,168,76,0.35); }
+    .cat-more { color: var(--gold); border-color: rgba(201,168,76,0.3); }
+    .pro-icon-photo { background: url('/img/pro-card.jpg') center/cover !important; border: 2px solid rgba(201,168,76,0.5); width: 120px !important; height: 120px !important; border-radius: 28px !important; }
+    .foot-ico { display: inline-flex; align-items: center; gap: 6px; }
     .event-title { font-family: 'Raleway', sans-serif; font-size: 18px; font-weight: 800; margin-bottom: 9px; }
     .event-desc { font-size: 13px; color: var(--muted2); line-height: 1.55; }
 
@@ -990,16 +1001,16 @@
 
     <div class="steps">
       <div class="step reveal">
-        <div class="step-icon">📸</div>
+        <div class="step-icon"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 8h3l2-3h6l2 3h3a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V9a1 1 0 0 1 1-1z"/><circle cx="12" cy="13.5" r="3.5"/></svg></div>
         <div class="step-body">
           <div class="step-num-label">Βήμα 01</div>
           <div class="step-title">Περιέγραψε &amp; Φωτογράφισε</div>
           <div class="step-desc">Πες τι χρειάζεσαι και πρόσθεσε φωτογραφίες ή βίντεο του προβλήματος. Ο επαγγελματίας βλέπει ακριβώς τι αντιμετωπίζεις — χωρίς παρεξηγήσεις, χωρίς εκπλήξεις στην τιμή.</div>
-          <div class="step-badge">📷 Φωτογραφίες &amp; 🎥 Βίντεο υποστηρίζονται</div>
+          <div class="step-badge">Φωτογραφίες &amp; βίντεο υποστηρίζονται</div>
         </div>
       </div>
       <div class="step reveal d1">
-        <div class="step-icon">⚡</div>
+        <div class="step-icon"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 16V11a6 6 0 1 1 12 0v5l2 2H4z"/><path d="M10 20a2 2 0 0 0 4 0"/></svg></div>
         <div class="step-body">
           <div class="step-num-label">Βήμα 02</div>
           <div class="step-title">Ειδοποίηση κοντινών επαγγελματιών</div>
@@ -1007,7 +1018,7 @@
         </div>
       </div>
       <div class="step reveal d2">
-        <div class="step-icon">🏅</div>
+        <div class="step-icon"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="15" r="5"/><path d="M8.5 11 6 3h4l2 4 2-4h4l-2.5 8"/><path d="m12 13 .9 1.8 2 .3-1.45 1.4.35 2-1.8-.95-1.8.95.35-2-1.45-1.4 2-.3z"/></svg></div>
         <div class="step-body">
           <div class="step-num-label">Βήμα 03</div>
           <div class="step-title">Οι 3 καλύτερες προσφορές</div>
@@ -1015,7 +1026,7 @@
         </div>
       </div>
       <div class="step reveal d3">
-        <div class="step-icon">🏆</div>
+        <div class="step-icon"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 5h16v11H9l-5 4z"/><path d="M8 10h8M8 13h5"/></svg></div>
         <div class="step-body">
           <div class="step-num-label">Βήμα 04</div>
           <div class="step-title">Διάλεξε &amp; επικοινώνησε</div>
@@ -1034,7 +1045,7 @@
     <div class="media-card reveal d2">
       <div class="media-inner">
         <div class="media-text">
-          <div class="media-tag">📸 Photo &amp; Video Chat</div>
+          <div class="media-tag">Photo &amp; Video Chat</div>
           <h3>Η εικόνα αξίζει χίλιες λέξεις — και μια σωστή προσφορά</h3>
           <p>Σε άλλες εφαρμογές εξηγείς το πρόβλημα, ο επαγγελματίας μαντεύει, και τελικά η τιμή αλλάζει όταν φτάσει. Εδώ, στέλνεις φωτογραφία και όλοι ξεκινούν με πλήρη εικόνα.</p>
           <div class="media-bullets">
@@ -1047,7 +1058,7 @@
 
         <div class="chat-mockup">
           <div class="chat-header">
-            <div class="chat-avatar">🔌</div>
+            <div class="chat-avatar chat-avatar-photo"></div>
             <div>
               <div class="chat-pro-name">Νίκος Π. — Ηλεκτρολόγος</div>
               <div class="chat-pro-status">● Ενεργός τώρα</div>
@@ -1058,7 +1069,7 @@
             <div class="msg out">
               <div class="msg-bubble">
                 <div class="msg-photo" style="background:url('/img/chat-socket.jpg') center/cover;">
-                  <span class="photo-badge">📷</span>
+                  <span class="photo-badge"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 8h3l2-3h6l2 3h3a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V9a1 1 0 0 1 1-1z"/><circle cx="12" cy="13.5" r="3.5"/></svg></span>
                 </div>
                 Βλέπεις; Από χθες δεν ανάβει η πρίζα
               </div>
@@ -1066,7 +1077,7 @@
             </div>
 
             <div class="msg">
-              <div class="chat-avatar" style="width:28px;height:28px;font-size:12px;flex-shrink:0;">🔌</div>
+              <div class="chat-avatar chat-avatar-photo" style="width:28px;height:28px;flex-shrink:0;"></div>
               <div class="msg-bubble">Το βλέπω! Φαίνεται διακοπτόμενη επαφή. Εκτίμηση €35–50</div>
               <span class="msg-time">14:24</span>
             </div>
@@ -1075,7 +1086,7 @@
               <div class="msg-bubble">
                 <div class="msg-photo" style="background:url('/img/chat-electrician.jpg') center/cover;">
                   <span class="msg-play">▶</span>
-                  <span class="photo-badge">🎥</span>
+                  <span class="photo-badge"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="6" width="13" height="12" rx="2"/><path d="m16 10 5-3v10l-5-3z"/></svg></span>
                 </div>
                 Βίντεο από τη σπίθα που έκανε
               </div>
@@ -1083,14 +1094,14 @@
             </div>
 
             <div class="msg">
-              <div class="chat-avatar" style="width:28px;height:28px;font-size:12px;flex-shrink:0;">🔌</div>
-              <div class="msg-bubble">Σοβαρό αυτό — ερχομαι σήμερα 17:00 🔧</div>
+              <div class="chat-avatar chat-avatar-photo" style="width:28px;height:28px;flex-shrink:0;"></div>
+              <div class="msg-bubble">Σοβαρό αυτό — έρχομαι σήμερα 17:00</div>
               <span class="msg-time">14:26</span>
             </div>
           </div>
 
           <div class="chat-input-bar">
-            <div class="chat-icons"><span>📷</span><span>🎥</span></div>
+            <div class="chat-icons"><span><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 8h3l2-3h6l2 3h3a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V9a1 1 0 0 1 1-1z"/><circle cx="12" cy="13.5" r="3.5"/></svg></span><span><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="6" width="13" height="12" rx="2"/><path d="m16 10 5-3v10l-5-3z"/></svg></span></div>
             <div class="chat-placeholder">Γράψε μήνυμα...</div>
             <div class="chat-send">→</div>
           </div>
@@ -1107,27 +1118,27 @@
 
     <div class="features-grid">
       <div class="feat-card reveal">
-        <div class="feat-icon">📸</div>
+        <div class="feat-icon"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 8h3l2-3h6l2 3h3a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V9a1 1 0 0 1 1-1z"/><circle cx="12" cy="13.5" r="3.5"/></svg></div>
         <div class="feat-title">Φωτογραφίες &amp; Βίντεο</div>
         <div class="feat-desc">Στείλε το πρόβλημά σου με εικόνα ή βίντεο στο chat. Πλήρης κατανόηση πριν την επίσκεψη.</div>
       </div>
       <div class="feat-card reveal d1">
-        <div class="feat-icon">⏱</div>
+        <div class="feat-icon"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="13" r="8"/><path d="M12 9v4l2.5 2.5M9 2h6"/></svg></div>
         <div class="feat-title">Countdown Ζωντανά</div>
         <div class="feat-desc">Παρακολούθα σε πραγματικό χρόνο πόσες προσφορές έρχονται — live, χωρίς ανανέωση.</div>
       </div>
       <div class="feat-card reveal d2">
-        <div class="feat-icon">🏅</div>
+        <div class="feat-icon"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 20h18"/><rect x="9" y="6" width="6" height="14"/><rect x="3" y="11" width="6" height="9"/><rect x="15" y="13" width="6" height="7"/></svg></div>
         <div class="feat-title">Top 3 προσφορές</div>
         <div class="feat-desc">Βλέπεις μόνο τις 3 καλύτερες, με βάση τιμή, διαθεσιμότητα και αξιολογήσεις.</div>
       </div>
       <div class="feat-card reveal d3">
-        <div class="feat-icon">🖼️</div>
+        <div class="feat-icon"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="9" cy="10" r="2"/><path d="m21 16-5-5-8 9"/></svg></div>
         <div class="feat-title">Portfolio Επαγγελματία</div>
         <div class="feat-desc">Δες φωτογραφίες από προηγούμενες δουλειές πριν αποφασίσεις.</div>
       </div>
       <div class="feat-card wide reveal d1">
-        <div class="feat-icon" style="font-size:24px;">📅</div>
+        <div class="feat-icon"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/><path d="m9 15 2 2 4-4"/></svg></div>
         <div>
           <div class="feat-title">Τηλέφωνο, μήνυμα &amp; κρατήσεις</div>
           <div class="feat-desc">Επικοινώνησε με τον επαγγελματία με ένα πάτημα, κλείσε τη δουλειά και κράτα όλα τα αιτήματα και τις κρατήσεις σου σε ένα μέρος.</div>
@@ -1142,7 +1153,7 @@
     <h2 class="section-title reveal d1" style="margin-bottom:36px;">Μια τεράστια αγορά<br/>που περιμένει ψηφιοποίηση</h2>
 
     <div class="market-card reveal d2">
-      <div class="market-tag">📊 Για Επενδυτές</div>
+      <div class="market-tag">Για Επενδυτές</div>
       <h3>Το Airbnb των επαγγελματικών<br/>υπηρεσιών — στην Ελλάδα πρώτα</h3>
       <p>
         Οι περισσότερες δουλειές για το σπίτι στην Ελλάδα κλείνουν ακόμα με τηλεφωνήματα και συστάσεις. Το GorealPro φέρνει <strong>αντίστροφη δημοπρασία σε πραγματικό χρόνο</strong>, αντιστοίχιση ανά δήμο και αιτήματα με φωτογραφία, βίντεο και φωνή σε έναν κλάδο που δεν έχει αλλάξει εδώ και δεκαετίες. Στόχος: Αττική και Θεσσαλονίκη πρώτα, μετά όλη η Ελλάδα και η <strong>Κύπρος</strong>.
@@ -1163,25 +1174,25 @@
     <div class="section-label reveal" style="text-align:center;margin-bottom:12px;">Κατηγορίες</div>
     <h2 class="section-title reveal d1" style="margin-bottom:32px;">Βρες ειδικό για οτιδήποτε</h2>
     <div class="cats-scroll reveal d2">
-      <div class="cat-chip">🔌 Ηλεκτρολόγος</div>
-      <div class="cat-chip">🚿 Υδραυλικός</div>
-      <div class="cat-chip">🧹 Καθαρίστρια</div>
-      <div class="cat-chip">🏗️ Ανακαίνιση</div>
-      <div class="cat-chip">🎨 Ελαιοχρωματιστής</div>
-      <div class="cat-chip">❄️ Κλιματιστικό</div>
-      <div class="cat-chip">👶 Baby Sitter</div>
-      <div class="cat-chip">🔑 Κλειδαράς</div>
-      <div class="cat-chip">🪴 Κηπουρός</div>
-      <div class="cat-chip">📦 Μετακόμιση</div>
-      <div class="cat-chip">💅 Τεχνίτρια Νυχιών</div>
-      <div class="cat-chip">🖋️ Tattoo Artist</div>
-      <div class="cat-chip">💻 Τεχνικός Η/Υ</div>
-      <div class="cat-chip">📚 Ιδιαίτερα Μαθήματα</div>
-      <div class="cat-chip">📐 Αρχιτέκτονας</div>
-      <div class="cat-chip">🧠 Ψυχολόγος</div>
-      <div class="cat-chip">🍽️ Catering</div>
-      <div class="cat-chip">🩺 Νοσηλευτής κατ' οίκον</div>
-      <div class="cat-chip">➕ 70+ ακόμα</div>
+      <div class="cat-chip"><img class="cat-img" src="/img/cat-electrician.jpg" alt="" loading="lazy">Ηλεκτρολόγος</div>
+      <div class="cat-chip"><img class="cat-img" src="/img/cat-plumber.jpg" alt="" loading="lazy">Υδραυλικός</div>
+      <div class="cat-chip"><img class="cat-img" src="/img/cat-cleaning.jpg" alt="" loading="lazy">Καθαρίστρια</div>
+      <div class="cat-chip"><img class="cat-img" src="/img/cat-renovation.jpg" alt="" loading="lazy">Ανακαίνιση</div>
+      <div class="cat-chip"><img class="cat-img" src="/img/cat-painter.jpg" alt="" loading="lazy">Ελαιοχρωματιστής</div>
+      <div class="cat-chip"><img class="cat-img" src="/img/cat-ac.jpg" alt="" loading="lazy">Κλιματιστικό</div>
+      <div class="cat-chip"><img class="cat-img" src="/img/cat-babysitter.jpg" alt="" loading="lazy">Baby Sitter</div>
+      <div class="cat-chip"><img class="cat-img" src="/img/cat-locksmith.jpg" alt="" loading="lazy">Κλειδαράς</div>
+      <div class="cat-chip"><img class="cat-img" src="/img/cat-gardener.jpg" alt="" loading="lazy">Κηπουρός</div>
+      <div class="cat-chip"><img class="cat-img" src="/img/cat-moving.jpg" alt="" loading="lazy">Μετακόμιση</div>
+      <div class="cat-chip"><img class="cat-img" src="/img/cat-nails.jpg" alt="" loading="lazy">Τεχνίτρια Νυχιών</div>
+      <div class="cat-chip">Tattoo Artist</div>
+      <div class="cat-chip"><img class="cat-img" src="/img/cat-webdev.jpg" alt="" loading="lazy">Τεχνικός Η/Υ</div>
+      <div class="cat-chip"><img class="cat-img" src="/img/cat-tutor.jpg" alt="" loading="lazy">Ιδιαίτερα Μαθήματα</div>
+      <div class="cat-chip">Αρχιτέκτονας</div>
+      <div class="cat-chip">Ψυχολόγος</div>
+      <div class="cat-chip"><img class="cat-img" src="/img/cat-catering.jpg" alt="" loading="lazy">Catering</div>
+      <div class="cat-chip"><img class="cat-img" src="/img/cat-nurse.jpg" alt="" loading="lazy">Νοσηλευτής κατ' οίκον</div>
+      <div class="cat-chip cat-more">+60 ακόμα ειδικότητες</div>
     </div>
   </section>
 
@@ -1193,17 +1204,17 @@
 
     <div class="events-grid">
       <div class="event-card reveal">
-        <span class="event-emoji">💍</span>
+        <img class="event-img" src="/img/ev-wedding.jpg" alt="Γάμος" loading="lazy">
         <div class="event-title">Γάμος</div>
         <div class="event-desc">Φωτογράφος, catering, DJ, στολισμός — συντονισμένα από ένα σημείο.</div>
       </div>
       <div class="event-card reveal d1">
-        <span class="event-emoji">👶</span>
+        <img class="event-img" src="/img/ev-baptism.jpg" alt="Βάφτιση" loading="lazy">
         <div class="event-title">Βάφτιση</div>
         <div class="event-desc">Διοργάνωση, φωτογράφος, catering και DJ — όλα μαζί.</div>
       </div>
       <div class="event-card reveal d2">
-        <span class="event-emoji">🎉</span>
+        <img class="event-img" src="/img/ev-party.jpg" alt="Πάρτυ" loading="lazy">
         <div class="event-title">Πάρτυ</div>
         <div class="event-desc">Διοργάνωση, μουσική, catering — κάνε το πάρτυ αξέχαστο.</div>
       </div>
@@ -1216,7 +1227,7 @@
     <h2 class="section-title reveal d1" style="margin-bottom:36px;">Νέοι πελάτες<br/>χωρίς marketing</h2>
 
     <div class="pro-card reveal d2">
-      <div class="pro-icon">🛠️</div>
+      <div class="pro-icon pro-icon-photo"></div>
       <div class="pro-body">
         <div class="pro-label">Για επαγγελματίες</div>
         <h3>Λάβε αιτήματα, κλείσε δουλειές</h3>
@@ -1284,8 +1295,8 @@
       <a href="https://apps.apple.com/gr/app/gorealpro/id6817919309" target="_blank" rel="noopener">App Store</a>
     </div>
     <div class="footer-contact">
-      <a href="tel:+306937102492">📞 693 710 2492</a>
-      <a href="mailto:info@gorealai.gr">✉️ info@gorealai.gr</a>
+      <a href="tel:+306937102492" class="foot-ico"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 4h4l2 5-2.5 1.5a11 11 0 0 0 5 5L15 13l5 2v4a2 2 0 0 1-2 2A16 16 0 0 1 3 6a2 2 0 0 1 2-2z"/></svg> 693 710 2492</a>
+      <a href="mailto:info@gorealai.gr" class="foot-ico"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="m3 7 9 6 9-6"/></svg> info@gorealai.gr</a>
     </div>
     <div class="footer-copy">© 2026 GorealPro · Όλα τα δικαιώματα κατοχυρωμένα</div>
   </footer>
