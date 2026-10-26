@@ -1,0 +1,6 @@
+User-agent: *
+Allow: /
+Disallow: /admin.html
+Disallow: /app/
+
+Sitemap: https://gorealai.web.app/sitemap.xml
