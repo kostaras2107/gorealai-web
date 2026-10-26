@@ -552,6 +552,11 @@
     }
 
     .msg-photo-icon { font-size: 26px; }
+    .msg-play {
+      width: 34px; height: 34px; border-radius: 50%;
+      background: rgba(0,0,0,0.55); border: 1.5px solid rgba(255,255,255,0.8);
+      color: #fff; font-size: 13px; display: flex; align-items: center; justify-content: center;
+    }
     .msg-photo-label { font-size: 9.5px; font-weight: 700; color: var(--gold); letter-spacing: 0.5px; }
 
     .photo-badge {
@@ -1052,9 +1057,7 @@
           <div class="chat-messages">
             <div class="msg out">
               <div class="msg-bubble">
-                <div class="msg-photo">
-                  <span class="msg-photo-icon">🔌</span>
-                  <span class="msg-photo-label">photo_problem.jpg</span>
+                <div class="msg-photo" style="background:url('/img/chat-socket.jpg') center/cover;">
                   <span class="photo-badge">📷</span>
                 </div>
                 Βλέπεις; Από χθες δεν ανάβει η πρίζα
@@ -1070,10 +1073,9 @@
 
             <div class="msg out">
               <div class="msg-bubble">
-                <div class="msg-photo" style="background:linear-gradient(135deg,#0a1a0a,#112211);">
-                  <span class="msg-photo-icon">🎥</span>
-                  <span class="msg-photo-label">video_spark.mp4</span>
-                  <span class="photo-badge">▶</span>
+                <div class="msg-photo" style="background:url('/img/chat-electrician.jpg') center/cover;">
+                  <span class="msg-play">▶</span>
+                  <span class="photo-badge">🎥</span>
                 </div>
                 Βίντεο από τη σπίθα που έκανε
               </div>
