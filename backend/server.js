@@ -2633,6 +2633,77 @@ async function sendStoreReviewAsks() {
 }
 setInterval(sendStoreReviewAsks, 60 * 60 * 1000);
 setTimeout(sendStoreReviewAsks, 5 * 60 * 1000);
+
+// ── Email «Πάρτε το σήμα Επαληθευμένη» σε Baby Sitters / Νοσηλευτές κατ' οίκον ──
+// Προαιρετική επαλήθευση ταυτότητας + ποινικού μητρώου (Προφίλ → «🛡️ Επαλήθευση
+// ασφαλείας»). 5 email/ώρα, μία φορά ανά επαγγελματία (professionals.safetyMailAt).
+const SAFETY_MAIL_ENABLED = true; // ξεκίνησε 26/10/2026
+const SAFETY_MAIL_PER_HOUR = 5;
+
+function safetyMailHtml(specialty) {
+  const isNurse = String(specialty).startsWith('Νοσηλευτ');
+  const who = isNurse ? 'οικογένειες που ψάχνουν φροντίδα για ηλικιωμένους' : 'γονείς';
+  const p = (t, extra = '') => `<p style="color:rgba(255,255,255,0.85);font-size:14px;line-height:1.6;${extra}">${t}</p>`;
+  const step = (n, t) => `<tr><td style="vertical-align:top;padding:0 12px 12px 0;"><div style="width:28px;height:28px;border-radius:14px;background:#E8C66A;color:#000;font-weight:900;font-size:14px;text-align:center;line-height:28px;">${n}</div></td><td style="vertical-align:top;padding-bottom:12px;color:rgba(255,255,255,0.9);font-size:14px;line-height:1.55;">${t}</td></tr>`;
+  return `<div style="font-family:Arial,sans-serif;max-width:540px;margin:0 auto;background:#0A0800;color:#fff;border-radius:16px;padding:32px;border:1px solid rgba(201,168,76,0.3)">
+<h1 style="color:#FFD47A;font-size:21px;margin:0 0 14px;">🛡️ Πάρτε το σήμα «Επαληθευμένη»</h1>
+${p('Καλημέρα σας,')}
+${p(`στο GorealPro προσθέσαμε <b>επαλήθευση ταυτότητας και ποινικού μητρώου</b> για ${isNurse ? 'Νοσηλευτές κατ\' οίκον' : 'Baby Sitters'}. Οι ${who} βλέπουν δίπλα στο όνομά σας το σήμα <b style="color:#6FE3A1">«🛡️ Επαληθευμένη»</b> και οι προσφορές σας <b>εμφανίζονται πρώτες</b>.`)}
+<p style="color:#FFD47A;font-size:15px;font-weight:800;margin:20px 0 12px;">Πώς το κάνετε (2 λεπτά):</p>
+<table cellpadding="0" cellspacing="0" style="border-collapse:collapse;">
+${step(1, 'Ανοίξτε την εφαρμογή <b>GorealPro</b> (ή από τον browser στο <a href="https://gorealai.web.app/app" style="color:#FFD47A;">gorealai.web.app</a>) και συνδεθείτε.')}
+${step(2, 'Στην αρχική οθόνη πατήστε τη <b>στρογγυλή φωτογραφία σας πάνω δεξιά</b> (ή το αρχικό του ονόματός σας). Ανοίγει το <b>Προφίλ</b>.')}
+${step(3, 'Στα στοιχεία σας, ακριβώς κάτω από το <b>«ΑΦΜ»</b>, πατήστε <b>«🛡️ Επαλήθευση ασφαλείας»</b>.')}
+${step(4, 'Ανεβάστε <b>φωτογραφία της ταυτότητάς σας</b> (μπροστινή όψη).')}
+${step(5, 'Ανεβάστε <b>screenshot ή φωτογραφία του Ποινικού Μητρώου</b>. Αν δεν το έχετε, το βγάζετε δωρεάν από το gov.gr με κωδικούς Taxisnet — υπάρχει σύνδεσμος μέσα στην οθόνη.')}
+${step(6, 'Πατήστε <b>«Αποστολή για έλεγχο»</b>. Μόλις το εγκρίνουμε (συνήθως 1–2 εργάσιμες), θα δείτε το σήμα στο προφίλ σας.')}
+</table>
+<div style="margin:6px 0 4px;"><a href="https://gorealai.web.app/open" style="display:inline-block;margin:6px 6px 0 0;padding:13px 22px;background-color:#E8C66A;color:#000;border-radius:12px;text-decoration:none;font-weight:800;font-size:14px;">Άνοιγμα GorealPro</a></div>
+${p('Αν η επιλογή δεν εμφανίζεται στο κινητό, ενημερώστε την εφαρμογή από το Google Play ή το App Store στην τελευταία έκδοση — ή κάντε το από τον browser.', 'color:rgba(255,255,255,0.6);font-size:13px;margin-top:14px;')}
+${p('🔒 Τα έγγραφα τα βλέπει μόνο η ομάδα του GorealPro και διαγράφονται αμέσως μετά τον έλεγχο. Κρατάμε μόνο την ημερομηνία επαλήθευσης. Η επαλήθευση είναι προαιρετική και ισχύει 1 χρόνο.', 'color:rgba(255,255,255,0.6);font-size:13px;')}
+${p('Για οποιαδήποτε απορία: info@gorealai.gr', 'color:rgba(255,255,255,0.6);font-size:13px;')}${p('Σας ευχαριστούμε,<br><b style="color:#fff">Κωνσταντίνος Μποσινάκος</b><br>GorealPro · 📞 <a href="tel:+306937102492" style="color:#FFD47A;text-decoration:none;">693 710 2492</a>', 'color:rgba(255,255,255,0.75);font-size:13px;')}</div>`;
+}
+
+async function sendSafetyMails() {
+  if (!firebaseReady || !SAFETY_MAIL_ENABLED) return;
+  try {
+    const db = admin.firestore();
+    const snap = await db.collection('professionals').get();
+    let sent = 0, attempts = 0;
+    for (const doc of snap.docs) {
+      if (attempts >= SAFETY_MAIL_PER_HOUR) break;
+      const d = doc.data();
+      if (d.is_active === false || d.safetyMailAt) continue;
+      const specs = (Array.isArray(d.specialties) && d.specialties.length ? d.specialties : [d.specialty]).filter(Boolean);
+      const spec = specs.find((s) => isSafetyProfession(String(s)));
+      if (!spec) continue;
+      const su = d.safetyVerifiedUntil;
+      if (su && su.toMillis && su.toMillis() > Date.now()) continue; // ήδη επαληθευμένη
+      let email = '';
+      try { email = (await admin.auth().getUser(d.userId || doc.id)).email || ''; } catch (_) {}
+      if (!email) email = d.email || '';
+      if (!email || NO_MAIL_ADDRESSES.has(email.toLowerCase()) || /demo|review/i.test(String(d.name || ''))) {
+        await doc.ref.set({ safetyMailAt: admin.firestore.FieldValue.serverTimestamp(), safetyMailSkipped: true }, { merge: true });
+        continue;
+      }
+      attempts++;
+      await doc.ref.set({ safetyMailAt: admin.firestore.FieldValue.serverTimestamp() }, { merge: true });
+      try {
+        await sendEmail({ to: email, subject: 'GorealPro: Πάρτε το σήμα «Επαληθευμένη» 🛡️', html: safetyMailHtml(spec) });
+        sent++;
+      } catch (e) {
+        console.error('safety mail error:', e.message);
+        await doc.ref.update({ safetyMailAt: admin.firestore.FieldValue.delete() }).catch(() => {});
+        break;
+      }
+    }
+    if (sent) console.log(`🛡️ Safety verification emails: sent ${sent}`);
+  } catch (e) {
+    console.error('sendSafetyMails error:', e.message);
+  }
+}
+setInterval(sendSafetyMails, 60 * 60 * 1000);
+setTimeout(sendSafetyMails, 9 * 60 * 1000);
 setTimeout(syncUserIndexAndEnrichDeletions, 45 * 1000);
 
 // ── Καθάρισμα παλιών φωτογραφιών/βίντεο αιτημάτων (30 μέρες) ──────
