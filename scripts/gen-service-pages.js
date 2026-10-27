@@ -7,7 +7,7 @@
 const fs = require('fs');
 const path = require('path');
 
-const SITE = 'https://gorealai.web.app';
+const SITE = 'https://gorealai.gr';
 const OUT = path.join(__dirname, '..', 'landing', 'ypiresies');
 const PLAY = 'https://play.google.com/store/apps/details?id=gr.gorealai.app';
 const IOS = 'https://apps.apple.com/gr/app/gorealpro/id6817919309';

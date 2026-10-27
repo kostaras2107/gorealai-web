@@ -3,4 +3,4 @@ Allow: /
 Disallow: /admin.html
 Disallow: /app/
 
-Sitemap: https://gorealai.web.app/sitemap.xml
+Sitemap: https://gorealai.gr/sitemap.xml
