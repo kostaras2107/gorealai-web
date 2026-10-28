@@ -230,7 +230,35 @@ const NO_MAIL_ADDRESSES = new Set(['googlereview@gorealai.gr']);
 const safeEmailHtml = (html) => String(html || '')
   .split('background:linear-gradient(135deg,#FFD47A,#C9A84C)').join('background-color:#E8C66A');
 
-async function sendEmail({ to, subject, html }) {
+// Το Zoho μπλοκάρει τον λογαριασμό («Mail rate exceeded», 28/10/2026) όταν
+// φεύγουν δεκάδες email μέσα σε δευτερόλεπτα. Τα «bulk» (νέο αίτημα, review
+// asks κ.λπ.) περνούν από ουρά με κενό EMAIL_GAP_MS και κόβονται πάνω από
+// EMAIL_BULK_PER_HOUR (μετράνε όλα τα email της ώρας). Επιβεβαιώσεις email,
+// επαναφορές κωδικού κ.λπ. φεύγουν αμέσως, χωρίς να περιμένουν την ουρά.
+const EMAIL_GAP_MS = 4000;
+const EMAIL_BULK_PER_HOUR = 50;
+let bulkEmailQueue = Promise.resolve();
+const emailSentAt = [];
+
+async function sendEmail({ to, subject, html, bulk = false }) {
+  if (!bulk) {
+    emailSentAt.push(Date.now());
+    return sendEmailNow({ to, subject, html });
+  }
+  const job = bulkEmailQueue.then(() => {
+    const now = Date.now();
+    while (emailSentAt.length && emailSentAt[0] < now - 3600_000) emailSentAt.shift();
+    if (emailSentAt.length >= EMAIL_BULK_PER_HOUR) {
+      throw new Error(`hourly email cap reached (${EMAIL_BULK_PER_HOUR}/h), skipped: ${subject}`);
+    }
+    emailSentAt.push(now);
+    return sendEmailNow({ to, subject, html });
+  });
+  bulkEmailQueue = job.then(() => new Promise((r) => setTimeout(r, EMAIL_GAP_MS)), () => {});
+  return job;
+}
+
+async function sendEmailNow({ to, subject, html }) {
   html = safeEmailHtml(html);
   if (NO_MAIL_ADDRESSES.has(String(to || '').trim().toLowerCase())) {
     console.log(`📭 Skipped email to review account ${to}: ${subject}`);
@@ -1235,14 +1263,17 @@ async function notifyMatchingPros({ profession, location, description, requestId
     // (διαφορετικό uid) με το ΙΔΙΟ κινητό — χωρίς αυτό το guard θα έπαιρναν
     // 2 SMS για το ίδιο αίτημα, ένα ανά λογαριασμό.
     const smsPhonesSent = new Set();
+    // Email μόνο σε όσους δεν έχουν push (ή αν το push αποτύχει με νεκρό
+    // token)· μπαίνει στην ουρά του sendEmail χωρίς να καθυστερεί την απάντηση.
+    const emailPro = (p) => sendEmail({ to: p.email, subject, html, bulk: true })
+      .catch((e) => console.error(`Email error for ${p.email}:`, e.message));
+    let emailed = 0;
     for (const p of matching) {
-      try {
-        await sendEmail({ to: p.email, subject, html });
+      if (p.fcmToken || p.email) {
         sent++;
         sentPros.push(p.name);
-      } catch (e) {
-        console.error(`Email error for ${p.email}:`, e.message);
       }
+      if (!p.fcmToken && p.email) { emailPro(p); emailed++; }
       // Send SMS regardless of email success
       const normalizedPhone = normalizePhone(p.phone);
       if (normalizedPhone && !smsPhonesSent.has(normalizedPhone)) {
@@ -1263,7 +1294,11 @@ async function notifyMatchingPros({ profession, location, description, requestId
           },
           apns: { payload: { aps: { alert: { title: pushTitle, body: pushBody }, sound: 'default', badge: 1 } } },
           data: { type: 'new_request', requestId: requestId || '' },
-        }).catch(e => console.error('new-request push error:', e.message));
+        }).catch((e) => {
+          console.error('new-request push error:', e.message);
+          const code = String(e.code || '');
+          if (p.email && (code.includes('registration-token-not-registered') || code.includes('invalid-registration-token') || code.includes('invalid-argument'))) emailPro(p);
+        });
       }
       admin.firestore().collection('users').doc(p.uid).collection('notifications').add({
         title: `${urgent ? '🚨 ΕΠΕΙΓΟΝ — ' : ''}🔔 Νέο αίτημα${profession ? ` για ${profession}` : ''}!`,
@@ -1287,7 +1322,7 @@ async function notifyMatchingPros({ profession, location, description, requestId
       } catch (_) {}
     }
 
-    console.log(`📧 New-request emails: ${sent}/${matching.length} sent (${profession} / ${location})`);
+    console.log(`📧 New request: ${sent}/${matching.length} notified, ${emailed} by email (${profession} / ${location})`);
     return { success: true, sent, total: matching.length, notified: sentPros };
   } catch (e) {
     console.error('email-pros-new-request error:', e.message);
@@ -1970,7 +2005,7 @@ async function sendEarlyInterestEmails() {
       // Σήμανση ΠΡΙΝ την αποστολή: δεν ξαναστέλνεται ποτέ διπλό
       await doc.ref.set({ earlyToken: token, earlyInterestMailAt: admin.firestore.FieldValue.serverTimestamp() }, { merge: true });
       try {
-        await sendEmail({ to: email, subject: 'Κλειδώστε 25% έκπτωση στη συνδρομή GorealPro 🔒', html: earlyInterestEmailHtml({ first, specialty, link }) });
+        await sendEmail({ to: email, subject: 'Κλειδώστε 25% έκπτωση στη συνδρομή GorealPro 🔒', html: earlyInterestEmailHtml({ first, specialty, link }), bulk: true });
         sent++;
       } catch (e) {
         console.error('early interest email error:', e.message);
@@ -2374,7 +2409,7 @@ async function notifyIosProsAboutSubscription() {
       // Σημειώνουμε ΠΡΙΝ την αποστολή ώστε να μη σταλεί ποτέ διπλό.
       await doc.ref.update({ subNoticeSentAt: admin.firestore.FieldValue.serverTimestamp(), subNoticePrice: price });
       try {
-        await sendEmail({ to: email, subject: 'GorealPro: Ενημέρωση για τη συνδρομή επαγγελματιών από 1/1/2027', html });
+        await sendEmail({ to: email, subject: 'GorealPro: Ενημέρωση για τη συνδρομή επαγγελματιών από 1/1/2027', html, bulk: true });
         console.log(`💳 Subscription notice → ${email} (${spec}, ${price}€)`);
       } catch (e) {
         await doc.ref.update({ subNoticeSentAt: admin.firestore.FieldValue.delete(), subNoticePrice: admin.firestore.FieldValue.delete() });
@@ -2547,7 +2582,7 @@ async function sendRatingPrompts() {
 <a href="https://gorealai.web.app/open" style="display:inline-block;margin-top:14px;padding:13px 28px;background:linear-gradient(135deg,#FFD47A,#C9A84C);color:#000;border-radius:12px;text-decoration:none;font-weight:800;font-size:14px;">Αξιολόγησε τώρα →</a>
 <p style="color:rgba(255,255,255,0.4);font-size:12px;margin-top:20px;">Ανοίγει την εφαρμογή GorealPro στο κινητό σου — η αξιολόγηση εμφανίζεται μόλις μπεις.</p>
 <p style="color:rgba(255,255,255,0.2);font-size:11px;margin-top:16px;">GorealPro · info@gorealai.gr</p></div>`;
-        sendEmail({ to: email, subject: `⭐ Πώς πήγε «${descShort}»;`, html }).catch(() => {});
+        sendEmail({ to: email, subject: `⭐ Πώς πήγε «${descShort}»;`, html, bulk: true }).catch(() => {});
       }
       console.log(`⭐ Rating prompt → ${r.userName || r.userId} (${list.length} pros) for request ${doc.id}`);
     }
@@ -2617,7 +2652,7 @@ async function sendStoreReviewAsks() {
       // Σήμανση ΠΡΙΝ την αποστολή: αν κάτι κολλήσει, δεν ξαναστέλνεται ποτέ διπλό
       await doc.ref.set({ storeReviewAskAt: admin.firestore.FieldValue.serverTimestamp(), storeReviewAskPlatform: platform }, { merge: true });
       try {
-        await sendEmail({ to: email, subject: 'Μας κάνετε μια μικρή χάρη; ⭐ GorealPro', html });
+        await sendEmail({ to: email, subject: 'Μας κάνετε μια μικρή χάρη; ⭐ GorealPro', html, bulk: true });
         sent++;
       } catch (e) {
         // Αποτυχία → ξε-σημείωσε (να ξαναδοκιμαστεί αργότερα) και σταμάτα για αυτή την ώρα
@@ -2689,7 +2724,7 @@ async function sendSafetyMails() {
       attempts++;
       await doc.ref.set({ safetyMailAt: admin.firestore.FieldValue.serverTimestamp() }, { merge: true });
       try {
-        await sendEmail({ to: email, subject: 'GorealPro: Πάρτε το σήμα «Επαληθευμένη» 🛡️', html: safetyMailHtml(spec) });
+        await sendEmail({ to: email, subject: 'GorealPro: Πάρτε το σήμα «Επαληθευμένη» 🛡️', html: safetyMailHtml(spec), bulk: true });
         sent++;
       } catch (e) {
         console.error('safety mail error:', e.message);
