@@ -172,8 +172,22 @@ if (process.env.SENDGRID_API_KEY) {
 }
 
 // ── Nodemailer / Zoho SMTP Init ──────────────────────────────────
+// Αν υπάρχει ZEPTO_SMTP_PASS (token «Send Mail» του ZeptoMail), τα αυτόματα
+// email φεύγουν από το ZeptoMail (transactional) και το mailbox info@ μένει
+// μόνο για προσωπική αλληλογραφία — το Zoho Mail μπλόκαρε 24/10 και 28/10.
 let zohoTransporter = null;
-if (process.env.ZOHO_USER && process.env.ZOHO_PASS) {
+const MAIL_FROM = process.env.ZEPTO_SMTP_PASS
+  ? (process.env.ZEPTO_FROM || 'info@gorealai.gr')
+  : (process.env.ZOHO_USER || 'info@gorealai.gr');
+if (process.env.ZEPTO_SMTP_PASS) {
+  zohoTransporter = nodemailer.createTransport({
+    host: 'smtp.zeptomail.eu',
+    port: 465,
+    secure: true,
+    auth: { user: 'emailapikey', pass: process.env.ZEPTO_SMTP_PASS },
+  });
+  console.log(`✅ ZeptoMail SMTP initialized (from ${MAIL_FROM})`);
+} else if (process.env.ZOHO_USER && process.env.ZOHO_PASS) {
   zohoTransporter = nodemailer.createTransport({
     host: 'smtp.zoho.eu',
     port: 465,
@@ -266,7 +280,8 @@ async function sendEmailNow({ to, subject, html }) {
   }
   if (zohoTransporter) {
     await zohoTransporter.sendMail({
-      from: `GorealPro <${process.env.ZOHO_USER || 'info@gorealai.gr'}>`,
+      from: `GorealPro <${MAIL_FROM}>`,
+      replyTo: 'info@gorealai.gr',
       to, subject, html,
     });
     return;
