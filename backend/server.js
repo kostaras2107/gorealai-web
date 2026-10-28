@@ -249,8 +249,9 @@ const safeEmailHtml = (html) => String(html || '')
 // asks κ.λπ.) περνούν από ουρά με κενό EMAIL_GAP_MS και κόβονται πάνω από
 // EMAIL_BULK_PER_HOUR (μετράνε όλα τα email της ώρας). Επιβεβαιώσεις email,
 // επαναφορές κωδικού κ.λπ. φεύγουν αμέσως, χωρίς να περιμένουν την ουρά.
-const EMAIL_GAP_MS = 4000;
-const EMAIL_BULK_PER_HOUR = 50;
+// Το ZeptoMail (transactional) αντέχει πολύ περισσότερα — όρια μόνο για ασφάλεια.
+const EMAIL_GAP_MS = process.env.ZEPTO_SMTP_PASS ? 300 : 4000;
+const EMAIL_BULK_PER_HOUR = process.env.ZEPTO_SMTP_PASS ? 1000 : 50;
 let bulkEmailQueue = Promise.resolve();
 const emailSentAt = [];
 
@@ -1278,8 +1279,10 @@ async function notifyMatchingPros({ profession, location, description, requestId
     // (διαφορετικό uid) με το ΙΔΙΟ κινητό — χωρίς αυτό το guard θα έπαιρναν
     // 2 SMS για το ίδιο αίτημα, ένα ανά λογαριασμό.
     const smsPhonesSent = new Set();
-    // Email μόνο σε όσους δεν έχουν push (ή αν το push αποτύχει με νεκρό
-    // token)· μπαίνει στην ουρά του sendEmail χωρίς να καθυστερεί την απάντηση.
+    // Email σε όλους (και με push) όταν στέλνει το ZeptoMail· με Zoho Mail μόνο
+    // σε όσους δεν έχουν push (ή αν το push αποτύχει με νεκρό token), για να
+    // μη μπλοκάρει ο λογαριασμός. Μπαίνει στην ουρά χωρίς να καθυστερεί την απάντηση.
+    const emailAll = !!process.env.ZEPTO_SMTP_PASS;
     const emailPro = (p) => sendEmail({ to: p.email, subject, html, bulk: true })
       .catch((e) => console.error(`Email error for ${p.email}:`, e.message));
     let emailed = 0;
@@ -1288,7 +1291,7 @@ async function notifyMatchingPros({ profession, location, description, requestId
         sent++;
         sentPros.push(p.name);
       }
-      if (!p.fcmToken && p.email) { emailPro(p); emailed++; }
+      if (p.email && (emailAll || !p.fcmToken)) { emailPro(p); emailed++; }
       // Send SMS regardless of email success
       const normalizedPhone = normalizePhone(p.phone);
       if (normalizedPhone && !smsPhonesSent.has(normalizedPhone)) {
@@ -1312,7 +1315,7 @@ async function notifyMatchingPros({ profession, location, description, requestId
         }).catch((e) => {
           console.error('new-request push error:', e.message);
           const code = String(e.code || '');
-          if (p.email && (code.includes('registration-token-not-registered') || code.includes('invalid-registration-token') || code.includes('invalid-argument'))) emailPro(p);
+          if (p.email && !emailAll && (code.includes('registration-token-not-registered') || code.includes('invalid-registration-token') || code.includes('invalid-argument'))) emailPro(p);
         });
       }
       admin.firestore().collection('users').doc(p.uid).collection('notifications').add({
