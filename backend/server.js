@@ -1626,7 +1626,7 @@ app.post('/request-found', rateLimit(20, 60_000), async (req, res) => {
 
 // ── Δημόσια στατιστικά για τη landing page (στρογγυλεμένα προς τα κάτω) ──
 // GET /public-stats → { downloads, pros, users, updatedAt }
-// Λήψεις = εγκαταστάσεις Google Play (από τη δημόσια σελίδα του Play) +
+// Λήψεις = εγκαταστάσεις Google Play (δημόσια σελίδα του Play ή Play Console, ό,τι είναι μεγαλύτερο) +
 // χρήστες iPhone (κάτω όριο λήψεων App Store — η Apple δεν δίνει δημόσιο νούμερο).
 // Cache 6 ωρών ώστε να μη χτυπάμε Play/Firestore σε κάθε επίσκεψη.
 let _publicStatsCache = null;
@@ -1644,6 +1644,9 @@ app.get('/public-stats', rateLimit(120, 60_000), async (req, res) => {
       const m = html.match(/\["([\d.,+]+)",(\d+),(\d+),"([^"]+)"\]/);
       if (m) play = Number(m[3]) || 0;
     } catch (_) {}
+    // Το δημόσιο νούμερο του Play υστερεί — αν έχουμε περάσει χειροκίνητα το
+    // «Device acquisition» του Play Console (admin_analytics/play_console.devices), κράτα το μεγαλύτερο.
+    try { play = Math.max(play, Number(((await db.collection('admin_analytics').doc('play_console').get()).data() || {}).devices) || 0); } catch (_) {}
     let ios = 0;
     try { ios = Object.keys(((await db.collection('admin_analytics').doc('ios_app_users').get()).data() || {}).users || {}).length; } catch (_) {}
     const pros = (await db.collection('professionals').where('is_active', '==', true).count().get()).data().count;
