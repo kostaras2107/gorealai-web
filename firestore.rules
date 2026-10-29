@@ -98,6 +98,18 @@ service cloud.firestore {
       allow update, delete: if isAdmin();
     }
 
+    // ─── VERIFICATION AUDIT (ημερολόγιο ελέγχου εγγράφων) ──
+    // Μία εγγραφή ανά απόφαση έγκρισης/απόρριψης από το admin.html: λίστα
+    // ελέγχου, στοιχεία διπλώματος/οχήματος, hashes αρχείων, υπεύθυνη δήλωση.
+    // Μόνο δημιουργία — κανείς (ούτε ο admin από client) δεν το αλλάζει ή σβήνει.
+    match /verificationAudit/{docId} {
+      allow read: if isAdmin();
+      allow create: if isAdmin()
+                    && request.resource.data.adminUid == request.auth.uid
+                    && request.resource.data.decidedAt == request.time;
+      allow update, delete: if false;
+    }
+
     // ─── DELETED ACCOUNTS (audit log) ──────────────────────
     // Written once by a user right before they delete their own account —
     // the only record left once the users/professionals docs and Auth

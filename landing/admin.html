@@ -699,8 +699,20 @@
         html += `<div style="background:#14110a;border:1px solid #5a4a1a;border-radius:14px;padding:14px;margin-bottom:12px">
           <div style="color:#fff;font-size:15px;font-weight:700">${esc(r.name)} <span style="color:#888;font-weight:400;font-size:12px">· ${esc((r.specialties || []).join(', '))} · ${esc(r.phone)} · ${esc(r.email)} · στάλθηκε ${fmt(r.submittedAt)}</span></div>
           <div style="display:flex;gap:12px;flex-wrap:wrap;margin:12px 0">${img(idUrl, '🪪 Ταυτότητα (άνοιγμα)')}${r.criminalPath ? img(crUrl, '📄 Ποινικό μητρώο (άνοιγμα)') : ''}${r.licensePath ? img(licUrl, '🚗 Επαγγελματικό δίπλωμα (άνοιγμα)') : ''}${r.vehiclePath ? img(vehUrl, '📄 Άδεια κυκλοφορίας (άνοιγμα)') : ''}</div>
-          <div style="color:#aaa;font-size:12px;margin-bottom:10px">Έλεγξε: ίδιο όνομα με το προφίλ, η φωτογραφία ταιριάζει${r.criminalPath ? ', το ποινικό είναι «λευκό» (χωρίς καταδίκες) και έκδοσης τελευταίων 3 μηνών' : ''}${r.vehiclePath ? ', επαγγελματικό δίπλωμα σε ισχύ, άδεια κυκλοφορίας ταξί (ΕΔΧ) / ΕΙΧ με οδηγό / λεωφορείου — όχι ιδιωτικό ΙΧ' : ''}.</div>
-          <button onclick="decideVerification('${r.id}', true)" style="background:#1e8e4e;color:#fff;border:0;border-radius:10px;padding:9px 18px;font-weight:700;cursor:pointer;margin-right:8px">✅ Έγκριση (1 χρόνος)</button>
+          <div style="font-size:12px;margin-bottom:10px;color:${r.declarationAccepted ? '#6FE3A1' : '#ffb347'}">${r.declarationAccepted ? `✅ Υπεύθυνη δήλωση αποδεκτή (${fmt(r.declarationAt)}, ${esc(r.declarationVersion)})` : '⚠️ Χωρίς υπεύθυνη δήλωση (παλιά έκδοση εφαρμογής) — ζήτα του να στείλει ξανά από τη νέα έκδοση αν γίνεται'}</div>
+          <div id="vchk-${r.id}" oninput="verCheck('${r.id}')" onchange="verCheck('${r.id}')" style="background:#0f0d08;border:1px solid #3a3020;border-radius:10px;padding:10px 12px;margin-bottom:10px;color:#ddd;font-size:13px;line-height:1.9">
+            <div style="color:#e8c66a;font-weight:700;margin-bottom:2px">Λίστα ελέγχου (υποχρεωτική για έγκριση — μένει στο ημερολόγιο ελέγχου)</div>
+            ${verChecklist(r).map(([k, label]) => `<label style="display:block;cursor:pointer"><input type="checkbox" data-k="${k}"> ${label}</label>`).join('')}
+            ${r.criminalPath ? `<div style="margin-top:6px">Ημ. έκδοσης ποινικού: <input type="date" data-f="criminalIssuedAt" style="background:#1a1710;color:#fff;border:1px solid #444;border-radius:6px;padding:3px"></div>` : ''}
+            ${r.vehiclePath ? `<div style="margin-top:6px;display:flex;gap:10px;flex-wrap:wrap">
+              <span>Αρ. διπλώματος: <input data-f="licenseNo" style="background:#1a1710;color:#fff;border:1px solid #444;border-radius:6px;padding:3px;width:120px"></span>
+              <span>Λήξη διπλώματος: <input type="date" data-f="licenseExpiry" style="background:#1a1710;color:#fff;border:1px solid #444;border-radius:6px;padding:3px"></span>
+              <span>Πινακίδα: <input data-f="plate" style="background:#1a1710;color:#fff;border:1px solid #444;border-radius:6px;padding:3px;width:100px"></span>
+              <span>Τύπος: <select data-f="vehicleType" style="background:#1a1710;color:#fff;border:1px solid #444;border-radius:6px;padding:3px"><option value="">—</option><option>Ταξί (ΕΔΧ)</option><option>ΕΙΧ με οδηγό</option><option>Λεωφορείο / Minibus</option></select></span>
+            </div>` : ''}
+            <div id="vmsg-${r.id}" style="color:#ffb347;font-size:12px"></div>
+          </div>
+          <button id="vapp-${r.id}" disabled onclick="decideVerification('${r.id}', true)" style="background:#1e8e4e;color:#fff;border:0;border-radius:10px;padding:9px 18px;font-weight:700;cursor:pointer;margin-right:8px;opacity:.4">✅ Έγκριση${r.vehiclePath ? ' (1 χρόνος ή έως λήξη διπλώματος)' : ' (1 χρόνος)'}</button>
           <button onclick="decideVerification('${r.id}', false)" style="background:transparent;color:#ff6b6b;border:1px solid #ff6b6b;border-radius:10px;padding:9px 18px;font-weight:700;cursor:pointer">❌ Απόρριψη</button>
         </div>`;
       }
@@ -709,18 +721,86 @@
       box.innerHTML = html;
     }, e => { document.getElementById('ver-box').textContent = 'Σφάλμα φόρτωσης: ' + e.message; });
   }
+  // Λίστα ελέγχου ανά τύπο αίτησης — τα ίδια κλειδιά γράφονται στο verificationAudit.
+  function verChecklist(r) {
+    const items = [
+      ['idNameMatch', 'Το όνομα στην ταυτότητα ταιριάζει με το όνομα του προφίλ'],
+      ['idLegible', 'Η ταυτότητα είναι ευανάγνωστη, πρωτότυπη (όχι φωτοτυπία/επεξεργασμένη) και η φωτογραφία ταιριάζει'],
+    ];
+    if (r.criminalPath) items.push(
+      ['criminalClean', 'Το ποινικό μητρώο είναι «λευκό» (χωρίς καταδίκες) και στο ίδιο όνομα'],
+      ['criminalRecent', 'Το ποινικό είναι έκδοσης τελευταίων 3 μηνών']);
+    if (r.vehiclePath) items.push(
+      ['licenseNameMatch', 'Το επαγγελματικό δίπλωμα είναι στο ίδιο όνομα'],
+      ['licenseValid', 'Το δίπλωμα είναι επαγγελματικό, σωστής κατηγορίας και σε ισχύ'],
+      ['vehicleProfessional', 'Η άδεια κυκλοφορίας είναι ταξί (ΕΔΧ) / ΕΙΧ με οδηγό / λεωφορείο — ΟΧΙ ιδιωτικό ΙΧ'],
+      ['vehicleOwner', 'Κάτοχος του οχήματος είναι ο ίδιος ή η επιχείρησή του (ή εξηγεί τη σχέση)']);
+    return items;
+  }
+  function verRead(uid) {
+    const box = document.getElementById('vchk-' + uid);
+    const checks = {}, fields = {};
+    if (!box) return { checks, fields, box };
+    box.querySelectorAll('input[type=checkbox][data-k]').forEach(i => checks[i.dataset.k] = i.checked);
+    box.querySelectorAll('[data-f]').forEach(i => fields[i.dataset.f] = String(i.value || '').trim());
+    return { checks, fields, box };
+  }
+  function verProblem(uid) {
+    const { checks, fields } = verRead(uid);
+    if (Object.values(checks).some(v => !v)) return 'Τσέκαρε όλα τα σημεία της λίστας.';
+    if ('licenseNo' in fields) {
+      if (!fields.licenseNo || !fields.plate || !fields.vehicleType || !fields.licenseExpiry) return 'Συμπλήρωσε αριθμό & λήξη διπλώματος, πινακίδα και τύπο οχήματος.';
+      if (new Date(fields.licenseExpiry + 'T23:59:59') <= new Date()) return 'Το δίπλωμα έχει λήξει — δεν μπορεί να εγκριθεί.';
+    }
+    if ('criminalIssuedAt' in fields) {
+      if (!fields.criminalIssuedAt) return 'Συμπλήρωσε την ημερομηνία έκδοσης του ποινικού.';
+      if (Date.now() - new Date(fields.criminalIssuedAt).getTime() > 92 * 864e5) return 'Το ποινικό είναι παλαιότερο από 3 μήνες.';
+    }
+    return '';
+  }
+  window.verCheck = (uid) => {
+    const p = verProblem(uid);
+    const btn = document.getElementById('vapp-' + uid);
+    if (btn) { btn.disabled = !!p; btn.style.opacity = p ? '.4' : '1'; }
+    const m = document.getElementById('vmsg-' + uid); if (m) m.textContent = p;
+  };
   window.decideVerification = async (uid, approve) => {
     let reason = '';
+    const { checks, fields } = verRead(uid);
+    if (approve) {
+      const p = verProblem(uid);
+      if (p) { alert(p); return; }
+    }
     if (!approve) {
       reason = prompt('Λόγος απόρριψης (θα τον δει ο επαγγελματίας):', 'Τα έγγραφα δεν ήταν ευανάγνωστα. Στείλε πιο καθαρές φωτογραφίες.');
       if (reason === null) return;
-    } else if (!confirm('Έγκριση επαλήθευσης για 1 χρόνο; Τα αρχεία θα διαγραφούν.')) return;
+    } else if (!confirm('Έγκριση επαλήθευσης; Τα αρχεία θα διαγραφούν και η απόφαση θα καταγραφεί στο ημερολόγιο ελέγχου.')) return;
     try {
       const vRef = doc(db, 'verifications', uid);
       const v = (await getDoc(vRef)).data() || {};
+      // 1 χρόνος — για οδηγούς το πολύ μέχρι τη λήξη του διπλώματος (αυτόματη απενεργοποίηση).
+      const until = new Date(); until.setFullYear(until.getFullYear() + 1);
+      if (fields.licenseExpiry) { const le = new Date(fields.licenseExpiry + 'T23:59:59'); if (le < until) until.setTime(le.getTime()); }
+      // Ημερολόγιο ελέγχου ΠΡΩΤΑ: αν δεν γραφτεί, δεν γίνεται ούτε έγκριση ούτε διαγραφή αρχείων.
+      // Οι κανόνες Firestore το κάνουν μόνο-δημιουργία (κανείς δεν το αλλάζει/σβήνει).
+      await addDoc(collection(db, 'verificationAudit'), {
+        uid, name: v.name || '', phone: v.phone || '', email: v.email || '', specialties: v.specialties || [],
+        decision: approve ? 'verified' : 'rejected', rejectReason: reason,
+        checklist: checks, checklistLabels: Object.fromEntries(verChecklist(v).map(([k, l]) => [k, l])),
+        licenseNo: fields.licenseNo || '', licenseExpiry: fields.licenseExpiry || '', plate: (fields.plate || '').toUpperCase(),
+        vehicleType: fields.vehicleType || '', criminalIssuedAt: fields.criminalIssuedAt || '',
+        verifiedUntil: approve ? Timestamp.fromDate(until) : null,
+        documents: { id: !!v.idPath, criminal: !!v.criminalPath, license: !!v.licensePath, vehicle: !!v.vehiclePath },
+        fileHashes: v.fileHashes || null,
+        declarationAccepted: !!v.declarationAccepted, declarationText: v.declarationText || '',
+        declarationVersion: v.declarationVersion || '', declarationAt: v.declarationAt || null,
+        submittedAt: v.submittedAt || null, platform: v.platform || '',
+        adminUid: auth.currentUser?.uid || '', adminEmail: auth.currentUser?.email || '',
+        decidedAt: serverTimestamp(),
+      });
       if (approve) {
-        const until = new Date(); until.setFullYear(until.getFullYear() + 1);
-        const patch = { safetyVerifiedAt: serverTimestamp(), safetyVerifiedUntil: Timestamp.fromDate(until) };
+        const patch = { safetyVerifiedAt: serverTimestamp(), safetyVerifiedUntil: Timestamp.fromDate(until), safetyExpiryNoticeFor: null };
+        if (fields.licenseExpiry) Object.assign(patch, { driverLicenseExpiresAt: Timestamp.fromDate(new Date(fields.licenseExpiry + 'T23:59:59')), vehicleType: fields.vehicleType });
         // Οι παλιοί λογαριασμοί έχουν professionals doc με auto-ID (πεδίο userId)
         const own = await getDoc(doc(db, 'professionals', uid));
         if (own.exists()) await updateDoc(own.ref, patch);

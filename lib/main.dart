@@ -9,6 +9,7 @@ import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart' show Clipboard, ClipboardData, PlatformException;
 import 'package:http/http.dart' as http;
+import 'package:crypto/crypto.dart' show sha256;
 import 'package:url_launcher/url_launcher.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -12257,14 +12258,24 @@ class _SafetyVerificationScreenState extends State<_SafetyVerificationScreen> {
   Map<String, dynamic> _ver = {};
   Map<String, dynamic> _pro = {};
   Uint8List? _idBytes, _crimBytes, _licBytes, _vehBytes;
+  bool _declared = false;
 
   String get _uid => FirebaseAuth.instance.currentUser?.uid ?? '';
   List<String> get _specs => ((_pro['specialties'] as List?) ?? const []).whereType<String>().toList();
   bool get _needsCriminal => _specs.any(_isSafetyProfession);
   bool get _needsDriver => _specs.any(_isTransport);
-  bool get _ready => _idBytes != null
+  bool get _ready => _idBytes != null && _declared
       && (!_needsCriminal || _crimBytes != null)
       && (!_needsDriver || (_licBytes != null && _vehBytes != null));
+
+  // Υπεύθυνη δήλωση: το ακριβές κείμενο που αποδέχτηκε αποθηκεύεται μαζί με
+  // την ώρα και την έκδοση (declarationVersion) — απόδειξη αν γίνει κάτι αργότερα.
+  static const _declarationVersion = 'v1-2026-10-29';
+  String get _declarationText =>
+      'Δηλώνω υπεύθυνα ότι τα έγγραφα που ανεβάζω είναι γνήσια, αφορούν εμένα και είναι σε ισχύ'
+      '${_needsDriver ? ', ότι διαθέτω τις νόμιμες άδειες άσκησης επαγγέλματος και ότι το όχημα είναι νόμιμα αδειοδοτημένο και ασφαλισμένο για μεταφορά επιβατών' : ''}. '
+      'Θα ενημερώσω αμέσως το GorealPro αν κάποιο έγγραφο λήξει, ανακληθεί ή αλλάξει. '
+      'Γνωρίζω ότι φέρω αποκλειστικά την ευθύνη για τη γνησιότητά τους και ότι ψευδής δήλωση οδηγεί σε άμεση διαγραφή του λογαριασμού.';
 
   @override
   void initState() { super.initState(); _load(); }
@@ -12327,6 +12338,9 @@ class _SafetyVerificationScreenState extends State<_SafetyVerificationScreen> {
       final licPath = await up('license', _needsDriver ? _licBytes : null);
       final vehPath = await up('vehicle', _needsDriver ? _vehBytes : null);
       final u = (await FirebaseFirestore.instance.collection('users').doc(_uid).get()).data() ?? {};
+      // SHA-256 κάθε αρχείου: τα αρχεία σβήνονται μετά τον έλεγχο, το «αποτύπωμα»
+      // μένει στο ημερολόγιο ελέγχου και αποδεικνύει ποιο ακριβώς έγγραφο ελέγχθηκε.
+      String h(Uint8List? b) => b == null ? '' : sha256.convert(b).toString();
       await FirebaseFirestore.instance.collection('verifications').doc(_uid).set({
         'userId': _uid,
         'name': (_pro['name'] ?? u['name'] ?? '').toString(),
@@ -12338,6 +12352,17 @@ class _SafetyVerificationScreenState extends State<_SafetyVerificationScreen> {
         'criminalPath': crPath,
         'licensePath': licPath,
         'vehiclePath': vehPath,
+        'fileHashes': {
+          'id': h(_idBytes),
+          'criminal': _needsCriminal ? h(_crimBytes) : '',
+          'license': _needsDriver ? h(_licBytes) : '',
+          'vehicle': _needsDriver ? h(_vehBytes) : '',
+        },
+        'declarationAccepted': true,
+        'declarationText': _declarationText,
+        'declarationVersion': _declarationVersion,
+        'declarationAt': FieldValue.serverTimestamp(),
+        'platform': kIsWeb ? 'web' : defaultTargetPlatform.name,
         'submittedAt': FieldValue.serverTimestamp(),
       });
       // Ειδοποίηση στον admin (email) — fire-and-forget
@@ -12346,7 +12371,7 @@ class _SafetyVerificationScreenState extends State<_SafetyVerificationScreen> {
           body: jsonEncode({'userId': _uid})).ignore();
       await _load();
       if (mounted) {
-        setState(() { _idBytes = null; _crimBytes = null; _licBytes = null; _vehBytes = null; });
+        setState(() { _idBytes = null; _crimBytes = null; _licBytes = null; _vehBytes = null; _declared = false; });
         ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
             content: Text('Στάλθηκαν για έλεγχο ✓ Θα ενημερωθείς μόλις εγκριθούν.'), backgroundColor: Colors.green));
       }
@@ -12394,7 +12419,10 @@ class _SafetyVerificationScreenState extends State<_SafetyVerificationScreen> {
     final until = _pro['safetyVerifiedUntil'] is Timestamp ? (_pro['safetyVerifiedUntil'] as Timestamp).toDate() : null;
     final expired = until != null && !verified;
     String fmt(DateTime d) => '${d.day}/${d.month}/${d.year}';
-    final canSubmit = !verified && status != 'pending';
+    // Ανανέωση: τις τελευταίες 30 μέρες πριν τη λήξη μπορεί να ξαναστείλει
+    // έγγραφα χωρίς να μείνει στο μεταξύ ανενεργός.
+    final renewing = verified && until != null && until.difference(DateTime.now()).inDays <= 30;
+    final canSubmit = (!verified || renewing) && status != 'pending';
     return Scaffold(
       backgroundColor: kBg,
       appBar: AppBar(backgroundColor: kBg, foregroundColor: Colors.white,
@@ -12414,7 +12442,11 @@ class _SafetyVerificationScreenState extends State<_SafetyVerificationScreen> {
                 style: TextStyle(color: _g(0.75), fontSize: 13.5, height: 1.5)),
               const SizedBox(height: 18),
               if (verified)
-                _statusBox('✅ Είσαι επαληθευμένη/ος', 'Το σήμα φαίνεται στο προφίλ και στις προσφορές σου μέχρι ${fmt(until!)}.', const Color(0xFF3DDC84))
+                _statusBox(renewing ? '⏰ Η επαλήθευση λήγει σύντομα' : '✅ Είσαι επαληθευμένη/ος',
+                    renewing
+                        ? 'Ισχύει μέχρι ${fmt(until)}. Στείλε ανανεωμένα έγγραφα παρακάτω για να μη διακοπεί.'
+                        : 'Το σήμα φαίνεται στο προφίλ και στις προσφορές σου μέχρι ${fmt(until!)}.',
+                    renewing ? Colors.orangeAccent : const Color(0xFF3DDC84))
               else if (status == 'pending')
                 _statusBox('⏳ Σε έλεγχο', 'Λάβαμε τα έγγραφά σου. Θα ενημερωθείς μόλις ολοκληρωθεί ο έλεγχος (συνήθως 1–2 εργάσιμες).', kGold)
               else if (status == 'rejected')
@@ -12440,6 +12472,32 @@ class _SafetyVerificationScreenState extends State<_SafetyVerificationScreen> {
                   ),
                 ),
                 ],
+                GestureDetector(
+                  onTap: () => setState(() => _declared = !_declared),
+                  child: Container(
+                    margin: const EdgeInsets.only(bottom: 12),
+                    padding: const EdgeInsets.fromLTRB(6, 10, 12, 10),
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(14),
+                      color: _g(0.03),
+                      border: Border.all(color: _declared ? const Color(0xFF3DDC84).withValues(alpha: 0.5) : _g(0.12)),
+                    ),
+                    child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                      Checkbox(
+                        value: _declared,
+                        activeColor: kGold,
+                        checkColor: Colors.black,
+                        side: BorderSide(color: _g(0.5)),
+                        onChanged: (v) => setState(() => _declared = v ?? false),
+                      ),
+                      Expanded(child: Padding(
+                        padding: const EdgeInsets.only(top: 4),
+                        child: Text(_declarationText,
+                            style: TextStyle(color: _g(0.75), fontSize: 12, height: 1.45)),
+                      )),
+                    ]),
+                  ),
+                ),
                 const SizedBox(height: 4),
                 _PremiumButton(
                   label: _sending ? 'Αποστολή…' : 'Αποστολή για έλεγχο',
@@ -12453,7 +12511,10 @@ class _SafetyVerificationScreenState extends State<_SafetyVerificationScreen> {
               const SizedBox(height: 18),
               Text(
                 '🔒 Τα έγγραφα τα βλέπει μόνο η ομάδα του GorealPro και διαγράφονται αμέσως μετά τον έλεγχο. '
-                'Κρατάμε μόνο την ημερομηνία επαλήθευσης. Η επαλήθευση ισχύει 1 χρόνο.',
+                'Κρατάμε μόνο ένα αρχείο ελέγχου (ημερομηνία, την υπεύθυνη δήλωσή σου'
+                '${_needsDriver ? ', αριθμό και λήξη διπλώματος, πινακίδα και τύπο οχήματος' : ''} '
+                'και ένα ψηφιακό αποτύπωμα των αρχείων, όχι τις φωτογραφίες). '
+                '${_needsDriver ? 'Η επαλήθευση ισχύει 1 χρόνο ή έως τη λήξη του διπλώματος, όποιο έρθει πρώτο.' : 'Η επαλήθευση ισχύει 1 χρόνο.'}',
                 style: TextStyle(color: _g(0.45), fontSize: 11.5, height: 1.5)),
             ]),
     );

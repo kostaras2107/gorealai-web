@@ -2787,6 +2787,72 @@ async function sendSafetyMails() {
 }
 setInterval(sendSafetyMails, 60 * 60 * 1000);
 setTimeout(sendSafetyMails, 9 * 60 * 1000);
+
+// ── Λήξη επαλήθευσης (1 χρόνος ή, για οδηγούς, λήξη διπλώματος) ──
+// Η απενεργοποίηση γίνεται μόνη της (isVerifiedNow κοιτάει safetyVerifiedUntil).
+// Εδώ στέλνουμε ειδοποίηση (push + in-app + email) μία φορά 30 μέρες πριν
+// (safetyExpiryNoticeFor) και μία φορά όταν λήξει (safetyExpiredNoticeFor) —
+// το κλειδί είναι τα millis της λήξης, οπότε μετά από ανανέωση ξαναστέλνεται.
+async function sendVerificationExpiryNotices() {
+  if (!firebaseReady) return;
+  try {
+    const db = admin.firestore();
+    const now = Date.now(), soon = now + 30 * 864e5;
+    const snap = await db.collection('professionals').where('safetyVerifiedUntil', '<=', admin.firestore.Timestamp.fromMillis(soon)).get();
+    let sent = 0;
+    for (const doc of snap.docs) {
+      const d = doc.data();
+      if (d.is_active === false || !d.safetyVerifiedUntil || !d.safetyVerifiedUntil.toMillis) continue;
+      const untilMs = d.safetyVerifiedUntil.toMillis();
+      const expired = untilMs <= now;
+      if (expired && untilMs < now - 7 * 864e5) continue; // παλιές λήξεις — μην ξυπνάμε ιστορικό
+      const key = expired ? 'safetyExpiredNoticeFor' : 'safetyExpiryNoticeFor';
+      if (d[key] === untilMs) continue;
+      const uid = d.userId || doc.id;
+      const specs = (Array.isArray(d.specialties) && d.specialties.length ? d.specialties : [d.specialty]).filter(Boolean).map(String);
+      const driver = specs.some((s) => TRANSPORT_SPECIALTIES.has(s.toLowerCase()));
+      const dateStr = new Date(untilMs).toLocaleDateString('el-GR', { timeZone: 'Europe/Athens' });
+      const title = expired ? '⌛ Η επαλήθευσή σου έληξε' : '⏰ Η επαλήθευσή σου λήγει σύντομα';
+      const body = expired
+        ? (driver ? 'Δεν λαμβάνεις πλέον αιτήματα μεταφορών. Στείλε ανανεωμένα έγγραφα από Προφίλ → «🛡️ Επαλήθευση ασφαλείας».'
+                  : 'Το σήμα «Επαληθευμένη» αφαιρέθηκε. Στείλε ξανά τα έγγραφα από Προφίλ → «🛡️ Επαλήθευση ασφαλείας».')
+        : `Λήγει στις ${dateStr}${driver ? ' (λήξη επαλήθευσης ή διπλώματος)' : ''}. Στείλε ανανεωμένα έγγραφα από Προφίλ → «🛡️ Επαλήθευση ασφαλείας» για να μη διακοπεί.`;
+      await doc.ref.set({ [key]: untilMs }, { merge: true });
+      const u = (await db.collection('users').doc(uid).get()).data() || {};
+      if (u.fcmToken) {
+        admin.messaging().send({
+          token: u.fcmToken,
+          notification: { title, body },
+          android: { priority: 'high', notification: { channelId: 'gorealai_channel', sound: 'default', icon: 'ic_launcher', title, body } },
+          apns: { payload: { aps: { alert: { title, body }, sound: 'default' } } },
+          data: { type: 'safety_verification' },
+        }).catch((e) => console.error('expiry push error:', e.message));
+      }
+      db.collection('users').doc(uid).collection('notifications').add({
+        title, body, type: 'safety_verification', isRead: false, createdAt: admin.firestore.FieldValue.serverTimestamp(),
+      }).catch(() => {});
+      let email = '';
+      try { email = (await admin.auth().getUser(uid)).email || ''; } catch (_) {}
+      if (email && !NO_MAIL_ADDRESSES.has(email.toLowerCase())) {
+        const p = (t, extra = '') => `<p style="color:rgba(255,255,255,0.85);font-size:14px;line-height:1.6;${extra}">${t}</p>`;
+        sendEmail({
+          to: email,
+          subject: `GorealPro: ${title.replace(/^\S+\s/, '')}`,
+          html: `<div style="font-family:Arial,sans-serif;max-width:540px;margin:0 auto;background:#0A0800;color:#fff;border-radius:16px;padding:32px;border:1px solid rgba(201,168,76,0.3)">
+<h1 style="color:#FFD47A;font-size:21px;margin:0 0 14px;">${title}</h1>${p('Καλημέρα σας,')}${p(body)}
+<div style="margin:6px 0 4px;"><a href="https://gorealai.web.app/open" style="display:inline-block;padding:13px 22px;background-color:#E8C66A;color:#000;border-radius:12px;text-decoration:none;font-weight:800;font-size:14px;">Άνοιγμα GorealPro</a></div>
+${p('Για οποιαδήποτε απορία: info@gorealai.gr', 'color:rgba(255,255,255,0.6);font-size:13px;')}</div>`,
+        }).catch((e) => console.error('expiry mail error:', e.message));
+      }
+      sent++;
+    }
+    if (sent) console.log(`⏰ Verification expiry notices: ${sent}`);
+  } catch (e) {
+    console.error('sendVerificationExpiryNotices error:', e.message);
+  }
+}
+setInterval(sendVerificationExpiryNotices, 6 * 60 * 60 * 1000);
+setTimeout(sendVerificationExpiryNotices, 11 * 60 * 1000);
 setTimeout(syncUserIndexAndEnrichDeletions, 45 * 1000);
 
 // ── Καθάρισμα παλιών φωτογραφιών/βίντεο αιτημάτων (30 μέρες) ──────
