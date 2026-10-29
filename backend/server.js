@@ -1995,12 +1995,14 @@ app.get('/early-subscribe', rateLimit(20, 60_000), async (req, res) => {
 // καταγράφεται earlyInterestAt — έτσι μετράμε ΑΠΟ ΝΩΡΙΣ πόσοι εν δυνάμει θα
 // πληρώσουν, πριν υπάρξει επιχείρηση/Stripe live. Όταν ενεργοποιηθεί το Stripe,
 // στέλνουμε σε αυτούς το /early-subscribe link (κάρτα, −25% × 3 μήνες).
-// Αποστολή 5 email/ώρα (όπως οι αξιολογήσεις), μία φορά ανά επαγγελματία
+// Αποστολή 40 email/ώρα, 09:00–21:00, μία φορά ανά επαγγελματία
 // (users/{uid}.earlyInterestMailAt). Τίποτα από αυτά δεν εμφανίζεται μέσα στις
 // εφαρμογές iOS/Android (κανόνες Apple/Google για εξωτερικές πληρωμές).
 const EARLY_INTEREST_MAIL_ENABLED = true; // εγκρίθηκε 25/10 — ξεκινά μόνο του 10/11 09:00 (μετατέθηκε από 1/11 στις 29/10)
 const EARLY_INTEREST_MAIL_START = new Date(Date.UTC(2026, 10, 10, 7, 0)); // 10/11/2026 09:00 ώρα Ελλάδας
-const EARLY_INTEREST_MAIL_PER_HOUR = 5;
+const EARLY_INTEREST_MAIL_PER_HOUR = 40; // 29/10: 40/ώρα (ήταν 5), μόνο 09:00–21:00 ώρα Ελλάδας
+const EARLY_INTEREST_MAIL_HOURS = [9, 21]; // [από, έως) — όχι αποστολές τη νύχτα
+let earlyInterestRunning = false;
 const BACKEND_URL = 'https://ai-backend-kkt7.onrender.com';
 
 const fmtEuro = (cents) => (Math.floor(cents) / 100).toFixed(2).replace('.', ',');
@@ -2027,14 +2029,26 @@ ${p('Για οποιαδήποτε απορία: info@gorealai.gr', 'color:rgba(
 }
 
 async function sendEarlyInterestEmails() {
-  if (!firebaseReady || !EARLY_INTEREST_MAIL_ENABLED || Date.now() < EARLY_INTEREST_MAIL_START.getTime()) return;
+  if (!firebaseReady || !EARLY_INTEREST_MAIL_ENABLED || Date.now() < EARLY_INTEREST_MAIL_START.getTime() || earlyInterestRunning) return;
+  const athensHour = Number(new Date().toLocaleString('en-GB', { timeZone: 'Europe/Athens', hour: '2-digit', hour12: false }));
+  if (athensHour < EARLY_INTEREST_MAIL_HOURS[0] || athensHour >= EARLY_INTEREST_MAIL_HOURS[1]) return;
+  earlyInterestRunning = true;
   try {
     const db = admin.firestore();
     const snap = await db.collection('users').where('role', '==', 'professional').get();
+    // Κυλιόμενη ώρα από τη βάση (όχι από μνήμη): restart/ξύπνημα του Render
+    // δεν μπορεί να ξεπεράσει τα 40 στην ίδια ώρα.
+    const hourAgo = Date.now() - 3600_000;
+    const sentLastHour = snap.docs.filter((x) => {
+      const m = x.get('earlyInterestMailAt');
+      return m && m.toMillis && m.toMillis() > hourAgo && !x.get('earlyInterestMailSkipped');
+    }).length;
+    const budget = EARLY_INTEREST_MAIL_PER_HOUR - sentLastHour;
+    if (budget <= 0) return;
     let sent = 0, attempts = 0;
     for (const doc of snap.docs) {
       // Όριο σε προσπάθειες, ίδια λογική με sendStoreReviewAsks
-      if (attempts >= EARLY_INTEREST_MAIL_PER_HOUR) break;
+      if (attempts >= budget) break;
       const d = doc.data();
       if (d.earlyInterestMailAt || d.earlyInterestAt || d.isOwner) continue;
       let email = '';
@@ -2063,9 +2077,11 @@ async function sendEarlyInterestEmails() {
     if (sent) console.log(`🔒 Early-interest emails: sent ${sent}`);
   } catch (e) {
     console.error('sendEarlyInterestEmails error:', e.message);
+  } finally {
+    earlyInterestRunning = false;
   }
 }
-setInterval(sendEarlyInterestEmails, 60 * 60 * 1000);
+setInterval(sendEarlyInterestEmails, 10 * 60 * 1000);
 setTimeout(sendEarlyInterestEmails, 7 * 60 * 1000);
 
 // GET /early-interest?u=<uid>&t=<token> — το κουμπί του email
