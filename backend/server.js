@@ -1353,6 +1353,23 @@ app.post('/email-pros-new-request', rateLimit(30, 60_000), async (req, res) => {
   res.json(result);
 });
 
+// ── Χειροκίνητο email από τον διαχειριστή (μέσω ZeptoMail) ──────────
+// POST /admin-send-email  Body: { key, to, subject, html }
+// Το key συγκρίνεται με το admin_config/mail.key στο Firestore (δεν υπάρχει
+// σε κώδικα ή env) — έτσι στέλνουμε μεμονωμένα email όσο το Zoho Mail είναι μπλοκαρισμένο.
+app.post('/admin-send-email', rateLimit(10, 60_000), async (req, res) => {
+  const { key, to, subject, html } = req.body || {};
+  try {
+    const cfg = (await admin.firestore().collection('admin_config').doc('mail').get()).data() || {};
+    if (!cfg.key || typeof key !== 'string' || key !== cfg.key) return res.status(403).json({ success: false });
+    if (!to || !subject || !html) return res.status(400).json({ success: false, reason: 'missing fields' });
+    const r = await sendEmail({ to, subject, html });
+    res.json({ success: true, result: r });
+  } catch (e) {
+    res.status(500).json({ success: false, error: e.message });
+  }
+});
+
 // ── Report a user (block/report from chat) ────────────────────────
 // POST /report-user
 // Body: { reporterName, reportedName, reportedId, reason, chatId }
