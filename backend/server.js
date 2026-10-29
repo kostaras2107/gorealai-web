@@ -1990,7 +1990,7 @@ app.get('/early-subscribe', rateLimit(20, 60_000), async (req, res) => {
   }
 });
 
-// ── «Κλείδωσε την έκπτωση» — email ενδιαφέροντος (από 1/11/2026) ──
+// ── «Κλείδωσε την έκπτωση» — email ενδιαφέροντος (από 10/11/2026) ──
 // Χωρίς κάρτα: ο επαγγελματίας πατάει ένα προσωπικό κουμπί στο email και
 // καταγράφεται earlyInterestAt — έτσι μετράμε ΑΠΟ ΝΩΡΙΣ πόσοι εν δυνάμει θα
 // πληρώσουν, πριν υπάρξει επιχείρηση/Stripe live. Όταν ενεργοποιηθεί το Stripe,
@@ -1998,8 +1998,8 @@ app.get('/early-subscribe', rateLimit(20, 60_000), async (req, res) => {
 // Αποστολή 5 email/ώρα (όπως οι αξιολογήσεις), μία φορά ανά επαγγελματία
 // (users/{uid}.earlyInterestMailAt). Τίποτα από αυτά δεν εμφανίζεται μέσα στις
 // εφαρμογές iOS/Android (κανόνες Apple/Google για εξωτερικές πληρωμές).
-const EARLY_INTEREST_MAIL_ENABLED = true; // εγκρίθηκε 25/10 — ξεκινά μόνο του 1/11 09:00
-const EARLY_INTEREST_MAIL_START = new Date(Date.UTC(2026, 10, 1, 7, 0)); // 1/11/2026 09:00 ώρα Ελλάδας
+const EARLY_INTEREST_MAIL_ENABLED = true; // εγκρίθηκε 25/10 — ξεκινά μόνο του 10/11 09:00 (μετατέθηκε από 1/11 στις 29/10)
+const EARLY_INTEREST_MAIL_START = new Date(Date.UTC(2026, 10, 10, 7, 0)); // 10/11/2026 09:00 ώρα Ελλάδας
 const EARLY_INTEREST_MAIL_PER_HOUR = 5;
 const BACKEND_URL = 'https://ai-backend-kkt7.onrender.com';
 
