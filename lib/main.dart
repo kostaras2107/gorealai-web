@@ -8883,7 +8883,7 @@ class _RequestProfessionPickerState extends State<_RequestProfessionPicker> {
     'Εγκατάσταση Ηλιακών', 'Εκδηλώσεις Βάφτισης', 'Εκδηλώσεις Γάμου', 'Εκπαιδευτής Σκύλων',
     'Ελαιοχρωματιστής', 'Ηλεκτρολόγος', 'Καθαριστής Καπνοδόχων - Τζακιών', 'Καθαρίστρια', 'Καθηγητής Αγγλικών',
     'Καθηγητής Μαθηματικών', 'Catering', 'Κηπουρός', 'Κλειδαράς', 'Κτίστης',
-    'Λογιστής', 'Μεταλλικές Κατασκευές', 'Μετακομίσεις', 'Ταξί (κατόπιν ραντεβού)', 'Transfer Αεροδρομίου - Λιμανιού',
+    'Λογιστής', 'Μεταλλικές Κατασκευές', 'Μετακομίσεις', 'Ταξί (κατόπιν ραντεβού)',
     'Αυτοκίνητο με Οδηγό', 'Μεταφορά Ατόμων - Minibus',
     'Μονώσεις - Διαχείριση & Αντιμετώπιση Υγρασίας', 'Μπομπονιέρες', 'Νοσηλευτής κατ\' οίκον', 'Οδοντίατρος',
     'Personal Trainer', 'Πλακάς', 'Συνεργείο Ανακαίνισης',
@@ -9539,6 +9539,7 @@ class RequestScreen extends StatefulWidget {
 
 class _RequestScreenState extends State<RequestScreen>
     with TickerProviderStateMixin {
+  final _destCtrl = TextEditingController(); // Μεταφορές: προορισμός
   final _textCtrl = TextEditingController();
   final _stt = stt.SpeechToText();
   bool _listening = false;
@@ -9571,8 +9572,7 @@ class _RequestScreenState extends State<RequestScreen>
     'Καθαριστής Καπνοδόχων - Τζακιών': 'πχ. "Θέλω καθαρισμό καμινάδας για τζάκι σε μονοκατοικία πριν τον χειμώνα..."',
     'Απολυμάνσεις - Απεντομώσεις - Μυοκτονίες': 'πχ. "Έχω δει κατσαρίδες στην κουζίνα, θέλω απεντόμωση..."',
     'Μετακομίσεις': 'πχ. "Θέλω να μεταφέρω έπιπλα από 2ο σε 4ο όροφο..."',
-    'Ταξί (κατόπιν ραντεβού)': 'πχ. "Πέμπτη 07:00 από Περιστέρι για Γενικό Κρατικό, 1 άτομο, με επιστροφή..."',
-    'Transfer Αεροδρομίου - Λιμανιού': 'πχ. "Σάββατο 05:30 από Γλυφάδα για αεροδρόμιο Ελ. Βενιζέλος, 3 άτομα, 2 βαλίτσες..."',
+    'Ταξί (κατόπιν ραντεβού)': 'πχ. "Σάββατο 05:30 για το αεροδρόμιο, 3 άτομα, 2 βαλίτσες..."',
     'Αυτοκίνητο με Οδηγό': 'πχ. "Θέλω αυτοκίνητο με οδηγό για τον γάμο μου 14/6, από το σπίτι στην εκκλησία και στη δεξίωση..."',
     'Μεταφορά Ατόμων - Minibus': 'πχ. "Θέλω minibus για 15 άτομα από Αθήνα για Ναύπλιο και επιστροφή την ίδια μέρα..."',
     'Κλιματισμός': 'πχ. "Θέλω εγκατάσταση κλιματιστικού στο υπνοδωμάτιο..."',
@@ -9675,6 +9675,7 @@ class _RequestScreenState extends State<RequestScreen>
   void dispose() {
     _pulseCtrl.dispose();
     _textCtrl.dispose();
+    _destCtrl.dispose();
     _audioTimer?.cancel();
     _audioRec.dispose();
     super.dispose();
@@ -9876,6 +9877,16 @@ class _RequestScreenState extends State<RequestScreen>
   bool _submitLock = false;  // Guard κατά double submit
   bool _sharePhone = true;   // να φαίνεται το κινητό του πελάτη στους επαγγελματίες
 
+  // Μεταφορές: η αφετηρία/ο προορισμός μπαίνουν στην αρχή της περιγραφής, ώστε
+  // να φαίνονται παντού (κάρτα αιτήματος, push, email) χωρίς αλλαγές στις οθόνες.
+  String _composedDescription() {
+    final text = _textCtrl.text.trim();
+    if (!_isTransport(_selectedProfession)) return text;
+    final from = [_selectedLocation ?? '', if ((_locationDetail ?? '').isNotEmpty) _locationDetail!].join(' - ');
+    final route = 'Από: $from → Προς: ${_destCtrl.text.trim()}';
+    return text.isEmpty ? route : '$route\n$text';
+  }
+
   Future<void> _submit() async {
     if (_submitLock) return;
     // Υποχρεωτικά πεδία
@@ -9886,7 +9897,12 @@ class _RequestScreenState extends State<RequestScreen>
     }
     if (_selectedLocation == null || _selectedLocation!.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('⚠️ Επίλεξε περιοχή!'), backgroundColor: Colors.orange));
+          SnackBar(content: Text(_isTransport(_selectedProfession) ? '⚠️ Επίλεξε αφετηρία!' : '⚠️ Επίλεξε περιοχή!'), backgroundColor: Colors.orange));
+      return;
+    }
+    if (_isTransport(_selectedProfession) && _destCtrl.text.trim().isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('⚠️ Γράψε προορισμό!'), backgroundColor: Colors.orange));
       return;
     }
     _submitLock = true;
@@ -9975,11 +9991,12 @@ class _RequestScreenState extends State<RequestScreen>
         'userId': widget.userId,
         'userName': widget.userName,
         if (userPhone.isNotEmpty) 'userPhone': userPhone,
-        'description': _textCtrl.text.trim(),
+        'description': _composedDescription(),
         'criteria': _selectedCriteria,
         'profession': _selectedProfession ?? '',
         'location': _selectedLocation ?? '',
         if ((_locationDetail ?? '').isNotEmpty) 'locationDetail': _locationDetail,
+        if (_isTransport(_selectedProfession)) 'destination': _destCtrl.text.trim(),
         'status': 'active',
         'offersCount': 0,
         'createdAt': FieldValue.serverTimestamp(),
@@ -10088,7 +10105,7 @@ class _RequestScreenState extends State<RequestScreen>
                 'requestId': docRef.id,
                 'userId': widget.userId,
                 'userName': widget.userName,
-                'description': _textCtrl.text.trim(),
+                'description': _composedDescription(),
                 'criteria': _selectedCriteria,
                 'profession': _selectedProfession ?? '',
                 'location': _selectedLocation ?? '',
@@ -10098,7 +10115,7 @@ class _RequestScreenState extends State<RequestScreen>
             )
             .timeout(const Duration(seconds: 55));
 } catch (_) {
-  await _notifyProsDirectly(docRef.id, _textCtrl.text.trim(),
+  await _notifyProsDirectly(docRef.id, _composedDescription(),
     _selectedProfession ?? '', _selectedLocation ?? '',
     widget.userName, _images.length, widget.userId,
     teachingMode: _isRemoteCapable(_selectedProfession) ? _effectiveMode : null);
@@ -10111,7 +10128,7 @@ class _RequestScreenState extends State<RequestScreen>
           body: jsonEncode({
             'profession': _selectedProfession ?? '',
             'location': _selectedLocation ?? '',
-            'description': _textCtrl.text.trim(),
+            'description': _composedDescription(),
             'requestId': docRef.id,
             'filterVerifiedOnly': _filterVerifiedOnly,
             'requesterUserId': widget.userId,
@@ -10128,7 +10145,7 @@ class _RequestScreenState extends State<RequestScreen>
             pageBuilder: (_, __, ___) => WaitingScreen(
               requestId: docRef.id,
               userId: widget.userId,
-              description: _textCtrl.text.trim(),
+              description: _composedDescription(),
               criteria: _selectedCriteria,
               profession: _selectedProfession ?? '',
             ),
@@ -10277,7 +10294,7 @@ Future<void> _notifyProsDirectly(
                           backgroundColor: Colors.transparent,
                           isScrollControlled: true,
                           builder: (_) => _SimpleListPicker(
-                            title: '📍 Περιοχή εργασίας',
+                            title: _isTransport(_selectedProfession) ? '📍 Αφετηρία (από πού;)' : '📍 Περιοχή εργασίας',
                             items: _greekAreasSorted,
                             selected: _selectedLocation,
                           ),
@@ -10307,7 +10324,7 @@ Future<void> _notifyProsDirectly(
                           const Text('📍', style: TextStyle(fontSize: 14)),
                           const SizedBox(width: 6),
                           Expanded(child: Text(
-                            _selectedLocation ?? 'Περιοχή',
+                            _selectedLocation ?? (_isTransport(_selectedProfession) ? 'Αφετηρία' : 'Περιοχή'),
                             style: TextStyle(
                               fontSize: 12, fontWeight: FontWeight.w600,
                               color: _selectedLocation != null
@@ -10321,6 +10338,32 @@ Future<void> _notifyProsDirectly(
                       ),
                     )),
                   ]),
+
+                  if (_isTransport(_selectedProfession)) ...[
+                    const SizedBox(height: 10),
+                    TextField(
+                      controller: _destCtrl,
+                      style: const TextStyle(color: Colors.white, fontSize: 13),
+                      textCapitalization: TextCapitalization.sentences,
+                      decoration: InputDecoration(
+                        isDense: true,
+                        prefixIcon: const Padding(
+                          padding: EdgeInsets.only(left: 12, right: 6),
+                          child: Text('🏁', style: TextStyle(fontSize: 14)),
+                        ),
+                        prefixIconConstraints: const BoxConstraints(minWidth: 0, minHeight: 0),
+                        hintText: 'Προορισμός (πχ. Αεροδρόμιο Ελ. Βενιζέλος)',
+                        hintStyle: TextStyle(color: _g(0.4), fontSize: 12),
+                        filled: true,
+                        fillColor: _g(0.05),
+                        contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 13),
+                        enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(14),
+                            borderSide: BorderSide(color: kGold.withValues(alpha: 0.2))),
+                        focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(14),
+                            borderSide: BorderSide(color: kGold.withValues(alpha: 0.6))),
+                      ),
+                    ),
+                  ],
 
                   // «Πού ακριβώς;» — οικισμός μέσα σε μεγάλο δήμο (προαιρετικό),
                   // ώστε ο επαγγελματίας να μη χρειάζεται να ρωτάει «πού βρίσκεστε;».
@@ -15973,8 +16016,7 @@ const List<Map<String, dynamic>> _specialtyCategories = [
   {
     'category': 'Μεταφορές',
     'items': [
-      'Ταξί (κατόπιν ραντεβού)', 'Transfer Αεροδρομίου - Λιμανιού',
-      'Αυτοκίνητο με Οδηγό', 'Μεταφορά Ατόμων - Minibus',
+      'Ταξί (κατόπιν ραντεβού)', 'Αυτοκίνητο με Οδηγό', 'Μεταφορά Ατόμων - Minibus',
     ]
   },
   {
@@ -16020,6 +16062,15 @@ const List<Map<String, dynamic>> _specialtyCategories = [
     ]
   },
 ];
+
+// Μεταφορές: το αίτημα έχει αφετηρία (location) + προορισμό αντί για «περιοχή».
+final Set<String> _transportSpecialties = (_specialtyCategories
+        .firstWhere((c) => c['category'] == 'Μεταφορές')['items'] as List)
+    .cast<String>()
+    .toSet();
+
+bool _isTransport(String? specialty) =>
+    specialty != null && _transportSpecialties.contains(specialty);
 
 // Ειδικότητες που μπορούν να δηλώσουν αν διδάσκουν δια ζώσης, online, ή και
 // τα δύο — μόνο η κατηγορία "Εκπαίδευση" (καθηγητές/ιδιαίτερα μαθήματα).
