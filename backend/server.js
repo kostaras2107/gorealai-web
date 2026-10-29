@@ -2663,7 +2663,7 @@ function storeReviewEmailHtml({ first, isPro, platform }) {
   return `<div style="font-family:Arial,sans-serif;max-width:520px;margin:0 auto;background:#0A0800;color:#fff;border-radius:16px;padding:32px;border:1px solid rgba(201,168,76,0.3)">
 <h1 style="color:#FFD47A;font-size:20px;margin:0 0 14px;">Μας κάνετε μια μικρή χάρη; ⭐</h1>
 <p style="color:rgba(255,255,255,0.85);font-size:14px;line-height:1.6;">Καλησπέρα${first ? ' ' + esc(first) : ''},</p>
-<p style="color:rgba(255,255,255,0.85);font-size:14px;line-height:1.6;">σας ευχαριστούμε που είστε μαζί μας στο GorealPro! Σε λιγότερο από ενάμιση μήνα ξεπεράσαμε τις 1.500 λήψεις — και αυτό το οφείλουμε σε εσάς.</p>
+<p style="color:rgba(255,255,255,0.85);font-size:14px;line-height:1.6;">σας ευχαριστούμε που είστε μαζί μας στο GorealPro! Σε μόλις ενάμιση μήνα ξεπεράσαμε τις 2.000 λήψεις — και αυτό το οφείλουμε σε εσάς.</p>
 <p style="color:rgba(255,255,255,0.85);font-size:14px;line-height:1.6;">Είμαστε μια μικρή ελληνική ομάδα χωρίς μεγάλο προϋπολογισμό για διαφήμιση. ${why}</p>
 <p style="color:rgba(255,255,255,0.85);font-size:14px;line-height:1.6;">Αν σας αρέσει η εφαρμογή, θα μας βοηθούσε πολύ να αφήσετε μια σύντομη, ειλικρινή αξιολόγηση. Σας παίρνει ένα λεπτό:</p>
 <div style="margin:6px 0 4px;">${buttons}</div>
