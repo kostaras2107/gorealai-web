@@ -1881,7 +1881,7 @@ const SUB_TIERS = {
   '59,99': { key: 'gorealpro_garage_monthly', cents: 5999, name: 'GorealPro Pro — Συνεργεία', yearKey: 'gorealpro_garage_yearly_founder', yearCents: 35999 },
 };
 const EARLY_COUPON_ID = 'GOREALPRO_EARLY25_3M';
-const FOUNDER_YEARLY_DEADLINE = new Date(Date.UTC(2027, 0, 31, 22, 0)); // 31/1/2027 24:00 ώρα Ελλάδας
+const FOUNDER_YEARLY_DEADLINE = new Date(Date.UTC(2026, 11, 31, 22, 0)); // 31/12/2026 24:00 ώρα Ελλάδας (= έναρξη συνδρομών 1/1/2027)
 const founderYearlyOpen = () => Date.now() < FOUNDER_YEARLY_DEADLINE.getTime();
 
 // Τα αντικείμενα του Stripe (προϊόν, 3 τιμές, ΦΠΑ 24%, κουπόνι) φτιάχνονται
@@ -1999,7 +1999,7 @@ app.get('/early-subscribe', rateLimit(20, 60_000), async (req, res) => {
       earlyLinkClicks: admin.firestore.FieldValue.increment(1),
     }, { merge: true });
     const wantYearly = req.query.p === 'y' || (req.query.p !== 'm' && d.earlyInterestPlan === 'yearly');
-    if (wantYearly && !founderYearlyOpen()) return page('Η ετήσια προσφορά ιδρυτικών μελών έληξε στις 31/1/2027. Μπορείτε να εγγραφείτε στη μηνιαία συνδρομή από την εφαρμογή.');
+    if (wantYearly && !founderYearlyOpen()) return page('Η ετήσια προσφορά ιδρυτικών μελών έληξε στις 31/12/2026. Μπορείτε να εγγραφείτε στη μηνιαία συνδρομή από την εφαρμογή.');
     const session = await createProCheckoutSession({ userId: uid, early: true, yearly: wantYearly });
     console.log(`🐣 Early-subscribe checkout for ${d.name || uid}`);
     res.redirect(303, session.url);
@@ -2043,7 +2043,7 @@ ${p('σας ευχαριστούμε που είστε μαζί μας στο Go
 ${p(`Για την ειδικότητά σας${specialty ? ' (' + esc(specialty) + ')' : ''} η συνδρομή είναι <b>${full} €/μήνα</b> + ΦΠΑ — σταθερή τιμή, <b>χωρίς ποσοστά</b> στις δουλειές σας.`)}
 ${p('Για όσους δηλώσουν από τώρα, διαλέξτε την προσφορά που σας ταιριάζει:', 'margin-bottom:4px;')}
 <div style="background:rgba(232,198,106,0.12);border:2px solid #E8C66A;border-radius:12px;padding:16px 18px;margin:12px 0;">
-<p style="color:#000;background:#E8C66A;display:inline-block;font-size:11px;font-weight:800;margin:0 0 8px;padding:3px 8px;border-radius:6px;">ΙΔΡΥΤΙΚΑ ΜΕΛΗ · ΕΩΣ 31/1/2027</p>
+<p style="color:#000;background:#E8C66A;display:inline-block;font-size:11px;font-weight:800;margin:0 0 8px;padding:3px 8px;border-radius:6px;">ΙΔΡΥΤΙΚΑ ΜΕΛΗ · ΕΩΣ 31/12/2026</p>
 <p style="color:#FFD47A;font-size:16px;font-weight:800;margin:0 0 6px;">Ετήσια −50%: ${year} €/χρόνο</p>
 <p style="color:rgba(255,255,255,0.9);font-size:14px;line-height:1.6;margin:0;">Αντί για ${yearFull} € — δηλαδή μόλις <b>${perMonth} € τον μήνα</b> (+ ΦΠΑ), για 12 μήνες.</p>
 ${btn(link + '&p=y', '✅ Θέλω την ετήσια −50%', true)}
