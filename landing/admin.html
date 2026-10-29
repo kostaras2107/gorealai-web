@@ -690,14 +690,16 @@
       if (!rows.length) { box.innerHTML = 'Δεν έχει σταλεί καμία αίτηση ακόμα.'; return; }
       let html = '';
       for (const r of pending) {
-        let idUrl = '', crUrl = '';
+        let idUrl = '', crUrl = '', licUrl = '', vehUrl = '';
         try { idUrl = await getDownloadURL(sRef(storage, r.idPath)); } catch (_) {}
-        try { crUrl = await getDownloadURL(sRef(storage, r.criminalPath)); } catch (_) {}
+        if (r.criminalPath) { try { crUrl = await getDownloadURL(sRef(storage, r.criminalPath)); } catch (_) {} }
+        if (r.licensePath) { try { licUrl = await getDownloadURL(sRef(storage, r.licensePath)); } catch (_) {} }
+        if (r.vehiclePath) { try { vehUrl = await getDownloadURL(sRef(storage, r.vehiclePath)); } catch (_) {} }
         const img = (u, label) => `<a href="${u || '#'}" target="_blank" style="color:#e8c66a;font-size:12px;text-align:center">${u ? `<img src="${u}" style="width:260px;max-width:100%;border-radius:10px;display:block;margin-bottom:4px">` : '(δεν βρέθηκε) '}${label}</a>`;
         html += `<div style="background:#14110a;border:1px solid #5a4a1a;border-radius:14px;padding:14px;margin-bottom:12px">
           <div style="color:#fff;font-size:15px;font-weight:700">${esc(r.name)} <span style="color:#888;font-weight:400;font-size:12px">· ${esc((r.specialties || []).join(', '))} · ${esc(r.phone)} · ${esc(r.email)} · στάλθηκε ${fmt(r.submittedAt)}</span></div>
-          <div style="display:flex;gap:12px;flex-wrap:wrap;margin:12px 0">${img(idUrl, '🪪 Ταυτότητα (άνοιγμα)')}${img(crUrl, '📄 Ποινικό μητρώο (άνοιγμα)')}</div>
-          <div style="color:#aaa;font-size:12px;margin-bottom:10px">Έλεγξε: ίδιο όνομα με το προφίλ, η φωτογραφία ταιριάζει, το ποινικό είναι «λευκό» (χωρίς καταδίκες) και έκδοσης τελευταίων 3 μηνών.</div>
+          <div style="display:flex;gap:12px;flex-wrap:wrap;margin:12px 0">${img(idUrl, '🪪 Ταυτότητα (άνοιγμα)')}${r.criminalPath ? img(crUrl, '📄 Ποινικό μητρώο (άνοιγμα)') : ''}${r.licensePath ? img(licUrl, '🚗 Επαγγελματικό δίπλωμα (άνοιγμα)') : ''}${r.vehiclePath ? img(vehUrl, '📄 Άδεια κυκλοφορίας (άνοιγμα)') : ''}</div>
+          <div style="color:#aaa;font-size:12px;margin-bottom:10px">Έλεγξε: ίδιο όνομα με το προφίλ, η φωτογραφία ταιριάζει${r.criminalPath ? ', το ποινικό είναι «λευκό» (χωρίς καταδίκες) και έκδοσης τελευταίων 3 μηνών' : ''}${r.vehiclePath ? ', επαγγελματικό δίπλωμα σε ισχύ, άδεια κυκλοφορίας ταξί (ΕΔΧ) / ΕΙΧ με οδηγό / λεωφορείου — όχι ιδιωτικό ΙΧ' : ''}.</div>
           <button onclick="decideVerification('${r.id}', true)" style="background:#1e8e4e;color:#fff;border:0;border-radius:10px;padding:9px 18px;font-weight:700;cursor:pointer;margin-right:8px">✅ Έγκριση (1 χρόνος)</button>
           <button onclick="decideVerification('${r.id}', false)" style="background:transparent;color:#ff6b6b;border:1px solid #ff6b6b;border-radius:10px;padding:9px 18px;font-weight:700;cursor:pointer">❌ Απόρριψη</button>
         </div>`;
@@ -724,8 +726,8 @@
         if (own.exists()) await updateDoc(own.ref, patch);
         else for (const d of (await getDocs(query(collection(db, 'professionals'), where('userId', '==', uid)))).docs) await updateDoc(d.ref, patch);
       }
-      for (const p of [v.idPath, v.criminalPath]) { if (p) { try { await deleteObject(sRef(storage, p)); } catch (_) {} } }
-      await updateDoc(vRef, { status: approve ? 'verified' : 'rejected', rejectReason: approve ? '' : reason, decidedAt: serverTimestamp(), idPath: '', criminalPath: '' });
+      for (const p of [v.idPath, v.criminalPath, v.licensePath, v.vehiclePath]) { if (p) { try { await deleteObject(sRef(storage, p)); } catch (_) {} } }
+      await updateDoc(vRef, { status: approve ? 'verified' : 'rejected', rejectReason: approve ? '' : reason, decidedAt: serverTimestamp(), idPath: '', criminalPath: '', licensePath: '', vehiclePath: '' });
       await addDoc(collection(db, 'users', uid, 'notifications'), {
         title: approve ? '🛡️ Η επαλήθευσή σου εγκρίθηκε!' : 'Η επαλήθευση δεν εγκρίθηκε',
         body: approve ? 'Το σήμα «Επαληθευμένη» φαίνεται πλέον στο προφίλ και στις προσφορές σου.' : reason,

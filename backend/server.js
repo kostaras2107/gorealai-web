@@ -556,6 +556,10 @@ app.post('/booking-response', rateLimit(20, 60_000), async (req, res) => {
 
 // ── Smart offer ranking ──────────────────────────────────────────
 const isSafetyProfession = (s) => s === 'Baby Sitter' || s.startsWith('Νοσηλευτ');
+// Μεταφορές: αιτήματα παίρνουν ΜΟΝΟ επαληθευμένοι οδηγοί (ίδια λίστα με την εφαρμογή).
+const TRANSPORT_SPECIALTIES = new Set(['ταξί (κατόπιν ραντεβού)', 'αυτοκίνητο με οδηγό', 'μεταφορά ατόμων - minibus']);
+const isVerifiedNow = (d) => !!(d.safetyVerifiedUntil && typeof d.safetyVerifiedUntil.toMillis === 'function'
+  && d.safetyVerifiedUntil.toMillis() > Date.now());
 
 // POST /verification-submitted — ο επαγγελματίας ανέβασε ταυτότητα + ποινικό
 // μητρώο (verifications/{uid}, status pending). Στέλνει email στον admin για να
@@ -571,7 +575,7 @@ app.post('/verification-submitted', rateLimit(5, 60_000), async (req, res) => {
     await sendEmail({
       to: 'info@gorealai.gr',
       subject: `🛡️ Νέα επαλήθευση: ${v.name || uid}`,
-      html: `<p>Ο/Η <b>${esc(v.name)}</b> (${esc((v.specialties || []).join(', '))}, ${esc(v.phone)}) έστειλε ταυτότητα και ποινικό μητρώο για έλεγχο.</p><p><a href="https://gorealai.web.app/admin.html">Άνοιξε το admin → 🛡️ Επαληθεύσεις</a></p>`,
+      html: `<p>Ο/Η <b>${esc(v.name)}</b> (${esc((v.specialties || []).join(', '))}, ${esc(v.phone)}) έστειλε έγγραφα επαλήθευσης για έλεγχο.</p><p><a href="https://gorealai.web.app/admin.html">Άνοιξε το admin → 🛡️ Επαληθεύσεις</a></p>`,
     });
     res.json({ ok: true });
   } catch (e) {
@@ -1109,6 +1113,7 @@ async function notifyMatchingPros({ profession, location, description, requestId
           specialties: (d.specialties && d.specialties.length > 0) ? d.specialties : existing.specialties,
           subSpecialties: (d.subSpecialties && d.subSpecialties.length > 0) ? d.subSpecialties : existing.subSpecialties,
           areas: (d.areas && d.areas.length > 0) ? d.areas : existing.areas,
+          safetyVerifiedUntil: d.safetyVerifiedUntil || existing.safetyVerifiedUntil,
         });
       }
     });
@@ -1226,6 +1231,8 @@ async function notifyMatchingPros({ profession, location, description, requestId
             // ("θεσσαλονίκη - ανατολικά" περιέχει το "θεσσαλονίκη").
             !areas.some(a => !ALL_SECTORS[a] && (a.includes(locLower) || locLower.includes(a)))) return;
       }
+
+      if (TRANSPORT_SPECIALTIES.has(profLower) && !isVerifiedNow(d)) return;
 
       // Verified-only filter — πρέπει να έχει επιβεβαιωθεί πραγματικά από το
       // VIES (afmValid), όχι απλά να έχει γραφτεί κάποιο κείμενο στο πεδίο.

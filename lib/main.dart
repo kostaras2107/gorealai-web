@@ -8448,7 +8448,9 @@ class _ProfessionalHomeScreenState extends State<ProfessionalHomeScreen> {
     );
   }
 
-  void _showOfferDialog(String requestId, Map<String, dynamic> requestData) {
+  Future<void> _showOfferDialog(String requestId, Map<String, dynamic> requestData) async {
+    if (!await _transportOfferAllowed(context, requestData, _proId ?? '')) return;
+    if (!mounted) return;
     final priceCtrl = TextEditingController();
     final msgCtrl = TextEditingController();
     String available = 'Αύριο';
@@ -10204,6 +10206,7 @@ Future<void> _notifyProsDirectly(
             reqProfession: profession,
             reqLocLower: locationLower,
             reqMode: teachingMode)) continue;
+        if (_isTransport(profession) && !_isSafetyVerified(d)) continue;
         await FirebaseFirestore.instance
             .collection('users')
             .doc(proUserId)
@@ -12173,8 +12176,48 @@ class _OffersScreenState extends State<OffersScreen>
 // αρχεία σβήνονται μετά τον έλεγχο — κρατάμε μόνο την ημερομηνία.
 bool _isSafetyProfession(String s) => s == 'Baby Sitter' || s.startsWith('Νοσηλευτ');
 
+// Μεταφορές: η επαλήθευση (ταυτότητα + επαγγελματικό δίπλωμα + άδεια οχήματος)
+// είναι ΥΠΟΧΡΕΩΤΙΚΗ — χωρίς αυτήν ο οδηγός δεν ειδοποιείται ούτε στέλνει προσφορά.
+// Για Baby Sitter / Νοσηλευτή μένει προαιρετική (μόνο σήμα + κατάταξη).
 bool _needsSafetyCheck(Iterable<dynamic> specs) =>
-    specs.whereType<String>().any(_isSafetyProfession);
+    specs.whereType<String>().any((s) => _isSafetyProfession(s) || _isTransport(s));
+
+// Πριν από προσφορά σε αίτημα Μεταφορών: μόνο επαληθευμένοι οδηγοί. Αλλιώς
+// εξηγεί γιατί και ανοίγει την οθόνη επαλήθευσης.
+Future<bool> _transportOfferAllowed(BuildContext context, Map<String, dynamic> requestData, String proId) async {
+  if (!_isTransport(requestData['profession']?.toString())) return true;
+  try {
+    final fs = FirebaseFirestore.instance;
+    final own = await fs.collection('professionals').doc(proId).get();
+    final docs = own.exists
+        ? [own.data()!]
+        : (await fs.collection('professionals').where('userId', isEqualTo: proId).get()).docs.map((d) => d.data()).toList();
+    if (docs.any(_isSafetyVerified)) return true;
+  } catch (_) {}
+  if (!context.mounted) return false;
+  final go = await showDialog<bool>(
+    context: context,
+    builder: (ctx) => AlertDialog(
+      backgroundColor: const Color(0xFF15120A),
+      title: const Text('🛡️ Χρειάζεται επαλήθευση οδηγού',
+          style: TextStyle(color: Colors.white, fontSize: 17, fontWeight: FontWeight.w800)),
+      content: Text(
+          'Για την ασφάλεια των επιβατών, προσφορές σε μεταφορές στέλνουν μόνο επαληθευμένοι οδηγοί.\n\n'
+          'Ανέβασε ταυτότητα, επαγγελματικό δίπλωμα και άδεια κυκλοφορίας του οχήματος — ο έλεγχος γίνεται συνήθως μέσα σε 1 εργάσιμη.',
+          style: TextStyle(color: _g(0.8), fontSize: 14, height: 1.45)),
+      actions: [
+        TextButton(onPressed: () => Navigator.pop(ctx, false),
+            child: Text('Αργότερα', style: TextStyle(color: _g(0.6)))),
+        TextButton(onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Επαλήθευση τώρα', style: TextStyle(color: kGold, fontWeight: FontWeight.w800))),
+      ],
+    ),
+  );
+  if (go == true && context.mounted) {
+    Navigator.push(context, MaterialPageRoute(builder: (_) => const _SafetyVerificationScreen()));
+  }
+  return false;
+}
 
 bool _isSafetyVerified(Map<String, dynamic> d) {
   final v = d['safetyVerifiedUntil'];
@@ -12194,7 +12237,7 @@ class _SafetyBadge extends StatelessWidget {
           border: Border.all(color: verified ? const Color(0xFF3DDC84).withValues(alpha: 0.5) : _g(0.12)),
         ),
         child: Text(
-          verified ? '🛡️ Επαληθευμένη · Ταυτότητα & Ποινικό Μητρώο' : 'Χωρίς επαλήθευση ταυτότητας',
+          verified ? '🛡️ Επαληθευμένη ταυτότητα & έγγραφα' : 'Χωρίς επαλήθευση ταυτότητας',
           style: TextStyle(
             color: verified ? const Color(0xFF6FE3A1) : _g(0.45),
             fontSize: 10.5, fontWeight: verified ? FontWeight.w800 : FontWeight.w500),
@@ -12212,9 +12255,15 @@ class _SafetyVerificationScreenState extends State<_SafetyVerificationScreen> {
   bool _loading = true, _sending = false;
   Map<String, dynamic> _ver = {};
   Map<String, dynamic> _pro = {};
-  Uint8List? _idBytes, _crimBytes;
+  Uint8List? _idBytes, _crimBytes, _licBytes, _vehBytes;
 
   String get _uid => FirebaseAuth.instance.currentUser?.uid ?? '';
+  List<String> get _specs => ((_pro['specialties'] as List?) ?? const []).whereType<String>().toList();
+  bool get _needsCriminal => _specs.any(_isSafetyProfession);
+  bool get _needsDriver => _specs.any(_isTransport);
+  bool get _ready => _idBytes != null
+      && (!_needsCriminal || _crimBytes != null)
+      && (!_needsDriver || (_licBytes != null && _vehBytes != null));
 
   @override
   void initState() { super.initState(); _load(); }
@@ -12230,7 +12279,7 @@ class _SafetyVerificationScreenState extends State<_SafetyVerificationScreen> {
     if (mounted) setState(() => _loading = false);
   }
 
-  Future<void> _pick(bool isId) async {
+  Future<void> _pick(String which) async {
     final src = await showModalBottomSheet<ImageSource>(
       context: context,
       backgroundColor: const Color(0xFF12100A),
@@ -12250,19 +12299,32 @@ class _SafetyVerificationScreenState extends State<_SafetyVerificationScreen> {
       if (f == null) return;
       final b = await f.readAsBytes();
       if (!mounted) return;
-      setState(() { if (isId) { _idBytes = b; } else { _crimBytes = b; } });
+      setState(() {
+        switch (which) {
+          case 'id': _idBytes = b;
+          case 'criminal': _crimBytes = b;
+          case 'license': _licBytes = b;
+          case 'vehicle': _vehBytes = b;
+        }
+      });
     } catch (_) {}
   }
 
   Future<void> _submit() async {
-    if (_idBytes == null || _crimBytes == null || _sending) return;
+    if (!_ready || _sending) return;
     setState(() => _sending = true);
     try {
       final st = FirebaseStorage.instance;
-      final idRef = st.ref('verification/$_uid/id.jpg');
-      final crRef = st.ref('verification/$_uid/criminal.jpg');
-      await idRef.putData(_idBytes!, SettableMetadata(contentType: 'image/jpeg'));
-      await crRef.putData(_crimBytes!, SettableMetadata(contentType: 'image/jpeg'));
+      Future<String> up(String name, Uint8List? bytes) async {
+        if (bytes == null) return '';
+        final ref = st.ref('verification/$_uid/$name.jpg');
+        await ref.putData(bytes, SettableMetadata(contentType: 'image/jpeg'));
+        return ref.fullPath;
+      }
+      final idPath = await up('id', _idBytes);
+      final crPath = await up('criminal', _needsCriminal ? _crimBytes : null);
+      final licPath = await up('license', _needsDriver ? _licBytes : null);
+      final vehPath = await up('vehicle', _needsDriver ? _vehBytes : null);
       final u = (await FirebaseFirestore.instance.collection('users').doc(_uid).get()).data() ?? {};
       await FirebaseFirestore.instance.collection('verifications').doc(_uid).set({
         'userId': _uid,
@@ -12271,8 +12333,10 @@ class _SafetyVerificationScreenState extends State<_SafetyVerificationScreen> {
         'email': FirebaseAuth.instance.currentUser?.email ?? '',
         'specialties': _pro['specialties'] ?? [u['specialty'] ?? ''],
         'status': 'pending',
-        'idPath': idRef.fullPath,
-        'criminalPath': crRef.fullPath,
+        'idPath': idPath,
+        'criminalPath': crPath,
+        'licensePath': licPath,
+        'vehiclePath': vehPath,
         'submittedAt': FieldValue.serverTimestamp(),
       });
       // Ειδοποίηση στον admin (email) — fire-and-forget
@@ -12281,7 +12345,7 @@ class _SafetyVerificationScreenState extends State<_SafetyVerificationScreen> {
           body: jsonEncode({'userId': _uid})).ignore();
       await _load();
       if (mounted) {
-        setState(() { _idBytes = null; _crimBytes = null; });
+        setState(() { _idBytes = null; _crimBytes = null; _licBytes = null; _vehBytes = null; });
         ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
             content: Text('Στάλθηκαν για έλεγχο ✓ Θα ενημερωθείς μόλις εγκριθούν.'), backgroundColor: Colors.green));
       }
@@ -12340,7 +12404,10 @@ class _SafetyVerificationScreenState extends State<_SafetyVerificationScreen> {
               const Text('🛡️', style: TextStyle(fontSize: 40), textAlign: TextAlign.center),
               const SizedBox(height: 8),
               Text(
-                'Οι γονείς και οι οικογένειες εμπιστεύονται πιο εύκολα επαγγελματίες με επαλήθευση. '
+                _needsDriver
+                    ? 'Για την ασφάλεια των επιβατών, αιτήματα μεταφορών λαμβάνουν και προσφορές στέλνουν μόνο επαληθευμένοι οδηγοί. '
+                      'Μόλις εγκριθείς θα αρχίσεις να λαμβάνεις αιτήματα στην περιοχή σου.'
+                    : 'Οι γονείς και οι οικογένειες εμπιστεύονται πιο εύκολα επαγγελματίες με επαλήθευση. '
                 'Με το σήμα «Επαληθευμένη» εμφανίζεσαι πρώτη στις προσφορές για Baby Sitter και Νοσηλευτή κατ\' οίκον.',
                 textAlign: TextAlign.center,
                 style: TextStyle(color: _g(0.75), fontSize: 13.5, height: 1.5)),
@@ -12352,11 +12419,16 @@ class _SafetyVerificationScreenState extends State<_SafetyVerificationScreen> {
               else if (status == 'rejected')
                 _statusBox('❌ Δεν εγκρίθηκε', '${(_ver['rejectReason'] ?? 'Τα έγγραφα δεν ήταν ευανάγνωστα.').toString()}\nΜπορείς να τα στείλεις ξανά παρακάτω.', Colors.redAccent)
               else if (expired)
-                _statusBox('⌛ Η επαλήθευση έληξε', 'Έληξε στις ${fmt(until)}. Στείλε νέο ποινικό μητρώο για να την ανανεώσεις.', Colors.orangeAccent),
+                _statusBox('⌛ Η επαλήθευση έληξε', 'Έληξε στις ${fmt(until)}. Στείλε ξανά τα έγγραφα για να την ανανεώσεις.', Colors.orangeAccent),
               if (canSubmit) ...[
                 const SizedBox(height: 6),
-                _tile('1. Ταυτότητα (μπροστινή όψη)', 'Καθαρή φωτογραφία — να φαίνονται όνομα και φωτογραφία', _idBytes, () => _pick(true)),
-                _tile('2. Αντίγραφο Ποινικού Μητρώου', 'Screenshot ή φωτογραφία του πιστοποιητικού (έκδοση τελευταίων 3 μηνών)', _crimBytes, () => _pick(false)),
+                _tile('Ταυτότητα (μπροστινή όψη)', 'Καθαρή φωτογραφία — να φαίνονται όνομα και φωτογραφία', _idBytes, () => _pick('id')),
+                if (_needsDriver) ...[
+                  _tile('Επαγγελματικό δίπλωμα οδήγησης', 'Φωτογραφία του διπλώματος (μπροστινή όψη)', _licBytes, () => _pick('license')),
+                  _tile('Άδεια κυκλοφορίας οχήματος', 'Ταξί (ΕΔΧ), ΕΙΧ με οδηγό ή λεωφορείο/minibus — να φαίνονται πινακίδα και ιδιοκτήτης', _vehBytes, () => _pick('vehicle')),
+                ],
+                if (_needsCriminal) ...[
+                _tile('Αντίγραφο Ποινικού Μητρώου', 'Screenshot ή φωτογραφία του πιστοποιητικού (έκδοση τελευταίων 3 μηνών)', _crimBytes, () => _pick('criminal')),
                 GestureDetector(
                   onTap: () => launchUrl(Uri.parse('https://www.gov.gr/ipiresies/dikaiosune/poiniko-metroo/antigrapho-poinikou-metroou'),
                       mode: LaunchMode.externalApplication),
@@ -12366,12 +12438,14 @@ class _SafetyVerificationScreenState extends State<_SafetyVerificationScreen> {
                         style: TextStyle(color: kGold, fontSize: 12.5, decoration: TextDecoration.underline, decorationColor: kGold.withValues(alpha: 0.6))),
                   ),
                 ),
+                ],
+                const SizedBox(height: 4),
                 _PremiumButton(
                   label: _sending ? 'Αποστολή…' : 'Αποστολή για έλεγχο',
-                  gradient: (_idBytes != null && _crimBytes != null && !_sending)
+                  gradient: (_ready && !_sending)
                       ? const LinearGradient(colors: [kGoldLight, kGold]) : null,
                   bgColor: _g(0.08),
-                  textColor: (_idBytes != null && _crimBytes != null) ? Colors.black : _g(0.4),
+                  textColor: _ready ? Colors.black : _g(0.4),
                   onTap: _submit,
                 ),
               ],
@@ -15103,7 +15177,7 @@ class _ProfileScreenState extends State<ProfileScreen> with WidgetsBindingObserv
                         icon: Icons.shield_outlined,
                         emoji: '🛡️',
                         label: 'Επαλήθευση ασφαλείας',
-                        value: 'Ταυτότητα & Ποινικό Μητρώο',
+                        value: _specialties.any(_isTransport) ? 'Υποχρεωτική για μεταφορές' : 'Ταυτότητα & Ποινικό Μητρώο',
                         onTap: () => Navigator.push(context,
                             MaterialPageRoute(builder: (_) => const _SafetyVerificationScreen()))),
 
@@ -15424,8 +15498,10 @@ class NotificationsScreen extends StatelessWidget {
   }
 
   // Offer dialog που ανοίγει από notification
-  static void _showOfferDialogFromNotif(BuildContext context,
-      String requestId, Map<String, dynamic> requestData, String proId) {
+  static Future<void> _showOfferDialogFromNotif(BuildContext context,
+      String requestId, Map<String, dynamic> requestData, String proId) async {
+    if (!await _transportOfferAllowed(context, requestData, proId)) return;
+    if (!context.mounted) return;
     final priceCtrl = TextEditingController();
     final msgCtrl = TextEditingController();
     String available = 'Αύριο';
