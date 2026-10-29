@@ -14487,7 +14487,8 @@ class _ProfileScreenState extends State<ProfileScreen> with WidgetsBindingObserv
 
   double get _subscriptionPrice {
     final s = _specialty.toLowerCase();
-    if (s.contains('συνεργείο')) return 59.99;
+    // «Καθαρίστρια - Συνεργείο Καθαρισμού» είναι ατομική ειδικότητα → 19,99, όχι τιμή συνεργείου.
+    if (s.contains('συνεργείο') && !s.contains('καθαρίστρια')) return 59.99;
     if (s.contains('γάμο') || s.contains('βάφτιση') || s.contains('πάρτ')) return 29.99;
     return 19.99;
   }

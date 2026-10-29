@@ -2421,7 +2421,8 @@ setInterval(syncUserIndexAndEnrichDeletions, 10 * 60 * 1000);
 // και μόνο πριν το 2027 (μετά το κείμενο «από 1/1/2027» δεν ισχύει).
 function subscriptionPriceFor(specialty) {
   const s = String(specialty || '').toLowerCase();
-  if (s.includes('συνεργείο')) return '59,99';
+  // «Καθαρίστρια - Συνεργείο Καθαρισμού» είναι ατομική ειδικότητα → 19,99, όχι τιμή συνεργείου.
+  if (s.includes('συνεργείο') && !s.includes('καθαρίστρια')) return '59,99';
   if (s.includes('γάμο') || s.includes('βάφτιση') || s.includes('πάρτ')) return '29,99';
   return '19,99';
 }
