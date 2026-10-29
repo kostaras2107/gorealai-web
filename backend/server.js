@@ -1873,12 +1873,16 @@ app.get('/platform-stats', async (req, res) => {
 // βάζει κάρτα τώρα αλλά η πρώτη χρέωση γίνεται τότε (trial μέχρι εκείνη τη στιγμή).
 const PAID_SUBS_START = new Date(Date.UTC(2026, 11, 31, 22, 0));
 // Τιμή από την ΚΥΡΙΑ ειδικότητα — ίδιος κανόνας με subscriptionPriceFor / _subscriptionPrice.
+// yearKey/yearCents: ετήσια «ιδρυτικών μελών» −50% (12 × μηνιαία ÷ 2, στρογγυλεμένο
+// σε ,99) — διαθέσιμη μόνο μέχρι FOUNDER_YEARLY_DEADLINE. Η μηνιαία μένει πάντα.
 const SUB_TIERS = {
-  '19,99': { key: 'gorealpro_standard_monthly', cents: 1999, name: 'GorealPro Pro' },
-  '29,99': { key: 'gorealpro_events_monthly', cents: 2999, name: 'GorealPro Pro — Εκδηλώσεις' },
-  '59,99': { key: 'gorealpro_garage_monthly', cents: 5999, name: 'GorealPro Pro — Συνεργεία' },
+  '19,99': { key: 'gorealpro_standard_monthly', cents: 1999, name: 'GorealPro Pro', yearKey: 'gorealpro_standard_yearly_founder', yearCents: 11999 },
+  '29,99': { key: 'gorealpro_events_monthly', cents: 2999, name: 'GorealPro Pro — Εκδηλώσεις', yearKey: 'gorealpro_events_yearly_founder', yearCents: 17999 },
+  '59,99': { key: 'gorealpro_garage_monthly', cents: 5999, name: 'GorealPro Pro — Συνεργεία', yearKey: 'gorealpro_garage_yearly_founder', yearCents: 35999 },
 };
 const EARLY_COUPON_ID = 'GOREALPRO_EARLY25_3M';
+const FOUNDER_YEARLY_DEADLINE = new Date(Date.UTC(2027, 0, 31, 22, 0)); // 31/1/2027 24:00 ώρα Ελλάδας
+const founderYearlyOpen = () => Date.now() < FOUNDER_YEARLY_DEADLINE.getTime();
 
 // Τα αντικείμενα του Stripe (προϊόν, 3 τιμές, ΦΠΑ 24%, κουπόνι) φτιάχνονται
 // αυτόματα την πρώτη φορά και μετά βρίσκονται με lookup_key/metadata — έτσι
@@ -1886,8 +1890,8 @@ const EARLY_COUPON_ID = 'GOREALPRO_EARLY25_3M';
 let stripeCatalogCache = null;
 async function stripeCatalog() {
   if (stripeCatalogCache) return stripeCatalogCache;
-  const keys = Object.values(SUB_TIERS).map((t) => t.key);
-  const existing = await stripe.prices.list({ lookup_keys: keys, active: true, limit: 10 });
+  const keys = Object.values(SUB_TIERS).flatMap((t) => [t.key, t.yearKey]);
+  const existing = await stripe.prices.list({ lookup_keys: keys, active: true, limit: 20 });
   const prices = {};
   existing.data.forEach((p) => { prices[p.lookup_key] = p.id; });
   if (keys.some((k) => !prices[k])) {
@@ -1895,12 +1899,20 @@ async function stripeCatalog() {
     let product = products.data.find((p) => p.metadata && p.metadata.app === 'gorealpro');
     if (!product) product = await stripe.products.create({ name: 'GorealPro Pro', metadata: { app: 'gorealpro' } });
     for (const t of Object.values(SUB_TIERS)) {
-      if (prices[t.key]) continue;
-      const p = await stripe.prices.create({
-        product: product.id, currency: 'eur', unit_amount: t.cents, nickname: t.name,
-        recurring: { interval: 'month' }, lookup_key: t.key, tax_behavior: 'exclusive',
-      });
-      prices[t.key] = p.id;
+      if (!prices[t.key]) {
+        const p = await stripe.prices.create({
+          product: product.id, currency: 'eur', unit_amount: t.cents, nickname: t.name,
+          recurring: { interval: 'month' }, lookup_key: t.key, tax_behavior: 'exclusive',
+        });
+        prices[t.key] = p.id;
+      }
+      if (!prices[t.yearKey]) {
+        const p = await stripe.prices.create({
+          product: product.id, currency: 'eur', unit_amount: t.yearCents, nickname: `${t.name} — Ετήσια ιδρυτικών μελών`,
+          recurring: { interval: 'year' }, lookup_key: t.yearKey, tax_behavior: 'exclusive',
+        });
+        prices[t.yearKey] = p.id;
+      }
     }
   }
   const rates = await stripe.taxRates.list({ active: true, limit: 100 });
@@ -1913,7 +1925,7 @@ async function stripeCatalog() {
   return stripeCatalogCache;
 }
 
-async function createProCheckoutSession({ userId, email, early }) {
+async function createProCheckoutSession({ userId, email, early, yearly = false }) {
   const cat = await stripeCatalog();
   let d = {};
   if (userId && firebaseReady) { try { d = (await admin.firestore().collection('users').doc(userId).get()).data() || {}; } catch (_) {} }
@@ -1921,16 +1933,18 @@ async function createProCheckoutSession({ userId, email, early }) {
   const tier = SUB_TIERS[subscriptionPriceFor(primary)];
   if (!email && userId) { try { email = (await admin.auth().getUser(userId)).email || ''; } catch (_) {} }
   const trial = Date.now() < PAID_SUBS_START.getTime() - 49 * 3600 * 1000; // το Stripe θέλει trial_end ≥ 48 ώρες μπροστά
-  const meta = { userId: userId || '', tier: tier.key, early: early ? '1' : '' };
+  yearly = yearly && founderYearlyOpen();
+  const meta = { userId: userId || '', tier: yearly ? tier.yearKey : tier.key, early: early ? '1' : '', plan: yearly ? 'yearly' : 'monthly' };
   return stripe.checkout.sessions.create({
     mode: 'subscription',
     payment_method_types: ['card'],
     ...(email ? { customer_email: email } : {}),
-    line_items: [{ price: cat.prices[tier.key], quantity: 1 }],
-    ...(early ? { discounts: [{ coupon: EARLY_COUPON_ID }] } : {}),
+    line_items: [{ price: cat.prices[yearly ? tier.yearKey : tier.key], quantity: 1 }],
+    // Το −25%×3 μήνες ισχύει μόνο στη μηνιαία· η ετήσια έχει ήδη −50%.
+    ...(early && !yearly ? { discounts: [{ coupon: EARLY_COUPON_ID }] } : {}),
     // Από το email ο επαγγελματίας συνήθως δεν είναι συνδεδεμένος στο web app — αντί
     // για τη σελίδα εισόδου του δείχνουμε απλή σελίδα «Ευχαριστούμε».
-    success_url: early ? 'https://ai-backend-kkt7.onrender.com/early-subscribe/thanks' : 'https://gorealai.web.app/app?payment=success',
+    success_url: early ? `https://ai-backend-kkt7.onrender.com/early-subscribe/thanks${yearly ? '?p=y' : ''}` : 'https://gorealai.web.app/app?payment=success',
     cancel_url: 'https://gorealai.web.app/app?payment=cancelled',
     metadata: meta,
     subscription_data: {
@@ -1963,7 +1977,10 @@ app.post('/create-checkout-session', rateLimit(10, 60_000), async (req, res) => 
 // script αποστολής του email) — έτσι κανείς δεν φτιάχνει link για άλλον χρήστη.
 // Σημαδεύει earlyLinkClickedAt/earlyLinkClicks για να μετράμε πόσοι το πάτησαν.
 app.get('/early-subscribe/thanks', (req, res) => {
-  res.send(`<!doctype html><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>GorealPro</title><body style="font-family:Arial,sans-serif;background:#0A0800;color:#fff;text-align:center;padding:60px 20px;margin:0"><div style="max-width:460px;margin:0 auto"><h1 style="color:#FFD47A;font-size:26px">Ευχαριστούμε! 🎉</h1><p style="font-size:16px;line-height:1.6;color:rgba(255,255,255,.85)">Η πρώιμη εγγραφή σας ολοκληρώθηκε. Μέχρι 31/12/2026 δεν χρεώνεστε τίποτα και η έκπτωση <b style="color:#FFD47A">25% για τους 3 πρώτους μήνες</b> έχει κλειδώσει για εσάς.</p><p style="font-size:14px;line-height:1.6;color:rgba(255,255,255,.6)">Μπορείτε να κλείσετε αυτή τη σελίδα και να συνεχίσετε κανονικά από την εφαρμογή. Για οποιαδήποτε απορία: <a style="color:#FFD47A" href="mailto:info@gorealai.gr">info@gorealai.gr</a></p></div></body>`);
+  const deal = req.query.p === 'y'
+    ? 'η <b style="color:#FFD47A">ετήσια συνδρομή ιδρυτικού μέλους με −50%</b> έχει κλειδώσει για εσάς. Η πρώτη ετήσια χρέωση γίνεται την 1/1/2027'
+    : 'η έκπτωση <b style="color:#FFD47A">25% για τους 3 πρώτους μήνες</b> έχει κλειδώσει για εσάς';
+  res.send(`<!doctype html><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>GorealPro</title><body style="font-family:Arial,sans-serif;background:#0A0800;color:#fff;text-align:center;padding:60px 20px;margin:0"><div style="max-width:460px;margin:0 auto"><h1 style="color:#FFD47A;font-size:26px">Ευχαριστούμε! 🎉</h1><p style="font-size:16px;line-height:1.6;color:rgba(255,255,255,.85)">Η πρώιμη εγγραφή σας ολοκληρώθηκε. Μέχρι 31/12/2026 δεν χρεώνεστε τίποτα και ${deal}.</p><p style="font-size:14px;line-height:1.6;color:rgba(255,255,255,.6)">Μπορείτε να κλείσετε αυτή τη σελίδα και να συνεχίσετε κανονικά από την εφαρμογή. Για οποιαδήποτε απορία: <a style="color:#FFD47A" href="mailto:info@gorealai.gr">info@gorealai.gr</a></p></div></body>`);
 });
 app.get('/early-subscribe', rateLimit(20, 60_000), async (req, res) => {
   const uid = String(req.query.u || '');
@@ -1981,7 +1998,9 @@ app.get('/early-subscribe', rateLimit(20, 60_000), async (req, res) => {
       ...(d.earlyLinkClickedAt ? {} : { earlyLinkClickedAt: admin.firestore.FieldValue.serverTimestamp() }),
       earlyLinkClicks: admin.firestore.FieldValue.increment(1),
     }, { merge: true });
-    const session = await createProCheckoutSession({ userId: uid, early: true });
+    const wantYearly = req.query.p === 'y' || (req.query.p !== 'm' && d.earlyInterestPlan === 'yearly');
+    if (wantYearly && !founderYearlyOpen()) return page('Η ετήσια προσφορά ιδρυτικών μελών έληξε στις 31/1/2027. Μπορείτε να εγγραφείτε στη μηνιαία συνδρομή από την εφαρμογή.');
+    const session = await createProCheckoutSession({ userId: uid, early: true, yearly: wantYearly });
     console.log(`🐣 Early-subscribe checkout for ${d.name || uid}`);
     res.redirect(303, session.url);
   } catch (e) {
@@ -1994,7 +2013,7 @@ app.get('/early-subscribe', rateLimit(20, 60_000), async (req, res) => {
 // Χωρίς κάρτα: ο επαγγελματίας πατάει ένα προσωπικό κουμπί στο email και
 // καταγράφεται earlyInterestAt — έτσι μετράμε ΑΠΟ ΝΩΡΙΣ πόσοι εν δυνάμει θα
 // πληρώσουν, πριν υπάρξει επιχείρηση/Stripe live. Όταν ενεργοποιηθεί το Stripe,
-// στέλνουμε σε αυτούς το /early-subscribe link (κάρτα, −25% × 3 μήνες).
+// στέλνουμε σε αυτούς το /early-subscribe link (κάρτα, −25% × 3 μήνες ή ετήσια −50%).
 // Αποστολή 40 email/ώρα, 09:00–21:00, μία φορά ανά επαγγελματία
 // (users/{uid}.earlyInterestMailAt). Τίποτα από αυτά δεν εμφανίζεται μέσα στις
 // εφαρμογές iOS/Android (κανόνες Apple/Google για εξωτερικές πληρωμές).
@@ -2012,18 +2031,29 @@ function earlyInterestEmailHtml({ first, specialty, link }) {
   const tier = SUB_TIERS[subscriptionPriceFor(specialty)];
   const full = fmtEuro(tier.cents);
   const disc = fmtEuro(tier.cents * 0.75);
+  const year = fmtEuro(tier.yearCents);
+  const yearFull = fmtEuro(tier.cents * 12);
+  const perMonth = fmtEuro(tier.yearCents / 12);
   const p = (t, extra = '') => `<p style="color:rgba(255,255,255,0.85);font-size:14px;line-height:1.6;${extra}">${t}</p>`;
+  const btn = (href, label, gold) => `<a href="${href}" style="display:block;text-align:center;margin-top:12px;padding:13px 18px;${gold ? 'background-color:#E8C66A;color:#000;' : 'background-color:transparent;color:#FFD47A;border:1px solid #E8C66A;'}border-radius:12px;text-decoration:none;font-weight:800;font-size:14px;">${label}</a>`;
   return `<div style="font-family:Arial,sans-serif;max-width:520px;margin:0 auto;background:#0A0800;color:#fff;border-radius:16px;padding:32px;border:1px solid rgba(201,168,76,0.3)">
-<h1 style="color:#FFD47A;font-size:20px;margin:0 0 14px;">Κλειδώστε 25% έκπτωση 🔒</h1>
+<h1 style="color:#FFD47A;font-size:20px;margin:0 0 14px;">Κλειδώστε έκπτωση έως 50% 🔒</h1>
 ${p('Καλημέρα σας,')}
-${p('σας ευχαριστούμε που είστε μαζί μας στο GorealPro! Όπως σας έχουμε ενημερώσει, <b>από 1/1/2027</b> ξεκινά η μηνιαία συνδρομή για τους επαγγελματίες. Μέχρι τότε όλα παραμένουν <b>δωρεάν</b>.')}
-${p(`Για την ειδικότητά σας${specialty ? ' (' + esc(specialty) + ')' : ''} η συνδρομή είναι <b>${full} €/μήνα</b> + ΦΠΑ.`)}
-<div style="background:rgba(232,198,106,0.08);border:1px solid rgba(232,198,106,0.35);border-radius:12px;padding:16px 18px;margin:16px 0;">
-<p style="color:#FFD47A;font-size:15px;font-weight:800;margin:0 0 6px;">Προσφορά για όσους δηλώσουν από τώρα</p>
-<p style="color:rgba(255,255,255,0.9);font-size:14px;line-height:1.6;margin:0;"><b>−25% τους 3 πρώτους μήνες:</b> ${disc} € αντί για ${full} € (+ ΦΠΑ).</p>
+${p('σας ευχαριστούμε που είστε μαζί μας στο GorealPro! Όπως σας έχουμε ενημερώσει, <b>από 1/1/2027</b> ξεκινά η συνδρομή για τους επαγγελματίες. Μέχρι τότε όλα παραμένουν <b>δωρεάν</b>.')}
+${p(`Για την ειδικότητά σας${specialty ? ' (' + esc(specialty) + ')' : ''} η συνδρομή είναι <b>${full} €/μήνα</b> + ΦΠΑ — σταθερή τιμή, <b>χωρίς ποσοστά</b> στις δουλειές σας.`)}
+${p('Για όσους δηλώσουν από τώρα, διαλέξτε την προσφορά που σας ταιριάζει:', 'margin-bottom:4px;')}
+<div style="background:rgba(232,198,106,0.12);border:2px solid #E8C66A;border-radius:12px;padding:16px 18px;margin:12px 0;">
+<p style="color:#000;background:#E8C66A;display:inline-block;font-size:11px;font-weight:800;margin:0 0 8px;padding:3px 8px;border-radius:6px;">ΙΔΡΥΤΙΚΑ ΜΕΛΗ · ΕΩΣ 31/1/2027</p>
+<p style="color:#FFD47A;font-size:16px;font-weight:800;margin:0 0 6px;">Ετήσια −50%: ${year} €/χρόνο</p>
+<p style="color:rgba(255,255,255,0.9);font-size:14px;line-height:1.6;margin:0;">Αντί για ${yearFull} € — δηλαδή μόλις <b>${perMonth} € τον μήνα</b> (+ ΦΠΑ), για 12 μήνες.</p>
+${btn(link + '&p=y', '✅ Θέλω την ετήσια −50%', true)}
 </div>
-${p('Πατήστε το κουμπί για να κλειδώσετε την έκπτωση. <b>Δεν χρειάζεται κάρτα ούτε πληρωμή τώρα</b> — τον Δεκέμβριο θα σας στείλουμε τον σύνδεσμο ενεργοποίησης με την έκπτωση ήδη περασμένη.')}
-<a href="${link}" style="display:inline-block;margin-top:6px;padding:14px 28px;background-color:#E8C66A;color:#000;border-radius:12px;text-decoration:none;font-weight:800;font-size:15px;">✅ Κλείδωσε την έκπτωση 25%</a>
+<div style="background:rgba(255,255,255,0.04);border:1px solid rgba(232,198,106,0.3);border-radius:12px;padding:16px 18px;margin:12px 0;">
+<p style="color:#FFD47A;font-size:15px;font-weight:800;margin:0 0 6px;">Μηνιαία −25% τους 3 πρώτους μήνες</p>
+<p style="color:rgba(255,255,255,0.9);font-size:14px;line-height:1.6;margin:0;">${disc} € αντί για ${full} € (+ ΦΠΑ) τους 3 πρώτους μήνες, μετά ${full} €/μήνα. Ακύρωση όποτε θέλετε.</p>
+${btn(link + '&p=m', 'Θέλω τη μηνιαία −25%', false)}
+</div>
+${p('<b>Δεν χρειάζεται κάρτα ούτε πληρωμή τώρα</b> — απλώς δηλώνετε την επιλογή σας. Τον Δεκέμβριο θα σας στείλουμε τον σύνδεσμο ενεργοποίησης με την έκπτωση ήδη περασμένη.')}
 ${p('Αν δεν σας ενδιαφέρει, απλώς αγνοήστε αυτό το email.', 'color:rgba(255,255,255,0.6);font-size:13px;margin-top:22px;')}
 ${p('Για οποιαδήποτε απορία: info@gorealai.gr', 'color:rgba(255,255,255,0.6);font-size:13px;')}${p('Σας ευχαριστούμε,<br><b style="color:#fff">Κωνσταντίνος Μποσινάκος</b><br>GorealPro · 📞 <a href="tel:+306937102492" style="color:#FFD47A;text-decoration:none;">693 710 2492</a>', 'color:rgba(255,255,255,0.75);font-size:13px;')}</div>`;
 }
@@ -2066,7 +2096,7 @@ async function sendEarlyInterestEmails() {
       // Σήμανση ΠΡΙΝ την αποστολή: δεν ξαναστέλνεται ποτέ διπλό
       await doc.ref.set({ earlyToken: token, earlyInterestMailAt: admin.firestore.FieldValue.serverTimestamp() }, { merge: true });
       try {
-        await sendEmail({ to: email, subject: 'Κλειδώστε 25% έκπτωση στη συνδρομή GorealPro 🔒', html: earlyInterestEmailHtml({ first, specialty, link }), bulk: true });
+        await sendEmail({ to: email, subject: 'Κλειδώστε έκπτωση έως 50% στη συνδρομή GorealPro 🔒', html: earlyInterestEmailHtml({ first, specialty, link }), bulk: true });
         sent++;
       } catch (e) {
         console.error('early interest email error:', e.message);
@@ -2097,13 +2127,20 @@ app.get('/early-interest', rateLimit(20, 60_000), async (req, res) => {
     const good = String((d && d.earlyToken) || '');
     if (!d || !good || t.length !== good.length || !crypto.timingSafeEqual(Buffer.from(t), Buffer.from(good))) return page('GorealPro', 'Ο σύνδεσμος δεν είναι έγκυρος.', 400);
     const specialty = (Array.isArray(d.specialties) && d.specialties[0]) || d.specialty || '';
+    // p=y ετήσια −50% / p=m μηνιαία −25% (παλιά links χωρίς p → μηνιαία). Η τελευταία επιλογή μετράει.
+    const plan = req.query.p === 'y' ? 'yearly' : 'monthly';
+    const tier = SUB_TIERS[subscriptionPriceFor(specialty)];
     await ref.set({
       ...(d.earlyInterestAt ? {} : { earlyInterestAt: admin.firestore.FieldValue.serverTimestamp() }),
       earlyInterestClicks: admin.firestore.FieldValue.increment(1),
-      earlyInterestTier: SUB_TIERS[subscriptionPriceFor(specialty)].key,
+      earlyInterestTier: tier.key,
+      earlyInterestPlan: plan,
     }, { merge: true });
-    if (!d.earlyInterestAt) console.log(`🔒 Early interest: ${d.name || uid} (${specialty})`);
-    page('Η έκπτωση κλειδώθηκε! 🎉', 'Σας ευχαριστούμε! Κρατήσαμε για εσάς <b style="color:#FFD47A">25% έκπτωση τους 3 πρώτους μήνες</b> της συνδρομής. Δεν χρειάζεται να κάνετε κάτι άλλο τώρα — τον Δεκέμβριο θα σας στείλουμε τον σύνδεσμο ενεργοποίησης.');
+    if (!d.earlyInterestAt) console.log(`🔒 Early interest: ${d.name || uid} (${specialty}, ${plan})`);
+    const deal = plan === 'yearly'
+      ? `την <b style="color:#FFD47A">ετήσια συνδρομή ιδρυτικού μέλους με −50%</b> (${fmtEuro(tier.yearCents)} €/χρόνο + ΦΠΑ, αντί για ${fmtEuro(tier.cents * 12)} €)`
+      : '<b style="color:#FFD47A">25% έκπτωση τους 3 πρώτους μήνες</b> της μηνιαίας συνδρομής';
+    page('Η έκπτωση κλειδώθηκε! 🎉', `Σας ευχαριστούμε! Κρατήσαμε για εσάς ${deal}. Δεν χρειάζεται να κάνετε κάτι άλλο τώρα — τον Δεκέμβριο θα σας στείλουμε τον σύνδεσμο ενεργοποίησης. Αν αλλάξετε γνώμη, πατήστε το άλλο κουμπί στο email.`);
   } catch (e) {
     console.error('early-interest error:', e.message);
     page('GorealPro', 'Κάτι πήγε στραβά. Δοκιμάστε ξανά σε λίγο.', 500);
