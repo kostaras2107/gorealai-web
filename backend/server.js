@@ -2846,7 +2846,7 @@ setTimeout(sendSafetyMails, 9 * 60 * 1000);
 // το παράθυρο «Χρειάζεται επαλήθευση οδηγού» — μόνο μια γραμμή στο Προφίλ.
 // Στέλνουμε email + push + in-app 10' μετά την εγγραφή (driverNudge1At) και
 // ξανά 2 μέρες μετά (driverNudge2At), αν δεν έχει στείλει ακόμα έγγραφα.
-const DRIVER_NUDGE_ENABLED = false;
+const DRIVER_NUDGE_ENABLED = true; // από 30/10/2026
 
 function driverNudgeMailHtml(name, reminder) {
   const p = (t, extra = '') => `<p style="color:rgba(255,255,255,0.85);font-size:14px;line-height:1.6;${extra}">${t}</p>`;
