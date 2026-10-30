@@ -12205,7 +12205,7 @@ Future<bool> _transportOfferAllowed(BuildContext context, Map<String, dynamic> r
           style: TextStyle(color: Colors.white, fontSize: 17, fontWeight: FontWeight.w800)),
       content: Text(
           'Για την ασφάλεια των επιβατών, προσφορές σε μεταφορές στέλνουν μόνο επαληθευμένοι οδηγοί.\n\n'
-          'Ανέβασε ταυτότητα, επαγγελματικό δίπλωμα και άδεια κυκλοφορίας του οχήματος — ο έλεγχος γίνεται συνήθως μέσα σε 1 εργάσιμη.',
+          'Ανέβασε ταυτότητα, επαγγελματικό δίπλωμα, άδεια κυκλοφορίας του οχήματος και την ειδική άδεια (ταξί / ΕΙΧ / minibus) — ο έλεγχος γίνεται συνήθως μέσα σε 1 εργάσιμη.',
           style: TextStyle(color: _g(0.8), fontSize: 14, height: 1.45)),
       actions: [
         TextButton(onPressed: () => Navigator.pop(ctx, false),
@@ -12257,7 +12257,7 @@ class _SafetyVerificationScreenState extends State<_SafetyVerificationScreen> {
   bool _loading = true, _sending = false;
   Map<String, dynamic> _ver = {};
   Map<String, dynamic> _pro = {};
-  Uint8List? _idBytes, _crimBytes, _licBytes, _vehBytes;
+  Uint8List? _idBytes, _crimBytes, _licBytes, _vehBytes, _permitBytes;
   bool _declared = false;
 
   String get _uid => FirebaseAuth.instance.currentUser?.uid ?? '';
@@ -12266,7 +12266,7 @@ class _SafetyVerificationScreenState extends State<_SafetyVerificationScreen> {
   bool get _needsDriver => _specs.any(_isTransport);
   bool get _ready => _idBytes != null && _declared
       && (!_needsCriminal || _crimBytes != null)
-      && (!_needsDriver || (_licBytes != null && _vehBytes != null));
+      && (!_needsDriver || (_licBytes != null && _vehBytes != null && _permitBytes != null));
 
   // Υπεύθυνη δήλωση: το ακριβές κείμενο που αποδέχτηκε αποθηκεύεται μαζί με
   // την ώρα και την έκδοση (declarationVersion) — απόδειξη αν γίνει κάτι αργότερα.
@@ -12317,6 +12317,7 @@ class _SafetyVerificationScreenState extends State<_SafetyVerificationScreen> {
           case 'criminal': _crimBytes = b;
           case 'license': _licBytes = b;
           case 'vehicle': _vehBytes = b;
+          case 'permit': _permitBytes = b;
         }
       });
     } catch (_) {}
@@ -12337,6 +12338,7 @@ class _SafetyVerificationScreenState extends State<_SafetyVerificationScreen> {
       final crPath = await up('criminal', _needsCriminal ? _crimBytes : null);
       final licPath = await up('license', _needsDriver ? _licBytes : null);
       final vehPath = await up('vehicle', _needsDriver ? _vehBytes : null);
+      final permitPath = await up('permit', _needsDriver ? _permitBytes : null);
       final u = (await FirebaseFirestore.instance.collection('users').doc(_uid).get()).data() ?? {};
       // SHA-256 κάθε αρχείου: τα αρχεία σβήνονται μετά τον έλεγχο, το «αποτύπωμα»
       // μένει στο ημερολόγιο ελέγχου και αποδεικνύει ποιο ακριβώς έγγραφο ελέγχθηκε.
@@ -12352,11 +12354,13 @@ class _SafetyVerificationScreenState extends State<_SafetyVerificationScreen> {
         'criminalPath': crPath,
         'licensePath': licPath,
         'vehiclePath': vehPath,
+        'permitPath': permitPath,
         'fileHashes': {
           'id': h(_idBytes),
           'criminal': _needsCriminal ? h(_crimBytes) : '',
           'license': _needsDriver ? h(_licBytes) : '',
           'vehicle': _needsDriver ? h(_vehBytes) : '',
+          'permit': _needsDriver ? h(_permitBytes) : '',
         },
         'declarationAccepted': true,
         'declarationText': _declarationText,
@@ -12371,7 +12375,7 @@ class _SafetyVerificationScreenState extends State<_SafetyVerificationScreen> {
           body: jsonEncode({'userId': _uid})).ignore();
       await _load();
       if (mounted) {
-        setState(() { _idBytes = null; _crimBytes = null; _licBytes = null; _vehBytes = null; _declared = false; });
+        setState(() { _idBytes = null; _crimBytes = null; _licBytes = null; _vehBytes = null; _permitBytes = null; _declared = false; });
         ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
             content: Text('Στάλθηκαν για έλεγχο ✓ Θα ενημερωθείς μόλις εγκριθούν.'), backgroundColor: Colors.green));
       }
@@ -12459,6 +12463,7 @@ class _SafetyVerificationScreenState extends State<_SafetyVerificationScreen> {
                 if (_needsDriver) ...[
                   _tile('Επαγγελματικό δίπλωμα οδήγησης', 'Φωτογραφία του διπλώματος (μπροστινή όψη)', _licBytes, () => _pick('license')),
                   _tile('Άδεια κυκλοφορίας οχήματος', 'Ταξί (ΕΔΧ), ΕΙΧ με οδηγό ή λεωφορείο/minibus — να φαίνονται πινακίδα και ιδιοκτήτης', _vehBytes, () => _pick('vehicle')),
+                  _tile('Ειδική άδεια επαγγέλματος', 'Ταξί: ειδική άδεια οδηγού ΕΔΧ · ΕΙΧ με οδηγό: άδεια της επιχείρησης εκμίσθωσης · Minibus: άδεια τουριστικού / δημόσιας χρήσης', _permitBytes, () => _pick('permit')),
                 ],
                 if (_needsCriminal) ...[
                 _tile('Αντίγραφο Ποινικού Μητρώου', 'Screenshot ή φωτογραφία του πιστοποιητικού (έκδοση τελευταίων 3 μηνών)', _crimBytes, () => _pick('criminal')),

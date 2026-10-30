@@ -690,15 +690,17 @@
       if (!rows.length) { box.innerHTML = 'Δεν έχει σταλεί καμία αίτηση ακόμα.'; return; }
       let html = '';
       for (const r of pending) {
-        let idUrl = '', crUrl = '', licUrl = '', vehUrl = '';
+        let idUrl = '', crUrl = '', licUrl = '', vehUrl = '', permitUrl = '';
         try { idUrl = await getDownloadURL(sRef(storage, r.idPath)); } catch (_) {}
         if (r.criminalPath) { try { crUrl = await getDownloadURL(sRef(storage, r.criminalPath)); } catch (_) {} }
         if (r.licensePath) { try { licUrl = await getDownloadURL(sRef(storage, r.licensePath)); } catch (_) {} }
         if (r.vehiclePath) { try { vehUrl = await getDownloadURL(sRef(storage, r.vehiclePath)); } catch (_) {} }
+        if (r.permitPath) { try { permitUrl = await getDownloadURL(sRef(storage, r.permitPath)); } catch (_) {} }
         const img = (u, label) => `<a href="${u || '#'}" target="_blank" style="color:#e8c66a;font-size:12px;text-align:center">${u ? `<img src="${u}" style="width:260px;max-width:100%;border-radius:10px;display:block;margin-bottom:4px">` : '(δεν βρέθηκε) '}${label}</a>`;
         html += `<div style="background:#14110a;border:1px solid #5a4a1a;border-radius:14px;padding:14px;margin-bottom:12px">
           <div style="color:#fff;font-size:15px;font-weight:700">${esc(r.name)} <span style="color:#888;font-weight:400;font-size:12px">· ${esc((r.specialties || []).join(', '))} · ${esc(r.phone)} · ${esc(r.email)} · στάλθηκε ${fmt(r.submittedAt)}</span></div>
-          <div style="display:flex;gap:12px;flex-wrap:wrap;margin:12px 0">${img(idUrl, '🪪 Ταυτότητα (άνοιγμα)')}${r.criminalPath ? img(crUrl, '📄 Ποινικό μητρώο (άνοιγμα)') : ''}${r.licensePath ? img(licUrl, '🚗 Επαγγελματικό δίπλωμα (άνοιγμα)') : ''}${r.vehiclePath ? img(vehUrl, '📄 Άδεια κυκλοφορίας (άνοιγμα)') : ''}</div>
+          <div style="display:flex;gap:12px;flex-wrap:wrap;margin:12px 0">${img(idUrl, '🪪 Ταυτότητα (άνοιγμα)')}${r.criminalPath ? img(crUrl, '📄 Ποινικό μητρώο (άνοιγμα)') : ''}${r.licensePath ? img(licUrl, '🚗 Επαγγελματικό δίπλωμα (άνοιγμα)') : ''}${r.vehiclePath ? img(vehUrl, '📄 Άδεια κυκλοφορίας (άνοιγμα)') : ''}${r.permitPath ? img(permitUrl, '📜 Ειδική άδεια (άνοιγμα)') : ''}</div>
+          ${r.vehiclePath && !r.permitPath ? `<div style="font-size:12px;margin-bottom:10px;color:#ff6b6b">⚠️ Δεν έστειλε ειδική άδεια (ταξί ΕΔΧ / επιχείρησης ΕΙΧ / τουριστικού) — παλιά έκδοση εφαρμογής. Απόρριψη με μήνυμα να τη στείλει από τη νέα έκδοση ή από τον browser.</div>` : ''}
           <div style="font-size:12px;margin-bottom:10px;color:${r.declarationAccepted ? '#6FE3A1' : '#ffb347'}">${r.declarationAccepted ? `✅ Υπεύθυνη δήλωση αποδεκτή (${fmt(r.declarationAt)}, ${esc(r.declarationVersion)})` : '⚠️ Χωρίς υπεύθυνη δήλωση (παλιά έκδοση εφαρμογής) — ζήτα του να στείλει ξανά από τη νέα έκδοση αν γίνεται'}</div>
           <div id="vchk-${r.id}" oninput="verCheck('${r.id}')" onchange="verCheck('${r.id}')" style="background:#0f0d08;border:1px solid #3a3020;border-radius:10px;padding:10px 12px;margin-bottom:10px;color:#ddd;font-size:13px;line-height:1.9">
             <div style="color:#e8c66a;font-weight:700;margin-bottom:2px">Λίστα ελέγχου (υποχρεωτική για έγκριση — μένει στο ημερολόγιο ελέγχου)</div>
@@ -734,7 +736,8 @@
       ['licenseNameMatch', 'Το επαγγελματικό δίπλωμα είναι στο ίδιο όνομα'],
       ['licenseValid', 'Το δίπλωμα είναι επαγγελματικό, σωστής κατηγορίας και σε ισχύ'],
       ['vehicleProfessional', 'Η άδεια κυκλοφορίας είναι ταξί (ΕΔΧ) / ΕΙΧ με οδηγό / λεωφορείο — ΟΧΙ ιδιωτικό ΙΧ'],
-      ['vehicleOwner', 'Κάτοχος του οχήματος είναι ο ίδιος ή η επιχείρησή του (ή εξηγεί τη σχέση)']);
+      ['vehicleOwner', 'Κάτοχος του οχήματος είναι ο ίδιος ή η επιχείρησή του (ή εξηγεί τη σχέση)'],
+      ['permitValid', 'Η ειδική άδεια (ταξί: άδεια οδηγού ΕΔΧ · ΕΙΧ: άδεια επιχείρησης εκμίσθωσης · minibus: τουριστικό/δημόσιας χρήσης) υπάρχει, είναι στο ίδιο όνομα/επιχείρηση και σε ισχύ']);
     return items;
   }
   function verRead(uid) {
@@ -790,7 +793,7 @@
         licenseNo: fields.licenseNo || '', licenseExpiry: fields.licenseExpiry || '', plate: (fields.plate || '').toUpperCase(),
         vehicleType: fields.vehicleType || '', criminalIssuedAt: fields.criminalIssuedAt || '',
         verifiedUntil: approve ? Timestamp.fromDate(until) : null,
-        documents: { id: !!v.idPath, criminal: !!v.criminalPath, license: !!v.licensePath, vehicle: !!v.vehiclePath },
+        documents: { id: !!v.idPath, criminal: !!v.criminalPath, license: !!v.licensePath, vehicle: !!v.vehiclePath, permit: !!v.permitPath },
         fileHashes: v.fileHashes || null,
         declarationAccepted: !!v.declarationAccepted, declarationText: v.declarationText || '',
         declarationVersion: v.declarationVersion || '', declarationAt: v.declarationAt || null,
@@ -806,8 +809,8 @@
         if (own.exists()) await updateDoc(own.ref, patch);
         else for (const d of (await getDocs(query(collection(db, 'professionals'), where('userId', '==', uid)))).docs) await updateDoc(d.ref, patch);
       }
-      for (const p of [v.idPath, v.criminalPath, v.licensePath, v.vehiclePath]) { if (p) { try { await deleteObject(sRef(storage, p)); } catch (_) {} } }
-      await updateDoc(vRef, { status: approve ? 'verified' : 'rejected', rejectReason: approve ? '' : reason, decidedAt: serverTimestamp(), idPath: '', criminalPath: '', licensePath: '', vehiclePath: '' });
+      for (const p of [v.idPath, v.criminalPath, v.licensePath, v.vehiclePath, v.permitPath]) { if (p) { try { await deleteObject(sRef(storage, p)); } catch (_) {} } }
+      await updateDoc(vRef, { status: approve ? 'verified' : 'rejected', rejectReason: approve ? '' : reason, decidedAt: serverTimestamp(), idPath: '', criminalPath: '', licensePath: '', vehiclePath: '', permitPath: '' });
       await addDoc(collection(db, 'users', uid, 'notifications'), {
         title: approve ? '🛡️ Η επαλήθευσή σου εγκρίθηκε!' : 'Η επαλήθευση δεν εγκρίθηκε',
         body: approve ? 'Το σήμα «Επαληθευμένη» φαίνεται πλέον στο προφίλ και στις προσφορές σου.' : reason,
