@@ -2841,6 +2841,96 @@ async function sendSafetyMails() {
 setInterval(sendSafetyMails, 60 * 60 * 1000);
 setTimeout(sendSafetyMails, 9 * 60 * 1000);
 
+// ── Οδηγοί (Μεταφορές): υπενθύμιση να στείλουν έγγραφα ──
+// Χωρίς επαλήθευση ο οδηγός δεν ειδοποιείται για αιτήματα, άρα δεν βλέπει ποτέ
+// το παράθυρο «Χρειάζεται επαλήθευση οδηγού» — μόνο μια γραμμή στο Προφίλ.
+// Στέλνουμε email + push + in-app 10' μετά την εγγραφή (driverNudge1At) και
+// ξανά 2 μέρες μετά (driverNudge2At), αν δεν έχει στείλει ακόμα έγγραφα.
+const DRIVER_NUDGE_ENABLED = false;
+
+function driverNudgeMailHtml(name, reminder) {
+  const p = (t, extra = '') => `<p style="color:rgba(255,255,255,0.85);font-size:14px;line-height:1.6;${extra}">${t}</p>`;
+  const step = (n, t) => `<tr><td style="vertical-align:top;padding:0 12px 12px 0;"><div style="width:28px;height:28px;border-radius:14px;background:#E8C66A;color:#000;font-weight:900;font-size:14px;text-align:center;line-height:28px;">${n}</div></td><td style="vertical-align:top;padding-bottom:12px;color:rgba(255,255,255,0.9);font-size:14px;line-height:1.55;">${t}</td></tr>`;
+  const first = String(name || '').trim().split(/\s+/)[0];
+  return `<div style="font-family:Arial,sans-serif;max-width:540px;margin:0 auto;background:#0A0800;color:#fff;border-radius:16px;padding:32px;border:1px solid rgba(201,168,76,0.3)">
+<h1 style="color:#FFD47A;font-size:21px;margin:0 0 14px;">🚖 ${reminder ? 'Υπενθύμιση: ' : ''}Ένα βήμα για να λαμβάνετε αιτήματα μεταφορών</h1>
+${p(`Γεια σας${first ? ' ' + first : ''},`)}
+${p('σας ευχαριστούμε για την εγγραφή σας στο GorealPro ως οδηγός. Για την ασφάλεια των επιβατών, <b>τα αιτήματα μεταφορών (ταξί, αυτοκίνητο με οδηγό, minibus) τα λαμβάνουν μόνο επαληθευμένοι οδηγοί</b>.')}
+<div style="background:rgba(232,198,106,0.12);border:1px solid rgba(232,198,106,0.45);border-radius:12px;padding:14px 16px;margin:16px 0;color:#FFE7A8;font-size:14px;line-height:1.55;"><b>Μέχρι να στείλετε τα έγγραφα δεν θα σας έρχονται αιτήματα πελατών.</b></div>
+<p style="color:#FFD47A;font-size:15px;font-weight:800;margin:20px 0 12px;">Τι χρειάζεστε:</p>
+${p('• Ταυτότητα (μπροστινή όψη)<br>• Επαγγελματικό δίπλωμα οδήγησης<br>• Άδεια κυκλοφορίας του οχήματος')}
+<p style="color:#FFD47A;font-size:15px;font-weight:800;margin:20px 0 12px;">Πώς το κάνετε (3 λεπτά):</p>
+<table cellpadding="0" cellspacing="0" style="border-collapse:collapse;">
+${step(1, 'Ανοίξτε την εφαρμογή <b>GorealPro</b> (ή από τον browser στο <a href="https://gorealai.web.app/app" style="color:#FFD47A;">gorealai.web.app</a>) και συνδεθείτε.')}
+${step(2, 'Πατήστε τη <b>στρογγυλή φωτογραφία σας πάνω δεξιά</b> (ή το αρχικό του ονόματός σας). Ανοίγει το <b>Προφίλ</b>.')}
+${step(3, 'Ακριβώς κάτω από το <b>«ΑΦΜ»</b>, πατήστε <b>«🛡️ Επαλήθευση ασφαλείας»</b>.')}
+${step(4, 'Ανεβάστε φωτογραφίες από τα 3 έγγραφα, τσεκάρετε την υπεύθυνη δήλωση και πατήστε <b>«Αποστολή για έλεγχο»</b>.')}
+${step(5, 'Τα ελέγχουμε συνήθως μέσα σε <b>1 εργάσιμη</b> και αμέσως μετά αρχίζετε να λαμβάνετε αιτήματα.')}
+</table>
+<div style="margin:6px 0 4px;"><a href="https://gorealai.web.app/open" style="display:inline-block;margin:6px 6px 0 0;padding:13px 22px;background-color:#E8C66A;color:#000;border-radius:12px;text-decoration:none;font-weight:800;font-size:14px;">Άνοιγμα GorealPro</a></div>
+${p('Αν δεν βλέπετε πεδία για δίπλωμα και άδεια οχήματος, ενημερώστε την εφαρμογή από το Google Play ή το App Store στην τελευταία έκδοση — ή κάντε το από τον browser.', 'color:rgba(255,255,255,0.6);font-size:13px;margin-top:14px;')}
+${p('🔒 Τα έγγραφα τα βλέπει μόνο η ομάδα του GorealPro και διαγράφονται αμέσως μετά τον έλεγχο. Η επαλήθευση ισχύει 1 χρόνο (ή έως τη λήξη του διπλώματος).', 'color:rgba(255,255,255,0.6);font-size:13px;')}
+${p('Σας ευχαριστούμε,<br><b style="color:#fff">Κωνσταντίνος Μποσινάκος</b><br>GorealPro · 📞 <a href="tel:+306937102492" style="color:#FFD47A;text-decoration:none;">693 710 2492</a> · info@gorealai.gr', 'color:rgba(255,255,255,0.75);font-size:13px;')}</div>`;
+}
+
+let driverNudgeRunning = false;
+async function sendDriverVerificationNudges() {
+  if (!firebaseReady || !DRIVER_NUDGE_ENABLED || driverNudgeRunning) return;
+  driverNudgeRunning = true;
+  try {
+    const db = admin.firestore();
+    const now = Date.now();
+    const snap = await db.collection('professionals').get();
+    for (const doc of snap.docs) {
+      const d = doc.data();
+      if (d.is_active === false || d.driverNudge2At || isVerifiedNow(d)) continue;
+      const specs = (Array.isArray(d.specialties) && d.specialties.length ? d.specialties : [d.specialty]).filter(Boolean).map(String);
+      if (!specs.some((s) => TRANSPORT_SPECIALTIES.has(s.toLowerCase()))) continue;
+      const createdMs = d.createdAt && d.createdAt.toMillis ? d.createdAt.toMillis() : 0;
+      if (createdMs > now - 10 * 60 * 1000) continue; // άφησέ τον να τελειώσει την εγγραφή
+      const reminder = !!d.driverNudge1At;
+      if (reminder && d.driverNudge1At.toMillis() > now - 48 * 3600 * 1000) continue;
+      const uid = d.userId || doc.id;
+      const ver = (await db.collection('verifications').doc(uid).get()).data();
+      if (ver && ver.status === 'pending') continue; // έχει ήδη στείλει, περιμένει έλεγχο
+      if (/demo|review/i.test(String(d.name || ''))) continue;
+      await doc.ref.set({ [reminder ? 'driverNudge2At' : 'driverNudge1At']: admin.firestore.FieldValue.serverTimestamp() }, { merge: true });
+      const title = reminder ? '🚖 Υπενθύμιση: στείλε τα έγγραφά σου' : '🚖 Ένα βήμα για να λαμβάνεις αιτήματα';
+      const body = 'Τα αιτήματα μεταφορών τα λαμβάνουν μόνο επαληθευμένοι οδηγοί. Προφίλ → «🛡️ Επαλήθευση ασφαλείας» → ανέβασε τα έγγραφα (3 λεπτά).';
+      const u = (await db.collection('users').doc(uid).get()).data() || {};
+      if (u.fcmToken) {
+        admin.messaging().send({
+          token: u.fcmToken,
+          notification: { title, body },
+          android: { priority: 'high', notification: { channelId: 'gorealai_channel', sound: 'default', icon: 'ic_launcher', title, body } },
+          apns: { payload: { aps: { alert: { title, body }, sound: 'default' } } },
+          data: { type: 'safety_verification' },
+        }).catch((e) => console.error('driver nudge push error:', e.message));
+      }
+      db.collection('users').doc(uid).collection('notifications').add({
+        title, body, type: 'safety_verification', isRead: false, createdAt: admin.firestore.FieldValue.serverTimestamp(),
+      }).catch(() => {});
+      let email = '';
+      try { email = (await admin.auth().getUser(uid)).email || ''; } catch (_) {}
+      if (!email) email = d.email || '';
+      if (email && !NO_MAIL_ADDRESSES.has(email.toLowerCase())) {
+        await sendEmail({
+          to: email,
+          subject: reminder ? 'Υπενθύμιση: στείλτε τα έγγραφα για να λαμβάνετε αιτήματα μεταφορών' : 'GorealPro: Ένα βήμα για να λαμβάνετε αιτήματα μεταφορών 🚖',
+          html: driverNudgeMailHtml(d.name, reminder),
+        }).catch((e) => console.error('driver nudge mail error:', e.message));
+      }
+      console.log(`🚖 Driver verification nudge ${reminder ? 2 : 1}: ${d.name}`);
+    }
+  } catch (e) {
+    console.error('sendDriverVerificationNudges error:', e.message);
+  } finally {
+    driverNudgeRunning = false;
+  }
+}
+setInterval(sendDriverVerificationNudges, 30 * 60 * 1000);
+setTimeout(sendDriverVerificationNudges, 4 * 60 * 1000);
+
 // ── Λήξη επαλήθευσης (1 χρόνος ή, για οδηγούς, λήξη διπλώματος) ──
 // Η απενεργοποίηση γίνεται μόνη της (isVerifiedNow κοιτάει safetyVerifiedUntil).
 // Εδώ στέλνουμε ειδοποίηση (push + in-app + email) μία φορά 30 μέρες πριν
