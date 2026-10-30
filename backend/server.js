@@ -2147,6 +2147,177 @@ app.get('/early-interest', rateLimit(20, 60_000), async (req, res) => {
   }
 });
 
+// ── Προσφορά εγκαινίων «100€/χρόνο» — μόνο για ΜΗ τεχνικούς (31/10/2026) ──
+// Πείραμα: πόσοι από τους επαγγελματίες που δεν παίρνουν αιτήματα θα «τσιμπήσουν»
+// σε πολύ χαμηλή ετήσια τιμή. Κουμπί στο email → κρατά θέση (χωρίς κάρτα) μέχρι
+// LAUNCH100_LIMIT θέσεις (μετρητής μόνο εσωτερικά, public_stats/launch100 — όχι
+// δημόσιος, απόφαση 31/10). Η πληρωμή γίνεται με νέο email από 1/1/2027.
+// Παραλήπτες: επαγγελματίες που ΟΛΕΣ οι ειδικότητές τους είναι μη τεχνικές.
+const LAUNCH100_MAIL_ENABLED = false; // ανοίγει μόνο με ρητό «ναι» του Κώστα
+const LAUNCH100_LIMIT = 100; // 31/10: 100 θέσεις (ήταν 300)
+const LAUNCH100_DEADLINE = new Date(Date.UTC(2027, 11, 31, 22, 0)); // 31/12/2027 24:00 ώρα Ελλάδας
+const LAUNCH100_MAIL_PER_HOUR = 40;
+const LAUNCH100_MAIL_HOURS = [9, 21];
+const LAUNCH100_NON_TECH = new Set([
+  'Διατροφολόγος', "Νοσηλευτής κατ' οίκον", 'Οδοντίατρος', 'Φυσιοθεραπευτής', 'Ψυχολόγος',
+  'Baby Sitter', 'Κηπουρός',
+  'Ταξί (κατόπιν ραντεβού)', 'Αυτοκίνητο με Οδηγό', 'Μεταφορά Ατόμων - Minibus',
+  'Καθηγητής Αγγλικών', 'Καθηγητής Βιολογίας', 'Καθηγητής Γαλλικών', 'Καθηγητής Γερμανικών',
+  'Καθηγητής Ιταλικών', 'Καθηγητής Ισπανικών', 'Καθηγητής Μαθηματικών', 'Καθηγητής Πληροφορικής',
+  'Καθηγητής Φυσικής', 'Καθηγητής Χημείας', 'Personal Trainer', 'Φιλόλογος',
+  'Γραφίστας', 'Τεχνικός Υπολογιστών', 'Φωτογράφος', 'Web Developer',
+  'Catering', 'Διοργάνωση Πάρτυ', 'DJ / Μουσική Εκδηλώσεων', 'Εκδηλώσεις Βάφτισης', 'Εκδηλώσεις Γάμου',
+  'Ηχητική Κάλυψη - Ηχητικός Εξοπλισμός', 'Μπομπονιέρες', 'Στολισμός Εκδηλώσεων', 'Φωτογράφος Εκδηλώσεων',
+  'Αισθητικός', 'Makeup Artist', 'Tattoo Artist', 'Τεχνίτρια Νυχιών',
+  'Αρχιτέκτονας', 'Δικηγόρος', 'Διακοσμητής Εσωτερικών Χώρων', 'Λογιστής',
+]);
+let launch100Running = false;
+const launch100Open = () => Date.now() < LAUNCH100_DEADLINE.getTime();
+function isLaunch100Target(d) {
+  const sp = (Array.isArray(d.specialties) && d.specialties.length ? d.specialties : [d.specialty]).filter(Boolean);
+  return sp.length > 0 && sp.every((x) => LAUNCH100_NON_TECH.has(x));
+}
+
+function launch100EmailHtml({ first, link }) {
+  const esc = (s) => String(s || '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+  const p = (t, extra = '') => `<p style="margin:0 0 14px;color:#d9d4c7;font-size:15px;line-height:1.65;${extra}">${t}</p>`;
+  const btn = (label) => `<table role="presentation" width="100%" cellpadding="0" cellspacing="0"><tr><td align="center" style="border-radius:14px;background:#E8C66A;background-image:linear-gradient(180deg,#FFE29A,#E2B24F);"><a href="${link}" style="display:block;padding:17px 18px;color:#1a1205;font-size:16px;font-weight:800;text-decoration:none;font-family:Arial,sans-serif;">${label}</a></td></tr></table>`;
+  const check = (t) => `<tr><td width="28" valign="top" style="padding:5px 0;color:#E8C66A;font-size:16px;font-weight:900;">✓</td><td style="padding:5px 0;color:#e9e4d8;font-size:14px;line-height:1.5;">${t}</td></tr>`;
+  return `<div style="background:#050403;padding:24px 10px;font-family:Arial,sans-serif;">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:560px;margin:0 auto;background:#0B0904;border:1px solid #3a3020;border-radius:20px;overflow:hidden;">
+<tr><td style="background:#120E05;background-image:radial-gradient(circle at 50% 0%,#3d2e0c 0%,#120E05 70%);padding:30px 28px 26px;text-align:center;">
+<p style="margin:0 0 14px;"><span style="display:inline-block;background:#E8C66A;color:#1a1205;font-size:11px;font-weight:800;letter-spacing:1.5px;padding:6px 12px;border-radius:20px;">ΠΡΟΣΦΟΡΑ ΕΓΚΑΙΝΙΩΝ</span></p>
+<p style="margin:0;color:#FFD47A;font-size:14px;font-weight:700;letter-spacing:4px;">GOREAL<span style="color:#fff;">PRO</span></p>
+<h1 style="margin:14px 0 0;color:#fff;font-size:26px;line-height:1.25;font-weight:800;">Ξεκινάμε το 2027<br><span style="color:#FFD47A;">μαζί σας</span> 🎉</h1>
+</td></tr>
+<tr><td style="padding:26px 28px 6px;">
+${p(`Καλημέρα${first ? ' ' + esc(first) : ''},`)}
+${p('από την <b style="color:#fff">1/1/2027</b> το GorealPro περνά επίσημα στη νέα του εποχή. Για να γιορτάσουμε τα <b style="color:#fff">εγκαίνια</b>, σας κάνουμε μια προσφορά που δεν θα επαναληφθεί:')}
+</td></tr>
+<tr><td style="padding:4px 28px 8px;">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border:2px solid #E8C66A;border-radius:18px;background-color:#161103;">
+<tr><td style="padding:24px 22px 22px;text-align:center;">
+<p style="margin:0;color:#bfb6a0;font-size:13px;">Ετήσια συνδρομή · όλες οι ειδικότητες</p>
+<p style="margin:6px 0 0;color:#FFD47A;font-size:60px;font-weight:900;line-height:1;">100€</p>
+<p style="margin:6px 0 0;color:#fff;font-size:15px;font-weight:700;">για όλο τον χρόνο</p>
+<p style="margin:6px 0 18px;color:#bfb6a0;font-size:13px;">τελική τιμή με ΦΠΑ · λιγότερο από <b style="color:#fff">9€ τον μήνα</b></p>
+${btn('Κλείνω τη θέση μου στα 100€')}
+<p style="margin:12px 0 0;color:#9d947f;font-size:12px;">Δεν πληρώνετε τώρα · χωρίς κάρτα</p>
+</td></tr></table>
+</td></tr>
+<tr><td style="padding:18px 28px 4px;">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#120E05;border:1px solid #3a3020;border-radius:14px;">
+<tr><td style="padding:14px 18px;">
+<p style="margin:0 0 4px;color:#FFD47A;font-size:14px;font-weight:800;">⏳ Μόνο για τους πρώτους 100 · έως 31/12/2027</p>
+<p style="margin:0;color:#d9d4c7;font-size:13px;line-height:1.55;">Όταν καλυφθούν οι 100 θέσεις, η προσφορά κλείνει. Κλείστε τη δική σας από τώρα.</p>
+</td></tr></table>
+</td></tr>
+<tr><td style="padding:20px 28px 0;">
+${p('Όπως βλέπετε κι εσείς, <b style="color:#fff">κάθε μέρα έρχονται νέα αιτήματα</b> και κλείνονται όλο και περισσότερες δουλειές. Είμαστε μια εταιρεία που μεγαλώνει πολύ γρήγορα, με <b style="color:#fff">πάνω από 2.000 downloads σε 1,5 μήνα</b>. Αυτό το οφείλουμε σε εσάς, και θέλουμε να ξεκινήσουμε το 2027 με όλους σας μαζί!')}
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:4px 0 16px;">
+${check('<b style="color:#fff">Μία δουλειά</b> να κλείσετε μέσα στη χρονιά και η συνδρομή έχει βγει')}
+${check('<b style="color:#fff">Χωρίς ποσοστά</b> στις δουλειές σας, όλα τα υπόλοιπα είναι δικά σας')}
+${check('Ειδοποιήσεις για κάθε νέο αίτημα στην περιοχή σας')}
+${check('Η τιμή μένει <b style="color:#fff">κλειδωμένη</b> για εσάς')}
+</table>
+${p('<b style="color:#fff">Το κουμπί δεν σας χρεώνει τίποτα τώρα.</b> Απλώς κλειδώνει τη θέση σας στα 100€. Από την 1/1/2027 θα λάβετε email με τον σύνδεσμο πληρωμής.')}
+</td></tr>
+<tr><td style="padding:6px 28px 26px;">${btn('Κλείνω τη θέση μου στα 100€')}</td></tr>
+<tr><td style="padding:20px 28px 26px;border-top:1px solid #2a2316;">
+<p style="margin:0 0 10px;color:#8f8775;font-size:12px;">Αν δεν σας ενδιαφέρει, απλώς αγνοήστε αυτό το email.</p>
+<p style="margin:0;color:#bfb6a0;font-size:13px;line-height:1.6;">Σας ευχαριστούμε που είστε μαζί μας από την αρχή,<br><b style="color:#fff">Κωνσταντίνος Μποσινάκος</b><br>GorealPro · <a href="tel:+306937102492" style="color:#FFD47A;text-decoration:none;">693 710 2492</a></p>
+</td></tr>
+</table></div>`;
+}
+
+async function sendLaunch100Emails() {
+  if (!firebaseReady || !LAUNCH100_MAIL_ENABLED || !launch100Open() || launch100Running) return;
+  const athensHour = Number(new Date().toLocaleString('en-GB', { timeZone: 'Europe/Athens', hour: '2-digit', hour12: false }));
+  if (athensHour < LAUNCH100_MAIL_HOURS[0] || athensHour >= LAUNCH100_MAIL_HOURS[1]) return;
+  launch100Running = true;
+  try {
+    const db = admin.firestore();
+    const stats = (await db.collection('public_stats').doc('launch100').get()).data() || {};
+    if ((stats.claimed || 0) >= LAUNCH100_LIMIT) return;
+    const snap = await db.collection('users').where('role', '==', 'professional').get();
+    // Κυλιόμενη ώρα από τη βάση, ίδια λογική με sendEarlyInterestEmails
+    const hourAgo = Date.now() - 3600_000;
+    const sentLastHour = snap.docs.filter((x) => {
+      const m = x.get('launch100MailAt');
+      return m && m.toMillis && m.toMillis() > hourAgo && !x.get('launch100MailSkipped');
+    }).length;
+    const budget = LAUNCH100_MAIL_PER_HOUR - sentLastHour;
+    if (budget <= 0) return;
+    let sent = 0, attempts = 0;
+    for (const doc of snap.docs) {
+      if (attempts >= budget) break;
+      const d = doc.data();
+      if (d.launch100MailAt || d.launch100At || d.isOwner || d.deleted || d.isDeleted || !isLaunch100Target(d)) continue;
+      let email = '';
+      try { email = (await admin.auth().getUser(doc.id)).email || ''; } catch (_) {}
+      if (!email) email = d.email || '';
+      if (!email || NO_MAIL_ADDRESSES.has(email.toLowerCase()) || /demo|review/i.test(String(d.name || ''))) {
+        await doc.ref.set({ launch100MailAt: admin.firestore.FieldValue.serverTimestamp(), launch100MailSkipped: true }, { merge: true });
+        continue;
+      }
+      const token = d.earlyToken || crypto.randomBytes(12).toString('hex');
+      const link = `${BACKEND_URL}/launch-offer?u=${encodeURIComponent(doc.id)}&t=${token}`;
+      const first = String(d.name || d.displayName || '').trim().split(/\s+/)[0] || '';
+      attempts++;
+      // Σήμανση ΠΡΙΝ την αποστολή: δεν ξαναστέλνεται ποτέ διπλό
+      await doc.ref.set({ earlyToken: token, launch100MailAt: admin.firestore.FieldValue.serverTimestamp() }, { merge: true });
+      try {
+        await sendEmail({ to: email, subject: 'Προσφορά εγκαινίων: 100€ για όλο το 2027 🎉 (μόνο 100 θέσεις)', html: launch100EmailHtml({ first, link }), bulk: true });
+        sent++;
+      } catch (e) {
+        console.error('launch100 email error:', e.message);
+        await doc.ref.update({ launch100MailAt: admin.firestore.FieldValue.delete() }).catch(() => {});
+        break;
+      }
+    }
+    if (sent) console.log(`🎉 Launch100 emails: sent ${sent}`);
+  } catch (e) {
+    console.error('sendLaunch100Emails error:', e.message);
+  } finally {
+    launch100Running = false;
+  }
+}
+setInterval(sendLaunch100Emails, 10 * 60 * 1000);
+setTimeout(sendLaunch100Emails, 8 * 60 * 1000);
+
+// GET /launch-offer?u=<uid>&t=<token> — το κουμπί του email (κράτηση θέσης, χωρίς κάρτα)
+app.get('/launch-offer', rateLimit(20, 60_000), async (req, res) => {
+  const uid = String(req.query.u || '');
+  const t = String(req.query.t || '');
+  const page = (title, msg, status = 200) => res.status(status).send(`<!doctype html><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>GorealPro</title><body style="font-family:Arial,sans-serif;background:#0A0800;color:#fff;text-align:center;padding:60px 20px;margin:0"><div style="max-width:460px;margin:0 auto"><h1 style="color:#FFD47A;font-size:24px">${title}</h1><p style="font-size:16px;line-height:1.6;color:rgba(255,255,255,.85)">${msg}</p><p style="font-size:14px;color:rgba(255,255,255,.6)">Για απορίες: <a style="color:#FFD47A" href="tel:+306937102492">693 710 2492</a></p></div></body>`);
+  if (!firebaseReady) return page('GorealPro', 'Η υπηρεσία δεν είναι διαθέσιμη αυτή τη στιγμή. Δοκιμάστε ξανά σε λίγο.', 503);
+  if (!uid || uid.includes('/') || !t) return page('GorealPro', 'Ο σύνδεσμος δεν είναι έγκυρος.', 400);
+  try {
+    const db = admin.firestore();
+    const ref = db.collection('users').doc(uid);
+    const statsRef = db.collection('public_stats').doc('launch100');
+    const result = await db.runTransaction(async (tx) => {
+      const d = (await tx.get(ref)).data();
+      const good = String((d && d.earlyToken) || '');
+      if (!d || !good || t.length !== good.length || !crypto.timingSafeEqual(Buffer.from(t), Buffer.from(good))) return { bad: true };
+      if (d.launch100At) return { already: true, no: d.launch100No };
+      const s = (await tx.get(statsRef)).data() || {};
+      const claimed = s.claimed || 0;
+      if (!launch100Open() || claimed >= LAUNCH100_LIMIT) return { full: true };
+      tx.set(statsRef, { claimed: claimed + 1, updatedAt: admin.firestore.FieldValue.serverTimestamp() }, { merge: true });
+      tx.set(ref, { launch100At: admin.firestore.FieldValue.serverTimestamp(), launch100No: claimed + 1 }, { merge: true });
+      return { no: claimed + 1, name: d.name };
+    });
+    if (result.bad) return page('GorealPro', 'Ο σύνδεσμος δεν είναι έγκυρος.', 400);
+    if (result.full) return page('Οι θέσεις εξαντλήθηκαν', 'Λυπούμαστε, οι 100 θέσεις της προσφοράς εγκαινίων έχουν καλυφθεί. Θα σας ενημερώσουμε για τις επόμενες προσφορές μας.');
+    if (!result.already) console.log(`🎉 Launch100 #${result.no}: ${result.name || uid}`);
+    page('Η θέση σας κλειδώθηκε! 🎉', `Είστε ο/η <b style="color:#FFD47A">#${result.no}</b> από τους 100. Κρατήσαμε για εσάς τη συνδρομή <b style="color:#FFD47A">100€ για όλο τον χρόνο</b> (τελική τιμή με ΦΠΑ). Δεν χρειάζεται να κάνετε τίποτα άλλο τώρα. Από την 1/1/2027 θα σας στείλουμε email με τον σύνδεσμο πληρωμής.`);
+  } catch (e) {
+    console.error('launch-offer error:', e.message);
+    page('GorealPro', 'Κάτι πήγε στραβά. Δοκιμάστε ξανά σε λίγο.', 500);
+  }
+});
+
 // ── Stripe Webhook (payment success → update Firestore) ──────────
 // POST /stripe-webhook
 app.post('/stripe-webhook', express.raw({ type: 'application/json' }), async (req, res) => {
