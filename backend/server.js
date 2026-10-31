@@ -2283,6 +2283,53 @@ async function sendLaunch100Emails() {
 setInterval(sendLaunch100Emails, 10 * 60 * 1000);
 setTimeout(sendLaunch100Emails, 8 * 60 * 1000);
 
+// Push υπενθύμισης για το email των εγκαινίων (εγκρίθηκε 31/10/2026): μία φορά,
+// Κυριακή 1/11 από τις 11:00, Android + iOS (ουδέτερο κείμενο), μόνο σε
+// όσους πήραν το email και δεν πάτησαν. Ουδέτερο κείμενο χωρίς τιμές/συνδρομή.
+const LAUNCH100_PUSH_FROM = new Date(Date.UTC(2026, 10, 1, 9, 0));  // 1/11 11:00 Αθήνα
+const LAUNCH100_PUSH_UNTIL = new Date(Date.UTC(2026, 10, 1, 19, 0)); // 1/11 21:00 Αθήνα
+let launch100PushRunning = false;
+async function sendLaunch100Push() {
+  const now = Date.now();
+  if (!firebaseReady || launch100PushRunning || now < LAUNCH100_PUSH_FROM.getTime() || now > LAUNCH100_PUSH_UNTIL.getTime()) return;
+  launch100PushRunning = true;
+  try {
+    const db = admin.firestore();
+    const snap = await db.collection('users').where('role', '==', 'professional').get();
+    const title = 'Εγκαίνια GorealPro · 1/1/2027';
+    const body = 'Σας στείλαμε ένα σημαντικό email για τα εγκαίνια. Ρίξτε μια ματιά στο email σας ή στα ανεπιθύμητα.';
+    let sent = 0;
+    for (const doc of snap.docs) {
+      const d = doc.data();
+      const mailAt = d.launch100MailAt && d.launch100MailAt.toMillis ? d.launch100MailAt.toMillis() : 0;
+      if (!mailAt || mailAt >= LAUNCH100_PUSH_FROM.getTime() || d.launch100MailSkipped || d.launch100At || d.launch100PushAt) continue;
+      if (!d.fcmToken || d.isOwner || d.deleted || d.isDeleted) continue;
+      // Σήμανση ΠΡΙΝ την αποστολή: ποτέ διπλό push
+      await doc.ref.set({ launch100PushAt: admin.firestore.FieldValue.serverTimestamp() }, { merge: true });
+      try {
+        await admin.messaging().send({
+          token: d.fcmToken,
+          notification: { title, body },
+          android: {
+            priority: 'high',
+            notification: { channelId: 'gorealai_channel', priority: 'high', sound: 'default', icon: 'ic_launcher', title, body },
+          },
+          apns: { payload: { aps: { alert: { title, body }, sound: 'default' } } },
+        });
+        sent++;
+      } catch (e) {
+        console.error('launch100 push error:', e.message);
+      }
+    }
+    if (sent) console.log(`🎉 Launch100 push: sent ${sent}`);
+  } catch (e) {
+    console.error('sendLaunch100Push error:', e.message);
+  } finally {
+    launch100PushRunning = false;
+  }
+}
+setInterval(sendLaunch100Push, 10 * 60 * 1000);
+
 // GET /launch-offer?u=<uid>&t=<token> — το κουμπί του email (κράτηση θέσης, χωρίς κάρτα)
 app.get('/launch-offer', rateLimit(20, 60_000), async (req, res) => {
   const uid = String(req.query.u || '');
