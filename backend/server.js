@@ -2153,7 +2153,7 @@ app.get('/early-interest', rateLimit(20, 60_000), async (req, res) => {
 // LAUNCH100_LIMIT θέσεις — στην πράξη ΔΕΝ κλείνει, μόνο μετράμε (μετρητής μόνο εσωτερικά, public_stats/launch100 — όχι
 // δημόσιος, απόφαση 31/10). Η πληρωμή γίνεται με νέο email από 1/1/2027.
 // Παραλήπτες: επαγγελματίες που ΟΛΕΣ οι ειδικότητές τους είναι μη τεχνικές.
-const LAUNCH100_MAIL_ENABLED = false; // ανοίγει μόνο με ρητό «ναι» του Κώστα
+const LAUNCH100_MAIL_ENABLED = true; // εγκρίθηκε 31/10/2026
 const LAUNCH100_LIMIT = 100; // 31/10: «πρώτοι 100» μόνο στο κείμενο — δεν επιβάλλεται
 const LAUNCH100_DEADLINE = new Date(Date.UTC(2026, 11, 31, 22, 0)); // 31/12/2026 24:00 ώρα Ελλάδας
 const LAUNCH100_MAIL_PER_HOUR = 40;
@@ -2192,12 +2192,12 @@ function launch100EmailHtml({ first, link }) {
 </td></tr>
 <tr><td style="padding:26px 28px 6px;">
 ${p(`Καλημέρα${first ? ' ' + esc(first) : ''},`)}
-${p('από την <b style="color:#fff">1/1/2027</b> το GorealPro περνά επίσημα στη νέα του εποχή. Για να γιορτάσουμε τα <b style="color:#fff">εγκαίνια</b>, σας κάνουμε μια προσφορά που δεν θα επαναληφθεί:')}
+${p('από την <b style="color:#fff">1/1/2027</b> το GorealPro περνά επίσημα στη νέα του εποχή. Για να γιορτάσουμε τα <b style="color:#fff">εγκαίνια</b>, σας κάνουμε μια <b style="color:#fff">προσφορά για τις νέες κατηγορίες του GorealPro</b> που δεν θα επαναληφθεί:')}
 </td></tr>
 <tr><td style="padding:4px 28px 8px;">
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border:2px solid #E8C66A;border-radius:18px;background-color:#161103;">
 <tr><td style="padding:24px 22px 22px;text-align:center;">
-<p style="margin:0;color:#bfb6a0;font-size:13px;">Ετήσια συνδρομή · όλες οι ειδικότητες</p>
+<p style="margin:0;color:#bfb6a0;font-size:13px;">Ετήσια συνδρομή · για τις νέες κατηγορίες του GorealPro</p>
 <p style="margin:6px 0 0;color:#FFD47A;font-size:60px;font-weight:900;line-height:1;">100€</p>
 <p style="margin:6px 0 0;color:#fff;font-size:15px;font-weight:700;">για όλο τον χρόνο</p>
 <p style="margin:6px 0 18px;color:#bfb6a0;font-size:13px;">τελική τιμή με ΦΠΑ · λιγότερο από <b style="color:#fff">9€ τον μήνα</b></p>
