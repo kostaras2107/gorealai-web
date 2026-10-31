@@ -2150,12 +2150,12 @@ app.get('/early-interest', rateLimit(20, 60_000), async (req, res) => {
 // ── Προσφορά εγκαινίων «100€/χρόνο» — μόνο για ΜΗ τεχνικούς (31/10/2026) ──
 // Πείραμα: πόσοι από τους επαγγελματίες που δεν παίρνουν αιτήματα θα «τσιμπήσουν»
 // σε πολύ χαμηλή ετήσια τιμή. Κουμπί στο email → κρατά θέση (χωρίς κάρτα) μέχρι
-// LAUNCH100_LIMIT θέσεις (μετρητής μόνο εσωτερικά, public_stats/launch100 — όχι
+// LAUNCH100_LIMIT θέσεις — στην πράξη ΔΕΝ κλείνει, μόνο μετράμε (μετρητής μόνο εσωτερικά, public_stats/launch100 — όχι
 // δημόσιος, απόφαση 31/10). Η πληρωμή γίνεται με νέο email από 1/1/2027.
 // Παραλήπτες: επαγγελματίες που ΟΛΕΣ οι ειδικότητές τους είναι μη τεχνικές.
 const LAUNCH100_MAIL_ENABLED = false; // ανοίγει μόνο με ρητό «ναι» του Κώστα
-const LAUNCH100_LIMIT = 100; // 31/10: 100 θέσεις (ήταν 300)
-const LAUNCH100_DEADLINE = new Date(Date.UTC(2027, 11, 31, 22, 0)); // 31/12/2027 24:00 ώρα Ελλάδας
+const LAUNCH100_LIMIT = 100; // 31/10: «πρώτοι 100» μόνο στο κείμενο — δεν επιβάλλεται
+const LAUNCH100_DEADLINE = new Date(Date.UTC(2026, 11, 31, 22, 0)); // 31/12/2026 24:00 ώρα Ελλάδας
 const LAUNCH100_MAIL_PER_HOUR = 40;
 const LAUNCH100_MAIL_HOURS = [9, 21];
 const LAUNCH100_NON_TECH = new Set([
@@ -2208,7 +2208,7 @@ ${btn('Κλείνω τη θέση μου στα 100€')}
 <tr><td style="padding:18px 28px 4px;">
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#120E05;border:1px solid #3a3020;border-radius:14px;">
 <tr><td style="padding:14px 18px;">
-<p style="margin:0 0 4px;color:#FFD47A;font-size:14px;font-weight:800;">⏳ Μόνο για τους πρώτους 100 · έως 31/12/2027</p>
+<p style="margin:0 0 4px;color:#FFD47A;font-size:14px;font-weight:800;">⏳ Μόνο για τους πρώτους 100 · έως 31/12/2026</p>
 <p style="margin:0;color:#d9d4c7;font-size:13px;line-height:1.55;">Όταν καλυφθούν οι 100 θέσεις, η προσφορά κλείνει. Κλείστε τη δική σας από τώρα.</p>
 </td></tr></table>
 </td></tr>
@@ -2237,8 +2237,6 @@ async function sendLaunch100Emails() {
   launch100Running = true;
   try {
     const db = admin.firestore();
-    const stats = (await db.collection('public_stats').doc('launch100').get()).data() || {};
-    if ((stats.claimed || 0) >= LAUNCH100_LIMIT) return;
     const snap = await db.collection('users').where('role', '==', 'professional').get();
     // Κυλιόμενη ώρα από τη βάση, ίδια λογική με sendEarlyInterestEmails
     const hourAgo = Date.now() - 3600_000;
@@ -2303,15 +2301,16 @@ app.get('/launch-offer', rateLimit(20, 60_000), async (req, res) => {
       if (d.launch100At) return { already: true, no: d.launch100No };
       const s = (await tx.get(statsRef)).data() || {};
       const claimed = s.claimed || 0;
-      if (!launch100Open() || claimed >= LAUNCH100_LIMIT) return { full: true };
+      // 31/10: ΔΕΝ κλείνει στους 100 — μετράμε μόνο (το βλέπει ο admin)
+      if (!launch100Open()) return { closed: true };
       tx.set(statsRef, { claimed: claimed + 1, updatedAt: admin.firestore.FieldValue.serverTimestamp() }, { merge: true });
       tx.set(ref, { launch100At: admin.firestore.FieldValue.serverTimestamp(), launch100No: claimed + 1 }, { merge: true });
       return { no: claimed + 1, name: d.name };
     });
     if (result.bad) return page('GorealPro', 'Ο σύνδεσμος δεν είναι έγκυρος.', 400);
-    if (result.full) return page('Οι θέσεις εξαντλήθηκαν', 'Λυπούμαστε, οι 100 θέσεις της προσφοράς εγκαινίων έχουν καλυφθεί. Θα σας ενημερώσουμε για τις επόμενες προσφορές μας.');
+    if (result.closed) return page('Η προσφορά έληξε', 'Η προσφορά εγκαινίων ίσχυε έως 31/12/2026. Θα σας ενημερώσουμε για τις επόμενες προσφορές μας.');
     if (!result.already) console.log(`🎉 Launch100 #${result.no}: ${result.name || uid}`);
-    page('Η θέση σας κλειδώθηκε! 🎉', `Είστε ο/η <b style="color:#FFD47A">#${result.no}</b> από τους 100. Κρατήσαμε για εσάς τη συνδρομή <b style="color:#FFD47A">100€ για όλο τον χρόνο</b> (τελική τιμή με ΦΠΑ). Δεν χρειάζεται να κάνετε τίποτα άλλο τώρα. Από την 1/1/2027 θα σας στείλουμε email με τον σύνδεσμο πληρωμής.`);
+    page('Η θέση σας κλειδώθηκε! 🎉', `Σας ευχαριστούμε! Κρατήσαμε για εσάς τη συνδρομή <b style="color:#FFD47A">100€ για όλο τον χρόνο</b> (τελική τιμή με ΦΠΑ). Δεν χρειάζεται να κάνετε τίποτα άλλο τώρα. Από την 1/1/2027 θα σας στείλουμε email με τον σύνδεσμο πληρωμής.`);
   } catch (e) {
     console.error('launch-offer error:', e.message);
     page('GorealPro', 'Κάτι πήγε στραβά. Δοκιμάστε ξανά σε λίγο.', 500);

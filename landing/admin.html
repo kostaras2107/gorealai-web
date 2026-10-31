@@ -269,6 +269,16 @@
       </div>
     </div>
 
+    <div class="section-title" style="margin-top:32px;margin-bottom:12px">🎉 Προσφορά εγκαινίων 100€/χρόνο — πάτησαν: <span id="l100-count" style="color:#e8c66a">…</span></div>
+    <div id="l100-summary" style="color:#aaa;font-size:13px;margin-bottom:10px;line-height:1.7"></div>
+    <div class="table-wrap" style="margin-bottom:32px">
+      <table id="l100-table" style="display:none">
+        <thead><tr><th>#</th><th>Πάτησε</th><th>Όνομα</th><th>Ειδικότητα</th><th>Περιοχή</th><th>Κινητό</th><th>Email</th></tr></thead>
+        <tbody id="l100-tbody"></tbody>
+      </table>
+      <div class="empty-state" id="l100-empty" style="display:none"><div class="empty-icon">🎉</div><div>Δεν έχει πατήσει κανείς ακόμα</div></div>
+    </div>
+
     <div class="section-title" style="margin-bottom:16px">Επαγγελματίες</div>
     <div class="filter-row">
       <select id="filter-specialty" onchange="filterTable()"><option value="">Όλες οι ειδικότητες</option></select>
@@ -867,6 +877,32 @@
     }
   }
 
+  // ── ΠΡΟΣΦΟΡΑ ΕΓΚΑΙΝΙΩΝ 100€ (μη τεχνικοί, 31/10/2026) ──
+  // Ο server γράφει users.launch100MailAt (email) και users.launch100At (πάτησε).
+  async function loadLaunch100() {
+    const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+    const secs = t => t?.seconds || 0;
+    try {
+      const all = (await getDocs(query(collection(db, 'users'), where('role', '==', 'professional')))).docs.map(d => d.data());
+      const mailed = all.filter(u => u.launch100MailAt && !u.launch100MailSkipped).length;
+      const clicked = all.filter(u => u.launch100At).sort((a, b) => secs(b.launch100At) - secs(a.launch100At));
+      const pct = mailed ? Math.round(clicked.length * 100 / mailed) : 0;
+      document.getElementById('l100-count').textContent = clicked.length;
+      document.getElementById('l100-summary').innerHTML = `Email στάλθηκαν: <b>${mailed}</b> · Πάτησαν «Κλείνω τη θέση μου»: <b style="color:#e8c66a">${clicked.length}</b> (${pct}%)`;
+      if (!clicked.length) { document.getElementById('l100-empty').style.display = 'block'; return; }
+      const fmt = t => secs(t) ? new Date(secs(t) * 1000).toLocaleString('el-GR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }) : '—';
+      document.getElementById('l100-tbody').innerHTML = clicked.map((u, i) => {
+        const spec = (Array.isArray(u.specialties) && u.specialties.length ? u.specialties : [u.specialty]).filter(Boolean).join(', ');
+        return `<tr><td>${clicked.length - i}</td><td>${fmt(u.launch100At)}</td><td>${esc(u.name || '—')}</td><td style="max-width:240px">${esc(spec || '—')}</td>`
+          + `<td>${esc(u.area || '—')}</td><td>${esc(u.phone || '—')}</td><td>${esc(u.email || '—')}</td></tr>`;
+      }).join('');
+      document.getElementById('l100-table').style.display = 'table';
+    } catch (e) {
+      console.error('launch100 load error:', e.code, e.message);
+      document.getElementById('l100-count').textContent = '—';
+    }
+  }
+
   // ── REAL-TIME listener ──
   async function startProsListener() {
     document.getElementById('loading').style.display = 'block';
@@ -877,6 +913,7 @@
     await Promise.all([loadClicks(), loadUserCount(), loadPlatformStats()]);
     loadRequests().then(loadBookings).then(loadContacts);
     loadDeletions();
+    loadLaunch100();
     startVerificationsListener();
 
     if (unsubPros) unsubPros();
