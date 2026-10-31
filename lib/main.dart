@@ -4343,11 +4343,16 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                                       stops: [0.35, 1.0],
                                       colors: [Colors.transparent, Color(0xE6000000)]))),
                                   Positioned(left: 6, right: 6, bottom: 7,
-                                    child: Text(c['label']!,
-                                        textAlign: TextAlign.center, maxLines: 2, overflow: TextOverflow.ellipsis,
-                                        style: const TextStyle(fontSize: 10, height: 1.15, color: Colors.white,
-                                            fontWeight: FontWeight.w700,
-                                            shadows: [Shadow(color: Colors.black, blurRadius: 4)]))),
+                                    // Μία μακριά λέξη (π.χ. «Ελαιοχρωματιστής») μικραίνει αντί να σπάει στη μέση
+                                    child: Builder(builder: (_) {
+                                      final t = Text(c['label']!,
+                                          textAlign: TextAlign.center, maxLines: 2, overflow: TextOverflow.ellipsis,
+                                          style: const TextStyle(fontSize: 10, height: 1.15, color: Colors.white,
+                                              fontWeight: FontWeight.w700,
+                                              shadows: [Shadow(color: Colors.black, blurRadius: 4)]));
+                                      return c['label']!.contains(' ')
+                                          ? t : FittedBox(fit: BoxFit.scaleDown, child: t);
+                                    })),
                                 ])
                               : Container(
                                   decoration: BoxDecoration(gradient: LinearGradient(
@@ -11187,32 +11192,6 @@ class _WaitingScreenState extends State<WaitingScreen>
                         color: kGreen, fontSize: 9, fontWeight: FontWeight.w700)),
                   ]),
                 ),
-                const SizedBox(width: 8),
-                GestureDetector(
-                  onTap: () => _confirmFound(context),
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-                    decoration: BoxDecoration(
-                        borderRadius: BorderRadius.circular(10),
-                        color: kGreen.withValues(alpha: 0.12),
-                        border: Border.all(color: kGreen.withValues(alpha: 0.45))),
-                    child: const Text('✅ Βρήκα', style: TextStyle(
-                        color: kGreen, fontSize: 9, fontWeight: FontWeight.w800)),
-                  ),
-                ),
-                const SizedBox(width: 6),
-                GestureDetector(
-                  onTap: () => _confirmCancel(context),
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-                    decoration: BoxDecoration(
-                        borderRadius: BorderRadius.circular(10),
-                        color: Colors.red.withValues(alpha: 0.1),
-                        border: Border.all(color: Colors.red.withValues(alpha: 0.3))),
-                    child: const Text('✕ Ακύρωση', style: TextStyle(
-                        color: Colors.red, fontSize: 9, fontWeight: FontWeight.w700)),
-                  ),
-                ),
               ]),
             ]),
           ),
@@ -11299,6 +11278,54 @@ class _WaitingScreenState extends State<WaitingScreen>
                             fontWeight: FontWeight.w600)),
                   ]),
                 ),
+
+                const SizedBox(height: 18),
+                Row(children: [
+                  Expanded(
+                    child: GestureDetector(
+                      onTap: () => _confirmFound(context),
+                      child: Container(
+                        height: 48,
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(16),
+                          gradient: const LinearGradient(
+                              begin: Alignment.topCenter, end: Alignment.bottomCenter,
+                              colors: [kGoldLight, kGold]),
+                          boxShadow: [BoxShadow(
+                              color: kGold.withValues(alpha: 0.3), blurRadius: 16, offset: const Offset(0, 4))],
+                        ),
+                        child: const Row(mainAxisAlignment: MainAxisAlignment.center, children: [
+                          Icon(Icons.check_circle_rounded, color: Colors.black, size: 18),
+                          SizedBox(width: 6),
+                          Flexible(child: FittedBox(fit: BoxFit.scaleDown,
+                            child: Text('Βρήκα επαγγελματία', style: TextStyle(
+                                color: Colors.black, fontSize: 13, fontWeight: FontWeight.w800)))),
+                        ]),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: GestureDetector(
+                      onTap: () => _confirmCancel(context),
+                      child: Container(
+                        height: 48,
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(16),
+                          color: _g(0.04),
+                          border: Border.all(color: Colors.redAccent.withValues(alpha: 0.55), width: 1.2),
+                        ),
+                        child: const Row(mainAxisAlignment: MainAxisAlignment.center, children: [
+                          Icon(Icons.close_rounded, color: Colors.redAccent, size: 18),
+                          SizedBox(width: 6),
+                          Flexible(child: FittedBox(fit: BoxFit.scaleDown,
+                            child: Text('Ακύρωση αιτήματος', style: TextStyle(
+                                color: Colors.redAccent, fontSize: 13, fontWeight: FontWeight.w700)))),
+                        ]),
+                      ),
+                    ),
+                  ),
+                ]),
 
                 const SizedBox(height: 28),
 
