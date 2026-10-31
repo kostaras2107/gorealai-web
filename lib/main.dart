@@ -5200,7 +5200,7 @@ class _ActiveRequestHeroCardState extends State<_ActiveRequestHeroCard> {
                       child: CustomPaint(painter: _RingPainter(progress: progress))),
                   Column(mainAxisSize: MainAxisSize.min, children: [
                     Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 6),
+                      padding: const EdgeInsets.symmetric(horizontal: 11),
                       child: FittedBox(
                         fit: BoxFit.scaleDown,
                         child: Text(_fmt(secs), style: const TextStyle(
@@ -5343,10 +5343,11 @@ class _StatRow extends StatelessWidget {
   Widget build(BuildContext context) => Row(children: [
     Text(icon, style: const TextStyle(fontSize: 13)),
     const SizedBox(width: 6),
-    Text(label, style: TextStyle(
+    Flexible(child: Text(label, maxLines: 2, softWrap: true, overflow: TextOverflow.ellipsis,
+        style: TextStyle(
         fontSize: 12, height: 1.3,
         color: highlight ? kGreen : _g(0.65),
-        fontWeight: highlight ? FontWeight.w600 : FontWeight.w400)),
+        fontWeight: highlight ? FontWeight.w600 : FontWeight.w400))),
   ]);
 }
 
