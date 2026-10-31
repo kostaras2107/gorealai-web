@@ -5199,22 +5199,36 @@ class _ActiveRequestHeroCardState extends State<_ActiveRequestHeroCard> {
           if (!isCompleted && secs > 0) ...[
             // ── COUNTDOWN HERO ──
             Row(children: [
-              SizedBox(width: 70, height: 70,
+              SizedBox(width: 88, height: 88,
                 child: Stack(alignment: Alignment.center, children: [
-                  SizedBox(width: 70, height: 70,
+                  // σκούρος δίσκος με απαλή χρυσή λάμψη πίσω από τον χρόνο
+                  Container(width: 66, height: 66,
+                      decoration: BoxDecoration(shape: BoxShape.circle,
+                          gradient: RadialGradient(colors: [
+                            kGold.withValues(alpha: 0.14), Colors.black.withValues(alpha: 0.55)]),
+                          boxShadow: [BoxShadow(color: kGold.withValues(alpha: 0.18), blurRadius: 14)])),
+                  SizedBox(width: 88, height: 88,
                       child: CustomPaint(painter: _RingPainter(progress: progress))),
-                  Column(mainAxisSize: MainAxisSize.min, children: [
-                    Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 11),
-                      child: FittedBox(
+                  SizedBox(width: 58,
+                    child: Column(mainAxisSize: MainAxisSize.min, children: [
+                      FittedBox(
                         fit: BoxFit.scaleDown,
-                        child: Text(_fmt(secs), style: const TextStyle(
-                            fontFamily: 'Inter', fontSize: 14,
-                            fontWeight: FontWeight.w800, color: kGold)),
+                        child: Builder(builder: (_) {
+                          // «23ω 59λ» → μεγάλες ώρες, μικρότερα λεπτά
+                          final parts = _fmt(secs).split(' ');
+                          return Text.rich(TextSpan(children: [
+                            TextSpan(text: parts.first, style: const TextStyle(fontSize: 19)),
+                            if (parts.length > 1)
+                              TextSpan(text: ' ${parts.sublist(1).join(' ')}',
+                                  style: const TextStyle(fontSize: 13, color: kGoldLight)),
+                          ]), style: const TextStyle(
+                              fontFamily: 'Inter', fontWeight: FontWeight.w800, color: kGold, height: 1.1));
+                        }),
                       ),
-                    ),
-                    Text('απομένουν', style: TextStyle(fontSize: 7, color: _g(0.4))),
-                  ]),
+                      const SizedBox(height: 2),
+                      Text('απομένουν', style: TextStyle(fontSize: 8, color: _g(0.5), letterSpacing: 0.3)),
+                    ]),
+                  ),
                 ]),
               ),
               const SizedBox(width: 16),
