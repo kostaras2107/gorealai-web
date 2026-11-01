@@ -1796,9 +1796,13 @@ app.get('/platform-stats', async (req, res) => {
   try {
     const snap = await admin.firestore().collection('users').get();
 
-    // "Σήμερα" σε ώρα Ελλάδας (UTC+3 EEST) — μετατροπή σε UTC για σύγκριση.
-    const GREECE_OFFSET_MS = 3 * 60 * 60 * 1000;
-    const nowGreece = new Date(Date.now() + GREECE_OFFSET_MS);
+    // "Σήμερα" σε ώρα Ελλάδας — η διαφορά από UTC βγαίνει από το Europe/Athens
+    // (+3 θερινή, +2 χειμερινή), αλλιώς τον χειμώνα η μέρα άλλαζε στις 23:00.
+    const nowMs = Date.now();
+    const athensWall = new Date(new Date(nowMs).toLocaleString('en-US', { timeZone: 'Europe/Athens' }));
+    const utcWall = new Date(new Date(nowMs).toLocaleString('en-US', { timeZone: 'UTC' }));
+    const GREECE_OFFSET_MS = athensWall - utcWall;
+    const nowGreece = new Date(nowMs + GREECE_OFFSET_MS);
     const startOfTodayGreece = Date.UTC(nowGreece.getUTCFullYear(), nowGreece.getUTCMonth(), nowGreece.getUTCDate());
     const startOfTodayUTC = new Date(startOfTodayGreece - GREECE_OFFSET_MS);
 
