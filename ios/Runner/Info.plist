@@ -36,7 +36,19 @@
 					<string>com.googleusercontent.apps.451660365555-lgl33r457q8dh194liifjae4u2u8p6f7</string>
 				</array>
 			</dict>
+			<dict>
+				<key>CFBundleTypeRole</key>
+				<string>Viewer</string>
+				<key>CFBundleURLName</key>
+				<string>gr.gorealai.app.open</string>
+				<key>CFBundleURLSchemes</key>
+				<array>
+					<string>gorealpro</string>
+				</array>
+			</dict>
 		</array>
+		<key>FlutterDeepLinkingEnabled</key>
+		<false/>
 		<key>UIBackgroundModes</key>
 		<array>
 			<string>remote-notification</string>
