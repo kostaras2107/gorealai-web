@@ -1139,11 +1139,18 @@ async function notifyMatchingPros({ profession, location, description, requestId
     // δεν τα πληρούν, άρα δεν πρέπει να τους στέλνουμε ειδοποίηση για κάτι που
     // δεν θα δουν. Διαβάζονται από το έγγραφο του αιτήματος (δεν έρχονται
     // στο body του endpoint).
-    let filterWithPhoto = false, filterMinRating = 0, clientPhone = '', locationDetail = '';
+    let filterWithPhoto = false, filterMinRating = 0, clientPhone = '', locationDetail = '', callToken = '';
     if (requestId) {
       try {
         const reqDoc = await admin.firestore().collection('requests').doc(requestId).get();
         if (reqDoc.exists) {
+          // Token για το λινκ κλήσης στο email (/call-client) — χωρίς αυτό όποιος
+          // ήξερε ένα requestId θα έβλεπε το κινητό του πελάτη.
+          callToken = String(reqDoc.data().callToken || '');
+          if (!callToken) {
+            callToken = crypto.randomBytes(12).toString('hex');
+            await reqDoc.ref.update({ callToken }).catch(() => {});
+          }
           filterWithPhoto = reqDoc.data().filterWithPhoto === true;
           filterMinRating = Number(reqDoc.data().filterMinRating) || 0;
           // Κινητό πελάτη — μπαίνει στο email/SMS ώστε ο επαγγελματίας να καλέσει απευθείας.
@@ -1268,14 +1275,19 @@ async function notifyMatchingPros({ profession, location, description, requestId
 
     const locLabel = locationDetail ? `${location} · ${locationDetail}` : location;
     const subject = `${urgent ? '🚨 ΕΠΕΙΓΟΝ — ' : ''}🔔 Νέο αίτημα${profession ? ` για ${profession}` : ''}${locLabel ? ` — ${locLabel}` : ''}`;
-    const html = `
+    // Το κινητό του πελάτη περνά από το /call-client ώστε να καταγράφεται ποιος
+    // επαγγελματίας πάτησε «κλήση» από το email (αλλιώς δεν μένει κανένα ίχνος).
+    const callHref = (p) => (requestId && callToken)
+      ? `${BACKEND_URL}/call-client?r=${encodeURIComponent(requestId)}&p=${encodeURIComponent(p.uid)}&t=${callToken}`
+      : `tel:${clientPhone}`;
+    const htmlFor = (p) => `
       <div style="font-family:Arial,sans-serif;max-width:480px;margin:0 auto;background:#0A0800;color:#fff;border-radius:16px;padding:32px;border:1px solid rgba(201,168,76,0.3)">
         ${urgent ? `<p style="display:inline-block;background:#ff4d4d;color:#fff;font-size:12px;font-weight:800;padding:4px 12px;border-radius:20px;margin-bottom:10px;">🚨 ΕΠΕΙΓΟΝ — απαντά μέσα σε 15 λεπτά</p>` : ''}
         <h1 style="color:#FFD47A;font-size:22px;margin-bottom:4px;">🔔 Νέο Αίτημα!</h1>
         ${profession ? `<p style="color:#C9A84C;font-size:15px;margin:4px 0;font-weight:700;">${profession}</p>` : ''}
         ${locLabel ? `<p style="color:rgba(255,255,255,0.5);font-size:13px;margin:4px 0;">📍 ${locLabel}</p>` : ''}
         ${description ? `<p style="color:rgba(255,255,255,0.7);font-size:14px;margin:16px 0;line-height:1.6;border-left:3px solid rgba(201,168,76,0.4);padding-left:12px;">${description.substring(0, 200)}</p>` : ''}
-        ${clientPhone ? `<p style="color:#FFD47A;font-size:14px;margin:8px 0;font-weight:700;">📞 Κινητό πελάτη: <a href="tel:${clientPhone}" style="color:#FFD47A;">${clientPhone}</a></p>` : ''}
+        ${clientPhone ? `<p style="color:#FFD47A;font-size:14px;margin:8px 0;font-weight:700;">📞 Κινητό πελάτη: <a href="${callHref(p)}" style="color:#FFD47A;">${clientPhone}</a></p>` : ''}
         <a href="https://gorealai.web.app/app" style="display:inline-block;margin-top:20px;padding:13px 28px;background:linear-gradient(135deg,#FFD47A,#C9A84C);color:#000;border-radius:12px;text-decoration:none;font-weight:800;font-size:14px;">Δες το αίτημα →</a>
         <p style="color:rgba(255,255,255,0.2);font-size:11px;margin-top:24px;">GorealPro · gorealai.web.app · info@gorealai.gr</p>
       </div>
@@ -1292,7 +1304,7 @@ async function notifyMatchingPros({ profession, location, description, requestId
     // σε όσους δεν έχουν push (ή αν το push αποτύχει με νεκρό token), για να
     // μη μπλοκάρει ο λογαριασμός. Μπαίνει στην ουρά χωρίς να καθυστερεί την απάντηση.
     const emailAll = !!process.env.ZEPTO_SMTP_PASS;
-    const emailPro = (p) => sendEmail({ to: p.email, subject, html, bulk: true })
+    const emailPro = (p) => sendEmail({ to: p.email, subject, html: htmlFor(p), bulk: true })
       .catch((e) => console.error(`Email error for ${p.email}:`, e.message));
     let emailed = 0;
     for (const p of matching) {
@@ -1360,6 +1372,47 @@ async function notifyMatchingPros({ profession, location, description, requestId
 app.post('/email-pros-new-request', rateLimit(30, 60_000), async (req, res) => {
   const result = await notifyMatchingPros(req.body);
   res.json(result);
+});
+
+// GET /call-client?r=<requestId>&p=<proUid>&t=<callToken>
+// Λινκ «Κινητό πελάτη» στο email νέου αιτήματος: καταγράφει ποιος επαγγελματίας
+// πάτησε κλήση (requests/{id}/callTaps/{proUid}) και μετά ανοίγει το τηλέφωνο.
+// Καταγράφεται μόνο το πάτημα — όχι αν έγινε/απαντήθηκε η κλήση.
+app.get('/call-client', rateLimit(30, 60_000), async (req, res) => {
+  const r = String(req.query.r || ''), p = String(req.query.p || ''), t = String(req.query.t || '');
+  const page = (body, status = 200) => res.status(status).send(`<!doctype html><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>GorealPro</title><body style="font-family:Arial,sans-serif;background:#0A0800;color:#fff;text-align:center;padding:60px 20px"><h2 style="color:#FFD47A">GorealPro</h2>${body}</body>`);
+  if (!firebaseReady) return page('<p>Η υπηρεσία δεν είναι διαθέσιμη αυτή τη στιγμή. Δοκιμάστε ξανά σε λίγο.</p>', 503);
+  if (!r || !p || !t || r.includes('/') || p.includes('/')) return page('<p>Ο σύνδεσμος δεν είναι έγκυρος.</p>', 400);
+  try {
+    const db = admin.firestore();
+    const ref = db.collection('requests').doc(r);
+    const d = (await ref.get()).data();
+    const good = String((d && d.callToken) || '');
+    if (!d || !good || t.length !== good.length || !crypto.timingSafeEqual(Buffer.from(t), Buffer.from(good))) return page('<p>Ο σύνδεσμος δεν είναι έγκυρος.</p>', 400);
+    const phone = String(d.userPhone || '').replace(/[^\d+]/g, '');
+    if (!phone) return page('<p>Ο πελάτης δεν έχει δηλώσει κινητό. Απαντήστε του μέσα από την εφαρμογή.</p>');
+    const tapRef = ref.collection('callTaps').doc(p);
+    const prev = (await tapRef.get()).data();
+    let proName = prev && prev.proName;
+    if (!proName) {
+      const u = (await db.collection('users').doc(p).get()).data() || {};
+      proName = u.name || u.displayName || '';
+    }
+    await tapRef.set({
+      proId: p, proName, source: 'email',
+      count: admin.firestore.FieldValue.increment(1),
+      lastAt: admin.firestore.FieldValue.serverTimestamp(),
+      ...(prev ? {} : { firstAt: admin.firestore.FieldValue.serverTimestamp() }),
+    }, { merge: true });
+    if (!prev) await ref.update({ callTapsCount: admin.firestore.FieldValue.increment(1) }).catch(() => {});
+    console.log(`📞 Call tap: ${proName || p} → request ${r}`);
+    // Σελίδα αντί για σκέτο 302, γιατί κάποια mail apps δεν ακολουθούν redirect σε tel:
+    const tel = `tel:${phone}`;
+    return res.send(`<!doctype html><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta http-equiv="refresh" content="0;url=${tel}"><title>Κλήση πελάτη</title><body style="font-family:Arial,sans-serif;background:#0A0800;color:#fff;text-align:center;padding:60px 20px"><h2 style="color:#FFD47A">GorealPro</h2><p>Κλήση πελάτη για το αίτημα${d.profession ? ` «${String(d.profession).replace(/[<>&"]/g, '')}»` : ''}</p><a href="${tel}" style="display:inline-block;margin-top:16px;padding:14px 30px;background:#FFD47A;color:#000;border-radius:12px;text-decoration:none;font-weight:800;font-size:18px">📞 ${phone}</a><script>location.href=${JSON.stringify(tel)}</script></body>`);
+  } catch (e) {
+    console.error('call-client error:', e.message);
+    return page('<p>Κάτι πήγε στραβά. Δοκιμάστε ξανά σε λίγο.</p>', 500);
+  }
 });
 
 // ── Χειροκίνητο email από τον διαχειριστή (μέσω ZeptoMail) ──────────
