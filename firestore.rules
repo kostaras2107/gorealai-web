@@ -80,7 +80,10 @@ service cloud.firestore {
       allow update: if request.auth != null
                     && resource.data.professionalId == request.auth.uid
                     && request.resource.data.diff(resource.data).affectedKeys()
-                       .hasOnly(['price', 'priceAfterVisit', 'message', 'editedAt']);
+                       .hasOnly(['price', 'priceAfterVisit', 'message', 'editedAt', 'hiddenByPro']);
+      // Ανάκληση της δικής του προσφοράς
+      allow delete: if request.auth != null
+                    && resource.data.professionalId == request.auth.uid;
     }
 
     // ─── PROFESSIONALS ────────────────────────────────────

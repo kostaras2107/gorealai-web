@@ -6886,8 +6886,23 @@ class _ProfessionalHomeScreenState extends State<ProfessionalHomeScreen> {
     }
   }
 
-  // «Οι προσφορές μου»: ό,τι έστειλε ο επαγγελματίας, με δυνατότητα διόρθωσης
-  // τιμής/μηνύματος όσο το αίτημα είναι ενεργό και ο πελάτης δεν έχει διαλέξει.
+  // «Οι προσφορές μου»: ό,τι έστειλε ο επαγγελματίας, με προβολή του αιτήματος,
+  // διόρθωση τιμής/μηνύματος και ανάκληση όσο το αίτημα είναι ενεργό.
+  final Map<String, Future<DocumentSnapshot<Map<String, dynamic>>>> _myOfferReqs = {};
+  String _myOffersFilter = 'all';
+
+  Future<DocumentSnapshot<Map<String, dynamic>>> _myOfferReq(String id) =>
+      _myOfferReqs.putIfAbsent(id, () => FirebaseFirestore.instance.collection('requests').doc(id).get());
+
+  // 'active' | 'won' | 'lost' | 'closed'
+  String _myOfferState(Map<String, dynamic> r) {
+    final selected = (r['selectedPro'] as String? ?? '').trim();
+    if (selected.isNotEmpty) return selected == (_proName ?? '').trim() ? 'won' : 'lost';
+    final exp = (r['expiresAt'] as Timestamp?)?.toDate();
+    if (r['status'] == 'active' && (exp == null || exp.isAfter(DateTime.now()))) return 'active';
+    return 'closed';
+  }
+
   Widget _buildMyOffersSection() {
     if (_proId == null) return const SizedBox();
     return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
@@ -6895,116 +6910,402 @@ class _ProfessionalHomeScreenState extends State<ProfessionalHomeScreen> {
           .where('professionalId', isEqualTo: _proId).snapshots(),
       builder: (context, snap) {
         if (!snap.hasData) return const Center(child: CircularProgressIndicator(color: kGold));
-        final docs = snap.data!.docs.toList()
+        final docs = snap.data!.docs.where((d) => d.data()['hiddenByPro'] != true).toList()
           ..sort((a, b) {
             final ta = a.data()['createdAt'] as Timestamp?;
             final tb = b.data()['createdAt'] as Timestamp?;
             return (tb?.millisecondsSinceEpoch ?? 0).compareTo(ta?.millisecondsSinceEpoch ?? 0);
           });
         if (docs.isEmpty) {
-          return Center(child: Column(mainAxisSize: MainAxisSize.min, children: [
-            Icon(Icons.local_offer_outlined, color: _g(0.15), size: 48),
-            const SizedBox(height: 12),
-            Text('Δεν έχεις στείλει ακόμα προσφορές', style: TextStyle(color: _g(0.3))),
-          ]));
+          return Center(child: Padding(
+            padding: const EdgeInsets.all(32),
+            child: Column(mainAxisSize: MainAxisSize.min, children: [
+              Container(
+                width: 72, height: 72,
+                decoration: BoxDecoration(shape: BoxShape.circle, color: kGold.withValues(alpha: 0.08),
+                    border: Border.all(color: kGold.withValues(alpha: 0.25))),
+                child: const Icon(Icons.local_offer_outlined, color: kGold, size: 32),
+              ),
+              const SizedBox(height: 16),
+              const Text('Δεν έχεις στείλει ακόμα προσφορές',
+                  style: TextStyle(color: Colors.white, fontSize: 15, fontWeight: FontWeight.w700)),
+              const SizedBox(height: 6),
+              Text('Άνοιξε τα «Αιτήματα» και στείλε την πρώτη σου προσφορά.',
+                  textAlign: TextAlign.center, style: TextStyle(color: _g(0.45), fontSize: 13)),
+            ]),
+          ));
         }
-        return ListView.builder(
-          padding: const EdgeInsets.fromLTRB(20, 8, 20, 20),
-          itemCount: docs.length,
-          itemBuilder: (_, i) => _myOfferCard(docs[i]),
+        return FutureBuilder<List<DocumentSnapshot<Map<String, dynamic>>>>(
+          future: Future.wait(docs.map((d) => _myOfferReq(d.data()['requestId'] as String? ?? '-'))),
+          builder: (context, rs) {
+            if (!rs.hasData) return const Center(child: CircularProgressIndicator(color: kGold));
+            final items = <(QueryDocumentSnapshot<Map<String, dynamic>>, Map<String, dynamic>, String)>[];
+            for (var i = 0; i < docs.length; i++) {
+              final r = rs.data![i].data() ?? const <String, dynamic>{};
+              items.add((docs[i], r, _myOfferState(r)));
+            }
+            final counts = <String, int>{};
+            for (final it in items) { counts[it.$3] = (counts[it.$3] ?? 0) + 1; }
+            final decided = (counts['won'] ?? 0) + (counts['lost'] ?? 0);
+            final winRate = decided == 0 ? null : ((counts['won'] ?? 0) * 100 / decided).round();
+            final shown = _myOffersFilter == 'all' ? items
+                : items.where((it) => it.$3 == _myOffersFilter).toList();
+
+            Widget stat(String value, String label, Color c) => Expanded(child: Column(children: [
+              Text(value, style: TextStyle(color: c, fontSize: 20, fontWeight: FontWeight.w900)),
+              const SizedBox(height: 2),
+              Text(label, style: TextStyle(color: _g(0.45), fontSize: 10, fontWeight: FontWeight.w600)),
+            ]));
+            Widget chip(String key, String label) {
+              final sel = _myOffersFilter == key;
+              return GestureDetector(
+                onTap: () => setState(() => _myOffersFilter = key),
+                child: Container(
+                  margin: const EdgeInsets.only(right: 8),
+                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(20),
+                    color: sel ? kGold : _g(0.05),
+                    border: Border.all(color: sel ? kGold : _g(0.12)),
+                  ),
+                  child: Text(label, style: TextStyle(
+                      color: sel ? Colors.black : _g(0.7), fontSize: 12, fontWeight: FontWeight.w700)),
+                ),
+              );
+            }
+
+            return ListView(
+              padding: const EdgeInsets.fromLTRB(16, 4, 16, 24),
+              children: [
+                Container(
+                  padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 8),
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(18),
+                    gradient: LinearGradient(colors: [kGold.withValues(alpha: 0.12), kGold.withValues(alpha: 0.03)]),
+                    border: Border.all(color: kGold.withValues(alpha: 0.25)),
+                  ),
+                  child: Row(children: [
+                    stat('${items.length}', 'Στάλθηκαν', Colors.white),
+                    stat('${counts['active'] ?? 0}', 'Ενεργές', kGold),
+                    stat('${counts['won'] ?? 0}', 'Σε επέλεξαν', Colors.greenAccent),
+                    stat(winRate == null ? '—' : '$winRate%', 'Επιτυχία', Colors.white),
+                  ]),
+                ),
+                const SizedBox(height: 14),
+                SingleChildScrollView(
+                  scrollDirection: Axis.horizontal,
+                  child: Row(children: [
+                    chip('all', 'Όλες'),
+                    chip('active', 'Ενεργές'),
+                    chip('won', 'Σε επέλεξαν'),
+                    chip('lost', 'Άλλος'),
+                    chip('closed', 'Έληξαν'),
+                  ]),
+                ),
+                const SizedBox(height: 14),
+                if (shown.isEmpty)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 40),
+                    child: Center(child: Text('Καμία προσφορά σε αυτή την κατηγορία',
+                        style: TextStyle(color: _g(0.35), fontSize: 13))),
+                  ),
+                ...shown.map((it) => _myOfferCard(it.$1, it.$2, it.$3)),
+              ],
+            );
+          },
         );
       },
     );
   }
 
-  Widget _myOfferCard(QueryDocumentSnapshot<Map<String, dynamic>> offerDoc) {
+  Widget _myOfferCard(QueryDocumentSnapshot<Map<String, dynamic>> offerDoc, Map<String, dynamic> r, String state) {
     final o = offerDoc.data();
-    final requestId = o['requestId'] as String? ?? '';
     final price = (o['price'] is num) ? (o['price'] as num).toInt() : 0;
     final priceAfterVisit = o['priceAfterVisit'] == true;
     final message = (o['message'] as String? ?? '').trim();
     final sentAt = (o['createdAt'] as Timestamp?)?.toDate();
     final edited = o['editedAt'] != null;
-    return FutureBuilder<DocumentSnapshot<Map<String, dynamic>>>(
-      future: requestId.isEmpty ? null
-          : FirebaseFirestore.instance.collection('requests').doc(requestId).get(),
-      builder: (context, rs) {
-        final r = rs.data?.data() ?? const <String, dynamic>{};
-        final expiresAt = (r['expiresAt'] as Timestamp?)?.toDate();
-        final selected = r['selectedPro'] as String?;
-        final active = r['status'] == 'active' && selected == null &&
-            (expiresAt == null || expiresAt.isAfter(DateTime.now()));
-        final String statusLabel;
-        final Color statusColor;
-        if (selected != null && selected.isNotEmpty && selected == _proName) {
-          statusLabel = '✅ Σε επέλεξε ο πελάτης'; statusColor = Colors.green;
-        } else if (selected != null && selected.isNotEmpty) {
-          statusLabel = 'Επέλεξε άλλον επαγγελματία'; statusColor = Colors.redAccent;
-        } else if (active) {
-          statusLabel = '⏳ Ενεργό αίτημα'; statusColor = kGold;
-        } else {
-          statusLabel = 'Έκλεισε'; statusColor = _g(0.4);
-        }
-        final where = [r['location'], r['locationDetail']]
-            .whereType<String>().where((x) => x.trim().isNotEmpty).join(' · ');
-        return Container(
-          margin: const EdgeInsets.only(bottom: 12),
-          padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(18),
-            color: _g(0.05),
-            border: Border.all(color: kGold.withValues(alpha: active ? 0.3 : 0.1)),
+    final exp = (r['expiresAt'] as Timestamp?)?.toDate();
+    final offersCount = (r['offersCount'] as num?)?.toInt() ?? 0;
+    final (String label, Color color, IconData icon) = switch (state) {
+      'active' => ('Ενεργό', kGold, Icons.timelapse_rounded),
+      'won' => ('Σε επέλεξε', Colors.greenAccent, Icons.check_circle_rounded),
+      'lost' => ('Επέλεξε άλλον', Colors.redAccent, Icons.cancel_outlined),
+      _ => ('Έληξε', _g(0.4), Icons.history_rounded),
+    };
+    final where = [r['location'], r['locationDetail']]
+        .whereType<String>().where((x) => x.trim().isNotEmpty).join(' · ');
+    String two(int n) => n.toString().padLeft(2, '0');
+
+    return GestureDetector(
+      onTap: () => _showMyOfferRequest(offerDoc, r, state),
+      child: Container(
+        margin: const EdgeInsets.only(bottom: 12),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(18),
+          color: const Color(0xFF0E0B04),
+          border: Border.all(color: color.withValues(alpha: state == 'closed' ? 0.12 : 0.35)),
+          boxShadow: state == 'active'
+              ? [BoxShadow(color: kGold.withValues(alpha: 0.08), blurRadius: 14)] : null,
+        ),
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(18),
+          child: IntrinsicHeight(
+            child: Row(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+              Container(width: 4, color: color.withValues(alpha: state == 'closed' ? 0.25 : 0.9)),
+              Expanded(child: Padding(
+                padding: const EdgeInsets.fromLTRB(14, 14, 14, 12),
+                child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                  Row(children: [
+                    Expanded(child: Text(r['profession'] as String? ?? 'Αίτημα',
+                        maxLines: 1, overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(color: Colors.white, fontSize: 15, fontWeight: FontWeight.w800))),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                      decoration: BoxDecoration(borderRadius: BorderRadius.circular(20),
+                          color: color.withValues(alpha: 0.12)),
+                      child: Row(mainAxisSize: MainAxisSize.min, children: [
+                        Icon(icon, size: 12, color: color),
+                        const SizedBox(width: 4),
+                        Text(label, style: TextStyle(color: color, fontSize: 11, fontWeight: FontWeight.w700)),
+                      ]),
+                    ),
+                  ]),
+                  const SizedBox(height: 4),
+                  Text([
+                    if ((r['userName'] as String? ?? '').isNotEmpty) r['userName'] as String,
+                    if (where.isNotEmpty) where,
+                  ].join(' · '), maxLines: 1, overflow: TextOverflow.ellipsis,
+                      style: TextStyle(color: _g(0.5), fontSize: 12)),
+                  if ((r['description'] as String? ?? '').isNotEmpty) ...[
+                    const SizedBox(height: 8),
+                    Text(r['description'] as String, maxLines: 2, overflow: TextOverflow.ellipsis,
+                        style: TextStyle(color: _g(0.65), fontSize: 12.5, height: 1.4)),
+                  ],
+                  const SizedBox(height: 12),
+                  Row(crossAxisAlignment: CrossAxisAlignment.end, children: [
+                    Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                      Text('Η προσφορά σου', style: TextStyle(color: _g(0.4), fontSize: 10, fontWeight: FontWeight.w600)),
+                      Text(priceAfterVisit ? 'Μετά από αυτοψία' : '$price€',
+                          style: TextStyle(color: kGold, fontSize: priceAfterVisit ? 14 : 24, fontWeight: FontWeight.w900)),
+                    ]),
+                    const Spacer(),
+                    Column(crossAxisAlignment: CrossAxisAlignment.end, children: [
+                      if (state == 'active' && exp != null)
+                        Text('⏱ ${_formatCountdownLabeled(exp.difference(DateTime.now()))}',
+                            style: const TextStyle(color: kGold, fontSize: 11, fontWeight: FontWeight.w700)),
+                      if (offersCount > 0)
+                        Text(offersCount == 1 ? 'μόνο η δική σου προσφορά' : '$offersCount προσφορές συνολικά',
+                            style: TextStyle(color: _g(0.45), fontSize: 11)),
+                      if (sentAt != null)
+                        Text('${edited ? 'Διορθώθηκε · ' : ''}${sentAt.day}/${sentAt.month} ${two(sentAt.hour)}:${two(sentAt.minute)}',
+                            style: TextStyle(color: _g(0.35), fontSize: 11)),
+                    ]),
+                  ]),
+                  if (message.isNotEmpty) ...[
+                    const SizedBox(height: 8),
+                    Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.all(10),
+                      decoration: BoxDecoration(borderRadius: BorderRadius.circular(10), color: _g(0.04)),
+                      child: Text('«$message»', maxLines: 3, overflow: TextOverflow.ellipsis,
+                          style: TextStyle(color: _g(0.7), fontSize: 12.5, fontStyle: FontStyle.italic, height: 1.4)),
+                    ),
+                  ],
+                  const SizedBox(height: 10),
+                  Row(children: [
+                    if (state == 'active') ...[
+                      _myOfferBtn(Icons.edit_outlined, 'Διόρθωση', kGold, () => _editMyOffer(offerDoc)),
+                      const SizedBox(width: 8),
+                    ],
+                    _myOfferBtn(Icons.visibility_outlined, 'Το αίτημα', _g(0.7),
+                        () => _showMyOfferRequest(offerDoc, r, state)),
+                    const Spacer(),
+                    if (state != 'won')
+                      GestureDetector(
+                        onTap: () => _deleteMyOffer(offerDoc, state),
+                        child: Padding(
+                          padding: const EdgeInsets.all(6),
+                          child: Icon(Icons.delete_outline_rounded, size: 20, color: _g(0.35)),
+                        ),
+                      ),
+                  ]),
+                ]),
+              )),
+            ]),
           ),
-          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            Row(children: [
-              Expanded(child: Text(r['profession'] as String? ?? 'Αίτημα',
-                  style: const TextStyle(color: Colors.white, fontSize: 15, fontWeight: FontWeight.w700))),
-              Text(statusLabel, style: TextStyle(color: statusColor, fontSize: 11, fontWeight: FontWeight.w700)),
-            ]),
-            if (where.isNotEmpty) ...[
-              const SizedBox(height: 4),
-              Text('📍 $where', style: TextStyle(color: _g(0.5), fontSize: 12)),
-            ],
-            if ((r['description'] as String? ?? '').isNotEmpty) ...[
-              const SizedBox(height: 8),
-              Text(r['description'] as String, maxLines: 3, overflow: TextOverflow.ellipsis,
-                  style: TextStyle(color: _g(0.6), fontSize: 12, height: 1.4)),
-            ],
-            const SizedBox(height: 10),
-            Container(height: 1, color: _g(0.06)),
-            const SizedBox(height: 10),
-            Row(children: [
-              Text(priceAfterVisit ? 'Τιμή μετά από αυτοψία' : '$price€',
-                  style: TextStyle(color: kGold, fontSize: priceAfterVisit ? 13 : 22, fontWeight: FontWeight.w900)),
-              const Spacer(),
-              if (sentAt != null)
-                Text('${edited ? 'Διορθώθηκε · ' : ''}${sentAt.day}/${sentAt.month} ${sentAt.hour.toString().padLeft(2, '0')}:${sentAt.minute.toString().padLeft(2, '0')}',
-                    style: TextStyle(color: _g(0.35), fontSize: 11)),
-            ]),
-            if (message.isNotEmpty) ...[
-              const SizedBox(height: 6),
-              Text(message, style: TextStyle(color: _g(0.75), fontSize: 13, height: 1.4)),
-            ],
-            if (active) ...[
-              const SizedBox(height: 12),
+        ),
+      ),
+    );
+  }
+
+  Widget _myOfferBtn(IconData icon, String label, Color c, VoidCallback onTap) => GestureDetector(
+        onTap: onTap,
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(10),
+            border: Border.all(color: c.withValues(alpha: 0.4)),
+            color: c.withValues(alpha: 0.06),
+          ),
+          child: Row(mainAxisSize: MainAxisSize.min, children: [
+            Icon(icon, size: 14, color: c),
+            const SizedBox(width: 5),
+            Text(label, style: TextStyle(color: c, fontSize: 12, fontWeight: FontWeight.w700)),
+          ]),
+        ),
+      );
+
+  // Ολόκληρο το αίτημα στο οποίο απάντησε ο επαγγελματίας.
+  void _showMyOfferRequest(QueryDocumentSnapshot<Map<String, dynamic>> offerDoc, Map<String, dynamic> r, String state) {
+    final images = ((r['images'] as List?) ?? const []).whereType<String>()
+        .where((u) => u.startsWith('http')).toList();
+    final phone = (r['userPhone'] as String? ?? '').trim();
+    final created = (r['createdAt'] as Timestamp?)?.toDate();
+    final exp = (r['expiresAt'] as Timestamp?)?.toDate();
+    final where = [r['location'], r['locationDetail'], r['destination']]
+        .whereType<String>().where((x) => x.trim().isNotEmpty).join(' · ');
+    String two(int n) => n.toString().padLeft(2, '0');
+    Widget row(IconData i, String t) => Padding(
+          padding: const EdgeInsets.only(bottom: 8),
+          child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Icon(i, size: 16, color: kGold),
+            const SizedBox(width: 8),
+            Expanded(child: Text(t, style: TextStyle(color: _g(0.8), fontSize: 13))),
+          ]),
+        );
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) => DraggableScrollableSheet(
+        initialChildSize: 0.75, maxChildSize: 0.95, minChildSize: 0.4, expand: false,
+        builder: (ctx, scroll) => Container(
+          decoration: const BoxDecoration(color: Color(0xFF0E0B04),
+              borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
+          child: ListView(controller: scroll, padding: const EdgeInsets.fromLTRB(20, 12, 20, 28), children: [
+            Center(child: Container(width: 40, height: 4,
+                decoration: BoxDecoration(borderRadius: BorderRadius.circular(2), color: _g(0.2)))),
+            const SizedBox(height: 16),
+            Text(r['profession'] as String? ?? 'Αίτημα',
+                style: const TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.w800)),
+            const SizedBox(height: 14),
+            if ((r['userName'] as String? ?? '').isNotEmpty) row(Icons.person_outline, r['userName'] as String),
+            if (where.isNotEmpty) row(Icons.place_outlined, where),
+            if (created != null) row(Icons.schedule, 'Στάλθηκε ${created.day}/${created.month} ${two(created.hour)}:${two(created.minute)}'),
+            if (state == 'active' && exp != null)
+              row(Icons.timelapse_rounded, 'Λήγει σε ${_formatCountdownLabeled(exp.difference(DateTime.now()))}'),
+            row(Icons.local_offer_outlined, '${(r['offersCount'] as num?)?.toInt() ?? 0} προσφορές συνολικά'),
+            const SizedBox(height: 8),
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(14),
+              decoration: BoxDecoration(borderRadius: BorderRadius.circular(14), color: _g(0.05),
+                  border: Border.all(color: _g(0.08))),
+              child: Text((r['description'] as String? ?? '').isEmpty ? 'Χωρίς περιγραφή' : r['description'] as String,
+                  style: TextStyle(color: _g(0.85), fontSize: 14, height: 1.5)),
+            ),
+            if (images.isNotEmpty) ...[
+              const SizedBox(height: 14),
               SizedBox(
-                width: double.infinity,
-                child: OutlinedButton.icon(
-                  onPressed: () => _editMyOffer(offerDoc),
-                  icon: const Icon(Icons.edit_outlined, size: 16, color: kGold),
-                  label: const Text('Διόρθωση προσφοράς',
-                      style: TextStyle(color: kGold, fontWeight: FontWeight.w700)),
-                  style: OutlinedButton.styleFrom(
-                    side: BorderSide(color: kGold.withValues(alpha: 0.4)),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                height: 110,
+                child: ListView.separated(
+                  scrollDirection: Axis.horizontal,
+                  itemCount: images.length,
+                  separatorBuilder: (_, __) => const SizedBox(width: 8),
+                  itemBuilder: (_, i) => GestureDetector(
+                    onTap: () => showDialog(context: ctx, builder: (_) => Dialog(
+                        backgroundColor: Colors.black, insetPadding: const EdgeInsets.all(12),
+                        child: InteractiveViewer(child: Image.network(images[i], fit: BoxFit.contain)))),
+                    child: ClipRRect(borderRadius: BorderRadius.circular(12),
+                        child: Image.network(images[i], width: 110, height: 110, fit: BoxFit.cover,
+                            errorBuilder: (_, __, ___) => Container(width: 110, color: _g(0.05)))),
                   ),
                 ),
               ),
             ],
+            if (phone.isNotEmpty && (state == 'active' || state == 'won')) ...[
+              const SizedBox(height: 16),
+              GestureDetector(
+                onTap: () { _logCallTap(offerDoc.data()['requestId'] as String?, 'app_myoffers'); launchUrl(Uri.parse('tel:$phone')); },
+                child: Container(
+                  padding: const EdgeInsets.symmetric(vertical: 13),
+                  decoration: BoxDecoration(borderRadius: BorderRadius.circular(14),
+                      gradient: const LinearGradient(colors: [Color(0xFFFFD47A), kGold])),
+                  child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [
+                    const Icon(Icons.phone_rounded, color: Colors.black, size: 18),
+                    const SizedBox(width: 8),
+                    Text('Κλήση πελάτη · $phone',
+                        style: const TextStyle(color: Colors.black, fontWeight: FontWeight.w800, fontSize: 14)),
+                  ]),
+                ),
+              ),
+            ],
+            if (state == 'active') ...[
+              const SizedBox(height: 10),
+              OutlinedButton.icon(
+                onPressed: () { Navigator.pop(ctx); _editMyOffer(offerDoc); },
+                icon: const Icon(Icons.edit_outlined, size: 16, color: kGold),
+                label: const Text('Διόρθωση προσφοράς', style: TextStyle(color: kGold, fontWeight: FontWeight.w700)),
+                style: OutlinedButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(vertical: 12),
+                  side: BorderSide(color: kGold.withValues(alpha: 0.4)),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                ),
+              ),
+            ],
           ]),
-        );
-      },
+        ),
+      ),
     );
+  }
+
+  // Ενεργό αίτημα → ανάκληση (σβήνεται, ο πελάτης δεν τη βλέπει πια).
+  // Κλειστό → απλώς κρύβεται από τη λίστα, το ιστορικό μένει.
+  Future<void> _deleteMyOffer(QueryDocumentSnapshot<Map<String, dynamic>> offerDoc, String state) async {
+    final withdraw = state == 'active';
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: const Color(0xFF15120A),
+        title: Text(withdraw ? 'Ανάκληση προσφοράς;' : 'Αφαίρεση από τη λίστα;',
+            style: const TextStyle(color: Colors.white, fontSize: 17, fontWeight: FontWeight.w800)),
+        content: Text(withdraw
+            ? 'Η προσφορά θα διαγραφεί και ο πελάτης δεν θα τη βλέπει πια. Μπορείς να στείλεις νέα από τα «Αιτήματα» όσο το αίτημα είναι ενεργό.'
+            : 'Η προσφορά θα φύγει από τη λίστα σου.',
+            style: TextStyle(color: _g(0.8), fontSize: 14, height: 1.45)),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx, false),
+              child: Text('Άκυρο', style: TextStyle(color: _g(0.6)))),
+          TextButton(onPressed: () => Navigator.pop(ctx, true),
+              child: Text(withdraw ? 'Ανάκληση' : 'Αφαίρεση',
+                  style: const TextStyle(color: Colors.redAccent, fontWeight: FontWeight.w700))),
+        ],
+      ),
+    );
+    if (ok != true || !mounted) return;
+    try {
+      final requestId = offerDoc.data()['requestId'] as String? ?? '';
+      if (withdraw) {
+        await offerDoc.reference.delete();
+        if (requestId.isNotEmpty) {
+          await FirebaseFirestore.instance.collection('requests').doc(requestId)
+              .update({'offersCount': FieldValue.increment(-1)}).catchError((_) {});
+          _myOfferReqs.remove(requestId);
+        }
+        if (mounted) setState(() => _submittedIds.remove(requestId));
+      } else {
+        await offerDoc.reference.update({'hiddenByPro': true});
+      }
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text(withdraw ? 'Η προσφορά ανακλήθηκε' : 'Αφαιρέθηκε από τη λίστα'),
+          behavior: SnackBarBehavior.floating,
+        ));
+      }
+    } catch (e) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Σφάλμα: $e')));
+    }
   }
 
   Future<void> _editMyOffer(QueryDocumentSnapshot<Map<String, dynamic>> offerDoc) async {
@@ -7076,6 +7377,7 @@ class _ProfessionalHomeScreenState extends State<ProfessionalHomeScreen> {
         'message': msgCtrl.text.trim(),
         'editedAt': FieldValue.serverTimestamp(),
       });
+      _myOfferReqs.remove(o['requestId'] as String? ?? '');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(
           content: const Text('✅ Η προσφορά διορθώθηκε!'),
