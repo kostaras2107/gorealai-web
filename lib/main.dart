@@ -9441,9 +9441,16 @@ Future<void> _submitOfferFallback(String requestId, Map<String, dynamic> request
       setState(() => _submittedIds.add(requestId));
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: const Text('✅ Η προσφορά στάλθηκε!'),
+          content: const Text('✅ Η προσφορά στάλθηκε!\n'
+              'Μπορείς να τη δεις ή να διορθώσεις την τιμή σου στην καρτέλα «Οι προσφορές μου».'),
           backgroundColor: kGreen.withValues(alpha: 0.9),
           behavior: SnackBarBehavior.floating,
+          duration: const Duration(seconds: 6),
+          action: SnackBarAction(
+            label: 'ΑΝΟΙΓΜΑ',
+            textColor: Colors.white,
+            onPressed: () { if (mounted) setState(() => _activeSection = 'myoffers'); },
+          ),
         ),
       );
     }
@@ -16433,9 +16440,11 @@ class NotificationsScreen extends StatelessWidget {
 
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          content: const Text('✅ Η προσφορά στάλθηκε!'),
+          content: const Text('✅ Η προσφορά στάλθηκε!\n'
+              'Μπορείς να τη δεις ή να διορθώσεις την τιμή σου στην καρτέλα «Οι προσφορές μου».'),
           backgroundColor: kGreen.withValues(alpha: 0.9),
           behavior: SnackBarBehavior.floating,
+          duration: const Duration(seconds: 6),
         ));
       }
     } catch (e) {
