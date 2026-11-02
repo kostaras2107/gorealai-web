@@ -62,7 +62,14 @@ service cloud.firestore {
                                      'images', 'hasImages',
                                      'videoUrl', 'videoUrls', 'hasVideo', 'hasVideos',
                                      'status', 'selectedPro', 'offersViewed',
-                                     'notifiedPros']));
+                                     'notifiedPros', 'callTapsCount']));
+
+      // Ποιος επαγγελματίας πάτησε το κινητό του πελάτη (app ή email).
+      // Ο καθένας γράφει/διαβάζει μόνο το δικό του έγγραφο· το admin όλα.
+      match /callTaps/{proId} {
+        allow read, create, update: if request.auth != null && request.auth.uid == proId;
+        allow read: if isAdmin();
+      }
     }
 
     // ─── OFFERS ───────────────────────────────────────────

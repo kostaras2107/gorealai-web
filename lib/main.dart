@@ -814,6 +814,63 @@ Future<String> _currentUserPhone(String uid) async {
   }
 }
 
+// Ο server ειδοποίησε ήδη αυτόν τον επαγγελματία (notifiedProIds) — π.χ. από
+// διευρυμένη περιοχή ή χαλαρωμένο φίλτρο όταν δεν βρέθηκε κανείς — άρα πρέπει
+// να βλέπει το αίτημα ακόμα κι αν δεν ταιριάζει η περιοχή του.
+bool _wasNotified(Map<String, dynamic> data) {
+  final uid = FirebaseAuth.instance.currentUser?.uid;
+  return uid != null && ((data['notifiedProIds'] as List?) ?? const []).contains(uid);
+}
+
+// Πριν την αποστολή αιτήματος με τικαρισμένο το κινητό: ο πελάτης βλέπει ότι
+// θα σταλεί και το κινητό του. true = με κινητό, false = χωρίς, null = πίσω.
+Future<bool?> _confirmPhoneShare(BuildContext context, String phone) {
+  return showDialog<bool>(
+    context: context,
+    builder: (ctx) => AlertDialog(
+      backgroundColor: const Color(0xFF15120A),
+      title: const Text('Θα σταλεί και το κινητό σου',
+          style: TextStyle(color: Colors.white, fontSize: 17, fontWeight: FontWeight.w800)),
+      content: Text(
+          'Μαζί με το αίτημα έχεις επιλέξει να στείλεις και το κινητό σου ($phone).\n\n'
+          'Οι επαγγελματίες που θα ειδοποιηθούν θα μπορούν να σε καλέσουν απευθείας.',
+          style: TextStyle(color: _g(0.8), fontSize: 14, height: 1.45)),
+      actions: [
+        TextButton(onPressed: () => Navigator.pop(ctx, false),
+            child: Text('Χωρίς κινητό', style: TextStyle(color: _g(0.6)))),
+        TextButton(onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Αποστολή με το κινητό', style: TextStyle(color: kGold, fontWeight: FontWeight.w700))),
+      ],
+    ),
+  );
+}
+
+// Ο επαγγελματίας πάτησε το κινητό του πελάτη μέσα στην εφαρμογή — ίδια
+// καταγραφή με το /call-client των email (requests/{id}/callTaps/{proUid}).
+Future<void> _logCallTap(String? requestId, String source) async {
+  final uid = FirebaseAuth.instance.currentUser?.uid;
+  if (uid == null || requestId == null || requestId.isEmpty) return;
+  try {
+    final reqRef = FirebaseFirestore.instance.collection('requests').doc(requestId);
+    final tapRef = reqRef.collection('callTaps').doc(uid);
+    final prev = await tapRef.get();
+    String name = '';
+    if (!prev.exists) {
+      final u = await FirebaseFirestore.instance.collection('users').doc(uid).get();
+      name = u.data()?['name'] as String? ?? '';
+    }
+    await tapRef.set({
+      'proId': uid,
+      'source': source,
+      'count': FieldValue.increment(1),
+      'lastAt': FieldValue.serverTimestamp(),
+      if (!prev.exists) 'firstAt': FieldValue.serverTimestamp(),
+      if (name.isNotEmpty) 'proName': name,
+    }, SetOptions(merge: true));
+    if (!prev.exists) await reqRef.update({'callTapsCount': FieldValue.increment(1)});
+  } catch (_) {}
+}
+
 bool _matchesProfession(Iterable<String> proSpecialties, String reqProfession, {bool exact = false}) {
   if (reqProfession.isEmpty) return true;
   final specs = proSpecialties.map((s) => s.trim().toLowerCase()).where((s) => s.isNotEmpty).toList();
@@ -4055,7 +4112,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                                     final isEvent = (data['eventType'] as String? ?? '').isNotEmpty;
                                     if (!_proMatchesProfession(reqProf, exact: isEvent)) return false;
                                   }
-                                  if (!_proLocationOk(
+                                  if (!_wasNotified(data) && !_proLocationOk(
                                       pro: _proModeData,
                                       proSpecialties: _proSpecialties,
                                       proAreasLower: _proAreas,
@@ -4067,7 +4124,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                                   if (data['filterWithPhoto'] == true && (_proPhotoUrlHome == null || _proPhotoUrlHome!.isEmpty)) return false;
                                   final minRating = (data['filterMinRating'] as num? ?? 0).toDouble();
                                   if (minRating > 0 && _proAvgRatingHome < minRating) return false;
-                                  if (data['filterVerifiedOnly'] == true && !_proIsVerifiedHome) return false;
+                                  if (data['filterVerifiedOnly'] == true && !_proIsVerifiedHome && !_wasNotified(data)) return false;
                                   return true;
                                 }).length
                               : 0;
@@ -4095,7 +4152,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                                     final isEvent = (data['eventType'] as String? ?? '').isNotEmpty;
                                     if (!_proMatchesProfession(reqProf, exact: isEvent)) return false;
                                   }
-                                  if (!_proLocationOk(
+                                  if (!_wasNotified(data) && !_proLocationOk(
                                       pro: _proModeData,
                                       proSpecialties: _proSpecialties,
                                       proAreasLower: _proAreas,
@@ -6681,7 +6738,7 @@ class _ProfessionalHomeScreenState extends State<ProfessionalHomeScreen> {
                   final isEvent = (data['eventType'] as String? ?? '').isNotEmpty;
                   if (reqProf.isNotEmpty && !_matchesProfession(proSpecialties, reqProf, exact: isEvent)) return false;
                 }
-                if (!_proLocationOk(
+                if (!_wasNotified(data) && !_proLocationOk(
                     pro: _proModeData,
                     proSpecialties: proSpecialties,
                     proAreasLower: proAreas,
@@ -6693,7 +6750,7 @@ class _ProfessionalHomeScreenState extends State<ProfessionalHomeScreen> {
                 if (data['filterWithPhoto'] == true && (_proPhotoUrl == null || _proPhotoUrl!.isEmpty)) return false;
                 final minRating = (data['filterMinRating'] as num? ?? 0).toDouble();
                 if (minRating > 0 && _proAverageRating < minRating) return false;
-                if (data['filterVerifiedOnly'] == true && !_proAfmValid) return false;
+                if (data['filterVerifiedOnly'] == true && !_proAfmValid && !_wasNotified(data)) return false;
                 return true;
               }).length
             : 0;
@@ -6883,7 +6940,7 @@ class _ProfessionalHomeScreenState extends State<ProfessionalHomeScreen> {
                     ]),
                     const SizedBox(height: 10),
                     GestureDetector(
-                      onTap: () => launchUrl(Uri.parse('tel:${d['userPhone']}')),
+                      onTap: () { _logCallTap(d['requestId'] as String?, 'app_booking'); launchUrl(Uri.parse('tel:${d['userPhone']}')); },
                       child: Row(children: [
                         const Icon(Icons.phone_outlined, color: kGold, size: 15),
                         const SizedBox(width: 6),
@@ -8197,7 +8254,7 @@ class _ProfessionalHomeScreenState extends State<ProfessionalHomeScreen> {
               }
               // Filter by location
               final reqLocation = (data['location'] as String? ?? '').toLowerCase();
-              if (!_proLocationOk(
+              if (!_wasNotified(data) && !_proLocationOk(
                   pro: _proModeData,
                   proSpecialties: proSpecialties,
                   proAreasLower: proAreas,
@@ -8214,7 +8271,7 @@ class _ProfessionalHomeScreenState extends State<ProfessionalHomeScreen> {
               final minRating = (data['filterMinRating'] as num? ?? 0).toDouble();
               if (minRating > 0 && _proAverageRating < minRating) return false;
               // Filter by filterVerifiedOnly: pro must be VIES-verified (afmValid), not just have typed an AFM
-              if (data['filterVerifiedOnly'] == true && !_proAfmValid) return false;
+              if (data['filterVerifiedOnly'] == true && !_proAfmValid && !_wasNotified(data)) return false;
               return true;
             })
             .toList();
@@ -8347,7 +8404,7 @@ class _ProfessionalHomeScreenState extends State<ProfessionalHomeScreen> {
                     if ((d['userPhone'] as String?)?.isNotEmpty == true) ...[
                       const SizedBox(height: 10),
                       GestureDetector(
-                        onTap: () => launchUrl(Uri.parse('tel:${d['userPhone']}')),
+                        onTap: () { _logCallTap(requestId, 'app'); launchUrl(Uri.parse('tel:${d['userPhone']}')); },
                         child: Container(
                           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
                           decoration: BoxDecoration(
@@ -10006,9 +10063,18 @@ class _RequestScreenState extends State<RequestScreen>
         }
       } catch (_) {}
     }
+    String userPhone = '';
+    if (_sharePhone) {
+      final ph = await _currentUserPhone(widget.userId);
+      if (ph.isNotEmpty) {
+        if (!mounted) { _submitLock = false; return; }
+        final withPhone = await _confirmPhoneShare(context, ph);
+        if (withPhone == null || !mounted) { _submitLock = false; return; }
+        if (withPhone) { userPhone = ph; } else { setState(() => _sharePhone = false); }
+      }
+    }
     setState(() => _sending = true);
     try {
-      final userPhone = _sharePhone ? await _currentUserPhone(widget.userId) : '';
       final docRef = await FirebaseFirestore.instance
           .collection('requests')
           .add({
@@ -15913,7 +15979,7 @@ class NotificationsScreen extends StatelessWidget {
                 if (userPhone.isNotEmpty) ...[
                   const SizedBox(height: 10),
                   GestureDetector(
-                    onTap: () => launchUrl(Uri.parse('tel:\$userPhone')),
+                    onTap: () { _logCallTap(notifData['requestId'] as String?, 'app_booking'); launchUrl(Uri.parse('tel:$userPhone')); },
                     child: Container(
                       width: double.infinity,
                       padding: const EdgeInsets.symmetric(
@@ -19730,6 +19796,17 @@ class _EventFormSheetState extends State<_EventFormSheet> {
           const SnackBar(content: Text('⚠️ Επίλεξε περιοχή!'), backgroundColor: Colors.orange));
       return;
     }
+    if (_sending) return;
+    String userPhone = '';
+    if (_sharePhone) {
+      final ph = await _currentUserPhone(widget.userId);
+      if (ph.isNotEmpty) {
+        if (!mounted) return;
+        final withPhone = await _confirmPhoneShare(context, ph);
+        if (withPhone == null || !mounted) return;
+        if (withPhone) { userPhone = ph; } else { setState(() => _sharePhone = false); }
+      }
+    }
     setState(() => _sending = true);
     // Ένα κλασσικό αίτημα, στην ειδικότητα διοργάνωσης εκδηλώσεων, ώστε να
     // περνάει από το ΙΔΙΟ, ήδη δοκιμασμένο pipeline με τα κλασσικά αιτήματα
@@ -19747,7 +19824,6 @@ class _EventFormSheetState extends State<_EventFormSheet> {
     final fs = FirebaseFirestore.instance;
     int createdCount = 0;
     try {
-      final userPhone = _sharePhone ? await _currentUserPhone(widget.userId) : '';
       final docRef = await fs.collection('requests').add({
         'userId': widget.userId,
         'userName': widget.userName,

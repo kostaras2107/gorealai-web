@@ -204,7 +204,7 @@
     <div class="table-wrap" style="margin-bottom:40px">
       <div class="loading" id="requests-loading">Φόρτωση αιτημάτων...</div>
       <table id="requests-table" style="display:none">
-        <thead><tr><th>#</th><th>Χρήστης</th><th>Ειδικότητα</th><th>Περιγραφή</th><th>Ημερομηνία</th><th>Κατάσταση</th></tr></thead>
+        <thead><tr><th>#</th><th>Χρήστης</th><th>Ειδικότητα</th><th>Περιγραφή</th><th>Ημερομηνία</th><th>Κατάσταση</th><th>Κλήσεις</th></tr></thead>
         <tbody id="requests-tbody"></tbody>
       </table>
       <div id="requests-more" style="display:none;text-align:center;padding:14px 0 4px">
@@ -571,8 +571,24 @@
         <td style="font-size:13px;color:#aaa;max-width:240px">${desc||'—'}</td>
         <td style="font-size:12px;color:#666;white-space:nowrap">${ts}</td>
         <td>${statusBadge}</td>
+        <td>${(r.callTapsCount||0) > 0
+          ? `<button onclick="showCallTaps('${r.id}')" style="background:#1a1200;color:#FFD47A;border:1px solid rgba(201,168,76,.4);border-radius:6px;padding:3px 10px;font-size:12px;cursor:pointer">📞 ${r.callTapsCount}</button>`
+          : '<span style="color:#444;font-size:12px">—</span>'}</td>
       </tr>`;
     }).join('');
+  };
+
+  // Ποιοι επαγγελματίες πάτησαν το κινητό του πελάτη (email ή εφαρμογή)
+  window.showCallTaps = async function(requestId) {
+    try {
+      const snap = await getDocs(collection(db, 'requests', requestId, 'callTaps'));
+      const f = t => t?.seconds ? new Date(t.seconds*1000).toLocaleString('el-GR',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'}) : '—';
+      const src = s => s === 'email' ? 'email' : s === 'app_booking' ? 'εφαρμογή, κράτηση' : 'εφαρμογή';
+      const lines = snap.docs.map(d => d.data())
+        .sort((a, b) => (b.lastAt?.seconds||0) - (a.lastAt?.seconds||0))
+        .map(t => `• ${t.proName || t.proId} — ${t.count||1} φορές, τελευταία ${f(t.lastAt)} (${src(t.source)})`);
+      alert(lines.length ? 'Πάτησαν κλήση:\n\n' + lines.join('\n') : 'Καμία καταγραφή');
+    } catch (e) { alert('Σφάλμα: ' + e.message); }
   };
 
   // ── BOOKINGS per professional (από το bookings collection, keyed by professionalId) ──

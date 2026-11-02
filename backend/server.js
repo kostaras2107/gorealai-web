@@ -35,6 +35,7 @@ const THESSALONIKI_SECTORS = {
   'θεσσαλονίκη - περιφέρεια': ['λαγκαδάς', 'βόλβη'],
 };
 const ALL_SECTORS = { ...ATTICA_SECTORS, ...THESSALONIKI_SECTORS };
+const AREA_GROUPS = require('./areaGroups');
 
 // ── Ειδικότητες που γίνονται και εξ αποστάσεως (online) ─────────────
 // ΙΔΙΕΣ με _teacherSpecialties + _remoteExtraSpecialties στην εφαρμογή.
@@ -1172,6 +1173,10 @@ async function notifyMatchingPros({ profession, location, description, requestId
       }));
     }
 
+    // Αν δεν βρεθεί κανείς: (1) χαλαρώνει το «μόνο επαληθευμένοι», (2) διευρύνει
+    // την περιοχή στον νομό και μετά στην περιφέρεια. Η εφαρμογή δείχνει το
+    // αίτημα σε όσους είναι στο notifiedProIds ακόμα κι αν η περιοχή διαφέρει.
+    const collect = ({ relaxVerified = false, areaSet = null } = {}) => {
     const matching = [];
     proMap.forEach((d, uid) => {
       if (!d.email) return;
@@ -1233,7 +1238,9 @@ async function notifyMatchingPros({ profession, location, description, requestId
         const sectorOfRequest = AREA_TO_SECTOR[locLower];
         const sectorMatch = sectorOfRequest && areas.some(a =>
             a === sectorOfRequest || AREA_TO_SECTOR[a] === sectorOfRequest);
-        if (areas.length > 0 && !sectorMatch &&
+        const inExpanded = !!areaSet && areas.some(a =>
+            areaSet.has(a) || (ALL_SECTORS[a] || []).some(t => areaSet.has(t)));
+        if (areas.length > 0 && !sectorMatch && !inExpanded &&
             // Οι τομείς ταιριάζουν μόνο μέσω των δήμων τους, όχι με substring
             // ("θεσσαλονίκη - ανατολικά" περιέχει το "θεσσαλονίκη").
             !areas.some(a => !ALL_SECTORS[a] && (a.includes(locLower) || locLower.includes(a)))) return;
@@ -1243,7 +1250,7 @@ async function notifyMatchingPros({ profession, location, description, requestId
 
       // Verified-only filter — πρέπει να έχει επιβεβαιωθεί πραγματικά από το
       // VIES (afmValid), όχι απλά να έχει γραφτεί κάποιο κείμενο στο πεδίο.
-      if (filterVerifiedOnly && d.afmValid !== true) return;
+      if (filterVerifiedOnly && !relaxVerified && d.afmValid !== true) return;
 
       if (filterWithPhoto || filterMinRating > 0) {
         const merged = { ...(userExtra.get(uid) || {}), ...d };
@@ -1253,6 +1260,37 @@ async function notifyMatchingPros({ profession, location, description, requestId
 
       matching.push({ uid, email: d.email, phone: d.phone || '', name: d.displayName || d.name || 'Επαγγελματία' });
     });
+    return matching;
+    };
+
+    let matching = collect();
+    const fallback = {};
+    if (matching.length === 0 && filterVerifiedOnly) {
+      matching = collect({ relaxVerified: true });
+      if (matching.length) fallback.verifiedFilterRelaxed = true;
+    }
+    const grp = AREA_GROUPS[locLower];
+    if (matching.length === 0 && grp && locLower !== 'κοντά μου') {
+      const relaxVerified = filterVerifiedOnly;
+      // Νησιωτικές περιφέρειες: μόνο στον νομό, όχι σε άλλα νησιά.
+      const islandRegion = /αιγαιο|ιονια|σαρωνικος/.test(grp[1]);
+      for (const [lvl, idx] of islandRegion ? [['prefecture', 0]] : [['prefecture', 0], ['region', 1]]) {
+        const areaSet = new Set(Object.entries(AREA_GROUPS).filter(([, g]) => g[idx] === grp[idx]).map(([a]) => a));
+        matching = collect({ relaxVerified, areaSet });
+        if (matching.length) {
+          fallback.areaExpanded = lvl;
+          fallback.areaExpandedTo = grp[idx];
+          if (relaxVerified) fallback.verifiedFilterRelaxed = true;
+          break;
+        }
+      }
+    }
+    if (matching.length && Object.keys(fallback).length) {
+      console.log(`[notify] fallback for ${requestId}:`, JSON.stringify(fallback), matching.length);
+      // filterVerifiedOnly=false ώστε να το βλέπουν και οι παλιές εκδόσεις της εφαρμογής.
+      if (requestId) await admin.firestore().collection('requests').doc(requestId)
+        .update({ ...fallback, ...(fallback.verifiedFilterRelaxed ? { filterVerifiedOnly: false } : {}) }).catch(() => {});
+    }
 
     // Fetch FCM tokens for push notifications (batched)
     await Promise.all(matching.map(async p => {
@@ -2386,6 +2424,78 @@ async function sendLaunch100Push() {
   }
 }
 setInterval(sendLaunch100Push, 10 * 60 * 1000);
+
+// ── Εποχικά push στους πελάτες ──────────────────────────────────────
+// Ημερολόγιο καμπανιών ανά εποχή. ΤΙΠΟΤΑ δεν στέλνεται αυτόματα: κάθε
+// καμπάνια ξεκινά μόνο όταν γραφτεί seasonal_push/{id}_{έτος} με
+// approved: true (μαζικό push → πάντα ρητό ναι από τον Κώστα). Στέλνεται
+// μία φορά ανά χρήστη, 11:00–20:00 ώρα Ελλάδας, μέσα στο παράθυρο της.
+const SEASONAL_CAMPAIGNS = [
+  { id: 'tzaki', from: [11, 1], until: [11, 30], title: 'Έρχεται ο χειμώνας',
+    body: 'Καθαρισμός τζακιού ή service καυστήρα; Στείλε αίτημα στο GorealPro και πάρε προσφορές από επαγγελματίες της περιοχής σου.' },
+  { id: 'ygrasia', from: [12, 1], until: [12, 20], title: 'Υγρασία στους τοίχους;',
+    body: 'Βρες επαγγελματία για μονώσεις και αντιμετώπιση υγρασίας. Στείλε αίτημα και διάλεξε την καλύτερη προσφορά.' },
+  { id: 'klimatistika', from: [3, 15], until: [4, 30], title: 'Ώρα για service στα κλιματιστικά',
+    body: 'Πριν έρθουν οι ζέστες, στείλε αίτημα για συντήρηση κλιματιστικών και πάρε προσφορές σε λίγα λεπτά.' },
+  { id: 'kipos', from: [4, 1], until: [5, 31], title: 'Ο κήπος σου θέλει φροντίδα;',
+    body: 'Κλάδεμα, γκαζόν, πότισμα: στείλε αίτημα στο GorealPro και βρες κηπουρό στην περιοχή σου.' },
+  { id: 'apentomosi', from: [5, 1], until: [6, 30], title: 'Έρχεται το καλοκαίρι',
+    body: 'Απεντόμωση ή απολύμανση στο σπίτι; Στείλε αίτημα και πάρε προσφορές από επαγγελματίες κοντά σου.' },
+  { id: 'mathimata', from: [9, 1], until: [9, 30], title: 'Νέα σχολική χρονιά',
+    body: 'Ψάχνεις καθηγητή για ιδιαίτερα, δια ζώσης ή online; Στείλε αίτημα και διάλεξε ανάμεσα στις προσφορές.' },
+];
+let seasonalPushRunning = false;
+async function sendSeasonalPush() {
+  if (!firebaseReady || seasonalPushRunning) return;
+  // Ώρα/ημερομηνία Ελλάδας
+  const parts = Object.fromEntries(new Intl.DateTimeFormat('en-GB', { timeZone: 'Europe/Athens', year: 'numeric', month: 'numeric', day: 'numeric', hour: 'numeric', hourCycle: 'h23' })
+    .formatToParts(new Date()).map(p => [p.type, Number(p.value)]));
+  if (parts.hour < 11 || parts.hour >= 20) return;
+  const md = parts.month * 100 + parts.day;
+  const active = SEASONAL_CAMPAIGNS.filter(c => md >= c.from[0] * 100 + c.from[1] && md <= c.until[0] * 100 + c.until[1]);
+  if (!active.length) return;
+  seasonalPushRunning = true;
+  try {
+    const db = admin.firestore();
+    for (const c of active) {
+      const key = `${c.id}_${parts.year}`;
+      const ctl = await db.collection('seasonal_push').doc(key).get();
+      if (!ctl.exists || ctl.data().approved !== true || ctl.data().doneAt) continue;
+      const field = `seasonalPush_${key}`;
+      const snap = await db.collection('users').where('role', '==', 'user').get();
+      let sent = 0;
+      for (const doc of snap.docs) {
+        const d = doc.data();
+        if (!d.fcmToken || d[field] || d.isOwner || d.deleted || d.isDeleted || d.pushOptOut) continue;
+        // Σήμανση ΠΡΙΝ την αποστολή: ποτέ διπλό push
+        await doc.ref.set({ [field]: admin.firestore.FieldValue.serverTimestamp() }, { merge: true });
+        try {
+          await admin.messaging().send({
+            token: d.fcmToken,
+            notification: { title: c.title, body: c.body },
+            data: { type: 'seasonal', campaign: c.id },
+            android: {
+              priority: 'high',
+              notification: { channelId: 'gorealai_channel', priority: 'high', sound: 'default', icon: 'ic_launcher', title: c.title, body: c.body },
+            },
+            apns: { payload: { aps: { alert: { title: c.title, body: c.body }, sound: 'default' } } },
+          });
+          sent++;
+        } catch (e) {
+          console.error('seasonal push error:', e.message);
+        }
+      }
+      await ctl.ref.set({ doneAt: admin.firestore.FieldValue.serverTimestamp(),
+        sent: admin.firestore.FieldValue.increment(sent) }, { merge: true });
+      console.log(`🍂 Seasonal push ${key}: sent ${sent}`);
+    }
+  } catch (e) {
+    console.error('sendSeasonalPush error:', e.message);
+  } finally {
+    seasonalPushRunning = false;
+  }
+}
+setInterval(sendSeasonalPush, 10 * 60 * 1000);
 
 // GET /launch-offer?u=<uid>&t=<token> — το κουμπί του email (κράτηση θέσης, χωρίς κάρτα)
 app.get('/launch-offer', rateLimit(20, 60_000), async (req, res) => {
