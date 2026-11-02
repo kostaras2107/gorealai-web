@@ -76,6 +76,11 @@ service cloud.firestore {
     match /offers/{offerId} {
       allow create: if request.auth != null;
       allow read: if request.auth != null;
+      // «Οι προσφορές μου»: ο επαγγελματίας διορθώνει μόνο τιμή/μήνυμα της δικής του προσφοράς
+      allow update: if request.auth != null
+                    && resource.data.professionalId == request.auth.uid
+                    && request.resource.data.diff(resource.data).affectedKeys()
+                       .hasOnly(['price', 'priceAfterVisit', 'message', 'editedAt']);
     }
 
     // ─── PROFESSIONALS ────────────────────────────────────

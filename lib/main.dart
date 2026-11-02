@@ -6801,6 +6801,7 @@ class _ProfessionalHomeScreenState extends State<ProfessionalHomeScreen> {
                             badge: unreadMsg,
                             customOnTap: () => Navigator.push(context, MaterialPageRoute(
                                 builder: (_) => MessagesScreen(userId: _proId ?? '', isPro: true)))),
+                        _buildNavCard('myoffers', '💶', 'Οι προσφορές μου', 'Δες & διόρθωσε'),
                         _buildNavCard('minicv', '👤', 'Mini CV', 'Βιογραφικό & ειδικότητες'),
                         _buildNavCard('portfolio', '📸', 'Portfolio', 'Φωτογραφίες έργων'),
                         _buildNavCard('bookings', '📅', 'Bookings', 'Προπληρωμένα ραντεβού', badge: bookCount),
@@ -6827,6 +6828,7 @@ class _ProfessionalHomeScreenState extends State<ProfessionalHomeScreen> {
       'requests': '📋 Αιτήματα',
       'bookings': '📅 Bookings',
       'rejected': '❌ Απορριφθέντα',
+      'myoffers': '💶 Οι προσφορές μου',
       'minicv': '👤 Mini CV',
       'portfolio': '📸 Portfolio',
       'social': '📱 Social Media',
@@ -6877,8 +6879,214 @@ class _ProfessionalHomeScreenState extends State<ProfessionalHomeScreen> {
         return _buildSocialSection();
       case 'shorts':
         return _buildTikTokShortsSection();
+      case 'myoffers':
+        return _buildMyOffersSection();
       default:
         return const SizedBox();
+    }
+  }
+
+  // «Οι προσφορές μου»: ό,τι έστειλε ο επαγγελματίας, με δυνατότητα διόρθωσης
+  // τιμής/μηνύματος όσο το αίτημα είναι ενεργό και ο πελάτης δεν έχει διαλέξει.
+  Widget _buildMyOffersSection() {
+    if (_proId == null) return const SizedBox();
+    return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+      stream: FirebaseFirestore.instance.collection('offers')
+          .where('professionalId', isEqualTo: _proId).snapshots(),
+      builder: (context, snap) {
+        if (!snap.hasData) return const Center(child: CircularProgressIndicator(color: kGold));
+        final docs = snap.data!.docs.toList()
+          ..sort((a, b) {
+            final ta = a.data()['createdAt'] as Timestamp?;
+            final tb = b.data()['createdAt'] as Timestamp?;
+            return (tb?.millisecondsSinceEpoch ?? 0).compareTo(ta?.millisecondsSinceEpoch ?? 0);
+          });
+        if (docs.isEmpty) {
+          return Center(child: Column(mainAxisSize: MainAxisSize.min, children: [
+            Icon(Icons.local_offer_outlined, color: _g(0.15), size: 48),
+            const SizedBox(height: 12),
+            Text('Δεν έχεις στείλει ακόμα προσφορές', style: TextStyle(color: _g(0.3))),
+          ]));
+        }
+        return ListView.builder(
+          padding: const EdgeInsets.fromLTRB(20, 8, 20, 20),
+          itemCount: docs.length,
+          itemBuilder: (_, i) => _myOfferCard(docs[i]),
+        );
+      },
+    );
+  }
+
+  Widget _myOfferCard(QueryDocumentSnapshot<Map<String, dynamic>> offerDoc) {
+    final o = offerDoc.data();
+    final requestId = o['requestId'] as String? ?? '';
+    final price = (o['price'] is num) ? (o['price'] as num).toInt() : 0;
+    final priceAfterVisit = o['priceAfterVisit'] == true;
+    final message = (o['message'] as String? ?? '').trim();
+    final sentAt = (o['createdAt'] as Timestamp?)?.toDate();
+    final edited = o['editedAt'] != null;
+    return FutureBuilder<DocumentSnapshot<Map<String, dynamic>>>(
+      future: requestId.isEmpty ? null
+          : FirebaseFirestore.instance.collection('requests').doc(requestId).get(),
+      builder: (context, rs) {
+        final r = rs.data?.data() ?? const <String, dynamic>{};
+        final expiresAt = (r['expiresAt'] as Timestamp?)?.toDate();
+        final selected = r['selectedPro'] as String?;
+        final active = r['status'] == 'active' && selected == null &&
+            (expiresAt == null || expiresAt.isAfter(DateTime.now()));
+        final String statusLabel;
+        final Color statusColor;
+        if (selected != null && selected.isNotEmpty && selected == _proName) {
+          statusLabel = '✅ Σε επέλεξε ο πελάτης'; statusColor = Colors.green;
+        } else if (selected != null && selected.isNotEmpty) {
+          statusLabel = 'Επέλεξε άλλον επαγγελματία'; statusColor = Colors.redAccent;
+        } else if (active) {
+          statusLabel = '⏳ Ενεργό αίτημα'; statusColor = kGold;
+        } else {
+          statusLabel = 'Έκλεισε'; statusColor = _g(0.4);
+        }
+        final where = [r['location'], r['locationDetail']]
+            .whereType<String>().where((x) => x.trim().isNotEmpty).join(' · ');
+        return Container(
+          margin: const EdgeInsets.only(bottom: 12),
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(18),
+            color: _g(0.05),
+            border: Border.all(color: kGold.withValues(alpha: active ? 0.3 : 0.1)),
+          ),
+          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Row(children: [
+              Expanded(child: Text(r['profession'] as String? ?? 'Αίτημα',
+                  style: const TextStyle(color: Colors.white, fontSize: 15, fontWeight: FontWeight.w700))),
+              Text(statusLabel, style: TextStyle(color: statusColor, fontSize: 11, fontWeight: FontWeight.w700)),
+            ]),
+            if (where.isNotEmpty) ...[
+              const SizedBox(height: 4),
+              Text('📍 $where', style: TextStyle(color: _g(0.5), fontSize: 12)),
+            ],
+            if ((r['description'] as String? ?? '').isNotEmpty) ...[
+              const SizedBox(height: 8),
+              Text(r['description'] as String, maxLines: 3, overflow: TextOverflow.ellipsis,
+                  style: TextStyle(color: _g(0.6), fontSize: 12, height: 1.4)),
+            ],
+            const SizedBox(height: 10),
+            Container(height: 1, color: _g(0.06)),
+            const SizedBox(height: 10),
+            Row(children: [
+              Text(priceAfterVisit ? 'Τιμή μετά από αυτοψία' : '$price€',
+                  style: TextStyle(color: kGold, fontSize: priceAfterVisit ? 13 : 22, fontWeight: FontWeight.w900)),
+              const Spacer(),
+              if (sentAt != null)
+                Text('${edited ? 'Διορθώθηκε · ' : ''}${sentAt.day}/${sentAt.month} ${sentAt.hour.toString().padLeft(2, '0')}:${sentAt.minute.toString().padLeft(2, '0')}',
+                    style: TextStyle(color: _g(0.35), fontSize: 11)),
+            ]),
+            if (message.isNotEmpty) ...[
+              const SizedBox(height: 6),
+              Text(message, style: TextStyle(color: _g(0.75), fontSize: 13, height: 1.4)),
+            ],
+            if (active) ...[
+              const SizedBox(height: 12),
+              SizedBox(
+                width: double.infinity,
+                child: OutlinedButton.icon(
+                  onPressed: () => _editMyOffer(offerDoc),
+                  icon: const Icon(Icons.edit_outlined, size: 16, color: kGold),
+                  label: const Text('Διόρθωση προσφοράς',
+                      style: TextStyle(color: kGold, fontWeight: FontWeight.w700)),
+                  style: OutlinedButton.styleFrom(
+                    side: BorderSide(color: kGold.withValues(alpha: 0.4)),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  ),
+                ),
+              ),
+            ],
+          ]),
+        );
+      },
+    );
+  }
+
+  Future<void> _editMyOffer(QueryDocumentSnapshot<Map<String, dynamic>> offerDoc) async {
+    final o = offerDoc.data();
+    final priceCtrl = TextEditingController(
+        text: (o['price'] is num && (o['price'] as num) > 0) ? (o['price'] as num).toInt().toString() : '');
+    final msgCtrl = TextEditingController(text: o['message'] as String? ?? '');
+    bool afterVisit = o['priceAfterVisit'] == true;
+    final save = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => StatefulBuilder(builder: (ctx, setD) => AlertDialog(
+        backgroundColor: const Color(0xFF15120A),
+        title: const Text('Διόρθωση προσφοράς',
+            style: TextStyle(color: Colors.white, fontSize: 17, fontWeight: FontWeight.w800)),
+        content: SingleChildScrollView(child: Column(mainAxisSize: MainAxisSize.min, children: [
+          CheckboxListTile(
+            value: afterVisit,
+            onChanged: (v) => setD(() => afterVisit = v ?? false),
+            activeColor: kGold,
+            contentPadding: EdgeInsets.zero,
+            title: Text('Τιμή μετά από αυτοψία', style: TextStyle(color: _g(0.8), fontSize: 13)),
+          ),
+          if (!afterVisit)
+            TextField(
+              controller: priceCtrl,
+              keyboardType: TextInputType.number,
+              style: const TextStyle(color: Colors.white),
+              decoration: InputDecoration(labelText: 'Τιμή (€)', labelStyle: TextStyle(color: _g(0.5))),
+            ),
+          const SizedBox(height: 10),
+          TextField(
+            controller: msgCtrl,
+            maxLines: 4,
+            style: const TextStyle(color: Colors.white),
+            decoration: InputDecoration(labelText: 'Μήνυμα', labelStyle: TextStyle(color: _g(0.5))),
+          ),
+        ])),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx, false),
+              child: Text('Άκυρο', style: TextStyle(color: _g(0.6)))),
+          TextButton(onPressed: () => Navigator.pop(ctx, true),
+              child: const Text('Αποστολή διόρθωσης', style: TextStyle(color: kGold, fontWeight: FontWeight.w700))),
+        ],
+      )),
+    );
+    if (save != true || !mounted) return;
+    final price = double.tryParse(priceCtrl.text.trim().replaceAll(',', '.')) ?? 0;
+    if (!afterVisit && price <= 0) {
+      ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('⚠️ Βάλε τιμή ή επίλεξε «Τιμή μετά από αυτοψία».')));
+      return;
+    }
+    try {
+      // Ξανα-έλεγχος: το αίτημα μπορεί να έκλεισε όσο ήταν ανοιχτό το παράθυρο.
+      final req = await FirebaseFirestore.instance.collection('requests').doc(o['requestId'] as String).get();
+      final rd = req.data();
+      final exp = (rd?['expiresAt'] as Timestamp?)?.toDate();
+      if (rd == null || rd['status'] != 'active' || rd['selectedPro'] != null ||
+          (exp != null && exp.isBefore(DateTime.now()))) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('⏰ Το αίτημα έκλεισε, η προσφορά δεν μπορεί πλέον να αλλάξει.')));
+        }
+        return;
+      }
+      await offerDoc.reference.update({
+        'price': afterVisit ? 0 : price,
+        'priceAfterVisit': afterVisit,
+        'message': msgCtrl.text.trim(),
+        'editedAt': FieldValue.serverTimestamp(),
+      });
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: const Text('✅ Η προσφορά διορθώθηκε!'),
+          backgroundColor: kGreen.withValues(alpha: 0.9),
+          behavior: SnackBarBehavior.floating,
+        ));
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Σφάλμα: $e')));
+      }
     }
   }
 
@@ -12921,6 +13129,8 @@ class _OfferCard extends StatelessWidget {
                     text: '⚡ ${_available}', green: true),
                 _OfferTag(
                     text: '📍 ${(offer['distance'] ?? '')}', green: false),
+                if (offer['editedAt'] != null)
+                  const _OfferTag(text: '✏️ Διορθώθηκε', green: false),
                 if ((offer['guarantee'] == true))
                   const _OfferTag(
                       text: '✅ Εγγύηση', green: true),
