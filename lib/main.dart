@@ -6888,11 +6888,27 @@ class _ProfessionalHomeScreenState extends State<ProfessionalHomeScreen> {
 
   // «Οι προσφορές μου»: ό,τι έστειλε ο επαγγελματίας, με προβολή του αιτήματος,
   // διόρθωση τιμής/μηνύματος και ανάκληση όσο το αίτημα είναι ενεργό.
-  final Map<String, Future<DocumentSnapshot<Map<String, dynamic>>>> _myOfferReqs = {};
+  final Map<String, Map<String, dynamic>> _myOfferReqs = {};
+  Future<Map<String, Map<String, dynamic>>>? _myOfferLoad;
+  String _myOfferLoadKey = '';
   String _myOffersFilter = 'all';
 
-  Future<DocumentSnapshot<Map<String, dynamic>>> _myOfferReq(String id) =>
-      _myOfferReqs.putIfAbsent(id, () => FirebaseFirestore.instance.collection('requests').doc(id).get());
+  // Τα αιτήματα διαβάζονται με query (rule «list»), όχι με get() ένα-ένα: το
+  // get() επιτρέπεται μόνο σε ενεργά αιτήματα, οπότε τα κλειστά αποτύγχαναν
+  // και η σελίδα έμενε για πάντα στο loading.
+  Future<Map<String, Map<String, dynamic>>> _loadMyOfferReqs(List<String> ids) async {
+    final missing = ids.where((id) => id.isNotEmpty && !_myOfferReqs.containsKey(id)).toSet().toList();
+    for (var i = 0; i < missing.length; i += 30) {
+      final chunk = missing.sublist(i, i + 30 < missing.length ? i + 30 : missing.length);
+      try {
+        final q = await FirebaseFirestore.instance.collection('requests')
+            .where(FieldPath.documentId, whereIn: chunk).get();
+        for (final d in q.docs) { _myOfferReqs[d.id] = d.data(); }
+      } catch (_) {}
+      for (final id in chunk) { _myOfferReqs.putIfAbsent(id, () => const <String, dynamic>{}); }
+    }
+    return _myOfferReqs;
+  }
 
   // 'active' | 'won' | 'lost' | 'closed'
   String _myOfferState(Map<String, dynamic> r) {
@@ -6935,13 +6951,21 @@ class _ProfessionalHomeScreenState extends State<ProfessionalHomeScreen> {
             ]),
           ));
         }
-        return FutureBuilder<List<DocumentSnapshot<Map<String, dynamic>>>>(
-          future: Future.wait(docs.map((d) => _myOfferReq(d.data()['requestId'] as String? ?? '-'))),
+        final ids = docs.map((d) => d.data()['requestId'] as String? ?? '').toList();
+        final key = ids.join(',');
+        if (_myOfferLoad == null || key != _myOfferLoadKey) {
+          _myOfferLoadKey = key;
+          _myOfferLoad = _loadMyOfferReqs(ids);
+        }
+        return FutureBuilder<Map<String, Map<String, dynamic>>>(
+          future: _myOfferLoad,
           builder: (context, rs) {
-            if (!rs.hasData) return const Center(child: CircularProgressIndicator(color: kGold));
+            if (rs.connectionState != ConnectionState.done) {
+              return const Center(child: CircularProgressIndicator(color: kGold));
+            }
             final items = <(QueryDocumentSnapshot<Map<String, dynamic>>, Map<String, dynamic>, String)>[];
             for (var i = 0; i < docs.length; i++) {
-              final r = rs.data![i].data() ?? const <String, dynamic>{};
+              final r = _myOfferReqs[ids[i]] ?? const <String, dynamic>{};
               items.add((docs[i], r, _myOfferState(r)));
             }
             final counts = <String, int>{};
@@ -7292,6 +7316,7 @@ class _ProfessionalHomeScreenState extends State<ProfessionalHomeScreen> {
           await FirebaseFirestore.instance.collection('requests').doc(requestId)
               .update({'offersCount': FieldValue.increment(-1)}).catchError((_) {});
           _myOfferReqs.remove(requestId);
+          _myOfferLoadKey = '';
         }
         if (mounted) setState(() => _submittedIds.remove(requestId));
       } else {
@@ -7378,6 +7403,7 @@ class _ProfessionalHomeScreenState extends State<ProfessionalHomeScreen> {
         'editedAt': FieldValue.serverTimestamp(),
       });
       _myOfferReqs.remove(o['requestId'] as String? ?? '');
+      if (mounted) setState(() => _myOfferLoadKey = '');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(
           content: const Text('✅ Η προσφορά διορθώθηκε!'),
