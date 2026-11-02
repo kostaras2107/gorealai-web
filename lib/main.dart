@@ -814,6 +814,17 @@ Future<String> _currentUserPhone(String uid) async {
   }
 }
 
+// Ειδικότητες όπου η τιμή βγαίνει «με το μάτι» (επισκευές, κατασκευές, σπίτι/κήπος).
+bool _needsPhoto(String? profession) {
+  final p = _normalizeForSearch(profession ?? '');
+  if (p.isEmpty) return false;
+  const keys = ['ξυλουργ', 'ελαιοχρωμ', 'μονωσ', 'υγρασι', 'υδραυλ', 'ηλεκτρολ', 'κτιστ', 'πλακα',
+    'γυψοσαν', 'ανακαιν', 'κατασκευ', 'αλουμιν', 'κουφωμ', 'τεντ', 'σκιαστ', 'κλιματισ', 'ψυκτ',
+    'σιδηρ', 'μεταλλ', 'κηπ', 'στεγ', 'μαρμαρ', 'γκαραζοπορτ', 'ρολα', 'τζακ', 'καπνοδοχ', 'επιπλ',
+    'καυστηρ', 'θερμανσ', 'ηλιακ', 'δαπεδ', 'παρκε', 'αποφραξ', 'λεβητ', 'τζαμ', 'υαλο', 'πισιν'];
+  return keys.any(p.contains);
+}
+
 // Ο server ειδοποίησε ήδη αυτόν τον επαγγελματία (notifiedProIds) — π.χ. από
 // διευρυμένη περιοχή ή χαλαρωμένο φίλτρο όταν δεν βρέθηκε κανείς — άρα πρέπει
 // να βλέπει το αίτημα ακόμα κι αν δεν ταιριάζει η περιοχή του.
@@ -10228,6 +10239,7 @@ class _RequestScreenState extends State<RequestScreen>
   bool _filterVerifiedOnly = false;
   int _durationMinutes = 240;
   final List<XFile> _images = [];
+  bool _photoNudged = false;
   XFile? _video;
   final _picker = ImagePicker();
   bool _sending = false;
@@ -10660,6 +10672,35 @@ class _RequestScreenState extends State<RequestScreen>
           }
         }
       } catch (_) {}
+    }
+    // Εργασίες που κρίνονται «με το μάτι»: χωρίς φωτογραφία οι επαγγελματίες
+    // δίνουν μόνο «τιμή μετά από αυτοψία» — μία υπενθύμιση ανά φόρμα.
+    if (_images.isEmpty && _video == null && !_photoNudged && _needsPhoto(_selectedProfession) && mounted) {
+      _photoNudged = true;
+      final addPhoto = await showDialog<bool>(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          backgroundColor: const Color(0xFF15120A),
+          title: const Text('Θες να προσθέσεις φωτογραφία;',
+              style: TextStyle(color: Colors.white, fontSize: 17, fontWeight: FontWeight.w800)),
+          content: Text(
+              'Με 1–2 φωτογραφίες οι επαγγελματίες καταλαβαίνουν αμέσως τι χρειάζεσαι και σου στέλνουν '
+              'περισσότερες και πιο ακριβείς προσφορές, αντί για «τιμή μετά από αυτοψία».',
+              style: TextStyle(color: _g(0.8), fontSize: 14, height: 1.45)),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(ctx, false),
+                child: Text('Αποστολή χωρίς', style: TextStyle(color: _g(0.6)))),
+            TextButton(onPressed: () => Navigator.pop(ctx, true),
+                child: const Text('Προσθήκη φωτογραφίας', style: TextStyle(color: kGold, fontWeight: FontWeight.w700))),
+          ],
+        ),
+      );
+      if (addPhoto == null || !mounted) { _submitLock = false; return; }
+      if (addPhoto) {
+        _submitLock = false;
+        await _pickImage();
+        return;
+      }
     }
     String userPhone = '';
     if (_sharePhone) {
