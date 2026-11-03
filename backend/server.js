@@ -618,6 +618,7 @@ app.get('/get-offers/:requestId', rateLimit(60, 60_000), async (req, res) => {
             if (p.profilePhotoUrl) o.profilePhotoUrl = p.profilePhotoUrl;
             const su = p.safetyVerifiedUntil;
             o.safetyVerified = !!(su && su.toMillis && su.toMillis() > Date.now());
+            o.isPro = p.isPro === true;
           }
         } catch (_) {}
       }
@@ -663,7 +664,9 @@ app.get('/get-offers/:requestId', rateLimit(60, 60_000), async (req, res) => {
     // Αν δύο προσφορές ισοπαλήσουν ακριβώς σε score (π.χ. όλοι καινούριοι,
     // χωρίς reviews, χωρίς verified, όλοι "τιμή μετά από αυτοψία"), κερδίζει
     // όποιος έστειλε προσφορά πρώτος — πάντα διαθέσιμο, δίκαιο σήμα ταχύτητας.
+    // Σειρά: (Baby Sitter/Νοσηλευτής) επαληθευμένοι → PRO → score → ποιος απάντησε πρώτος
     scored.sort((a, b) => (safetyCheck ? (b.safetyVerified ? 1 : 0) - (a.safetyVerified ? 1 : 0) : 0)
+      || (b.isPro ? 1 : 0) - (a.isPro ? 1 : 0)
       || b._score - a._score || a._createdAtMs - b._createdAtMs);
     const clean = scored.map(({ _score, _createdAtMs, ...rest }) => rest);
     const top = clean.slice(0, 3);
@@ -2239,6 +2242,62 @@ app.get('/early-interest', rateLimit(20, 60_000), async (req, res) => {
   } catch (e) {
     console.error('early-interest error:', e.message);
     page('GorealPro', 'Κάτι πήγε στραβά. Δοκιμάστε ξανά σε λίγο.', 500);
+  }
+});
+
+// ── PRO επαγγελματίες (σχέδιο 1/12/2026) ─────────────────────────────
+// Όποιος πατήσει «Θέλω να γίνω PRO» (email ή push) παίρνει professionals.isPro:
+// σήμα PRO στην κάρτα/προφίλ και εμφανίζεται πριν από τους υπόλοιπους στις
+// προσφορές. Το isPro το γράφει ΜΟΝΟ ο server (firestore.rules).
+async function markPro(uid, source) {
+  const db = admin.firestore();
+  const u = db.collection('users').doc(uid);
+  const d = (await u.get()).data() || {};
+  if (d.role !== 'professional') return false;
+  const ts = admin.firestore.FieldValue.serverTimestamp();
+  await u.set({
+    ...(d.proInterestAt ? {} : { proInterestAt: ts, proInterestSource: source }),
+    proInterestClicks: admin.firestore.FieldValue.increment(1),
+    isPro: true,
+  }, { merge: true });
+  await db.collection('professionals').doc(uid).set({
+    isPro: true, ...(d.proInterestAt ? {} : { proSince: ts }),
+  }, { merge: true });
+  if (!d.proInterestAt) console.log(`⭐ PRO: ${d.name || uid} (${source})`);
+  return true;
+}
+
+// GET /pro-join?u=<uid>&t=<users.earlyToken> — κουμπί του email
+app.get('/pro-join', rateLimit(20, 60_000), async (req, res) => {
+  const uid = String(req.query.u || '');
+  const t = String(req.query.t || '');
+  const page = (title, msg, status = 200) => res.status(status).send(`<!doctype html><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>GorealPro</title><body style="font-family:Arial,sans-serif;background:#0A0800;color:#fff;text-align:center;padding:60px 20px;margin:0"><div style="max-width:460px;margin:0 auto"><h1 style="color:#FFD47A;font-size:24px">${title}</h1><p style="font-size:16px;line-height:1.6;color:rgba(255,255,255,.85)">${msg}</p><p style="font-size:14px;color:rgba(255,255,255,.6)">Για απορίες: <a style="color:#FFD47A" href="mailto:info@gorealai.gr">info@gorealai.gr</a></p></div></body>`);
+  if (!firebaseReady) return page('GorealPro', 'Η υπηρεσία δεν είναι διαθέσιμη αυτή τη στιγμή. Δοκιμάστε ξανά σε λίγο.', 503);
+  if (!uid || uid.includes('/') || !t) return page('GorealPro', 'Ο σύνδεσμος δεν είναι έγκυρος.', 400);
+  try {
+    const d = (await admin.firestore().collection('users').doc(uid).get()).data();
+    const good = String((d && d.earlyToken) || '');
+    if (!d || !good || t.length !== good.length || !crypto.timingSafeEqual(Buffer.from(t), Buffer.from(good))) return page('GorealPro', 'Ο σύνδεσμος δεν είναι έγκυρος.', 400);
+    if (!(await markPro(uid, 'email'))) return page('GorealPro', 'Η επιλογή PRO αφορά μόνο επαγγελματίες.', 400);
+    page('Είστε πλέον PRO! ⭐', 'Σας ευχαριστούμε που είστε μαζί μας από την αρχή. Από τώρα οι προσφορές σας εμφανίζονται πριν από τις υπόλοιπες και έχετε το σήμα PRO στο προφίλ σας.');
+  } catch (e) {
+    console.error('pro-join error:', e.message);
+    page('GorealPro', 'Κάτι πήγε στραβά. Δοκιμάστε ξανά σε λίγο.', 500);
+  }
+});
+
+// POST /pro-join-app — από το παράθυρο του push «pro_invite» (Firebase ID token)
+app.post('/pro-join-app', rateLimit(10, 60_000), async (req, res) => {
+  if (!firebaseReady) return res.status(503).json({ ok: false });
+  try {
+    const m = String(req.headers.authorization || '').match(/^Bearer (.+)$/);
+    if (!m) return res.status(401).json({ ok: false });
+    const { uid } = await admin.auth().verifyIdToken(m[1]);
+    if (!(await markPro(uid, 'push'))) return res.status(400).json({ ok: false });
+    res.json({ ok: true });
+  } catch (e) {
+    console.error('pro-join-app error:', e.message);
+    res.status(401).json({ ok: false });
   }
 });
 

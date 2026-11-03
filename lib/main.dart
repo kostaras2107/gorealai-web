@@ -62,6 +62,19 @@ Future<Uint8List> _readFileBytes(String path) async {
   return XFile(path).readAsBytes();
 }
 
+// Για ενέργειες από push (π.χ. «pro_invite») χωρίς BuildContext.
+final GlobalKey<NavigatorState> appNavigatorKey = GlobalKey<NavigatorState>();
+
+// Πάτημα σε push με data.type: ανοίγει την αντίστοιχη ενέργεια.
+void _handlePushTap(RemoteMessage m) {
+  if (m.data['type'] != 'pro_invite') return;
+  // Λίγη αναμονή ώστε να έχει στηθεί η αρχική οθόνη (cold start)
+  Future.delayed(const Duration(milliseconds: 1500), () {
+    final ctx = appNavigatorKey.currentContext;
+    if (ctx != null && ctx.mounted) _showProInviteDialog(ctx);
+  });
+}
+
 // ═══════════════════════════════════════
 // FCM PUSH NOTIFICATION SERVICE
 // ═══════════════════════════════════════
@@ -223,8 +236,13 @@ class NotificationService {
     // Το FCM δεν εμφανίζει αυτόματα ειδοποίηση όταν η εφαρμογή είναι ήδη
     // ανοιχτή (foreground) — το κάνουμε χειροκίνητα εδώ, ώστε να έρχεται
     // πάντα banner+ήχος όπως το Viber, ό,τι κατάσταση κι αν έχει η εφαρμογή.
+    FirebaseMessaging.onMessageOpenedApp.listen(_handlePushTap);
+    FirebaseMessaging.instance.getInitialMessage().then((m) { if (m != null) _handlePushTap(m); });
+
     FirebaseMessaging.onMessage.listen((RemoteMessage message) {
       debugPrint('📬 FCM: ${message.notification?.title}');
+      // Εφαρμογή ανοιχτή: το «pro_invite» ανοίγει κατευθείαν το παράθυρο
+      if (message.data['type'] == 'pro_invite') _handlePushTap(message);
       final notif = message.notification;
       if (notif != null && !kIsWeb) {
         _localNotifs.show(
@@ -1037,6 +1055,7 @@ class _GorealAiAppState extends State<GorealAiApp> {
     final theme = appThemeNotifier.value;
     final accent = theme.accent;
     return MaterialApp(
+      navigatorKey: appNavigatorKey,
       debugShowCheckedModeBanner: false,
       title: 'GorealPro',
       theme: ThemeData(
@@ -12475,6 +12494,7 @@ class _OffersScreenState extends State<OffersScreen>
               o['rating'] = _combinedRating(p);
               o['verified'] = p['afmValid'] == true;
               o['safetyVerified'] = _isSafetyVerified(p);
+              o['isPro'] = p['isPro'] == true;
               if ((p['profilePhotoUrl'] as String? ?? '').isNotEmpty) {
                 o['profilePhotoUrl'] = p['profilePhotoUrl'];
               }
@@ -12484,8 +12504,12 @@ class _OffersScreenState extends State<OffersScreen>
         if (mounted) {
           setState(() {
             final sorted = rawOffers.toList()
-              ..sort((a, b) =>
-                  _offerScore(b, widget.criteria).compareTo(_offerScore(a, widget.criteria)));
+              ..sort((a, b) {
+                // PRO πάντα πριν από τους υπόλοιπους (ίδια λογική με το /get-offers)
+                final pro = (b['isPro'] == true ? 1 : 0) - (a['isPro'] == true ? 1 : 0);
+                if (pro != 0) return pro;
+                return _offerScore(b, widget.criteria).compareTo(_offerScore(a, widget.criteria));
+              });
             _offers = sorted.take(3).toList();
             _otherOffers = sorted.skip(3).toList();
             _loading = false;
@@ -12994,6 +13018,66 @@ class _SafetyBadge extends StatelessWidget {
       );
 }
 
+// Σήμα PRO (professionals.isPro, το γράφει μόνο ο server από /pro-join).
+class _ProBadge extends StatelessWidget {
+  final double size;
+  const _ProBadge({this.size = 10});
+  @override
+  Widget build(BuildContext context) => Container(
+        padding: EdgeInsets.symmetric(horizontal: size * 0.7, vertical: size * 0.25),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(size * 0.6),
+          gradient: const LinearGradient(colors: [kGoldLight, kGold]),
+          boxShadow: [BoxShadow(color: kGold.withValues(alpha: 0.35), blurRadius: 6)],
+        ),
+        child: Text('PRO', style: TextStyle(color: Colors.black, fontSize: size,
+            fontWeight: FontWeight.w900, letterSpacing: 1)),
+      );
+}
+
+// Push «pro_invite»: ο επαγγελματίας δηλώνει ότι θέλει να γίνει PRO. Χωρίς
+// τιμή/πληρωμή μέσα στην εφαρμογή (κανόνες App Store/Play) — μόνο ενδιαφέρον.
+Future<void> _showProInviteDialog(BuildContext context) async {
+  final yes = await showDialog<bool>(
+    context: context,
+    builder: (ctx) => AlertDialog(
+      backgroundColor: const Color(0xFF15120A),
+      title: const Row(children: [
+        _ProBadge(size: 13),
+        SizedBox(width: 10),
+        Expanded(child: Text('Γίνε PRO επαγγελματίας',
+            style: TextStyle(color: Colors.white, fontSize: 17, fontWeight: FontWeight.w800))),
+      ]),
+      content: Text(
+          'Σε ευχαριστούμε που είσαι μαζί μας από την αρχή!\n\n'
+          'Οι PRO επαγγελματίες εμφανίζονται πάντα πριν από τους υπόλοιπους στις προσφορές '
+          'και έχουν το σήμα PRO στο προφίλ τους.',
+          style: TextStyle(color: _g(0.8), fontSize: 14, height: 1.45)),
+      actions: [
+        TextButton(onPressed: () => Navigator.pop(ctx, false),
+            child: Text('Όχι τώρα', style: TextStyle(color: _g(0.6)))),
+        TextButton(onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Θέλω να γίνω PRO', style: TextStyle(color: kGold, fontWeight: FontWeight.w800))),
+      ],
+    ),
+  );
+  if (yes != true) return;
+  try {
+    final token = await FirebaseAuth.instance.currentUser?.getIdToken();
+    if (token == null) return;
+    final res = await http.post(Uri.parse('$kBackendUrl/pro-join-app'),
+        headers: {'Authorization': 'Bearer $token', 'Content-Type': 'application/json'},
+        body: jsonEncode({'source': 'push'})).timeout(const Duration(seconds: 15));
+    if (!context.mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+      content: Text(res.statusCode == 200
+          ? 'Είσαι πλέον PRO! Το σήμα εμφανίζεται στο προφίλ και στις προσφορές σου.'
+          : 'Δεν ολοκληρώθηκε. Δοκίμασε ξανά σε λίγο.'),
+      backgroundColor: res.statusCode == 200 ? kGold.withValues(alpha: 0.95) : null,
+    ));
+  } catch (_) {}
+}
+
 class _SafetyVerificationScreen extends StatefulWidget {
   const _SafetyVerificationScreen();
   @override
@@ -13429,21 +13513,47 @@ class _OfferCard extends StatelessWidget {
     ));
   }
 
+  bool get _isPro => offer['isPro'] == true;
+
   @override
-  Widget build(BuildContext context) => Container(
+  Widget build(BuildContext context) => !_isPro
+      ? _card(context)
+      // PRO: το «PRO» του λογότυπου κάθεται πάνω στο περίγραμμα της κάρτας
+      : Padding(
+          padding: const EdgeInsets.only(top: 30),
+          child: Stack(clipBehavior: Clip.none, children: [
+            _card(context),
+            Positioned(top: -34, left: 0, right: 0,
+                child: Center(child: Image.asset('assets/images/gorealpro_pro_only.png',
+                    height: 58, filterQuality: FilterQuality.medium))),
+          ]),
+        );
+
+  Widget _card(BuildContext context) => Container(
         margin: const EdgeInsets.only(bottom: 12),
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(22),
-          gradient: isBest
-              ? LinearGradient(
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                  colors: [kGold.withValues(alpha: 0.1), kGold.withValues(alpha: 0.02)])
+          // PRO: ξεχωριστή «χρυσή» κάρτα, ώστε να ξεχωρίζει από τις υπόλοιπες
+          gradient: _isPro
+              ? const LinearGradient(
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                  colors: [Color(0xFF3A2A06), Color(0xFF1A1305), Color(0xFF0E0B04)])
+              : isBest
+                  ? LinearGradient(
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                      colors: [kGold.withValues(alpha: 0.1), kGold.withValues(alpha: 0.02)])
+                  : null,
+          color: (isBest || _isPro) ? null : _g(0.04),
+          border: Border.all(
+              color: _isPro
+                  ? kGold.withValues(alpha: 0.85)
+                  : isBest ? kGold.withValues(alpha: 0.3) : _g(0.06),
+              width: _isPro ? 1.6 : 1),
+          boxShadow: _isPro
+              ? [BoxShadow(color: kGold.withValues(alpha: 0.22), blurRadius: 18)]
               : null,
-          color: isBest ? null : _g(0.04),
-          border: Border.all(color: isBest
-              ? kGold.withValues(alpha: 0.3)
-              : _g(0.06)),
         ),
         child: Stack(children: [
           if (isBest)
@@ -18203,11 +18313,14 @@ class _NearbyProsSectionState extends State<_NearbyProsSection> {
           // προφίλ, όχι μόνο το ένα από τα δύο.
           final hasProfilePhoto = (d['profilePhotoUrl'] as String? ?? '').isNotEmpty;
           return completed >= 3 && hasProfilePhoto;
-        }).toList();
+        }).toList()
+          // PRO πρώτοι (σταθερή σειρά: κατά τα άλλα όπως ήρθαν, νεότεροι πρώτα)
+          ..sort((a, b) => ((b.data() as Map)['isPro'] == true ? 1 : 0)
+              .compareTo((a.data() as Map)['isPro'] == true ? 1 : 0));
         if (!snap.hasData) return const SizedBox(height: 260);
         if (docs.isEmpty) return const SizedBox(height: 260);
         return SizedBox(
-          height: 210,
+          height: 232,
           child: PageView.builder(
             controller: _pageCtrl,
             itemCount: 9999,
@@ -18231,6 +18344,7 @@ class _NearbyProsSectionState extends State<_NearbyProsSection> {
                   ? false
                   : DateTime.now().difference(createdAt).inDays <= 7;
               final isVerified = d['afmValid'] == true;
+              final isPro = d['isPro'] == true;
               final initials = name.isNotEmpty ? name[0].toUpperCase() : 'P';
               final isActive = i == _page;
 
@@ -18242,12 +18356,20 @@ class _NearbyProsSectionState extends State<_NearbyProsSection> {
                 child: AnimatedScale(
                   scale: isActive ? 1.0 : 0.93,
                   duration: const Duration(milliseconds: 300),
-                  child: Container(
-                    margin: const EdgeInsets.fromLTRB(6, 4, 6, 8),
+                  // PRO: το «PRO» του λογότυπου κάθεται πάνω στο περίγραμμα της κάρτας
+                  child: Stack(clipBehavior: Clip.none, children: [
+                  Container(
+                    margin: const EdgeInsets.fromLTRB(6, 26, 6, 8),
                     decoration: BoxDecoration(
                       borderRadius: BorderRadius.circular(18),
-                      border: Border.all(color: isActive ? kGold.withValues(alpha: 0.4) : kGold.withValues(alpha: 0.12)),
-                      boxShadow: [BoxShadow(color: kGold.withValues(alpha: isActive ? 0.1 : 0.03), blurRadius: 16)],
+                      border: Border.all(
+                          color: isPro
+                              ? kGold.withValues(alpha: isActive ? 0.95 : 0.6)
+                              : isActive ? kGold.withValues(alpha: 0.4) : kGold.withValues(alpha: 0.12),
+                          width: isPro ? 1.8 : 1),
+                      boxShadow: [BoxShadow(
+                          color: kGold.withValues(alpha: isPro ? (isActive ? 0.35 : 0.12) : (isActive ? 0.1 : 0.03)),
+                          blurRadius: isPro ? 22 : 16)],
                     ),
                     child: ClipRRect(
                       borderRadius: BorderRadius.circular(17),
@@ -18345,6 +18467,11 @@ class _NearbyProsSectionState extends State<_NearbyProsSection> {
                       ]),
                     ),
                   ),
+                  if (isPro)
+                    Positioned(top: 0, left: 0, right: 0,
+                      child: Center(child: Image.asset('assets/images/gorealpro_pro_only.png',
+                          height: 50, filterQuality: FilterQuality.medium))),
+                  ]),
                 ),
               );
             },
@@ -19524,6 +19651,10 @@ class _ProPublicProfileScreenState extends State<_ProPublicProfileScreen> {
                       const SizedBox(height: 14),
                       Text(name, textAlign: TextAlign.center,
                           style: const TextStyle(color: Colors.white, fontSize: 22, fontWeight: FontWeight.w900, fontFamily: 'Inter', letterSpacing: 0.3)),
+                      if (_data['isPro'] == true) ...[
+                        const SizedBox(height: 8),
+                        const _ProBadge(size: 12),
+                      ],
                       if (_needsSafetyCheck(specialties) || _isSafetyVerified(_data)) ...[
                         const SizedBox(height: 8),
                         _SafetyBadge(verified: _isSafetyVerified(_data)),

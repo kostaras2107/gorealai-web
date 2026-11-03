@@ -19,7 +19,7 @@ service cloud.firestore {
       // Owner can update their profile but NOT isPremium/premiumUntil/role (admin-only fields)
       allow update: if request.auth != null && request.auth.uid == userId
                     && !request.resource.data.diff(resource.data).affectedKeys()
-                       .hasAny(['isPremium', 'premiumUntil', 'role']);
+                       .hasAny(['isPremium', 'premiumUntil', 'role', 'isPro']);
       // Only the owner can delete
       allow delete: if request.auth != null && request.auth.uid == userId;
       // Any authenticated user can update ONLY rating aggregate fields on
@@ -97,7 +97,7 @@ service cloud.firestore {
       allow update: if request.auth != null
                     && ((resource.data.userId == request.auth.uid
                          && !request.resource.data.diff(resource.data).affectedKeys()
-                            .hasAny(['safetyVerifiedAt', 'safetyVerifiedUntil']))
+                            .hasAny(['safetyVerifiedAt', 'safetyVerifiedUntil', 'isPro', 'proSince']))
                         || isAdmin());
       allow delete: if request.auth != null
                     && (resource.data.userId == request.auth.uid || isAdmin());
