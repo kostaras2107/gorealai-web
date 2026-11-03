@@ -1089,9 +1089,41 @@ const PROFESSION_SUBSPECIALTY_SYNONYMS = {
 // ── Email all matching pros for a new request ────────────────────────
 // POST /email-pros-new-request
 // Body: { profession, location, description, requestId }
+// Ώρες ησυχίας (ώρα Ελλάδας): 23:00–08:00 τα μη επείγοντα αιτήματα δεν ξυπνούν
+// τους επαγγελματίες. Επιστρέφει πόσα ms μένουν ως τις 08:00, ή 0 εκτός ωρών.
+function quietHoursLeftMs(now = new Date()) {
+  const parts = Object.fromEntries(new Intl.DateTimeFormat('en-GB', { timeZone: 'Europe/Athens', hour: 'numeric', minute: 'numeric', second: 'numeric', hourCycle: 'h23' })
+    .formatToParts(now).map(p => [p.type, Number(p.value)]));
+  if (parts.hour >= 8 && parts.hour < 23) return 0;
+  const hoursLeft = (8 - parts.hour + 24) % 24;
+  return hoursLeft * 3600_000 - parts.minute * 60_000 - parts.second * 1000;
+}
+
 async function notifyMatchingPros({ profession, location, description, requestId, filterVerifiedOnly, exactSpecialty, requesterUserId, urgent, teachingMode }) {
   if (!firebaseReady) return { success: false, reason: 'firebase not ready' };
   if (!zohoTransporter && !process.env.SENDGRID_API_KEY) return { success: false, reason: 'no email provider configured' };
+
+  // Το αίτημα μένει χωρίς prosNotified, οπότε το sweepUnnotifiedRequests το
+  // στέλνει μετά τις 08:00. Η λήξη μετατίθεται ίσα με την αναμονή, αλλιώς ένα
+  // τετράωρο αίτημα των 01:00 θα έληγε πριν ειδοποιηθεί κανείς.
+  const quietMs = !urgent && requestId ? quietHoursLeftMs() : 0;
+  if (quietMs) {
+    try {
+      const ref = admin.firestore().collection('requests').doc(requestId);
+      const doc = await ref.get();
+      if (doc.exists) {
+        const d = doc.data();
+        if (!d.notifyDeferred) {
+          const expiresAt = d.expiresAt ? admin.firestore.Timestamp.fromMillis(d.expiresAt.toMillis() + quietMs) : d.expiresAt;
+          await ref.update({ notifyDeferred: true, ...(expiresAt ? { expiresAt } : {}) });
+          console.log(`🌙 Deferred notification for request ${requestId} (${profession} / ${location})`);
+        }
+        return { success: true, sent: 0, deferred: true };
+      }
+    } catch (e) {
+      console.error('quiet hours defer error:', e.message);
+    }
+  }
 
   try {
     // Fetch all professionals (email is stored in 'professionals' collection)
@@ -2845,6 +2877,7 @@ async function sweepUnnotifiedRequests() {
       const d = doc.data();
       if (d.prosNotified !== undefined) continue;
       if (!d.createdAt || d.createdAt.toMillis() > cutoff) continue;
+      if (d.notifyDeferred && quietHoursLeftMs()) continue;
       console.log(`🔁 Sweep: retrying stuck notification for request ${doc.id} (${d.profession} / ${d.location})`);
       await notifyMatchingPros({
         profession: d.profession, location: d.location, description: d.description,
