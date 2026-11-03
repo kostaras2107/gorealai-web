@@ -6599,7 +6599,11 @@ class _ProfessionalHomeScreenState extends State<ProfessionalHomeScreen> {
                   Text('${_timeGreeting().text} ', style: const TextStyle(color: Colors.white70, fontSize: 13)),
                   Text(_timeGreeting().emoji, style: const TextStyle(fontSize: 13)),
                 ]),
-                Text(_toVocative(_proName), style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.w800, height: 1.2)),
+                Row(children: [
+                  Flexible(child: Text(_toVocative(_proName), maxLines: 1, overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.w800, height: 1.2))),
+                  _ProBadgeFor(_proId, size: 10, padding: const EdgeInsets.only(left: 8)),
+                ]),
               ])),
               GestureDetector(
                 onTap: () => Navigator.push(context, PageRouteBuilder(
@@ -13035,6 +13039,31 @@ class _ProBadge extends StatelessWidget {
       );
 }
 
+// Σήμα PRO για έναν επαγγελματία από το id του, όπου δεν έχουμε ήδη τα
+// στοιχεία του (μηνύματα, συνομιλία, αναζήτηση). Κρατάει cache ανά άνοιγμα.
+final Map<String, Future<bool>> _isProCache = {};
+Future<bool> _proIsPro(String proId) => _isProCache.putIfAbsent(proId, () =>
+    FirebaseFirestore.instance.collection('professionals').doc(proId).get()
+        .then((s) => s.data()?['isPro'] == true).catchError((Object _) => false));
+
+class _ProBadgeFor extends StatelessWidget {
+  final String? proId;
+  final double size;
+  final EdgeInsets padding;
+  const _ProBadgeFor(this.proId, {this.size = 9, this.padding = const EdgeInsets.only(left: 6)});
+  @override
+  Widget build(BuildContext context) {
+    final id = proId ?? '';
+    if (id.isEmpty) return const SizedBox.shrink();
+    return FutureBuilder<bool>(
+      future: _proIsPro(id),
+      builder: (_, s) => s.data == true
+          ? Padding(padding: padding, child: _ProBadge(size: size))
+          : const SizedBox.shrink(),
+    );
+  }
+}
+
 // Push «pro_invite»: ο επαγγελματίας δηλώνει ότι θέλει να γίνει PRO. Χωρίς
 // τιμή/πληρωμή μέσα στην εφαρμογή (κανόνες App Store/Play) — μόνο ενδιαφέρον.
 Future<void> _showProInviteDialog(BuildContext context) async {
@@ -14616,8 +14645,11 @@ class _HistoryProCardState extends State<_HistoryProCard> {
                   ),
                   const SizedBox(width: 12),
                   Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                    Text(widget.proName, maxLines: 1, overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(color: Colors.white, fontSize: 15, fontWeight: FontWeight.w800)),
+                    Row(children: [
+                      Flexible(child: Text(widget.proName, maxLines: 1, overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(color: Colors.white, fontSize: 15, fontWeight: FontWeight.w800))),
+                      _ProBadgeFor(widget.data['professionalId'] as String?),
+                    ]),
                     const SizedBox(height: 3),
                     Text(widget.requestDesc, maxLines: 1, overflow: TextOverflow.ellipsis,
                         style: TextStyle(fontSize: 11, color: Colors.white.withValues(alpha: 0.4))),
@@ -18805,6 +18837,10 @@ class _SearchResultProCard extends StatelessWidget {
                 const SizedBox(width: 5),
                 const Icon(Icons.verified, color: kGold, size: 13),
               ],
+              if (d['isPro'] == true) ...[
+                const SizedBox(width: 6),
+                const _ProBadge(size: 9),
+              ],
             ]),
             const SizedBox(height: 2),
             Text('$specialty${area.isNotEmpty ? ' · $area' : ''}', maxLines: 1, overflow: TextOverflow.ellipsis,
@@ -22153,10 +22189,12 @@ class _MessagesScreenState extends State<MessagesScreen> {
                         const SizedBox(width: 14),
                         Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                           Row(children: [
-                            Expanded(child: Text(displayName, maxLines: 1, overflow: TextOverflow.ellipsis,
+                            Flexible(child: Text(displayName, maxLines: 1, overflow: TextOverflow.ellipsis,
                                 style: TextStyle(color: Colors.white, fontSize: 15,
                                     fontWeight: unread > 0 ? FontWeight.w800 : FontWeight.w600,
                                     letterSpacing: 0.2))),
+                            if (!widget.isPro) _ProBadgeFor(proId2),
+                            const Spacer(),
                             if (timeStr.isNotEmpty)
                               Text(timeStr, style: TextStyle(
                                   color: unread > 0 ? kGold : Colors.white.withValues(alpha: 0.25),
@@ -22811,7 +22849,11 @@ class _ChatScreenState extends State<ChatScreen> {
               onTap: _openOtherProfile,
               behavior: HitTestBehavior.opaque,
               child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              Text(widget.otherName, style: const TextStyle(color: Colors.white, fontSize: 15, fontWeight: FontWeight.w700)),
+              Row(children: [
+                Flexible(child: Text(widget.otherName, maxLines: 1, overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(color: Colors.white, fontSize: 15, fontWeight: FontWeight.w700))),
+                if (!widget.isPro) _ProBadgeFor(_otherProId),
+              ]),
               Text(widget.isPro ? 'Πελάτης' : 'Επαγγελματίας', style: TextStyle(color: _g(0.35), fontSize: 11)),
             ]))),
             GestureDetector(
