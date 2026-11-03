@@ -18352,7 +18352,7 @@ class _NearbyProsSectionState extends State<_NearbyProsSection> {
         if (!snap.hasData) return const SizedBox(height: 260);
         if (docs.isEmpty) return const SizedBox(height: 260);
         return SizedBox(
-          height: 232,
+          height: 242,
           child: PageView.builder(
             controller: _pageCtrl,
             itemCount: 9999,
@@ -18391,7 +18391,7 @@ class _NearbyProsSectionState extends State<_NearbyProsSection> {
                   // PRO: το «PRO» του λογότυπου κάθεται πάνω στο περίγραμμα της κάρτας
                   child: Stack(clipBehavior: Clip.none, children: [
                   Container(
-                    margin: const EdgeInsets.fromLTRB(6, 26, 6, 8),
+                    margin: const EdgeInsets.fromLTRB(6, 36, 6, 8),
                     decoration: BoxDecoration(
                       borderRadius: BorderRadius.circular(18),
                       border: Border.all(
