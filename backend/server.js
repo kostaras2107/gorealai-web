@@ -1176,10 +1176,11 @@ async function notifyMatchingPros({ profession, location, description, requestId
       }));
     }
 
-    // Αν δεν βρεθεί κανείς: (1) χαλαρώνει το «μόνο επαληθευμένοι», (2) διευρύνει
-    // την περιοχή στον νομό και μετά στην περιφέρεια. Η εφαρμογή δείχνει το
+    // Αν δεν βρεθεί κανείς: (1) χαλαρώνει το «μόνο επαληθευμένοι», (2) χαλαρώνει
+    // φωτογραφία/βαθμολογία, (3) διευρύνει την περιοχή στον νομό και μετά στην
+    // περιφέρεια. Η εφαρμογή δείχνει το
     // αίτημα σε όσους είναι στο notifiedProIds ακόμα κι αν η περιοχή διαφέρει.
-    const collect = ({ relaxVerified = false, areaSet = null } = {}) => {
+    const collect = ({ relaxVerified = false, relaxQuality = false, areaSet = null } = {}) => {
     const matching = [];
     proMap.forEach((d, uid) => {
       if (!d.email) return;
@@ -1255,7 +1256,7 @@ async function notifyMatchingPros({ profession, location, description, requestId
       // VIES (afmValid), όχι απλά να έχει γραφτεί κάποιο κείμενο στο πεδίο.
       if (filterVerifiedOnly && !relaxVerified && d.afmValid !== true) return;
 
-      if (filterWithPhoto || filterMinRating > 0) {
+      if (!relaxQuality && (filterWithPhoto || filterMinRating > 0)) {
         const merged = { ...(userExtra.get(uid) || {}), ...d };
         if (filterWithPhoto && !merged.profilePhotoUrl) return;
         if (filterMinRating > 0 && (Number(merged.averageRating) || 0) < filterMinRating) return;
@@ -1272,6 +1273,16 @@ async function notifyMatchingPros({ profession, location, description, requestId
       matching = collect({ relaxVerified: true });
       if (matching.length) fallback.verifiedFilterRelaxed = true;
     }
+    // Χωρίς αυτό, ένα αίτημα με «4.5+ αστέρια» σε περιοχή χωρίς βαθμολογημένους
+    // επαγγελματίες έμενε με 0 ειδοποιήσεις.
+    const hasQuality = filterWithPhoto || filterMinRating > 0;
+    if (matching.length === 0 && hasQuality) {
+      matching = collect({ relaxVerified: filterVerifiedOnly, relaxQuality: true });
+      if (matching.length) {
+        fallback.qualityFiltersRelaxed = true;
+        if (filterVerifiedOnly) fallback.verifiedFilterRelaxed = true;
+      }
+    }
     const grp = AREA_GROUPS[locLower];
     if (matching.length === 0 && grp && locLower !== 'κοντά μου') {
       const relaxVerified = filterVerifiedOnly;
@@ -1279,11 +1290,12 @@ async function notifyMatchingPros({ profession, location, description, requestId
       const islandRegion = /αιγαιο|ιονια|σαρωνικος/.test(grp[1]);
       for (const [lvl, idx] of islandRegion ? [['prefecture', 0]] : [['prefecture', 0], ['region', 1]]) {
         const areaSet = new Set(Object.entries(AREA_GROUPS).filter(([, g]) => g[idx] === grp[idx]).map(([a]) => a));
-        matching = collect({ relaxVerified, areaSet });
+        matching = collect({ relaxVerified, relaxQuality: hasQuality, areaSet });
         if (matching.length) {
           fallback.areaExpanded = lvl;
           fallback.areaExpandedTo = grp[idx];
           if (relaxVerified) fallback.verifiedFilterRelaxed = true;
+          if (hasQuality) fallback.qualityFiltersRelaxed = true;
           break;
         }
       }
@@ -1292,7 +1304,9 @@ async function notifyMatchingPros({ profession, location, description, requestId
       console.log(`[notify] fallback for ${requestId}:`, JSON.stringify(fallback), matching.length);
       // filterVerifiedOnly=false ώστε να το βλέπουν και οι παλιές εκδόσεις της εφαρμογής.
       if (requestId) await admin.firestore().collection('requests').doc(requestId)
-        .update({ ...fallback, ...(fallback.verifiedFilterRelaxed ? { filterVerifiedOnly: false } : {}) }).catch(() => {});
+        .update({ ...fallback,
+          ...(fallback.verifiedFilterRelaxed ? { filterVerifiedOnly: false } : {}),
+          ...(fallback.qualityFiltersRelaxed ? { filterWithPhoto: false, filterMinRating: 0 } : {}) }).catch(() => {});
     }
 
     // Fetch FCM tokens for push notifications (batched)
