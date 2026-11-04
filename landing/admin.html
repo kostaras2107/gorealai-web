@@ -348,7 +348,7 @@
 <script type="module">
   import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
   import { getAuth, signOut, onAuthStateChanged, signInWithEmailAndPassword, createUserWithEmailAndPassword, sendPasswordResetEmail, updateProfile } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
-  import { getFirestore, collection, addDoc, getDoc, getDocs, doc, updateDoc, deleteDoc, serverTimestamp, onSnapshot, getCountFromServer, query, where, orderBy, limit, Timestamp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+  import { getFirestore, collection, addDoc, getDoc, getDocs, getDocsFromServer, doc, updateDoc, deleteDoc, serverTimestamp, onSnapshot, getCountFromServer, query, where, orderBy, limit, Timestamp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
   import { getStorage, ref as sRef, getDownloadURL, deleteObject } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-storage.js";
 
   const firebaseConfig = {
@@ -573,7 +573,9 @@
   async function loadRequests() {
     try {
       const [snap, bookSnap] = await Promise.all([
-        getDocs(collection(db, 'requests')),
+        // Από τον server: το απλό getDocs επιστρέφει ΑΔΕΙΑ λίστα αν η σύνδεση θεωρηθεί
+        // offline, και το admin έδειχνε 0 αιτήματα αντί για σφάλμα.
+        getDocsFromServer(collection(db, 'requests')),
         getDocs(collection(db, 'bookings')).catch(() => null),
       ]);
       bookedRequestIds = new Set(bookSnap ? bookSnap.docs.map(d => d.data().requestId).filter(Boolean) : []);
@@ -598,6 +600,7 @@
     } catch(e) {
       console.error('requests load error:', e.code, e.message);
       document.getElementById('stat-requests').textContent = '!';
+      setTile('requests', '!', 'Δεν φόρτωσαν, κάνε ανανέωση');
       document.getElementById('requests-loading').style.display = 'none';
       document.getElementById('requests-empty').style.display = 'block';
     }
@@ -1034,20 +1037,21 @@
     document.getElementById('empty-state').style.display = 'none';
 
     // Τα στατιστικά έρχονται από το Render, που μπορεί να «ξυπνάει», οπότε δεν
-    // κρατούν πίσω τη λίστα. Τα αιτήματα φορτώνουν μία φορά ανά άνοιγμα, γιατί είναι
-    // πολύ βαριά: δεν ξαναδιαβάζονται σε κάθε αλλαγή επαγγελματία.
+    // κρατούν πίσω τη λίστα.
     loadUserCount();
     loadPlatformStats();
-    loadRequests().then(loadBookings).then(() => {
-      if (allPros.length) window.filterTable();
-      return loadContacts();
-    });
+    // ΣΕΙΡΑ: πρώτα μία ελαφριά ανάγνωση. Το Firestore θεωρεί τη σύνδεση offline αν δεν
+    // πάρει απάντηση σε 10", και τότε δίνει άδειες λίστες. Αν ξεκινήσουν μαζί τα ~19 MB
+    // των αιτημάτων, η πρώτη απάντηση αργεί και όλα φαίνονται 0.
+    await loadClicks();
     loadDeletions();
     loadLaunch100();
     startVerificationsListener();
 
     if (unsubPros) unsubPros();
+    let requestsStarted = false;
     unsubPros = onSnapshot(collection(db, 'professionals'), async snap => {
+      if (snap.empty && snap.metadata.fromCache) return; // offline: όχι ψεύτικο 0
       allPros = snap.docs.map(d => ({ id: d.id, ...d.data() }));
       allPros.sort((a, b) => {
         const ta = a.created_at?.seconds || a.createdAt?.seconds || 0;
@@ -1058,6 +1062,14 @@
       document.getElementById('loading').style.display = 'none';
       updateStats(); updateFilters(); renderTable(allPros);
       loadSelections(); // Refresh clicks section
+      // Τα αιτήματα είναι τα πιο βαριά: μία φορά ανά άνοιγμα, αφού φανεί η υπόλοιπη σελίδα.
+      if (!requestsStarted) {
+        requestsStarted = true;
+        loadRequests().then(loadBookings).then(() => {
+          window.filterTable();
+          return loadContacts();
+        });
+      }
     }, err => {
       console.error('Pros listener error:', err);
       document.getElementById('loading').style.display = 'none';
