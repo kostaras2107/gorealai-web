@@ -1176,6 +1176,7 @@
   };
 
   let totalRegistered = 0;
+  let newToday = null;
 
   async function loadUserCount() {
     try {
@@ -1201,6 +1202,8 @@
       document.getElementById('ps-ios-today').textContent = s.iosToday ?? '—';
       document.getElementById('ps-ios-app').textContent = s.iosAppUsers ?? '—';
       document.getElementById('ps-ios-split').textContent = s.iosTotal == null ? '—' : `${s.iosUsers} / ${s.iosPros}`;
+      newToday = (s.androidToday || 0) + (s.iosToday || 0) + (s.webToday || 0);
+      updateUserStats();
     } catch(e) {
       console.error('loadPlatformStats error:', e);
     }
@@ -1211,9 +1214,10 @@
     const uniqueProUids = new Set(allPros.map(p => p.userId || p.id).filter(Boolean));
     const proCount = uniqueProUids.size;
     const userCount = Math.max(0, totalRegistered - proCount);
-    document.getElementById('stat-users').textContent = userCount;
+    if (proCount) document.getElementById('stat-users').textContent = userCount;
     document.getElementById('total-count').textContent = totalRegistered + ' εγγεγραμμένοι';
-    if (totalRegistered && proCount) setTile('stats', totalRegistered, `${userCount} χρήστες · ${proCount} επαγγελματίες`);
+    // Η κάρτα έρχεται από το Render: δεν περιμένει τη λίστα επαγγελματιών.
+    if (totalRegistered) setTile('stats', totalRegistered, [newToday === null ? '' : `${newToday} σήμερα`, proCount ? `${userCount} χρήστες · ${proCount} επαγγ.` : ''].filter(Boolean).join(' · ') || undefined);
   }
 
   function updateStats() {
