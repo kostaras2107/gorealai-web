@@ -316,11 +316,11 @@
     </section>
 
     <section class="panel" data-panel="l100">
-    <div class="section-title" style="margin-top:32px;margin-bottom:12px">🎉 Προσφορά εγκαινίων 100€/χρόνο — πάτησαν: <span id="l100-count" style="color:#e8c66a">…</span></div>
+    <div class="section-title" style="margin-top:32px;margin-bottom:12px">🎉 Προσφορά εγκαινίων (100€/χρόνο ή −50% τον μήνα) — πάτησαν: <span id="l100-count" style="color:#e8c66a">…</span></div>
     <div id="l100-summary" style="color:#aaa;font-size:13px;margin-bottom:10px;line-height:1.7"></div>
     <div class="table-wrap" style="margin-bottom:32px">
       <table id="l100-table" style="display:none">
-        <thead><tr><th>#</th><th>Πάτησε</th><th>Όνομα</th><th>Ειδικότητα</th><th>Περιοχή</th><th>Κινητό</th><th>Email</th></tr></thead>
+        <thead><tr><th>#</th><th>Πάτησε</th><th>Επιλογή</th><th>Όνομα</th><th>Ειδικότητα</th><th>Περιοχή</th><th>Κινητό</th><th>Email</th></tr></thead>
         <tbody id="l100-tbody"></tbody>
       </table>
       <div class="empty-state" id="l100-empty" style="display:none"><div class="empty-icon">🎉</div><div>Δεν έχει πατήσει κανείς ακόμα</div></div>
@@ -1051,16 +1051,20 @@
     try {
       const all = (await getDocs(query(collection(db, 'users'), where('role', '==', 'professional')))).docs.map(d => d.data());
       const mailed = all.filter(u => u.launch100MailAt && !u.launch100MailSkipped).length;
-      const clicked = all.filter(u => u.launch100At).sort((a, b) => secs(b.launch100At) - secs(a.launch100At));
+      const clickedAt = u => u.launch100At || u.launch50At;
+      const clicked = all.filter(clickedAt).sort((a, b) => secs(clickedAt(b)) - secs(clickedAt(a)));
+      const annual = clicked.filter(u => u.launch100At).length;
+      const monthly = clicked.length - annual;
       const pct = mailed ? Math.round(clicked.length * 100 / mailed) : 0;
       document.getElementById('l100-count').textContent = clicked.length;
-      setTile('l100', clicked.length, `πάτησαν από ${mailed} email`);
-      document.getElementById('l100-summary').innerHTML = `Email στάλθηκαν: <b>${mailed}</b> · Πάτησαν «Κλείνω τη θέση μου»: <b style="color:#e8c66a">${clicked.length}</b> (${pct}%)`;
+      setTile('l100', clicked.length, `${annual} ετήσια · ${monthly} μηνιαία από ${mailed} email`);
+      document.getElementById('l100-summary').innerHTML = `Email στάλθηκαν: <b>${mailed}</b> · Πάτησαν: <b style="color:#e8c66a">${clicked.length}</b> (${pct}%) · Ετήσια 100€: <b style="color:#e8c66a">${annual}</b> · Μηνιαία −50%: <b style="color:#e8c66a">${monthly}</b>`;
       if (!clicked.length) { document.getElementById('l100-empty').style.display = 'block'; return; }
       const fmt = t => secs(t) ? new Date(secs(t) * 1000).toLocaleString('el-GR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }) : '—';
       document.getElementById('l100-tbody').innerHTML = clicked.map((u, i) => {
         const spec = (Array.isArray(u.specialties) && u.specialties.length ? u.specialties : [u.specialty]).filter(Boolean).join(', ');
-        return `<tr><td>${clicked.length - i}</td><td>${fmt(u.launch100At)}</td><td>${esc(u.name || '—')}</td><td style="max-width:240px">${esc(spec || '—')}</td>`
+        const plan = u.launch100At ? '100€/χρόνο' : `${esc(u.launch50Price || '')}€/μήνα`;
+        return `<tr><td>${clicked.length - i}</td><td>${fmt(clickedAt(u))}</td><td>${plan}</td><td>${esc(u.name || '—')}</td><td style="max-width:240px">${esc(spec || '—')}</td>`
           + `<td>${esc(u.area || '—')}</td><td>${esc(u.phone || '—')}</td><td>${esc(u.email || '—')}</td></tr>`;
       }).join('');
       document.getElementById('l100-table').style.display = 'table';

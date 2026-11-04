@@ -2519,6 +2519,105 @@ async function sendLaunch100Emails() {
 setInterval(sendLaunch100Emails, 10 * 60 * 1000);
 setTimeout(sendLaunch100Emails, 8 * 60 * 1000);
 
+// ── Τελευταία υπενθύμιση με δύο επιλογές (11/2026): ετήσια 100€ ή μηνιαία −50% ──
+// Μαζικό email: ανοίγει ΜΟΝΟ με ρητό ναι του Κώστα, μετά από προεπισκόπηση.
+// Πηγαίνει σε όσους πήραν το αρχικό email και δεν έχουν κλειδώσει τίποτα, μία φορά.
+const LAUNCH_REMINDER_MAIL_ENABLED = false;
+const launchPrimarySpecialty = (d) => (Array.isArray(d.specialties) && d.specialties.length ? d.specialties : [d.specialty]).filter(Boolean)[0] || '';
+// Τιμές τελικές με ΦΠΑ 24%, όπως θα τις πληρώσει ο επαγγελματίας.
+function launchMonthlyPrices(d) {
+  const base = Number(subscriptionPriceFor(launchPrimarySpecialty(d)).replace(',', '.'));
+  const fmt = (n) => n.toFixed(2).replace('.', ',');
+  return { normal: fmt(base * 1.24), half: fmt((base / 2) * 1.24) };
+}
+
+function launchReminderEmailHtml({ first, annualLink, monthlyLink, normal, half }) {
+  const esc = (s) => String(s || '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+  const p = (t) => `<p style="margin:0 0 14px;color:#d9d4c7;font-size:15px;line-height:1.65;">${t}</p>`;
+  const btn = (label, link) => `<table role="presentation" width="100%" cellpadding="0" cellspacing="0"><tr><td align="center" style="border-radius:14px;background:#E8C66A;background-image:linear-gradient(180deg,#FFE29A,#E2B24F);"><a href="${link}" style="display:block;padding:16px 18px;color:#1a1205;font-size:16px;font-weight:800;text-decoration:none;font-family:Arial,sans-serif;">${label}</a></td></tr></table>`;
+  const card = ({ tag, price, unit, note, label, link }) => `<tr><td style="padding:6px 28px 8px;"><table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border:2px solid #E8C66A;border-radius:18px;background-color:#161103;"><tr><td style="padding:22px 22px 20px;text-align:center;">
+<p style="margin:0;color:#FFD47A;font-size:12px;font-weight:800;letter-spacing:1.5px;">${tag}</p>
+<p style="margin:8px 0 0;color:#FFD47A;font-size:50px;font-weight:900;line-height:1;">${price}</p>
+<p style="margin:6px 0 0;color:#fff;font-size:15px;font-weight:700;">${unit}</p>
+<p style="margin:6px 0 16px;color:#bfb6a0;font-size:13px;">${note}</p>
+${btn(label, link)}
+</td></tr></table></td></tr>`;
+  return `<div style="background:#050403;padding:24px 10px;font-family:Arial,sans-serif;">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:560px;margin:0 auto;background:#0B0904;border:1px solid #3a3020;border-radius:20px;overflow:hidden;">
+<tr><td style="background:#120E05;background-image:radial-gradient(circle at 50% 0%,#3d2e0c 0%,#120E05 70%);padding:30px 28px 26px;text-align:center;">
+<p style="margin:0 0 14px;"><span style="display:inline-block;background:#E8C66A;color:#1a1205;font-size:11px;font-weight:800;letter-spacing:1.5px;padding:6px 12px;border-radius:20px;">ΤΕΛΕΥΤΑΙΑ ΥΠΕΝΘΥΜΙΣΗ</span></p>
+<p style="margin:0;color:#FFD47A;font-size:14px;font-weight:700;letter-spacing:4px;">GOREAL<span style="color:#fff;">PRO</span></p>
+<h1 style="margin:14px 0 0;color:#fff;font-size:26px;line-height:1.25;font-weight:800;">Κλειδώστε την τιμή σας<br><span style="color:#FFD47A;">για όλο το 2027</span></h1>
+</td></tr>
+<tr><td style="padding:26px 28px 4px;">
+${p(`Καλημέρα${first ? ' ' + esc(first) : ''},`)}
+${p('σας στείλαμε πρόσφατα την προσφορά εγκαινίων. Επειδή η ετήσια συνδρομή δεν βολεύει όλους, προσθέσαμε και <b style="color:#fff">μηνιαία επιλογή</b>.')}
+${p(`Από την <b style="color:#fff">1/1/2027</b> η κανονική τιμή για την ειδικότητά σας είναι <b style="color:#fff">${normal}€ τον μήνα</b> με ΦΠΑ. Έως τις <b style="color:#fff">31/12/2026</b> μπορείτε να κλειδώσετε μία από τις δύο προσφορές:`)}
+</td></tr>
+${card({ tag: 'ΕΤΗΣΙΑ', price: '100€', unit: 'για όλο το 2027', note: 'τελική τιμή με ΦΠΑ · λιγότερο από 9€ τον μήνα', label: 'Κλειδώνω τα 100€ τον χρόνο', link: annualLink })}
+${card({ tag: 'ΜΗΝΙΑΙΑ −50%', price: `${half}€`, unit: 'τον μήνα, για όλο το 2027', note: `τελική τιμή με ΦΠΑ · αντί ${normal}€ · χωρίς ετήσια δέσμευση`, label: `Κλειδώνω τα ${half}€ τον μήνα`, link: monthlyLink })}
+<tr><td style="padding:14px 28px 4px;">
+${p('<b style="color:#fff">Τα κουμπιά δεν σας χρεώνουν τίποτα τώρα</b> και δεν χρειάζεται κάρτα. Από την 1/1/2027 θα λάβετε email με τον σύνδεσμο πληρωμής.')}
+</td></tr>
+<tr><td style="padding:16px 28px 26px;border-top:1px solid #2a2316;">
+<p style="margin:0 0 10px;color:#8f8775;font-size:12px;">Αν δεν σας ενδιαφέρει, απλώς αγνοήστε αυτό το email.</p>
+<p style="margin:0;color:#bfb6a0;font-size:13px;line-height:1.6;">Σας ευχαριστούμε που είστε μαζί μας από την αρχή,<br><b style="color:#fff">Κωνσταντίνος Μποσινάκος</b><br>GorealPro · <a href="tel:+306937102492" style="color:#FFD47A;text-decoration:none;">693 710 2492</a></p>
+</td></tr>
+</table></div>`;
+}
+
+let launchReminderRunning = false;
+async function sendLaunchReminderEmails() {
+  if (!firebaseReady || !LAUNCH_REMINDER_MAIL_ENABLED || !launch100Open() || launchReminderRunning) return;
+  const athensHour = Number(new Date().toLocaleString('en-GB', { timeZone: 'Europe/Athens', hour: '2-digit', hour12: false }));
+  if (athensHour < LAUNCH100_MAIL_HOURS[0] || athensHour >= LAUNCH100_MAIL_HOURS[1]) return;
+  launchReminderRunning = true;
+  try {
+    const snap = await admin.firestore().collection('users').where('role', '==', 'professional').get();
+    const hourAgo = Date.now() - 3600_000;
+    const sentLastHour = snap.docs.filter((x) => {
+      const m = x.get('launchReminderAt');
+      return m && m.toMillis && m.toMillis() > hourAgo;
+    }).length;
+    const budget = LAUNCH100_MAIL_PER_HOUR - sentLastHour;
+    if (budget <= 0) return;
+    let sent = 0;
+    for (const doc of snap.docs) {
+      if (sent >= budget) break;
+      const d = doc.data();
+      if (!d.launch100MailAt || d.launch100MailSkipped || d.launch100At || d.launch50At || d.launchReminderAt) continue;
+      if (d.isOwner || d.deleted || d.isDeleted || !d.earlyToken || !isLaunch100Target(d)) continue;
+      let email = '';
+      try { email = (await admin.auth().getUser(doc.id)).email || ''; } catch (_) {}
+      if (!email) email = d.email || '';
+      if (!email || NO_MAIL_ADDRESSES.has(email.toLowerCase()) || /demo|review/i.test(String(d.name || ''))) continue;
+      const q = `u=${encodeURIComponent(doc.id)}&t=${d.earlyToken}`;
+      const first = String(d.name || d.displayName || '').trim().split(/\s+/)[0] || '';
+      // Σήμανση ΠΡΙΝ την αποστολή: δεν ξαναστέλνεται ποτέ διπλό
+      await doc.ref.set({ launchReminderAt: admin.firestore.FieldValue.serverTimestamp() }, { merge: true });
+      try {
+        await sendEmail({
+          to: email,
+          subject: 'Τελευταία υπενθύμιση: κλειδώστε την τιμή σας για το 2027',
+          html: launchReminderEmailHtml({ first, annualLink: `${BACKEND_URL}/launch-offer?${q}`, monthlyLink: `${BACKEND_URL}/launch-monthly?${q}`, ...launchMonthlyPrices(d) }),
+          bulk: true,
+        });
+        sent++;
+      } catch (e) {
+        console.error('launch reminder email error:', e.message);
+        await doc.ref.update({ launchReminderAt: admin.firestore.FieldValue.delete() }).catch(() => {});
+        break;
+      }
+    }
+    if (sent) console.log(`📣 Launch reminder emails: sent ${sent}`);
+  } catch (e) {
+    console.error('sendLaunchReminderEmails error:', e.message);
+  } finally {
+    launchReminderRunning = false;
+  }
+}
+setInterval(sendLaunchReminderEmails, 10 * 60 * 1000);
+
 // Push υπενθύμισης για το email των εγκαινίων (εγκρίθηκε 31/10/2026): μία φορά,
 // Κυριακή 1/11 από τις 11:00, Android + iOS (ουδέτερο κείμενο), μόνο σε
 // όσους πήραν το email και δεν πάτησαν. Ουδέτερο κείμενο χωρίς τιμές/συνδρομή.
@@ -2668,6 +2767,37 @@ app.get('/launch-offer', rateLimit(20, 60_000), async (req, res) => {
     page('Η θέση σας κλειδώθηκε! 🎉', `Σας ευχαριστούμε! Κρατήσαμε για εσάς τη συνδρομή <b style="color:#FFD47A">100€ για όλο τον χρόνο</b> (τελική τιμή με ΦΠΑ). Δεν χρειάζεται να κάνετε τίποτα άλλο τώρα. Από την 1/1/2027 θα σας στείλουμε email με τον σύνδεσμο πληρωμής.`);
   } catch (e) {
     console.error('launch-offer error:', e.message);
+    page('GorealPro', 'Κάτι πήγε στραβά. Δοκιμάστε ξανά σε λίγο.', 500);
+  }
+});
+
+// GET /launch-monthly?u=<uid>&t=<token> — το μηνιαίο κουμπί του email (−50% για όλο το 2027, χωρίς κάρτα)
+app.get('/launch-monthly', rateLimit(20, 60_000), async (req, res) => {
+  const uid = String(req.query.u || '');
+  const t = String(req.query.t || '');
+  const page = (title, msg, status = 200) => res.status(status).send(`<!doctype html><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>GorealPro</title><body style="font-family:Arial,sans-serif;background:#0A0800;color:#fff;text-align:center;padding:60px 20px;margin:0"><div style="max-width:460px;margin:0 auto"><h1 style="color:#FFD47A;font-size:24px">${title}</h1><p style="font-size:16px;line-height:1.6;color:rgba(255,255,255,.85)">${msg}</p><p style="font-size:14px;color:rgba(255,255,255,.6)">Για απορίες: <a style="color:#FFD47A" href="tel:+306937102492">693 710 2492</a></p></div></body>`);
+  if (!firebaseReady) return page('GorealPro', 'Η υπηρεσία δεν είναι διαθέσιμη αυτή τη στιγμή. Δοκιμάστε ξανά σε λίγο.', 503);
+  if (!uid || uid.includes('/') || !t) return page('GorealPro', 'Ο σύνδεσμος δεν είναι έγκυρος.', 400);
+  try {
+    const ref = admin.firestore().collection('users').doc(uid);
+    const result = await admin.firestore().runTransaction(async (tx) => {
+      const d = (await tx.get(ref)).data();
+      const good = String((d && d.earlyToken) || '');
+      if (!d || !good || t.length !== good.length || !crypto.timingSafeEqual(Buffer.from(t), Buffer.from(good))) return { bad: true };
+      if (d.launch100At) return { annual: true };
+      const prices = launchMonthlyPrices(d);
+      if (d.launch50At) return { name: d.name, already: true, half: d.launch50Price || prices.half };
+      if (!launch100Open()) return { closed: true };
+      tx.set(ref, { launch50At: admin.firestore.FieldValue.serverTimestamp(), launch50Price: prices.half }, { merge: true });
+      return { name: d.name, half: prices.half };
+    });
+    if (result.bad) return page('GorealPro', 'Ο σύνδεσμος δεν είναι έγκυρος.', 400);
+    if (result.annual) return page('Έχετε ήδη κλειδώσει', 'Έχετε ήδη κλειδώσει την ετήσια προσφορά των <b style="color:#FFD47A">100€</b>, που είναι η πιο συμφέρουσα. Δεν χρειάζεται να κάνετε κάτι άλλο.');
+    if (result.closed) return page('Η προσφορά έληξε', 'Η προσφορά ίσχυε έως 31/12/2026. Θα σας ενημερώσουμε για τις επόμενες προσφορές μας.');
+    if (!result.already) console.log(`📣 Launch monthly: ${result.name || uid} ${result.half}€`);
+    page('Η τιμή σας κλειδώθηκε!', `Σας ευχαριστούμε! Κρατήσαμε για εσάς τη μηνιαία συνδρομή <b style="color:#FFD47A">${result.half}€ τον μήνα</b> για όλο το 2027 (τελική τιμή με ΦΠΑ). Δεν χρειάζεται να κάνετε τίποτα άλλο τώρα. Από την 1/1/2027 θα σας στείλουμε email με τον σύνδεσμο πληρωμής.`);
+  } catch (e) {
+    console.error('launch-monthly error:', e.message);
     page('GorealPro', 'Κάτι πήγε στραβά. Δοκιμάστε ξανά σε λίγο.', 500);
   }
 });
