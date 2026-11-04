@@ -10514,7 +10514,11 @@ class _RequestScreenState extends State<RequestScreen>
 
   Future<void> _startAudio() async {
     final hasPermission = await _audioRec.hasPermission();
-    if (!hasPermission) return;
+    if (!hasPermission) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('⚠️ Δώσε άδεια μικροφώνου για να στείλεις ηχητικό.'), backgroundColor: Colors.orange));
+      return;
+    }
     await _audioRec.start(const RecordConfig(), path: await _newRecordingPath());
     setState(() {
       _audioRecording = true;
@@ -10529,7 +10533,11 @@ class _RequestScreenState extends State<RequestScreen>
     _audioTimer?.cancel();
     final path = await _audioRec.stop();
     setState(() { _audioRecording = false; _audioUploading = true; });
-    if (path == null) { setState(() => _audioUploading = false); return; }
+    if (path == null) {
+      setState(() => _audioUploading = false);
+      _showAudioFailed();
+      return;
+    }
     try {
       final uid = FirebaseAuth.instance.currentUser?.uid ?? 'anon';
       final ts = DateTime.now().millisecondsSinceEpoch;
@@ -10543,7 +10551,14 @@ class _RequestScreenState extends State<RequestScreen>
       if (mounted) setState(() { _requestAudioUrl = url; _audioUploading = false; });
     } catch (_) {
       if (mounted) setState(() => _audioUploading = false);
+      _showAudioFailed();
     }
+  }
+
+  void _showAudioFailed() {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('⚠️ Το ηχητικό δεν ανέβηκε. Δοκίμασε ξανά ή γράψε το μήνυμά σου.'), backgroundColor: Colors.red));
   }
 
   // Resize to max 500px to keep Firestore document under 1MB (base64 limit ~750KB for 3 images)
@@ -10617,6 +10632,20 @@ class _RequestScreenState extends State<RequestScreen>
     if (_isTransport(_selectedProfession) && _destCtrl.text.trim().isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('⚠️ Γράψε προορισμό!'), backgroundColor: Colors.orange));
+      return;
+    }
+    // Το ηχητικό ανεβαίνει όταν πατηθεί «στοπ»· αν σταλεί το αίτημα νωρίτερα, χάνεται.
+    if (_audioRecording || _audioUploading) {
+      ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(_audioRecording
+              ? '⚠️ Σταμάτα πρώτα την ηχογράφηση!'
+              : '⏳ Περίμενε να ανέβει το ηχητικό...'), backgroundColor: Colors.orange));
+      return;
+    }
+    // Αίτημα χωρίς περιγραφή και χωρίς ηχητικό δεν λέει τίποτα στους επαγγελματίες.
+    if (_composedDescription().isEmpty && _requestAudioUrl == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('⚠️ Γράψε τι χρειάζεσαι ή στείλε ηχητικό μήνυμα!'), backgroundColor: Colors.orange));
       return;
     }
     _submitLock = true;
