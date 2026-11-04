@@ -83,6 +83,27 @@
   .btn-save{background:linear-gradient(135deg,var(--gold),var(--gold2));border:none;border-radius:8px;padding:10px 24px;color:#0a0a0a;font-family:'Syne',sans-serif;font-weight:700;font-size:14px;cursor:pointer;}
   .container{max-width:1200px;margin:0 auto;padding:32px 24px;overflow-x:hidden;}
   @media(max-width:768px){.header{padding:14px 16px;}.container{padding:20px 12px;}.form-grid,.modal-grid{grid-template-columns:1fr;}table{font-size:12px;}thead th,tbody td{padding:8px 10px;}.action-btns{flex-direction:column;}.stats-grid{grid-template-columns:repeat(2,1fr);}}
+  /* ΚΑΡΤΕΛΕΣ */
+  .topbar{position:sticky;top:0;z-index:100;}
+  .topbar .header{position:static;}
+  .tabbar{background:var(--surface);border-bottom:1px solid var(--border);display:flex;gap:6px;padding:8px 24px;overflow-x:auto;scrollbar-width:none;}
+  .tabbar::-webkit-scrollbar{display:none;}
+  .tab{flex:none;background:transparent;border:1px solid transparent;border-radius:8px;padding:8px 12px;color:#a8a39a;font-family:'DM Sans',sans-serif;font-size:13px;cursor:pointer;white-space:nowrap;}
+  .tab:hover{color:var(--text);background:var(--surface2);}
+  .tab.active{color:var(--gold2);background:#1a1400;border-color:#5a4a1a;font-weight:500;}
+  .tab-alert{display:inline-block;background:var(--red);color:#fff;border-radius:9px;font-size:11px;font-weight:700;padding:1px 6px;margin-left:5px;}
+  .panel{display:none;}
+  .panel.active{display:block;}
+  .panel .section-title{margin-top:0!important;}
+  .tiles{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:16px;}
+  .tile{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:20px;text-align:left;color:var(--text);font-family:'DM Sans',sans-serif;cursor:pointer;display:flex;flex-direction:column;gap:6px;min-height:150px;transition:border-color .15s,background .15s;}
+  .tile:hover{border-color:var(--gold);background:#151515;}
+  .tile.alert{border-color:var(--red);}
+  .tile-head{display:flex;align-items:center;gap:8px;font-family:'Syne',sans-serif;font-weight:700;font-size:15px;}
+  .tile-num{font-family:'Syne',sans-serif;font-size:32px;font-weight:700;color:var(--gold);line-height:1.2;margin-top:auto;}
+  .tile.alert .tile-num{color:var(--red);}
+  .tile-sub{font-size:13px;color:#a8a39a;line-height:1.4;}
+  @media(max-width:768px){.header-logo{font-size:17px;white-space:nowrap;}.header-badge{display:none;}.tabbar{padding:8px 12px;}.tiles{grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;}.tile{padding:14px;min-height:130px;}.tile-head{font-size:14px;}.tile-num{font-size:26px;}.tile-sub{font-size:12px;}}
 </style>
 </head>
 <body>
@@ -141,13 +162,21 @@
 </div>
 
 <div id="app">
+  <div class="topbar">
   <div class="header">
     <div class="header-logo">GorealPro Admin</div>
     <div class="header-badge"><div class="badge-dot"></div><span id="total-count">0 εγγεγραμμένοι</span></div>
     <button class="logout-btn" onclick="doLogout()">Έξοδος</button>
   </div>
+  <nav class="tabbar" id="tabbar" aria-label="Κατηγορίες"></nav>
+  </div>
   <div class="container">
-    <div class="section-title" style="margin-bottom:16px">📲 Google Play</div>
+    <section class="panel" data-panel="home">
+      <div class="tiles" id="tiles"></div>
+    </section>
+
+    <section class="panel" data-panel="stats">
+    <div class="section-title" style="margin-bottom:16px">📲 Εγκαταστάσεις</div>
     <div class="stats-grid" style="margin-bottom:24px">
       <div class="stat-card"><div class="stat-label">Σύνολο από Playstore</div><div class="stat-value" id="ps-android-total">—</div></div>
       <div class="stat-card"><div class="stat-label">Σήμερα από Playstore</div><div class="stat-value" id="ps-android-today">—</div></div>
@@ -160,6 +189,7 @@
       <div class="stat-card"><div class="stat-label">Μέσω Web (χωρίς download)</div><div class="stat-value" id="ps-web-total">—</div></div>
     </div>
 
+    <div class="section-title" style="margin-bottom:16px">👥 Σύνολα</div>
     <div class="stats-grid">
       <div class="stat-card"><div class="stat-label">Χρήστες</div><div class="stat-value" id="stat-users">—</div></div>
       <div class="stat-card"><div class="stat-label">Επαγγελματίες</div><div class="stat-value" id="stat-total">—</div></div>
@@ -168,7 +198,9 @@
       <div class="stat-card"><div class="stat-label">Bookings</div><div class="stat-value" id="stat-bookings">—</div></div>
       <div class="stat-card"><div class="stat-label">Ειδικότητες</div><div class="stat-value" id="stat-specs">—</div></div>
     </div>
+    </section>
 
+    <section class="panel" data-panel="add">
     <div class="section-title">Προσθήκη Επαγγελματία</div>
     <div class="form-card">
       <div class="form-grid">
@@ -194,7 +226,9 @@
         <div class="form-msg" id="form-msg"></div>
       </div>
     </div>
+    </section>
 
+    <section class="panel" data-panel="requests">
     <div class="section-title" style="margin-top:32px;margin-bottom:12px">📋 Αιτήματα Χρηστών</div>
     <div class="filter-row" style="margin-bottom:12px">
       <select id="req-filter-status" onchange="renderRequests()"><option value="">Όλες οι καταστάσεις</option><option value="pending">Σε αναμονή</option><option value="selected">Booking</option><option value="found">Βρήκε επαγγελματία</option><option value="expired">Έληξε</option><option value="closed">Κλείστηκε (χωρίς booking)</option><option value="dismissed">Ακυρωμένο</option></select>
@@ -214,7 +248,9 @@
       </div>
       <div class="empty-state" id="requests-empty" style="display:none"><div class="empty-icon">📭</div><div>Δεν υπάρχουν αιτήματα</div></div>
     </div>
+    </section>
 
+    <section class="panel" data-panel="selections">
     <div class="section-title" style="margin-top:32px;margin-bottom:12px">📊 Επιλογές Χρηστών (Κλικ)</div>
     <div class="table-wrap" style="margin-bottom:32px">
       <div class="loading" id="selections-loading" style="display:none">Φόρτωση κλικ...</div>
@@ -224,7 +260,9 @@
       </table>
       <div class="empty-state" id="selections-empty" style="display:none"><div class="empty-icon">📭</div><div>Δεν υπάρχουν δεδομένα ακόμα</div></div>
     </div>
+    </section>
 
+    <section class="panel" data-panel="contacts">
     <div class="section-title" style="margin-top:32px;margin-bottom:12px">📞 Επικοινωνία από προσφορές</div>
     <div id="contacts-summary" style="color:#aaa;font-size:13px;margin-bottom:10px"></div>
     <div class="table-wrap" style="margin-bottom:32px">
@@ -235,7 +273,9 @@
       </table>
       <div class="empty-state" id="contacts-empty" style="display:none"><div class="empty-icon">📭</div><div>Δεν υπάρχει καταγραφή ακόμα</div></div>
     </div>
+    </section>
 
+    <section class="panel" data-panel="deleted">
     <div class="section-title" style="margin-top:32px;margin-bottom:12px">🗑️ Διαγραφές λογαριασμών</div>
     <div id="deleted-summary" style="color:#aaa;font-size:13px;margin-bottom:10px;line-height:1.7"></div>
     <div class="table-wrap" style="margin-bottom:32px">
@@ -251,12 +291,16 @@
       </div>
       <div class="empty-state" id="deleted-empty" style="display:none"><div class="empty-icon">📭</div><div>Καμία διαγραφή</div></div>
     </div>
+    </section>
 
+    <section class="panel" data-panel="ver">
     <div class="section-title" style="margin-top:32px;margin-bottom:12px">🛡️ Επαληθεύσεις ασφαλείας (Baby Sitter / Νοσηλευτές) <span id="ver-count" style="color:#e8c66a"></span></div>
     <div id="ver-box" style="margin-bottom:32px;color:#aaa;font-size:13px">Φόρτωση...</div>
+    </section>
 
+    <section class="panel" data-panel="interest">
     <div class="section-title" style="margin-top:32px;margin-bottom:12px">🔒 Κλείδωσαν έκπτωση — μηνιαία −25% / ετήσια −50% (email από 1/12)</div>
-    <div style="margin-bottom:12px"><button id="interest-btn" onclick="toggleEarlyInterest()" style="background:#1a1400;color:#e8c66a;border:1px solid #5a4a1a;border-radius:10px;padding:9px 18px;font-weight:700;cursor:pointer">🔒 Δείξε ποιοι πάτησαν το κουμπί</button></div>
+    <div style="display:none"><button id="interest-btn" onclick="toggleEarlyInterest()"></button></div>
     <div id="interest-box" style="display:none">
       <div id="interest-summary" style="color:#aaa;font-size:13px;margin-bottom:10px;line-height:1.7"></div>
       <div class="table-wrap" style="margin-bottom:32px">
@@ -268,7 +312,9 @@
         <div class="empty-state" id="interest-empty" style="display:none"><div class="empty-icon">🔒</div><div>Δεν έχει πατήσει κανείς ακόμα</div></div>
       </div>
     </div>
+    </section>
 
+    <section class="panel" data-panel="l100">
     <div class="section-title" style="margin-top:32px;margin-bottom:12px">🎉 Προσφορά εγκαινίων 100€/χρόνο — πάτησαν: <span id="l100-count" style="color:#e8c66a">…</span></div>
     <div id="l100-summary" style="color:#aaa;font-size:13px;margin-bottom:10px;line-height:1.7"></div>
     <div class="table-wrap" style="margin-bottom:32px">
@@ -278,7 +324,9 @@
       </table>
       <div class="empty-state" id="l100-empty" style="display:none"><div class="empty-icon">🎉</div><div>Δεν έχει πατήσει κανείς ακόμα</div></div>
     </div>
+    </section>
 
+    <section class="panel" data-panel="pros">
     <div class="section-title" style="margin-bottom:16px">Επαγγελματίες</div>
     <div class="filter-row">
       <select id="filter-specialty" onchange="filterTable()"><option value="">Όλες οι ειδικότητες</option></select>
@@ -293,6 +341,7 @@
       </table>
       <div class="empty-state" id="empty-state" style="display:none"><div class="empty-icon">👤</div><div>Δεν βρέθηκαν επαγγελματίες</div></div>
     </div>
+    </section>
   </div>
 </div>
 
@@ -316,6 +365,52 @@
   const storage = getStorage(app);
   let allPros = [];
   let unsubPros = null;
+
+  // ── ΚΑΡΤΕΛΕΣ: η αρχική δείχνει μία κάρτα ανά κατηγορία, κάθε ενότητα ανοίγει
+  // μόνη της. Το #hash κρατά την ενότητα ώστε να δουλεύει το «πίσω» και το refresh.
+  const TABS = [
+    { id: 'stats', icon: '📲', title: 'Εγγραφές & εγκαταστάσεις', sub: 'Πόσοι μπήκαν και από πού' },
+    { id: 'requests', icon: '📋', title: 'Αιτήματα', sub: 'Όλα τα αιτήματα χρηστών' },
+    { id: 'pros', icon: '👷', title: 'Επαγγελματίες', sub: 'Λίστα και επεξεργασία' },
+    { id: 'ver', icon: '🛡️', title: 'Επαληθεύσεις', sub: 'Baby Sitter / Νοσηλευτές' },
+    { id: 'contacts', icon: '📞', title: 'Επικοινωνία', sub: 'Κλήσεις και μηνύματα από προσφορές' },
+    { id: 'selections', icon: '📊', title: 'Κλικ χρηστών', sub: 'Επιλογές ανά επαγγελματία' },
+    { id: 'deleted', icon: '🗑️', title: 'Διαγραφές', sub: 'Λογαριασμοί που έφυγαν' },
+    { id: 'l100', icon: '🎉', title: 'Προσφορά 100€', sub: 'Ποιοι πάτησαν' },
+    { id: 'interest', icon: '🔒', title: 'Κλείδωσαν έκπτωση', sub: 'Πάτα για να φορτώσει' },
+    { id: 'add', icon: '➕', title: 'Προσθήκη επαγγελματία', sub: 'Νέα καταχώρηση' },
+  ];
+  const tileBtn = t => `<button class="tile" data-go="${t.id}" id="tile-${t.id}"><span class="tile-head"><span>${t.icon}</span><span>${t.title}</span></span><span class="tile-num" id="tile-num-${t.id}">${t.id === 'add' ? '+' : t.id === 'interest' ? '' : '—'}</span><span class="tile-sub" id="tile-sub-${t.id}">${t.sub}</span></button>`;
+  document.getElementById('tiles').innerHTML = TABS.map(tileBtn).join('');
+  document.getElementById('tabbar').innerHTML = '<button class="tab" data-go="home">🏠 Αρχική</button>'
+    + TABS.map(t => `<button class="tab" data-go="${t.id}">${t.icon} ${t.title}<span class="tab-alert" id="tab-alert-${t.id}" style="display:none"></span></button>`).join('');
+  document.addEventListener('click', e => {
+    const b = e.target.closest('[data-go]');
+    if (b) location.hash = b.dataset.go;
+  });
+  function setTile(id, num, sub, alert = false) {
+    document.getElementById('tile-num-' + id).textContent = num;
+    if (sub !== undefined) document.getElementById('tile-sub-' + id).textContent = sub;
+    document.getElementById('tile-' + id).classList.toggle('alert', alert);
+    const a = document.getElementById('tab-alert-' + id);
+    a.textContent = alert ? num : '';
+    a.style.display = alert ? 'inline-block' : 'none';
+  }
+  let interestLoaded = false;
+  function showPanel() {
+    const wanted = location.hash.slice(1);
+    const id = TABS.some(t => t.id === wanted) ? wanted : 'home';
+    document.querySelectorAll('.panel').forEach(p => p.classList.toggle('active', p.dataset.panel === id));
+    document.querySelectorAll('.tab').forEach(t => {
+      const on = t.dataset.go === id;
+      t.classList.toggle('active', on);
+      if (on) t.scrollIntoView({ block: 'nearest', inline: 'center' });
+    });
+    window.scrollTo(0, 0);
+    // Η λίστα «Κλείδωσαν» διαβάζει όλους τους χρήστες, οπότε φορτώνει μόνο όταν ανοίξει.
+    if (id === 'interest' && !interestLoaded) { interestLoaded = true; window.toggleEarlyInterest(); }
+  }
+  window.addEventListener('hashchange', showPanel);
 
   const ALL_SPECS = [
     'Αλουμινάς','Αποφράξεις','Αρχιτέκτονας','Baby Sitter',
@@ -442,6 +537,7 @@
     if (isAdmin) {
       document.getElementById('login-screen').style.display = 'none';
       document.getElementById('app').style.display = 'block';
+      showPanel();
       initChips();
       startProsListener();
     } else {
@@ -487,6 +583,11 @@
       document.getElementById('stat-requests').textContent = allRequests.length;
       const bookingCount = allRequests.filter(r => reqStatus(r) === 'selected').length;
       document.getElementById('stat-bookings').textContent = bookingCount;
+      {
+        const day0 = new Date(); day0.setHours(0,0,0,0);
+        const today = allRequests.filter(r => (r.createdAt?.seconds||0)*1000 >= day0.getTime()).length;
+        setTile('requests', allRequests.length, `${today} σήμερα · ${allRequests.filter(r => reqStatus(r) === 'pending').length} σε αναμονή`);
+      }
       // Populate specialty filter
       const specs = [...new Set(allRequests.map(r => r.profession || r.specialty).filter(Boolean))].sort((a,b)=>a.localeCompare(b,'el'));
       const sel = document.getElementById('req-filter-spec');
@@ -634,6 +735,7 @@
       const evts = snap.docs.map(d => d.data()).sort((a, b) => (b.createdAt?.seconds||0) - (a.createdAt?.seconds||0));
       document.getElementById('contacts-loading').style.display = 'none';
       if (!evts.length) { document.getElementById('contacts-empty').style.display = 'block'; return; }
+      setTile('contacts', evts.length, `${evts.filter(e => e.type === 'call').length} κλήσεις · ${evts.filter(e => e.type === 'message').length} μηνύματα`);
       const reqById = {}; const nameByUser = {};
       (allRequests || []).forEach(r => { reqById[r.id] = r; if (r.userId && r.userName) nameByUser[r.userId] = r.userName; });
       const label = { phone_view: '👁 Είδε κινητό', call: '📞 Κλήση', message: '💬 Μήνυμα' };
@@ -670,6 +772,7 @@
       const day0 = new Date(); day0.setHours(0,0,0,0);
       const today = self.filter(r => secs(r.deletedAt)*1000 >= day0.getTime()).length;
       const last7 = self.filter(r => secs(r.deletedAt)*1000 >= Date.now() - 7*864e5).length;
+      setTile('deleted', self.length, `${today} σήμερα · ${last7} σε 7 ημέρες`);
       const bySpec = {};
       self.filter(r => r.role === 'professional').forEach(r => (r.specialties && r.specialties.length ? r.specialties : ['(άγνωστο)']).forEach(s => bySpec[s] = (bySpec[s]||0)+1));
       const top = Object.entries(bySpec).sort((a,b) => b[1]-a[1]).slice(0, 12).map(([s,n]) => `${esc(s)}: <b>${n}</b>`).join(' · ');
@@ -715,6 +818,7 @@
       const pending = rows.filter(r => r.status === 'pending').sort((a, b) => (a.submittedAt?.seconds || 0) - (b.submittedAt?.seconds || 0));
       const done = rows.filter(r => r.status !== 'pending').sort((a, b) => (b.decidedAt?.seconds || 0) - (a.decidedAt?.seconds || 0)).slice(0, 15);
       document.getElementById('ver-count').textContent = pending.length ? `(${pending.length} σε αναμονή)` : '';
+      setTile('ver', pending.length, pending.length ? 'Περιμένουν έλεγχο' : 'Καμία σε αναμονή', pending.length > 0);
       const box = document.getElementById('ver-box');
       if (!rows.length) { box.innerHTML = 'Δεν έχει σταλεί καμία αίτηση ακόμα.'; return; }
       let html = '';
@@ -907,6 +1011,7 @@
       const clicked = all.filter(u => u.launch100At).sort((a, b) => secs(b.launch100At) - secs(a.launch100At));
       const pct = mailed ? Math.round(clicked.length * 100 / mailed) : 0;
       document.getElementById('l100-count').textContent = clicked.length;
+      setTile('l100', clicked.length, `πάτησαν από ${mailed} email`);
       document.getElementById('l100-summary').innerHTML = `Email στάλθηκαν: <b>${mailed}</b> · Πάτησαν «Κλείνω τη θέση μου»: <b style="color:#e8c66a">${clicked.length}</b> (${pct}%)`;
       if (!clicked.length) { document.getElementById('l100-empty').style.display = 'block'; return; }
       const fmt = t => secs(t) ? new Date(secs(t) * 1000).toLocaleString('el-GR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }) : '—';
@@ -1054,6 +1159,7 @@
     const userCount = Math.max(0, totalRegistered - proCount);
     document.getElementById('stat-users').textContent = userCount;
     document.getElementById('total-count').textContent = totalRegistered + ' εγγεγραμμένοι';
+    setTile('stats', totalRegistered, `${userCount} χρήστες · ${proCount} επαγγελματίες`);
   }
 
   function updateStats() {
@@ -1062,6 +1168,7 @@
     document.getElementById('stat-total').textContent = allPros.length;
     document.getElementById('stat-active').textContent = active;
     document.getElementById('stat-specs').textContent = specs;
+    setTile('pros', allPros.length, `${active} ενεργοί`);
     updateUserStats();
   }
 
@@ -1206,6 +1313,7 @@
         }
       });
       entries.sort((a,b)=>b.clicks-a.clicks);
+      setTile('selections', entries.reduce((n,e)=>n+e.clicks,0), `κλικ σε ${entries.length} επαγγελματίες`);
       if (entries.length===0) { document.getElementById('selections-empty').style.display='block'; return; }
       document.getElementById('selections-table').style.display='table';
       document.getElementById('selections-tbody').innerHTML = entries.map((e,i)=>`
