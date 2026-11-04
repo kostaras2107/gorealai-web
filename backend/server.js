@@ -1099,6 +1099,65 @@ function quietHoursLeftMs(now = new Date()) {
   return hoursLeft * 3600_000 - parts.minute * 60_000 - parts.second * 1000;
 }
 
+// Ο πελάτης μαθαίνει γιατί δεν ειδοποιήθηκε ακόμα κανείς. Μπαίνει και στις
+// ειδοποιήσεις του μέσα στην εφαρμογή, για όσους δεν έχουν push.
+async function notifyCustomerDeferred(requestId, d) {
+  const userId = d.userId;
+  if (!userId) return;
+  const title = 'Το αίτημά σας καταχωρήθηκε';
+  const body = 'Λόγω της προχωρημένης ώρας, το αίτημά σας θα σταλεί στους επαγγελματίες στις 8:00 το πρωί, για να μην τους ενοχλήσουμε μέσα στη νύχτα.';
+
+  let userEmail = null, fcmToken = null, userName = d.userName || '';
+  try {
+    const userDoc = await admin.firestore().collection('users').doc(userId).get();
+    if (userDoc.exists) {
+      fcmToken = userDoc.data().fcmToken || null;
+      userName = userDoc.data().name || userName;
+    }
+    userEmail = (await admin.auth().getUser(userId)).email || null;
+  } catch (_) {}
+
+  if (userEmail) {
+    try {
+      await sendEmail({
+        to: userEmail,
+        subject: title,
+        html: `
+          <div style="font-family:Arial,sans-serif;max-width:480px;margin:0 auto;background:#0A0800;color:#fff;border-radius:16px;padding:32px;border:1px solid rgba(201,168,76,0.3)">
+            <h1 style="color:#FFD47A;font-size:22px;margin-bottom:4px;">${title}</h1>
+            <p style="color:rgba(255,255,255,0.75);font-size:14px;line-height:1.6;">Γεια σας${userName ? ` <strong>${userName}</strong>` : ''},</p>
+            <p style="color:rgba(255,255,255,0.75);font-size:14px;line-height:1.6;">${body}</p>
+            <p style="color:rgba(255,255,255,0.75);font-size:14px;line-height:1.6;">Δεν χρειάζεται να κάνετε τίποτα. Η διάρκεια του αιτήματος μετράει από τις 8:00, οπότε δεν χάνετε χρόνο.</p>
+            <a href="https://gorealai.gr/app" style="display:inline-block;margin-top:20px;padding:13px 28px;background:linear-gradient(135deg,#FFD47A,#C9A84C);color:#000;border-radius:12px;text-decoration:none;font-weight:800;font-size:14px;">Άνοιξε την εφαρμογή →</a>
+            <p style="color:rgba(255,255,255,0.2);font-size:11px;margin-top:24px;">GorealPro · gorealai.gr · info@gorealai.gr</p>
+          </div>
+        `,
+      });
+    } catch (e) { console.error('deferred email error:', e.message); }
+  }
+
+  if (fcmToken) {
+    try {
+      await admin.messaging().send({
+        token: fcmToken,
+        notification: { title, body },
+        android: {
+          priority: 'high',
+          notification: { channelId: 'gorealai_channel', priority: 'high', sound: 'default', icon: 'ic_launcher', title, body, notificationCount: 1 },
+        },
+        apns: { payload: { aps: { alert: { title, body }, sound: 'default', badge: 1 } } },
+      });
+    } catch (e) { console.error('deferred push error:', e.message); }
+  }
+
+  try {
+    await admin.firestore().collection('users').doc(userId).collection('notifications').add({
+      title, body, isRead: false, type: 'request_deferred', requestId,
+      createdAt: admin.firestore.FieldValue.serverTimestamp(),
+    });
+  } catch (_) {}
+}
+
 async function notifyMatchingPros({ profession, location, description, requestId, filterVerifiedOnly, exactSpecialty, requesterUserId, urgent, teachingMode }) {
   if (!firebaseReady) return { success: false, reason: 'firebase not ready' };
   if (!zohoTransporter && !process.env.SENDGRID_API_KEY) return { success: false, reason: 'no email provider configured' };
@@ -1117,6 +1176,7 @@ async function notifyMatchingPros({ profession, location, description, requestId
           const expiresAt = d.expiresAt ? admin.firestore.Timestamp.fromMillis(d.expiresAt.toMillis() + quietMs) : d.expiresAt;
           await ref.update({ notifyDeferred: true, ...(expiresAt ? { expiresAt } : {}) });
           console.log(`🌙 Deferred notification for request ${requestId} (${profession} / ${location})`);
+          await notifyCustomerDeferred(requestId, d);
         }
         return { success: true, sent: 0, deferred: true };
       }
