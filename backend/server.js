@@ -1089,14 +1089,13 @@ const PROFESSION_SUBSPECIALTY_SYNONYMS = {
 // ── Email all matching pros for a new request ────────────────────────
 // POST /email-pros-new-request
 // Body: { profession, location, description, requestId }
-// Ώρες ησυχίας (ώρα Ελλάδας): 23:00–08:00 τα μη επείγοντα αιτήματα δεν ξυπνούν
+// Ώρες ησυχίας (ώρα Ελλάδας): 00:00–08:00 τα μη επείγοντα αιτήματα δεν ξυπνούν
 // τους επαγγελματίες. Επιστρέφει πόσα ms μένουν ως τις 08:00, ή 0 εκτός ωρών.
 function quietHoursLeftMs(now = new Date()) {
   const parts = Object.fromEntries(new Intl.DateTimeFormat('en-GB', { timeZone: 'Europe/Athens', hour: 'numeric', minute: 'numeric', second: 'numeric', hourCycle: 'h23' })
     .formatToParts(now).map(p => [p.type, Number(p.value)]));
-  if (parts.hour >= 8 && parts.hour < 23) return 0;
-  const hoursLeft = (8 - parts.hour + 24) % 24;
-  return hoursLeft * 3600_000 - parts.minute * 60_000 - parts.second * 1000;
+  if (parts.hour >= 8) return 0;
+  return (8 - parts.hour) * 3600_000 - parts.minute * 60_000 - parts.second * 1000;
 }
 
 // Ο πελάτης μαθαίνει γιατί δεν ειδοποιήθηκε ακόμα κανείς. Μπαίνει και στις
@@ -1107,34 +1106,11 @@ async function notifyCustomerDeferred(requestId, d) {
   const title = 'Το αίτημά σας καταχωρήθηκε';
   const body = 'Λόγω της προχωρημένης ώρας, το αίτημά σας θα σταλεί στους επαγγελματίες στις 8:00 το πρωί, για να μην τους ενοχλήσουμε μέσα στη νύχτα.';
 
-  let userEmail = null, fcmToken = null, userName = d.userName || '';
+  let fcmToken = null;
   try {
     const userDoc = await admin.firestore().collection('users').doc(userId).get();
-    if (userDoc.exists) {
-      fcmToken = userDoc.data().fcmToken || null;
-      userName = userDoc.data().name || userName;
-    }
-    userEmail = (await admin.auth().getUser(userId)).email || null;
+    if (userDoc.exists) fcmToken = userDoc.data().fcmToken || null;
   } catch (_) {}
-
-  if (userEmail) {
-    try {
-      await sendEmail({
-        to: userEmail,
-        subject: title,
-        html: `
-          <div style="font-family:Arial,sans-serif;max-width:480px;margin:0 auto;background:#0A0800;color:#fff;border-radius:16px;padding:32px;border:1px solid rgba(201,168,76,0.3)">
-            <h1 style="color:#FFD47A;font-size:22px;margin-bottom:4px;">${title}</h1>
-            <p style="color:rgba(255,255,255,0.75);font-size:14px;line-height:1.6;">Γεια σας${userName ? ` <strong>${userName}</strong>` : ''},</p>
-            <p style="color:rgba(255,255,255,0.75);font-size:14px;line-height:1.6;">${body}</p>
-            <p style="color:rgba(255,255,255,0.75);font-size:14px;line-height:1.6;">Δεν χρειάζεται να κάνετε τίποτα. Η διάρκεια του αιτήματος μετράει από τις 8:00, οπότε δεν χάνετε χρόνο.</p>
-            <a href="https://gorealai.gr/app" style="display:inline-block;margin-top:20px;padding:13px 28px;background:linear-gradient(135deg,#FFD47A,#C9A84C);color:#000;border-radius:12px;text-decoration:none;font-weight:800;font-size:14px;">Άνοιξε την εφαρμογή →</a>
-            <p style="color:rgba(255,255,255,0.2);font-size:11px;margin-top:24px;">GorealPro · gorealai.gr · info@gorealai.gr</p>
-          </div>
-        `,
-      });
-    } catch (e) { console.error('deferred email error:', e.message); }
-  }
 
   if (fcmToken) {
     try {
