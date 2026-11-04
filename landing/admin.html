@@ -1033,9 +1033,15 @@
     document.getElementById('pros-table').style.display = 'none';
     document.getElementById('empty-state').style.display = 'none';
 
-    // Load clicks + user count; requests load separately (non-blocking)
-    await Promise.all([loadClicks(), loadUserCount(), loadPlatformStats()]);
-    loadRequests().then(loadBookings).then(loadContacts);
+    // Τα στατιστικά έρχονται από το Render, που μπορεί να «ξυπνάει», οπότε δεν
+    // κρατούν πίσω τη λίστα. Τα αιτήματα φορτώνουν μία φορά ανά άνοιγμα, γιατί είναι
+    // πολύ βαριά: δεν ξαναδιαβάζονται σε κάθε αλλαγή επαγγελματία.
+    loadUserCount();
+    loadPlatformStats();
+    loadRequests().then(loadBookings).then(() => {
+      if (allPros.length) window.filterTable();
+      return loadContacts();
+    });
     loadDeletions();
     loadLaunch100();
     startVerificationsListener();
@@ -1048,9 +1054,7 @@
         const tb = b.created_at?.seconds || b.createdAt?.seconds || 0;
         return tb - ta;
       });
-      // Re-fetch clicks; requests loaded separately (non-blocking)
       await loadClicks();
-      loadRequests().then(loadBookings); // fire-and-forget, updates stats after
       document.getElementById('loading').style.display = 'none';
       updateStats(); updateFilters(); renderTable(allPros);
       loadSelections(); // Refresh clicks section
@@ -1159,7 +1163,7 @@
     const userCount = Math.max(0, totalRegistered - proCount);
     document.getElementById('stat-users').textContent = userCount;
     document.getElementById('total-count').textContent = totalRegistered + ' εγγεγραμμένοι';
-    setTile('stats', totalRegistered, `${userCount} χρήστες · ${proCount} επαγγελματίες`);
+    if (totalRegistered && proCount) setTile('stats', totalRegistered, `${userCount} χρήστες · ${proCount} επαγγελματίες`);
   }
 
   function updateStats() {
