@@ -102,6 +102,7 @@
   .tile-head{display:flex;align-items:center;gap:8px;font-family:'Syne',sans-serif;font-weight:700;font-size:15px;}
   .tile-num{font-family:'Syne',sans-serif;font-size:32px;font-weight:700;color:var(--gold);line-height:1.2;margin-top:auto;}
   .tile.alert .tile-num{color:var(--red);}
+  .tile.stale .tile-num,.tile.stale .tile-sub{opacity:.55;}
   .tile-sub{font-size:13px;color:#a8a39a;line-height:1.4;}
   @media(max-width:768px){.header-logo{font-size:17px;white-space:nowrap;}.header-badge{display:none;}.tabbar{padding:8px 12px;}.tiles{grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;}.tile{padding:14px;min-height:130px;}.tile-head{font-size:14px;}.tile-num{font-size:26px;}.tile-sub{font-size:12px;}}
 </style>
@@ -388,7 +389,7 @@
     const b = e.target.closest('[data-go]');
     if (b) location.hash = b.dataset.go;
   });
-  function setTile(id, num, sub, alert = false) {
+  function paintTile(id, num, sub, alert) {
     document.getElementById('tile-num-' + id).textContent = num;
     if (sub !== undefined) document.getElementById('tile-sub-' + id).textContent = sub;
     document.getElementById('tile-' + id).classList.toggle('alert', alert);
@@ -396,10 +397,38 @@
     a.textContent = alert ? num : '';
     a.style.display = alert ? 'inline-block' : 'none';
   }
+  // Οι κάρτες δείχνουν αμέσως τα νούμερα της προηγούμενης φοράς (αχνά) ώσπου να
+  // έρθουν τα νέα. Κρατιέται μόνο σε αυτόν τον browser και είναι μόνο νούμερα.
+  const TILE_KEY = 'admin_tiles_v1';
+  let tileCache = {};
+  try { tileCache = JSON.parse(localStorage.getItem(TILE_KEY)) || {}; } catch (_) {}
+  Object.entries(tileCache).forEach(([id, t]) => {
+    if (!document.getElementById('tile-' + id)) return;
+    paintTile(id, t.num, t.sub, !!t.alert);
+    document.getElementById('tile-' + id).classList.add('stale');
+  });
+  function setTile(id, num, sub, alert = false) {
+    paintTile(id, num, sub, alert);
+    document.getElementById('tile-' + id).classList.remove('stale');
+    if (num === '!') return;
+    tileCache[id] = { num, sub, alert };
+    try { localStorage.setItem(TILE_KEY, JSON.stringify(tileCache)); } catch (_) {}
+  }
+  // Τα αιτήματα είναι ~19 MB, οπότε κατεβαίνουν μόνο όταν ανοίξει ενότητα που τα
+  // χρειάζεται. Οι κάρτες παίρνουν τα νούμερά τους από ελαφριές μετρήσεις.
+  let connReady = false, reqPromise = null;
+  const currentPanel = () => { const w = location.hash.slice(1); return TABS.some(t => t.id === w) ? w : 'home'; };
+  function ensureRequests() {
+    if (!connReady || !['requests', 'contacts'].includes(currentPanel())) return;
+    if (!reqPromise) reqPromise = loadRequests().then(() => {
+      if (!allRequests.length) reqPromise = null; // απέτυχε: ξαναδοκιμάζει στο επόμενο άνοιγμα
+      return loadContacts();
+    });
+  }
   let interestLoaded = false;
   function showPanel() {
-    const wanted = location.hash.slice(1);
-    const id = TABS.some(t => t.id === wanted) ? wanted : 'home';
+    const id = currentPanel();
+    ensureRequests();
     document.querySelectorAll('.panel').forEach(p => p.classList.toggle('active', p.dataset.panel === id));
     document.querySelectorAll('.tab').forEach(t => {
       const on = t.dataset.go === id;
@@ -570,6 +599,21 @@
   // ── REQUESTS ──
   let allRequests = [];
 
+  async function loadRequestCounts() {
+    try {
+      const c = collection(db, 'requests');
+      const day0 = new Date(); day0.setHours(0,0,0,0);
+      const [all, today, active] = await Promise.all([
+        getCountFromServer(c),
+        getCountFromServer(query(c, where('createdAt', '>=', day0))),
+        getCountFromServer(query(c, where('status', '==', 'active'))),
+      ]);
+      const total = all.data().count;
+      document.getElementById('stat-requests').textContent = total;
+      setTile('requests', total, `${today.data().count} σήμερα · ${active.data().count} ενεργά`);
+    } catch (e) { console.error('request counts error:', e.code, e.message); }
+  }
+
   async function loadRequests() {
     try {
       const [snap, bookSnap] = await Promise.all([
@@ -585,11 +629,6 @@
       document.getElementById('stat-requests').textContent = allRequests.length;
       const bookingCount = allRequests.filter(r => reqStatus(r) === 'selected').length;
       document.getElementById('stat-bookings').textContent = bookingCount;
-      {
-        const day0 = new Date(); day0.setHours(0,0,0,0);
-        const today = allRequests.filter(r => (r.createdAt?.seconds||0)*1000 >= day0.getTime()).length;
-        setTile('requests', allRequests.length, `${today} σήμερα · ${allRequests.filter(r => reqStatus(r) === 'pending').length} σε αναμονή`);
-      }
       // Populate specialty filter
       const specs = [...new Set(allRequests.map(r => r.profession || r.specialty).filter(Boolean))].sort((a,b)=>a.localeCompare(b,'el'));
       const sel = document.getElementById('req-filter-spec');
@@ -702,6 +741,7 @@
     bookingsPerPro = {};
     try {
       const snap = await getDocs(collection(db, 'bookings'));
+      if (!allRequests.length) document.getElementById('stat-bookings').textContent = new Set(snap.docs.map(d => d.data().requestId).filter(Boolean)).size;
       snap.forEach(doc => {
         const b = doc.data();
         if (b.professionalId) {
@@ -1043,13 +1083,19 @@
     // ΣΕΙΡΑ: πρώτα μία ελαφριά ανάγνωση. Το Firestore θεωρεί τη σύνδεση offline αν δεν
     // πάρει απάντηση σε 10", και τότε δίνει άδειες λίστες. Αν ξεκινήσουν μαζί τα ~19 MB
     // των αιτημάτων, η πρώτη απάντηση αργεί και όλα φαίνονται 0.
+    const t0 = performance.now();
     await loadClicks();
+    console.info('[admin] σύνδεση βάσης:', Math.round(performance.now() - t0), 'ms');
+    connReady = true;
+    ensureRequests();
+    loadRequestCounts();
+    loadBookings().then(() => { if (allPros.length) window.filterTable(); });
+    loadContacts();
     loadDeletions();
     loadLaunch100();
     startVerificationsListener();
 
     if (unsubPros) unsubPros();
-    let requestsStarted = false;
     unsubPros = onSnapshot(collection(db, 'professionals'), async snap => {
       if (snap.empty && snap.metadata.fromCache) return; // offline: όχι ψεύτικο 0
       allPros = snap.docs.map(d => ({ id: d.id, ...d.data() }));
@@ -1062,14 +1108,6 @@
       document.getElementById('loading').style.display = 'none';
       updateStats(); updateFilters(); renderTable(allPros);
       loadSelections(); // Refresh clicks section
-      // Τα αιτήματα είναι τα πιο βαριά: μία φορά ανά άνοιγμα, αφού φανεί η υπόλοιπη σελίδα.
-      if (!requestsStarted) {
-        requestsStarted = true;
-        loadRequests().then(loadBookings).then(() => {
-          window.filterTable();
-          return loadContacts();
-        });
-      }
     }, err => {
       console.error('Pros listener error:', err);
       document.getElementById('loading').style.display = 'none';
