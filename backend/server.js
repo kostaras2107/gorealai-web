@@ -2414,58 +2414,6 @@ function isLaunch100Target(d) {
   return sp.length > 0 && sp.every((x) => LAUNCH100_NON_TECH.has(x));
 }
 
-function launch100EmailHtml({ first, link }) {
-  const esc = (s) => String(s || '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
-  const p = (t, extra = '') => `<p style="margin:0 0 14px;color:#d9d4c7;font-size:15px;line-height:1.65;${extra}">${t}</p>`;
-  const btn = (label) => `<table role="presentation" width="100%" cellpadding="0" cellspacing="0"><tr><td align="center" style="border-radius:14px;background:#E8C66A;background-image:linear-gradient(180deg,#FFE29A,#E2B24F);"><a href="${link}" style="display:block;padding:17px 18px;color:#1a1205;font-size:16px;font-weight:800;text-decoration:none;font-family:Arial,sans-serif;">${label}</a></td></tr></table>`;
-  const check = (t) => `<tr><td width="28" valign="top" style="padding:5px 0;color:#E8C66A;font-size:16px;font-weight:900;">✓</td><td style="padding:5px 0;color:#e9e4d8;font-size:14px;line-height:1.5;">${t}</td></tr>`;
-  return `<div style="background:#050403;padding:24px 10px;font-family:Arial,sans-serif;">
-<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:560px;margin:0 auto;background:#0B0904;border:1px solid #3a3020;border-radius:20px;overflow:hidden;">
-<tr><td style="background:#120E05;background-image:radial-gradient(circle at 50% 0%,#3d2e0c 0%,#120E05 70%);padding:30px 28px 26px;text-align:center;">
-<p style="margin:0 0 14px;"><span style="display:inline-block;background:#E8C66A;color:#1a1205;font-size:11px;font-weight:800;letter-spacing:1.5px;padding:6px 12px;border-radius:20px;">ΠΡΟΣΦΟΡΑ ΕΓΚΑΙΝΙΩΝ</span></p>
-<p style="margin:0;color:#FFD47A;font-size:14px;font-weight:700;letter-spacing:4px;">GOREAL<span style="color:#fff;">PRO</span></p>
-<h1 style="margin:14px 0 0;color:#fff;font-size:26px;line-height:1.25;font-weight:800;">Ξεκινάμε το 2027<br><span style="color:#FFD47A;">μαζί σας</span> 🎉</h1>
-</td></tr>
-<tr><td style="padding:26px 28px 6px;">
-${p(`Καλημέρα${first ? ' ' + esc(first) : ''},`)}
-${p('από την <b style="color:#fff">1/1/2027</b> το GorealPro περνά επίσημα στη νέα του εποχή. Για να γιορτάσουμε τα <b style="color:#fff">εγκαίνια</b>, σας κάνουμε μια <b style="color:#fff">προσφορά για τις νέες κατηγορίες του GorealPro</b> που δεν θα επαναληφθεί:')}
-</td></tr>
-<tr><td style="padding:4px 28px 8px;">
-<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border:2px solid #E8C66A;border-radius:18px;background-color:#161103;">
-<tr><td style="padding:24px 22px 22px;text-align:center;">
-<p style="margin:0;color:#bfb6a0;font-size:13px;">Ετήσια συνδρομή · για τις νέες κατηγορίες του GorealPro</p>
-<p style="margin:6px 0 0;color:#FFD47A;font-size:60px;font-weight:900;line-height:1;">100€</p>
-<p style="margin:6px 0 0;color:#fff;font-size:15px;font-weight:700;">για όλο τον χρόνο</p>
-<p style="margin:6px 0 18px;color:#bfb6a0;font-size:13px;">τελική τιμή με ΦΠΑ · λιγότερο από <b style="color:#fff">9€ τον μήνα</b></p>
-${btn('Κλείνω τη θέση μου στα 100€')}
-<p style="margin:12px 0 0;color:#9d947f;font-size:12px;">Δεν πληρώνετε τώρα · χωρίς κάρτα</p>
-</td></tr></table>
-</td></tr>
-<tr><td style="padding:18px 28px 4px;">
-<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#120E05;border:1px solid #3a3020;border-radius:14px;">
-<tr><td style="padding:14px 18px;">
-<p style="margin:0 0 4px;color:#FFD47A;font-size:14px;font-weight:800;">⏳ Μόνο για τους πρώτους 100 · έως 31/12/2026</p>
-<p style="margin:0;color:#d9d4c7;font-size:13px;line-height:1.55;">Όταν καλυφθούν οι 100 θέσεις, η προσφορά κλείνει. Κλείστε τη δική σας από τώρα.</p>
-</td></tr></table>
-</td></tr>
-<tr><td style="padding:20px 28px 0;">
-${p('Όπως βλέπετε κι εσείς, <b style="color:#fff">κάθε μέρα έρχονται νέα αιτήματα</b> και κλείνονται όλο και περισσότερες δουλειές. Είμαστε μια εταιρεία που μεγαλώνει πολύ γρήγορα, με <b style="color:#fff">πάνω από 2.000 downloads σε 1,5 μήνα</b>. Αυτό το οφείλουμε σε εσάς, και θέλουμε να ξεκινήσουμε το 2027 με όλους σας μαζί!')}
-<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:4px 0 16px;">
-${check('<b style="color:#fff">Μία δουλειά</b> να κλείσετε μέσα στη χρονιά και η συνδρομή έχει βγει')}
-${check('<b style="color:#fff">Χωρίς ποσοστά</b> στις δουλειές σας, όλα τα υπόλοιπα είναι δικά σας')}
-${check('Ειδοποιήσεις για κάθε νέο αίτημα στην περιοχή σας')}
-${check('Η τιμή μένει <b style="color:#fff">κλειδωμένη</b> για εσάς')}
-</table>
-${p('<b style="color:#fff">Το κουμπί δεν σας χρεώνει τίποτα τώρα.</b> Απλώς κλειδώνει τη θέση σας στα 100€. Από την 1/1/2027 θα λάβετε email με τον σύνδεσμο πληρωμής.')}
-</td></tr>
-<tr><td style="padding:6px 28px 26px;">${btn('Κλείνω τη θέση μου στα 100€')}</td></tr>
-<tr><td style="padding:20px 28px 26px;border-top:1px solid #2a2316;">
-<p style="margin:0 0 10px;color:#8f8775;font-size:12px;">Αν δεν σας ενδιαφέρει, απλώς αγνοήστε αυτό το email.</p>
-<p style="margin:0;color:#bfb6a0;font-size:13px;line-height:1.6;">Σας ευχαριστούμε που είστε μαζί μας από την αρχή,<br><b style="color:#fff">Κωνσταντίνος Μποσινάκος</b><br>GorealPro · <a href="tel:+306937102492" style="color:#FFD47A;text-decoration:none;">693 710 2492</a></p>
-</td></tr>
-</table></div>`;
-}
-
 async function sendLaunch100Emails() {
   if (!firebaseReady || !LAUNCH100_MAIL_ENABLED || !launch100Open() || launch100Running) return;
   const athensHour = Number(new Date().toLocaleString('en-GB', { timeZone: 'Europe/Athens', hour: '2-digit', hour12: false }));
@@ -2495,17 +2443,24 @@ async function sendLaunch100Emails() {
         continue;
       }
       const token = d.earlyToken || crypto.randomBytes(12).toString('hex');
-      const link = `${BACKEND_URL}/launch-offer?u=${encodeURIComponent(doc.id)}&t=${token}`;
+      const q = `u=${encodeURIComponent(doc.id)}&t=${token}`;
       const first = String(d.name || d.displayName || '').trim().split(/\s+/)[0] || '';
       attempts++;
-      // Σήμανση ΠΡΙΝ την αποστολή: δεν ξαναστέλνεται ποτέ διπλό
-      await doc.ref.set({ earlyToken: token, launch100MailAt: admin.firestore.FieldValue.serverTimestamp() }, { merge: true });
+      // Σήμανση ΠΡΙΝ την αποστολή: δεν ξαναστέλνεται ποτέ διπλό. Το launchReminderAt
+      // κρατά τους νέους εκτός υπενθύμισης, γιατί έχουν ήδη και τις δύο επιλογές.
+      const stamp = admin.firestore.FieldValue.serverTimestamp();
+      await doc.ref.set({ earlyToken: token, launch100MailAt: stamp, launchReminderAt: stamp }, { merge: true });
       try {
-        await sendEmail({ to: email, subject: 'Προσφορά εγκαινίων: 100€ για όλο το 2027 🎉 (μόνο 100 θέσεις)', html: launch100EmailHtml({ first, link }), bulk: true });
+        await sendEmail({
+          to: email,
+          subject: 'Προσφορά εγκαινίων: κλειδώστε την τιμή σας για το 2027',
+          html: launchReminderEmailHtml({ first, annualLink: `${BACKEND_URL}/launch-offer?${q}`, monthlyLink: `${BACKEND_URL}/launch-monthly?${q}`, ...launchMonthlyPrices(d), isNew: true }),
+          bulk: true,
+        });
         sent++;
       } catch (e) {
         console.error('launch100 email error:', e.message);
-        await doc.ref.update({ launch100MailAt: admin.firestore.FieldValue.delete() }).catch(() => {});
+        await doc.ref.update({ launch100MailAt: admin.firestore.FieldValue.delete(), launchReminderAt: admin.firestore.FieldValue.delete() }).catch(() => {});
         break;
       }
     }
@@ -2520,9 +2475,11 @@ setInterval(sendLaunch100Emails, 10 * 60 * 1000);
 setTimeout(sendLaunch100Emails, 8 * 60 * 1000);
 
 // ── Τελευταία υπενθύμιση με δύο επιλογές (11/2026): ετήσια 100€ ή μηνιαία −50% ──
-// Μαζικό email: ανοίγει ΜΟΝΟ με ρητό ναι του Κώστα, μετά από προεπισκόπηση.
+// Μαζικό email, εγκρίθηκε από τον Κώστα 5/11/2026 για Κυριακή 8/11 09:00 ώρα Ελλάδας.
 // Πηγαίνει σε όσους πήραν το αρχικό email και δεν έχουν κλειδώσει τίποτα, μία φορά.
-const LAUNCH_REMINDER_MAIL_ENABLED = false;
+// Οι νέες εγγραφές παίρνουν το ίδιο πρότυπο με isNew: true από sendLaunch100Emails.
+const LAUNCH_REMINDER_MAIL_ENABLED = true;
+const LAUNCH_REMINDER_START = Date.UTC(2026, 10, 8, 7, 0); // 8/11/2026 09:00 Αθήνα
 const launchPrimarySpecialty = (d) => (Array.isArray(d.specialties) && d.specialties.length ? d.specialties : [d.specialty]).filter(Boolean)[0] || '';
 // Τιμές τελικές με ΦΠΑ 24%, όπως θα τις πληρώσει ο επαγγελματίας.
 function launchMonthlyPrices(d) {
@@ -2531,7 +2488,7 @@ function launchMonthlyPrices(d) {
   return { normal: fmt(base * 1.24), half: fmt((base / 2) * 1.24) };
 }
 
-function launchReminderEmailHtml({ first, annualLink, monthlyLink, normal, half }) {
+function launchReminderEmailHtml({ first, annualLink, monthlyLink, normal, half, isNew = false }) {
   const esc = (s) => String(s || '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
   const p = (t) => `<p style="margin:0 0 14px;color:#d9d4c7;font-size:15px;line-height:1.65;">${t}</p>`;
   const btn = (label, link) => `<table role="presentation" width="100%" cellpadding="0" cellspacing="0"><tr><td align="center" style="border-radius:14px;background:#E8C66A;background-image:linear-gradient(180deg,#FFE29A,#E2B24F);"><a href="${link}" style="display:block;padding:16px 18px;color:#1a1205;font-size:16px;font-weight:800;text-decoration:none;font-family:Arial,sans-serif;">${label}</a></td></tr></table>`;
@@ -2545,13 +2502,15 @@ ${btn(label, link)}
   return `<div style="background:#050403;padding:24px 10px;font-family:Arial,sans-serif;">
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:560px;margin:0 auto;background:#0B0904;border:1px solid #3a3020;border-radius:20px;overflow:hidden;">
 <tr><td style="background:#120E05;background-image:radial-gradient(circle at 50% 0%,#3d2e0c 0%,#120E05 70%);padding:30px 28px 26px;text-align:center;">
-<p style="margin:0 0 14px;"><span style="display:inline-block;background:#E8C66A;color:#1a1205;font-size:11px;font-weight:800;letter-spacing:1.5px;padding:6px 12px;border-radius:20px;">ΤΕΛΕΥΤΑΙΑ ΥΠΕΝΘΥΜΙΣΗ</span></p>
+<p style="margin:0 0 14px;"><span style="display:inline-block;background:#E8C66A;color:#1a1205;font-size:11px;font-weight:800;letter-spacing:1.5px;padding:6px 12px;border-radius:20px;">${isNew ? 'ΠΡΟΣΦΟΡΑ ΕΓΚΑΙΝΙΩΝ' : 'ΤΕΛΕΥΤΑΙΑ ΥΠΕΝΘΥΜΙΣΗ'}</span></p>
 <p style="margin:0;color:#FFD47A;font-size:14px;font-weight:700;letter-spacing:4px;">GOREAL<span style="color:#fff;">PRO</span></p>
 <h1 style="margin:14px 0 0;color:#fff;font-size:26px;line-height:1.25;font-weight:800;">Κλειδώστε την τιμή σας<br><span style="color:#FFD47A;">για όλο το 2027</span></h1>
 </td></tr>
 <tr><td style="padding:26px 28px 4px;">
 ${p(`Καλημέρα${first ? ' ' + esc(first) : ''},`)}
-${p('σας στείλαμε πρόσφατα την προσφορά εγκαινίων. Επειδή η ετήσια συνδρομή δεν βολεύει όλους, προσθέσαμε και <b style="color:#fff">μηνιαία επιλογή</b>.')}
+${p(isNew
+  ? 'καλώς ορίσατε στο GorealPro! Για τα εγκαίνια της νέας χρονιάς σας κάνουμε μια προσφορά, με ετήσια ή μηνιαία επιλογή.'
+  : 'σας στείλαμε πρόσφατα την προσφορά εγκαινίων. Επειδή η ετήσια συνδρομή δεν βολεύει όλους, προσθέσαμε και <b style="color:#fff">μηνιαία επιλογή</b>.')}
 ${p(`Από την <b style="color:#fff">1/1/2027</b> η κανονική τιμή για την ειδικότητά σας είναι <b style="color:#fff">${normal}€ τον μήνα</b> με ΦΠΑ. Έως τις <b style="color:#fff">31/12/2026</b> μπορείτε να κλειδώσετε μία από τις δύο προσφορές:`)}
 </td></tr>
 ${card({ tag: 'ΕΤΗΣΙΑ', price: '100€', unit: 'για όλο το 2027', note: 'τελική τιμή με ΦΠΑ · λιγότερο από 9€ τον μήνα', label: 'Κλειδώνω τα 100€ τον χρόνο', link: annualLink })}
@@ -2568,7 +2527,7 @@ ${p('<b style="color:#fff">Τα κουμπιά δεν σας χρεώνουν τ
 
 let launchReminderRunning = false;
 async function sendLaunchReminderEmails() {
-  if (!firebaseReady || !LAUNCH_REMINDER_MAIL_ENABLED || !launch100Open() || launchReminderRunning) return;
+  if (!firebaseReady || !LAUNCH_REMINDER_MAIL_ENABLED || Date.now() < LAUNCH_REMINDER_START || !launch100Open() || launchReminderRunning) return;
   const athensHour = Number(new Date().toLocaleString('en-GB', { timeZone: 'Europe/Athens', hour: '2-digit', hour12: false }));
   if (athensHour < LAUNCH100_MAIL_HOURS[0] || athensHour >= LAUNCH100_MAIL_HOURS[1]) return;
   launchReminderRunning = true;
