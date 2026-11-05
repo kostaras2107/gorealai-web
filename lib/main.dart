@@ -2290,19 +2290,19 @@ class _LoginScreenState extends State<LoginScreen>
               alignment: Alignment(0, imageAlignY),
               filterQuality: FilterQuality.medium),
           Padding(
-            padding: const EdgeInsets.fromLTRB(14, 12, 14, 14),
+            padding: const EdgeInsets.fromLTRB(10, 12, 10, 14),
             child: Column(children: [
               Text(title,
                   textAlign: TextAlign.center,
                   style: TextStyle(
                       color: highlighted ? Colors.black : kGold.withValues(alpha: 0.95),
-                      fontSize: 20, fontWeight: FontWeight.w900)),
+                      fontSize: 18, fontWeight: FontWeight.w900)),
               const SizedBox(height: 4),
               Text(subtitle,
                   textAlign: TextAlign.center,
                   style: TextStyle(
                       color: highlighted ? Colors.black.withValues(alpha: 0.65) : _g(0.5),
-                      fontSize: 13, fontWeight: FontWeight.w500)),
+                      fontSize: 12.5, fontWeight: FontWeight.w500)),
             ]),
           ),
         ]),
