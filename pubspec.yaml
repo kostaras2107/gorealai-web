@@ -80,6 +80,8 @@ flutter:
     - assets/images/gorilla_right.png
     - assets/images/gorealpro_wordmark.png
     - assets/images/gorealpro_pro_only.png
+    - assets/images/role_customer.jpg
+    - assets/images/role_pro.jpg
     - assets/svc/
     - assets/svcph/
 

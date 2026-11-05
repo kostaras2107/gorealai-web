@@ -2259,67 +2259,94 @@ class _LoginScreenState extends State<LoginScreen>
   // ════════════════════════════════
   // SCREEN 2: ROLE SELECTION
   // ════════════════════════════════
+  // Κάρτα επιλογής ρόλου: εικόνα πάνω, ερώτηση και μικρό κείμενο κάτω.
+  Widget _roleCard({
+    required String image,
+    required double imageAlignY,
+    required String title,
+    required String subtitle,
+    required bool highlighted,
+    required VoidCallback onTap,
+  }) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        width: double.infinity,
+        clipBehavior: Clip.antiAlias,
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(24),
+          color: const Color(0xFF0E0B04),
+          gradient: highlighted
+              ? const LinearGradient(
+                  colors: [Color(0xFFFFD04A), Color(0xFFFFA500)],
+                  begin: Alignment.topLeft, end: Alignment.bottomRight,
+                )
+              : null,
+          border: highlighted ? null : Border.all(color: kGold.withValues(alpha: 0.45), width: 1.5),
+        ),
+        child: Column(mainAxisSize: MainAxisSize.min, children: [
+          Image.asset(image,
+              width: double.infinity, height: 158, fit: BoxFit.cover,
+              alignment: Alignment(0, imageAlignY),
+              filterQuality: FilterQuality.medium),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(14, 12, 14, 14),
+            child: Column(children: [
+              Text(title,
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                      color: highlighted ? Colors.black : kGold.withValues(alpha: 0.95),
+                      fontSize: 20, fontWeight: FontWeight.w900)),
+              const SizedBox(height: 4),
+              Text(subtitle,
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                      color: highlighted ? Colors.black.withValues(alpha: 0.65) : _g(0.5),
+                      fontSize: 13, fontWeight: FontWeight.w500)),
+            ]),
+          ),
+        ]),
+      ),
+    );
+  }
+
   Widget _buildRoleSelect() {
-    return Center(child: Container(
+    return Center(child: SingleChildScrollView(child: Container(
       width: 360,
-      padding: const EdgeInsets.all(28),
+      padding: const EdgeInsets.fromLTRB(28, 20, 28, 12),
       child: Column(mainAxisSize: MainAxisSize.min, children: [
         ShaderMask(
           shaderCallback: (b) => const LinearGradient(colors: [kGoldLight, kGold]).createShader(b),
-          child: const Text('GorealPro', style: TextStyle(fontSize: 36, fontWeight: FontWeight.w600, color: Colors.white)),
+          child: const Text('GorealPro', style: TextStyle(fontSize: 32, fontWeight: FontWeight.w600, color: Colors.white)),
         ),
-        const SizedBox(height: 8),
-        const Text('Καλώς ήρθες!', style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.w700)),
-        const SizedBox(height: 6),
-        Text('Εγγράφεσαι ως:', style: TextStyle(color: _g(0.45), fontSize: 14)),
-        const SizedBox(height: 28),
-        GestureDetector(
+        const SizedBox(height: 4),
+        const Text('Καλώς ήρθες!', style: TextStyle(color: Colors.white, fontSize: 17, fontWeight: FontWeight.w700)),
+        const SizedBox(height: 18),
+        _roleCard(
+          image: 'assets/images/role_customer.jpg',
+          imageAlignY: -0.35,
+          title: 'Χρειάζεσαι επαγγελματία;',
+          subtitle: 'Γράψε τι χρειάζεσαι, πάρε προσφορές. Δωρεάν.',
+          highlighted: true,
           onTap: () => setState(() { _role = 'user'; _screen = 'register'; }),
-          child: Container(
-            width: double.infinity, height: 148,
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(24),
-              gradient: const LinearGradient(
-                colors: [Color(0xFFFFD04A), Color(0xFFFFA500)],
-                begin: Alignment.topLeft, end: Alignment.bottomRight,
-              ),
-            ),
-            child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
-              Icon(Icons.person, color: Colors.blue.shade600, size: 52),
-              const SizedBox(height: 10),
-              const Text('Χρήστης', style: TextStyle(color: Colors.black, fontSize: 22, fontWeight: FontWeight.w900)),
-              const SizedBox(height: 4),
-              Text('Ψάχνω επαγγελματία', style: TextStyle(color: Colors.black.withValues(alpha: 0.6), fontSize: 13, fontWeight: FontWeight.w500)),
-            ]),
-          ),
         ),
-        const SizedBox(height: 16),
-        GestureDetector(
+        const SizedBox(height: 14),
+        _roleCard(
+          image: 'assets/images/role_pro.jpg',
+          imageAlignY: 0.25,
+          title: 'Είσαι επαγγελματίας;',
+          subtitle: 'Βρες νέους πελάτες στην περιοχή σου.',
+          highlighted: false,
           onTap: () => setState(() { _role = 'professional'; _screen = 'register'; }),
-          child: Container(
-            width: double.infinity, height: 148,
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(24),
-              color: const Color(0xFF0E0B04),
-              border: Border.all(color: kGold.withValues(alpha: 0.45), width: 1.5),
-            ),
-            child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
-              Icon(Icons.build, color: kGold.withValues(alpha: 0.9), size: 52),
-              const SizedBox(height: 10),
-              Text('Επαγγελματίας', style: TextStyle(color: kGold.withValues(alpha: 0.95), fontSize: 22, fontWeight: FontWeight.w900)),
-              const SizedBox(height: 4),
-              Text('Προσφέρω υπηρεσίες', style: TextStyle(color: _g(0.45), fontSize: 13, fontWeight: FontWeight.w500)),
-            ]),
-          ),
         ),
-        const SizedBox(height: 24),
+        const SizedBox(height: 10),
         TextButton.icon(
           onPressed: () => setState(() => _screen = 'login'),
           icon: Icon(Icons.arrow_back, size: 14, color: _g(0.5)),
           label: Text('Πίσω στη Σύνδεση', style: TextStyle(color: _g(0.5), fontSize: 13)),
         ),
       ]),
-    ));
+    )));
   }
 
   // ════════════════════════════════
