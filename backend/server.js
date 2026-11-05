@@ -2577,6 +2577,91 @@ async function sendLaunchReminderEmails() {
 }
 setInterval(sendLaunchReminderEmails, 10 * 60 * 1000);
 
+// Email σε επαγγελματίες χωρίς push (εγκρίθηκε 5/11/2026): μία φορά, 40/ώρα, 09:00-21:00.
+// Μόνο όσοι είχαν ήδη λογαριασμό στο cutoff, για να μην το παίρνει κάθε νέα εγγραφή.
+const PUSH_NUDGE_MAIL_ENABLED = true;
+const PUSH_NUDGE_CUTOFF = Date.UTC(2026, 10, 5, 12, 0); // 5/11/2026 14:00 Αθήνα
+const PUSH_NUDGE_PER_HOUR = 40;
+function pushNudgeEmailHtml({ first }) {
+  const esc = (s) => String(s || '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+  const p = (t) => `<p style="margin:0 0 14px;color:#d9d4c7;font-size:15px;line-height:1.65;">${t}</p>`;
+  const btn = (label, link) => `<tr><td style="padding:0 0 10px;"><table role="presentation" width="100%" cellpadding="0" cellspacing="0"><tr><td align="center" style="border-radius:14px;background:#E8C66A;background-image:linear-gradient(180deg,#FFE29A,#E2B24F);"><a href="${link}" style="display:block;padding:14px 16px;color:#1a1205;font-size:15px;font-weight:800;text-decoration:none;">${label}</a></td></tr></table></td></tr>`;
+  const step = (n, t) => `<tr><td width="32" valign="top" style="padding:0 0 10px;color:#FFD47A;font-size:15px;font-weight:800;">${n}.</td><td style="padding:0 0 10px;color:#d9d4c7;font-size:15px;line-height:1.5;">${t}</td></tr>`;
+  return `<div style="background:#050403;padding:24px 10px;font-family:Arial,sans-serif;">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:560px;margin:0 auto;background:#0B0904;border:1px solid #3a3020;border-radius:20px;overflow:hidden;">
+<tr><td style="background:#120E05;background-image:radial-gradient(circle at 50% 0%,#3d2e0c 0%,#120E05 70%);padding:30px 28px 26px;text-align:center;">
+<p style="margin:0;color:#FFD47A;font-size:24px;font-weight:900;line-height:1.3;">Μην χάνετε τα νέα αιτήματα</p>
+</td></tr>
+<tr><td style="padding:26px 28px 10px;">
+${p(`Γεια σας${first ? ` ${esc(first)}` : ''},`)}
+${p('Στο GorealPro έρχονται κάθε μέρα νέα αιτήματα από πελάτες. Στον λογαριασμό σας όμως οι ειδοποιήσεις της εφαρμογής δεν είναι ενεργές, οπότε υπάρχει περίπτωση να μην βλέπετε έγκαιρα τα αιτήματα που σας αφορούν.')}
+${p('Τα αιτήματα μένουν ανοιχτά για περιορισμένο χρόνο, οπότε με τις ειδοποιήσεις τα μαθαίνετε αμέσως. Χρειάζεται μόνο ένα λεπτό:')}
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:0 0 10px;">
+${step(1, 'Αν δεν έχετε την εφαρμογή, κατεβάστε την από τα παρακάτω κουμπιά.')}
+${step(2, 'Συνδεθείτε με τον λογαριασμό σας.')}
+${step(3, 'Όταν σας ρωτήσει για τις ειδοποιήσεις, πατήστε <b style="color:#fff;">Αποδοχή</b>.')}
+</table>
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0">
+${btn('Κατεβάστε για Android', 'https://play.google.com/store/apps/details?id=gr.gorealai.app')}
+${btn('Κατεβάστε για iPhone', 'https://apps.apple.com/gr/app/gorealpro/id6817919309')}
+</table>
+${p('Αν έχετε ήδη την εφαρμογή και δεν σας ρωτάει, ανοίξτε τις Ρυθμίσεις του κινητού σας, βρείτε το GorealPro και ενεργοποιήστε τις Ειδοποιήσεις.')}
+<p style="margin:0 0 18px;color:#bfb6a0;font-size:13px;line-height:1.6;">Για οποιαδήποτε βοήθεια, καλέστε μας στο 6937102492 ή γράψτε μας στο info@gorealai.gr.</p>
+</td></tr>
+</table></div>`;
+}
+let pushNudgeRunning = false;
+async function sendPushNudgeEmails() {
+  if (!firebaseReady || !PUSH_NUDGE_MAIL_ENABLED || pushNudgeRunning) return;
+  const athensHour = Number(new Date().toLocaleString('en-GB', { timeZone: 'Europe/Athens', hour: '2-digit', hour12: false }));
+  if (athensHour < 9 || athensHour >= 21) return;
+  pushNudgeRunning = true;
+  try {
+    const snap = await admin.firestore().collection('users').where('role', '==', 'professional').get();
+    const hourAgo = Date.now() - 3600_000;
+    const sentLastHour = snap.docs.filter((x) => {
+      const m = x.get('pushNudgeMailAt');
+      return m && m.toMillis && m.toMillis() > hourAgo;
+    }).length;
+    const budget = PUSH_NUDGE_PER_HOUR - sentLastHour;
+    if (budget <= 0) return;
+    let sent = 0;
+    for (const doc of snap.docs) {
+      if (sent >= budget) break;
+      const d = doc.data();
+      if (d.fcmToken || d.pushNudgeMailAt || d.isOwner || d.deleted || d.isDeleted) continue;
+      if (/demo|review/i.test(String(d.name || ''))) continue;
+      let authUser = null;
+      try { authUser = await admin.auth().getUser(doc.id); } catch (_) {}
+      if (!authUser || new Date(authUser.metadata.creationTime).getTime() > PUSH_NUDGE_CUTOFF) continue;
+      const email = authUser.email || d.email || '';
+      if (!email || NO_MAIL_ADDRESSES.has(email.toLowerCase())) continue;
+      const first = String(d.name || d.displayName || '').trim().split(/\s+/)[0] || '';
+      // Σήμανση ΠΡΙΝ την αποστολή: δεν ξαναστέλνεται ποτέ διπλό
+      await doc.ref.set({ pushNudgeMailAt: admin.firestore.FieldValue.serverTimestamp() }, { merge: true });
+      try {
+        await sendEmail({
+          to: email,
+          subject: 'Μην χάνετε τα νέα αιτήματα: ενεργοποιήστε τις ειδοποιήσεις',
+          html: pushNudgeEmailHtml({ first }),
+          bulk: true,
+        });
+        sent++;
+      } catch (e) {
+        console.error('push nudge email error:', e.message);
+        await doc.ref.update({ pushNudgeMailAt: admin.firestore.FieldValue.delete() }).catch(() => {});
+        break;
+      }
+    }
+    if (sent) console.log(`📣 Push nudge emails: sent ${sent}`);
+  } catch (e) {
+    console.error('sendPushNudgeEmails error:', e.message);
+  } finally {
+    pushNudgeRunning = false;
+  }
+}
+setInterval(sendPushNudgeEmails, 10 * 60 * 1000);
+
 // Push υπενθύμισης για το email των εγκαινίων (εγκρίθηκε 31/10/2026): μία φορά,
 // Κυριακή 1/11 από τις 11:00, Android + iOS (ουδέτερο κείμενο), μόνο σε
 // όσους πήραν το email και δεν πάτησαν. Ουδέτερο κείμενο χωρίς τιμές/συνδρομή.
