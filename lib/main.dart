@@ -18,6 +18,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'firebase_options.dart';
 import 'splash_screen.dart';
+import 'premium_pulse.dart';
 import 'package:local_auth/local_auth.dart';
 import 'package:permission_handler/permission_handler.dart' show openAppSettings;
 import 'package:shared_preferences/shared_preferences.dart';
@@ -4229,13 +4230,8 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                               transitionsBuilder: (_, a, __, c) => FadeTransition(opacity: a, child: c),
                             )).then((_) => _loadProfile()),
                             child: Stack(clipBehavior: Clip.none, children: [
-                              Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                                decoration: BoxDecoration(
-                                  borderRadius: BorderRadius.circular(20),
-                                  color: kGold.withValues(alpha: 0.12),
-                                  border: Border.all(color: kGold.withValues(alpha: 0.35)),
-                                ),
+                              PremiumPulse(
+                                color: kGold,
                                 child: Row(mainAxisSize: MainAxisSize.min, children: [
                                   Container(width: 6, height: 6,
                                       decoration: const BoxDecoration(shape: BoxShape.circle, color: kGold)),
