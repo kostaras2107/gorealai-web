@@ -875,6 +875,96 @@ Future<bool?> _confirmPhoneShare(BuildContext context, String phone) {
   );
 }
 
+// Από 1/1/2027 (Αθήνα) το κινητό του πελάτη και οι προσφορές είναι για
+// συνδρομητές ή για όσους άνοιξε το αίτημα ο server (unlockedProIds). Το
+// πραγματικό όριο το βάζουν οι κανόνες Firestore· εδώ είναι μόνο η εμφάνιση.
+// Στις εφαρμογές των καταστημάτων δεν αναφέρουμε πληρωμή (Apple/Google).
+final DateTime kPaywallStart = DateTime.utc(2026, 12, 31, 22);
+
+bool _paywallOnFor(Map<String, dynamic>? u) =>
+    DateTime.now().isAfter(kPaywallStart) || u?['paywallTest'] == true;
+
+bool _hasPaidAccess(Map<String, dynamic>? u) {
+  if (u?['isPremium'] != true) return false;
+  final until = (u?['premiumUntil'] as Timestamp?)?.toDate();
+  return until == null || until.isAfter(DateTime.now());
+}
+
+bool _proLocked(Map<String, dynamic>? u, String? proId, Map<String, dynamic>? request) {
+  if (!_paywallOnFor(u) || _hasPaidAccess(u)) return false;
+  return !((request?['unlockedProIds'] as List?)?.contains(proId) ?? false);
+}
+
+String _maskPhones(String t) => t.replaceAll(RegExp(r'(?:\+?\d[\s.\-()]*){10,}'), '***');
+
+Future<bool> _offerAccessAllowed(BuildContext context, Map<String, dynamic> requestData, String proId, {String? requestId}) async {
+  Map<String, dynamic>? u;
+  Map<String, dynamic> req = requestData;
+  try {
+    final fs = FirebaseFirestore.instance;
+    u = (await fs.collection('users').doc(proId).get()).data();
+    if (requestId != null) {
+      req = (await fs.collection('requests').doc(requestId).get()).data() ?? requestData;
+    }
+  } catch (_) {
+    return true; // Χωρίς σύνδεση αποφασίζουν οι κανόνες Firestore.
+  }
+  if (!_proLocked(u, proId, req)) return true;
+  if (context.mounted) {
+    await showDialog<void>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: const Color(0xFF14110A),
+        title: const Text('Μη διαθέσιμο', style: TextStyle(color: kGold, fontWeight: FontWeight.w800)),
+        content: Text(
+          kIsWeb
+              ? 'Για να στέλνετε προσφορές χρειάζεται ενεργή συνδρομή. Μπορείτε να την ενεργοποιήσετε από το Προφίλ σας.'
+              : 'Η αποστολή προσφοράς δεν είναι διαθέσιμη για αυτό το αίτημα με τον λογαριασμό σας.',
+          style: const TextStyle(color: Colors.white70, height: 1.4)),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx),
+              child: const Text('Εντάξει', style: TextStyle(color: kGold, fontWeight: FontWeight.w700))),
+        ],
+      ),
+    );
+  }
+  return false;
+}
+
+// Το κινητό του πελάτη: από το αίτημα (παλιά) ή από το προστατευμένο
+// requests/{id}/private/contact (από 1/1/2027).
+class _ClientPhone extends StatelessWidget {
+  final String requestId;
+  final String publicPhone;
+  final bool locked;
+  final bool hasPhone;
+  final Widget Function(String phone) builder;
+  const _ClientPhone({required this.requestId, required this.publicPhone, required this.locked,
+      required this.hasPhone, required this.builder});
+
+  @override
+  Widget build(BuildContext context) {
+    if (locked) {
+      if (!hasPhone && publicPhone.isEmpty) return const SizedBox.shrink();
+      return Padding(
+        padding: const EdgeInsets.only(top: 10),
+        child: Text('Το κινητό του πελάτη δεν είναι διαθέσιμο για τον λογαριασμό σας.',
+            style: TextStyle(color: Colors.white.withValues(alpha: 0.5), fontSize: 12)),
+      );
+    }
+    if (publicPhone.isNotEmpty) return builder(publicPhone);
+    if (!hasPhone) return const SizedBox.shrink();
+    return FutureBuilder<DocumentSnapshot<Map<String, dynamic>>>(
+      future: FirebaseFirestore.instance.collection('requests').doc(requestId)
+          .collection('private').doc('contact').get(),
+      builder: (_, snap) {
+        final phone = snap.hasError ? '' : (snap.data?.data()?['phone'] as String? ?? '').trim();
+        return phone.isEmpty ? const SizedBox.shrink() : builder(phone);
+      },
+    );
+  }
+}
+
 // Ο επαγγελματίας πάτησε το κινητό του πελάτη μέσα στην εφαρμογή — ίδια
 // καταγραφή με το /call-client των email (requests/{id}/callTaps/{proUid}).
 Future<void> _logCallTap(String? requestId, String source) async {
@@ -6109,6 +6199,9 @@ class _NetflixStyleNavCardState extends State<_NetflixStyleNavCard> {
 class _ProfessionalHomeScreenState extends State<ProfessionalHomeScreen> {
   String? _proName;
   String? _proId;
+  // Ενημερώνεται αμέσως μόλις ολοκληρωθεί η πληρωμή, χωρίς επανεκκίνηση.
+  Map<String, dynamic>? _accessData;
+  StreamSubscription<DocumentSnapshot<Map<String, dynamic>>>? _accessSub;
   String? _proPhotoUrl;
   String? _activeSection; // null = grid, else section key
   final Set<String> _submittedIds = {};
@@ -6305,10 +6398,17 @@ class _ProfessionalHomeScreenState extends State<ProfessionalHomeScreen> {
   void initState() {
     super.initState();
     _loadProfile();
+    final accessUid = FirebaseAuth.instance.currentUser?.uid;
+    if (accessUid != null) {
+      _accessSub = FirebaseFirestore.instance.collection('users').doc(accessUid).snapshots().listen((doc) {
+        if (mounted) setState(() => _accessData = doc.data());
+      }, onError: (_) {});
+    }
   }
 
   @override
   void dispose() {
+    _accessSub?.cancel();
     _bioCtrl.dispose();
     _professionCtrl.dispose();
     _newSpecialtyCtrl.dispose();
@@ -7360,9 +7460,15 @@ class _ProfessionalHomeScreenState extends State<ProfessionalHomeScreen> {
                 ),
               ),
             ],
-            if (phone.isNotEmpty && (state == 'active' || state == 'won')) ...[
-              const SizedBox(height: 16),
-              GestureDetector(
+            if (state == 'active' || state == 'won')
+              _ClientPhone(
+                requestId: offerDoc.data()['requestId'] as String? ?? '',
+                publicPhone: phone,
+                locked: false,
+                hasPhone: r['hasPhone'] == true,
+                builder: (phone) => Padding(
+                padding: const EdgeInsets.only(top: 16),
+                child: GestureDetector(
                 onTap: () { _logCallTap(offerDoc.data()['requestId'] as String?, 'app_myoffers'); launchUrl(Uri.parse('tel:$phone')); },
                 child: Container(
                   padding: const EdgeInsets.symmetric(vertical: 13),
@@ -7375,8 +7481,9 @@ class _ProfessionalHomeScreenState extends State<ProfessionalHomeScreen> {
                         style: const TextStyle(color: Colors.black, fontWeight: FontWeight.w800, fontSize: 14)),
                   ]),
                 ),
+                ),
+                ),
               ),
-            ],
             if (state == 'active') ...[
               const SizedBox(height: 10),
               OutlinedButton.icon(
@@ -9044,15 +9151,22 @@ class _ProfessionalHomeScreenState extends State<ProfessionalHomeScreen> {
                     const SizedBox(height: 12),
 
                     // Description
-                    Text(d['description'] ?? '',
+                    Text(_proLocked(_accessData, _proId, d)
+                            ? _maskPhones(d['description'] as String? ?? '')
+                            : (d['description'] ?? ''),
                         style: TextStyle(fontSize: 13,
                             color: _g(0.75), height: 1.5)),
 
                     // Κινητό πελάτη — ο επαγγελματίας μπορεί να καλέσει απευθείας
-                    if ((d['userPhone'] as String?)?.isNotEmpty == true) ...[
-                      const SizedBox(height: 10),
-                      GestureDetector(
-                        onTap: () { _logCallTap(requestId, 'app'); launchUrl(Uri.parse('tel:${d['userPhone']}')); },
+                    _ClientPhone(
+                      requestId: requestId,
+                      publicPhone: (d['userPhone'] as String? ?? '').trim(),
+                      locked: _proLocked(_accessData, _proId, d),
+                      hasPhone: d['hasPhone'] == true,
+                      builder: (phone) => Padding(
+                      padding: const EdgeInsets.only(top: 10),
+                      child: GestureDetector(
+                        onTap: () { _logCallTap(requestId, 'app'); launchUrl(Uri.parse('tel:$phone')); },
                         child: Container(
                           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
                           decoration: BoxDecoration(
@@ -9063,12 +9177,13 @@ class _ProfessionalHomeScreenState extends State<ProfessionalHomeScreen> {
                           child: Row(mainAxisSize: MainAxisSize.min, children: [
                             const Icon(Icons.phone_rounded, color: kGold, size: 16),
                             const SizedBox(width: 8),
-                            Text('Κινητό πελάτη: ${d['userPhone']}',
+                            Text('Κινητό πελάτη: $phone',
                                 style: const TextStyle(color: kGold, fontSize: 13, fontWeight: FontWeight.w700)),
                           ]),
                         ),
                       ),
-                    ],
+                      ),
+                    ),
 
                     // Images
                     if ((d['hasImages'] == true || (d['imageCount'] ?? 0) > 0)) ...[
@@ -9157,7 +9272,7 @@ class _ProfessionalHomeScreenState extends State<ProfessionalHomeScreen> {
 
                     // CTA Button
                     _PremiumButton(
-                      label: '💼 Στείλε Προσφορά',
+                      label: _proLocked(_accessData, _proId, d) ? '🔒 Στείλε Προσφορά' : '💼 Στείλε Προσφορά',
                       gradient: const LinearGradient(colors: [kGoldLight, kGold]),
                       textColor: Colors.black,
                       fontSize: 13,
@@ -9176,6 +9291,8 @@ class _ProfessionalHomeScreenState extends State<ProfessionalHomeScreen> {
   }
 
   Future<void> _showOfferDialog(String requestId, Map<String, dynamic> requestData) async {
+    if (!await _offerAccessAllowed(context, requestData, _proId ?? '', requestId: requestId)) return;
+    if (!mounted) return;
     if (!await _transportOfferAllowed(context, requestData, _proId ?? '')) return;
     if (!mounted) return;
     final priceCtrl = TextEditingController();
@@ -16512,6 +16629,8 @@ class NotificationsScreen extends StatelessWidget {
   // Offer dialog που ανοίγει από notification
   static Future<void> _showOfferDialogFromNotif(BuildContext context,
       String requestId, Map<String, dynamic> requestData, String proId) async {
+    if (!await _offerAccessAllowed(context, requestData, proId, requestId: requestId)) return;
+    if (!context.mounted) return;
     if (!await _transportOfferAllowed(context, requestData, proId)) return;
     if (!context.mounted) return;
     final priceCtrl = TextEditingController();

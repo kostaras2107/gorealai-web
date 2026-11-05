@@ -1138,6 +1138,14 @@ async function notifyMatchingPros({ profession, location, description, requestId
   if (!firebaseReady) return { success: false, reason: 'firebase not ready' };
   if (!zohoTransporter && !process.env.SENDGRID_API_KEY) return { success: false, reason: 'no email provider configured' };
 
+  if (requestId) {
+    try {
+      const ref = admin.firestore().collection('requests').doc(requestId);
+      const doc = await ref.get();
+      if (doc.exists) await secureRequestPhone(ref, doc.data());
+    } catch (e) { console.error('secureRequestPhone error:', e.message); }
+  }
+
   // Το αίτημα μένει χωρίς prosNotified, οπότε το sweepUnnotifiedRequests το
   // στέλνει μετά τις 08:00. Η λήξη μετατίθεται ίσα με την αναμονή, αλλιώς ένα
   // τετράωρο αίτημα των 01:00 θα έληγε πριν ειδοποιηθεί κανείς.
@@ -1226,7 +1234,7 @@ async function notifyMatchingPros({ profession, location, description, requestId
           filterWithPhoto = reqDoc.data().filterWithPhoto === true;
           filterMinRating = Number(reqDoc.data().filterMinRating) || 0;
           // Κινητό πελάτη — μπαίνει στο email/SMS ώστε ο επαγγελματίας να καλέσει απευθείας.
-          clientPhone = String(reqDoc.data().userPhone || '').replace(/\s+/g, '');
+          clientPhone = (await requestPhoneOf(reqDoc.ref, reqDoc.data())).replace(/\s+/g, '');
           // Οικισμός μέσα στον δήμο (π.χ. Σαρωνικός → Ανάβυσσος) — μόνο για εμφάνιση.
           locationDetail = String(reqDoc.data().locationDetail || '').trim();
         }
@@ -1381,8 +1389,11 @@ async function notifyMatchingPros({ profession, location, description, requestId
     await Promise.all(matching.map(async p => {
       try {
         const userDoc = await admin.firestore().collection('users').doc(p.uid).get();
-        p.fcmToken = userDoc.exists ? (userDoc.data().fcmToken || null) : null;
-      } catch (_) { p.fcmToken = null; }
+        const u = userDoc.exists ? userDoc.data() : {};
+        p.fcmToken = u.fcmToken || null;
+        p.locked = proLocked(u, p.uid, null);
+        if (p.locked) p.subscribeUrl = await subscribeUrlFor(p.uid, u);
+      } catch (_) { p.fcmToken = null; p.locked = paywallStarted(); }
     }));
 
     if (matching.length === 0) {
@@ -1403,14 +1414,19 @@ async function notifyMatchingPros({ profession, location, description, requestId
     const callHref = (p) => (requestId && callToken)
       ? `${BACKEND_URL}/call-client?r=${encodeURIComponent(requestId)}&p=${encodeURIComponent(p.uid)}&t=${callToken}`
       : `tel:${clientPhone}`;
+    const descFor = (p, n) => (p.locked ? maskPhones(description) : String(description || '')).substring(0, n);
+    const lockedBlock = (p) => !p.locked ? '' : `
+        <p style="color:rgba(255,255,255,0.75);font-size:14px;margin:14px 0 4px;line-height:1.5;">Το κινητό του πελάτη και η αποστολή προσφοράς είναι διαθέσιμα στους συνδρομητές.</p>
+        ${p.subscribeUrl ? `<a href="${p.subscribeUrl}" style="display:inline-block;margin-top:10px;padding:13px 24px;background:#fff;color:#000;border-radius:12px;font-weight:800;text-decoration:none;font-size:14px;">Γίνε συνδρομητής για να στείλεις προσφορά</a>` : ''}`;
     const htmlFor = (p) => `
       <div style="font-family:Arial,sans-serif;max-width:480px;margin:0 auto;background:#0A0800;color:#fff;border-radius:16px;padding:32px;border:1px solid rgba(201,168,76,0.3)">
         ${urgent ? `<p style="display:inline-block;background:#ff4d4d;color:#fff;font-size:12px;font-weight:800;padding:4px 12px;border-radius:20px;margin-bottom:10px;">🚨 ΕΠΕΙΓΟΝ — απαντά μέσα σε 15 λεπτά</p>` : ''}
         <h1 style="color:#FFD47A;font-size:22px;margin-bottom:4px;">🔔 Νέο Αίτημα!</h1>
         ${profession ? `<p style="color:#C9A84C;font-size:15px;margin:4px 0;font-weight:700;">${profession}</p>` : ''}
         ${locLabel ? `<p style="color:rgba(255,255,255,0.5);font-size:13px;margin:4px 0;">📍 ${locLabel}</p>` : ''}
-        ${description ? `<p style="color:rgba(255,255,255,0.7);font-size:14px;margin:16px 0;line-height:1.6;border-left:3px solid rgba(201,168,76,0.4);padding-left:12px;">${description.substring(0, 200)}</p>` : ''}
-        ${clientPhone ? `<p style="color:#FFD47A;font-size:14px;margin:8px 0;font-weight:700;">📞 Κινητό πελάτη: <a href="${callHref(p)}" style="color:#FFD47A;">${clientPhone}</a></p>` : ''}
+        ${description ? `<p style="color:rgba(255,255,255,0.7);font-size:14px;margin:16px 0;line-height:1.6;border-left:3px solid rgba(201,168,76,0.4);padding-left:12px;">${descFor(p, 200)}</p>` : ''}
+        ${lockedBlock(p)}
+        ${clientPhone && !p.locked ? `<p style="color:#FFD47A;font-size:14px;margin:8px 0;font-weight:700;">📞 Κινητό πελάτη: <a href="${callHref(p)}" style="color:#FFD47A;">${clientPhone}</a></p>` : ''}
         <a href="https://gorealai.web.app/app" style="display:inline-block;margin-top:20px;padding:13px 28px;background:linear-gradient(135deg,#FFD47A,#C9A84C);color:#000;border-radius:12px;text-decoration:none;font-weight:800;font-size:14px;">Δες το αίτημα →</a>
         <p style="color:rgba(255,255,255,0.2);font-size:11px;margin-top:24px;">GorealPro · gorealai.web.app · info@gorealai.gr</p>
       </div>
@@ -1440,13 +1456,13 @@ async function notifyMatchingPros({ profession, location, description, requestId
       const normalizedPhone = normalizePhone(p.phone);
       if (normalizedPhone && !smsPhonesSent.has(normalizedPhone)) {
         smsPhonesSent.add(normalizedPhone);
-        const smsText = `🔔 Νέο αίτημα GorealPro${profession ? ` για ${profession}` : ''}${locLabel ? ` — ${locLabel}` : ''}!\n${description ? description.substring(0, 100) : ''}${clientPhone ? `\nΚινητό πελάτη: ${clientPhone}` : ''}\nΔες το: https://gorealai.web.app/app`;
+        const smsText = `🔔 Νέο αίτημα GorealPro${profession ? ` για ${profession}` : ''}${locLabel ? ` — ${locLabel}` : ''}!\n${description ? descFor(p, 100) : ''}${clientPhone && !p.locked ? `\nΚινητό πελάτη: ${clientPhone}` : ''}\nΔες το: https://gorealai.web.app/app`;
         sendSms(p.phone, smsText); // fire-and-forget
       }
       // Push notification + in-app badge entry (fire-and-forget, doesn't block the loop)
       if (p.fcmToken) {
         const pushTitle = `${urgent ? '🚨 ΕΠΕΙΓΟΝ — ' : ''}🔔 Νέο αίτημα${profession ? ` για ${profession}` : ''}!`;
-        const pushBody = `${locLabel ? `📍 ${locLabel} · ` : ''}${description ? description.substring(0, 100) : 'Δες το αίτημα στην εφαρμογή'}`;
+        const pushBody = `${locLabel ? `📍 ${locLabel} · ` : ''}${description ? descFor(p, 100) : 'Δες το αίτημα στην εφαρμογή'}`;
         admin.messaging().send({
           token: p.fcmToken,
           notification: { title: pushTitle, body: pushBody },
@@ -1464,7 +1480,7 @@ async function notifyMatchingPros({ profession, location, description, requestId
       }
       admin.firestore().collection('users').doc(p.uid).collection('notifications').add({
         title: `${urgent ? '🚨 ΕΠΕΙΓΟΝ — ' : ''}🔔 Νέο αίτημα${profession ? ` για ${profession}` : ''}!`,
-        body: description ? description.substring(0, 100) : '',
+        body: description ? descFor(p, 100) : '',
         isRead: false,
         type: 'new_request',
         requestId: requestId || '',
@@ -1480,6 +1496,7 @@ async function notifyMatchingPros({ profession, location, description, requestId
           notifiedProNames: sentPros,
           // uids — για την ειδοποίηση «ο πελάτης βρήκε επαγγελματία» (/request-found)
           notifiedProIds: matching.map((p) => p.uid),
+          notifiedAt: admin.firestore.FieldValue.serverTimestamp(),
         });
       } catch (_) {}
     }
@@ -1512,7 +1529,9 @@ app.get('/call-client', rateLimit(30, 60_000), async (req, res) => {
     const d = (await ref.get()).data();
     const good = String((d && d.callToken) || '');
     if (!d || !good || t.length !== good.length || !crypto.timingSafeEqual(Buffer.from(t), Buffer.from(good))) return page('<p>Ο σύνδεσμος δεν είναι έγκυρος.</p>', 400);
-    const phone = String(d.userPhone || '').replace(/[^\d+]/g, '');
+    const callerUser = (await db.collection('users').doc(p).get()).data() || {};
+    if (proLocked(callerUser, p, d)) return page('<p>Το κινητό του πελάτη είναι διαθέσιμο στους συνδρομητές.</p>', 403);
+    const phone = (await requestPhoneOf(ref, d)).replace(/[^\d+]/g, '');
     if (!phone) return page('<p>Ο πελάτης δεν έχει δηλώσει κινητό. Απαντήστε του μέσα από την εφαρμογή.</p>');
     const tapRef = ref.collection('callTaps').doc(p);
     const prev = (await tapRef.get()).data();
@@ -2052,6 +2071,56 @@ app.get('/platform-stats', async (req, res) => {
 // Οι συνδρομές πληρώνονται από 1/1/2027 (ώρα Ελλάδας). Όποιος γραφτεί νωρίτερα
 // βάζει κάρτα τώρα αλλά η πρώτη χρέωση γίνεται τότε (trial μέχρι εκείνη τη στιγμή).
 const PAID_SUBS_START = new Date(Date.UTC(2026, 11, 31, 22, 0));
+
+// ── Συνδρομή από 1/1/2027 ─────────────────────────────────────────
+// Όσοι δεν πληρώνουν συνεχίζουν να λαμβάνουν τα αιτήματα, αλλά χωρίς το κινητό
+// του πελάτη και χωρίς δυνατότητα προσφοράς. Αίτημα χωρίς προσφορά ανοίγει με
+// εναλλαγή σε μερικούς από αυτούς (openUnansweredRequests), έως 31/3/2027.
+// Το users/{uid}.paywallTest ενεργοποιεί το κλείδωμα νωρίτερα για δοκιμή.
+const FREE_UNLOCK_END = new Date(Date.UTC(2027, 2, 31, 21, 0)); // 1/4/2027 00:00 Αθήνα
+const FREE_UNLOCK_WAIT_MS = 2 * 3600 * 1000;
+const FREE_UNLOCK_ROUND2_MS = 3600 * 1000;
+const FREE_UNLOCK_PER_ROUND = 2;
+const FREE_UNLOCK_PER_MONTH = 2;
+
+const paywallStarted = () => Date.now() >= PAID_SUBS_START.getTime();
+const paywallOn = (u) => paywallStarted() || (u && u.paywallTest === true);
+function hasPaidAccess(u) {
+  if (!u || u.isPremium !== true) return false;
+  return !u.premiumUntil || u.premiumUntil.toMillis() > Date.now();
+}
+function proLocked(u, proId, request) {
+  if (!paywallOn(u) || hasPaidAccess(u)) return false;
+  return !(request && Array.isArray(request.unlockedProIds) && request.unlockedProIds.includes(proId));
+}
+// Κινητά που ο πελάτης έγραψε μέσα στο κείμενο του αιτήματος.
+const maskPhones = (t) => String(t || '').replace(/(?:\+?\d[\s.\-()]*){10,}/g, '***');
+
+// Το κινητό αντιγράφεται στο requests/{id}/private/contact (το διαβάζουν μόνο
+// όσοι έχουν δικαίωμα) και από 1/1/2027 φεύγει από το δημόσιο έγγραφο του αιτήματος.
+async function secureRequestPhone(ref, d) {
+  const phone = String((d && d.userPhone) || '').trim();
+  if (!phone) return;
+  await ref.collection('private').doc('contact').set({ phone, userId: d.userId || '' }, { merge: true });
+  await ref.update({
+    hasPhone: true,
+    ...(paywallStarted() ? { userPhone: admin.firestore.FieldValue.delete() } : {}),
+  });
+}
+async function requestPhoneOf(ref, d) {
+  const pub = String((d && d.userPhone) || '').trim();
+  if (pub) return pub;
+  const c = await ref.collection('private').doc('contact').get();
+  return String((c.exists && c.data().phone) || '').trim();
+}
+async function subscribeUrlFor(uid, u) {
+  let t = String((u && u.earlyToken) || '');
+  if (!t) {
+    t = crypto.randomBytes(16).toString('hex');
+    await admin.firestore().collection('users').doc(uid).set({ earlyToken: t }, { merge: true });
+  }
+  return `${BACKEND_URL}/subscribe?u=${encodeURIComponent(uid)}&t=${t}`;
+}
 // Τιμή από την ΚΥΡΙΑ ειδικότητα — ίδιος κανόνας με subscriptionPriceFor / _subscriptionPrice.
 // yearKey/yearCents: ετήσια «ιδρυτικών μελών» −50% (12 × μηνιαία ÷ 2, στρογγυλεμένο
 // σε ,99) — διαθέσιμη μόνο μέχρι FOUNDER_YEARLY_DEADLINE. Η μηνιαία μένει πάντα.
@@ -2105,7 +2174,7 @@ async function stripeCatalog() {
   return stripeCatalogCache;
 }
 
-async function createProCheckoutSession({ userId, email, early, yearly = false }) {
+async function createProCheckoutSession({ userId, email, early, yearly = false, fromEmail = false }) {
   const cat = await stripeCatalog();
   let d = {};
   if (userId && firebaseReady) { try { d = (await admin.firestore().collection('users').doc(userId).get()).data() || {}; } catch (_) {} }
@@ -2124,7 +2193,7 @@ async function createProCheckoutSession({ userId, email, early, yearly = false }
     ...(early && !yearly ? { discounts: [{ coupon: EARLY_COUPON_ID }] } : {}),
     // Από το email ο επαγγελματίας συνήθως δεν είναι συνδεδεμένος στο web app — αντί
     // για τη σελίδα εισόδου του δείχνουμε απλή σελίδα «Ευχαριστούμε».
-    success_url: early ? `https://ai-backend-kkt7.onrender.com/early-subscribe/thanks${yearly ? '?p=y' : ''}` : 'https://gorealai.web.app/app?payment=success',
+    success_url: fromEmail ? 'https://ai-backend-kkt7.onrender.com/subscribe/thanks' : early ? `https://ai-backend-kkt7.onrender.com/early-subscribe/thanks${yearly ? '?p=y' : ''}` : 'https://gorealai.web.app/app?payment=success',
     cancel_url: 'https://gorealai.web.app/app?payment=cancelled',
     metadata: meta,
     subscription_data: {
@@ -2156,6 +2225,28 @@ app.post('/create-checkout-session', rateLimit(10, 60_000), async (req, res) => 
 // Το token είναι τυχαίο, αποθηκευμένο στο users/{uid}.earlyToken (το γράφει το
 // script αποστολής του email) — έτσι κανείς δεν φτιάχνει link για άλλον χρήστη.
 // Σημαδεύει earlyLinkClickedAt/earlyLinkClicks για να μετράμε πόσοι το πάτησαν.
+// Προσωπικό link στο email αιτήματος για όσους δεν έχουν συνδρομή.
+app.get('/subscribe/thanks', (req, res) => {
+  res.send(`<!doctype html><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>GorealPro</title><body style="font-family:Arial,sans-serif;background:#0A0800;color:#fff;text-align:center;padding:60px 20px;margin:0"><div style="max-width:460px;margin:0 auto"><h1 style="color:#FFD47A;font-size:26px">Ευχαριστούμε!</h1><p style="font-size:16px;line-height:1.6;color:rgba(255,255,255,.85)">Η συνδρομή σας ενεργοποιήθηκε. Μπορείτε να ανοίξετε την εφαρμογή και να στείλετε τις προσφορές σας.</p></div></body>`);
+});
+app.get('/subscribe', rateLimit(20, 60_000), async (req, res) => {
+  const uid = String(req.query.u || ''), t = String(req.query.t || '');
+  const page = (msg) => res.status(400).send(`<!doctype html><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><body style="font-family:Arial,sans-serif;background:#0A0800;color:#fff;text-align:center;padding:60px 20px;margin:0">${msg}</body>`);
+  if (!process.env.STRIPE_SECRET_KEY || !firebaseReady) return page('Η εγγραφή δεν είναι διαθέσιμη αυτή τη στιγμή. Δοκιμάστε ξανά σε λίγο.');
+  if (!uid || uid.includes('/') || !t) return page('Ο σύνδεσμος δεν είναι έγκυρος.');
+  try {
+    const d = (await admin.firestore().collection('users').doc(uid).get()).data();
+    const good = String((d && d.earlyToken) || '');
+    if (!d || !good || t.length !== good.length || !crypto.timingSafeEqual(Buffer.from(t), Buffer.from(good))) return page('Ο σύνδεσμος δεν είναι έγκυρος.');
+    if (hasPaidAccess(d)) return page('Έχετε ήδη ενεργή συνδρομή. Ευχαριστούμε!');
+    const session = await createProCheckoutSession({ userId: uid, fromEmail: true });
+    res.redirect(303, session.url);
+  } catch (e) {
+    console.error('subscribe error:', e.message);
+    page('Κάτι πήγε στραβά. Δοκιμάστε ξανά σε λίγο.');
+  }
+});
+
 app.get('/early-subscribe/thanks', (req, res) => {
   const deal = req.query.p === 'y'
     ? 'η <b style="color:#FFD47A">ετήσια συνδρομή ιδρυτικού μέλους με −50%</b> έχει κλειδώσει για εσάς. Η πρώτη ετήσια χρέωση γίνεται την 1/1/2027'
@@ -3100,6 +3191,127 @@ async function sweepUnnotifiedRequests() {
   }
 }
 setInterval(sweepUnnotifiedRequests, 3 * 60 * 1000);
+
+// Εναλλαγή: πρώτα όσοι δεν έχουν πάρει ποτέ, μετά όσοι περιμένουν περισσότερο.
+function pickFreeUnlockPros(candidates, n, rand = Math.random) {
+  return candidates
+    .map((c) => ({ c, r: rand() }))
+    .sort((a, b) => (a.c.lastAt - b.c.lastAt) || (a.r - b.r))
+    .slice(0, n)
+    .map((x) => x.c);
+}
+const athensMonth = (ms) => new Date(ms).toLocaleString('sv-SE', { timeZone: 'Europe/Athens' }).slice(0, 7);
+
+// Χωρίς προσφορά 2 ώρες μετά την αποστολή: ανοίγει σε 2 που δεν πληρώνουν. Αν
+// συνεχίσει να μην απαντά κανείς, σε άλλους 2 μετά από 1 ώρα. Τα επείγοντα
+// ανοίγουν αμέσως, μία φορά. Το όριο του μήνα μετράει όσες προσφορές στάλθηκαν
+// πραγματικά· όποιος δεν απάντησε χάνει τη σειρά του, όχι το όριό του.
+async function openUnansweredRequests() {
+  if (!firebaseReady || !paywallStarted() || Date.now() >= FREE_UNLOCK_END.getTime()) return;
+  try {
+    const db = admin.firestore();
+    const now = Date.now();
+    const quiet = quietHoursLeftMs();
+    const snap = await db.collection('requests').where('status', '==', 'active').get();
+    for (const doc of snap.docs) {
+      const d = doc.data();
+      const urgent = d.urgent === true;
+      const round = Number(d.freeUnlockRound) || 0;
+      if (!(d.prosNotified > 0) || !Array.isArray(d.notifiedProIds)) continue;
+      if (d.expiresAt && d.expiresAt.toMillis() <= now) continue;
+      if (round >= (urgent ? 1 : 2) || (quiet && !urgent)) continue;
+      const since = (round === 0 ? d.notifiedAt || d.createdAt : d.freeUnlockAt);
+      if (!since) continue;
+      if (!urgent && now - since.toMillis() < (round === 0 ? FREE_UNLOCK_WAIT_MS : FREE_UNLOCK_ROUND2_MS)) continue;
+      if (!(await db.collection('offers').where('requestId', '==', doc.id).limit(1).get()).empty) continue;
+
+      const already = new Set(Array.isArray(d.unlockedProIds) ? d.unlockedProIds : []);
+      const month = athensMonth(now);
+      const candidates = [];
+      for (const uid of d.notifiedProIds) {
+        if (already.has(uid)) continue;
+        const u = (await db.collection('users').doc(uid).get()).data();
+        if (!u || !proLocked(u, uid, d)) continue;
+        const offers = await db.collection('offers').where('professionalId', '==', uid).get();
+        const used = offers.docs.filter((o) => {
+          const t = o.data().createdAt;
+          return t && t.toMillis() >= PAID_SUBS_START.getTime() && athensMonth(t.toMillis()) === month;
+        }).length;
+        if (used >= FREE_UNLOCK_PER_MONTH) continue;
+        candidates.push({ uid, u, lastAt: u.freeUnlockLastAt ? u.freeUnlockLastAt.toMillis() : 0 });
+      }
+      const picked = pickFreeUnlockPros(candidates, FREE_UNLOCK_PER_ROUND);
+      const ts = admin.firestore.FieldValue.serverTimestamp();
+      const batch = db.batch();
+      batch.update(doc.ref, {
+        freeUnlockRound: round + 1, freeUnlockAt: ts,
+        ...(picked.length ? { unlockedProIds: admin.firestore.FieldValue.arrayUnion(...picked.map((p) => p.uid)) } : {}),
+      });
+      for (const p of picked) {
+        batch.set(db.collection('users').doc(p.uid), { freeUnlockLastAt: ts }, { merge: true });
+        batch.set(db.collection('freeUnlocks').doc(), {
+          requestId: doc.id, proId: p.uid, proName: p.u.name || '', profession: d.profession || '',
+          location: d.location || '', round: round + 1, month, at: ts,
+        });
+      }
+      await batch.commit();
+      console.log(`🔓 Free unlock round ${round + 1} for ${doc.id}: ${picked.map((p) => p.u.name || p.uid).join(', ') || 'none'}`);
+      for (const p of picked) await notifyFreeUnlock(p.uid, p.u, doc.id, d);
+    }
+  } catch (e) {
+    console.error('openUnansweredRequests error:', e.message);
+  }
+}
+async function notifyFreeUnlock(uid, u, requestId, d) {
+  const db = admin.firestore();
+  const title = 'Ένα αίτημα άνοιξε για εσάς';
+  const label = [d.profession, d.location].filter(Boolean).join(' · ');
+  const body = `${label ? `${label}. ` : ''}Μπορείτε να στείλετε προσφορά τώρα.`;
+  await db.collection('users').doc(uid).collection('notifications').add({
+    title, body, isRead: false, type: 'new_request', requestId,
+    createdAt: admin.firestore.FieldValue.serverTimestamp(),
+  }).catch(() => {});
+  if (u.fcmToken) {
+    await admin.messaging().send({
+      token: u.fcmToken,
+      notification: { title, body },
+      android: { priority: 'high', notification: { channelId: 'gorealai_channel', priority: 'high', sound: 'default', icon: 'ic_launcher', title, body } },
+      apns: { payload: { aps: { alert: { title, body }, sound: 'default', badge: 1 } } },
+      data: { type: 'new_request', requestId },
+    }).catch((e) => console.error('free unlock push error:', e.message));
+  }
+  let email = u.email;
+  if (!email) {
+    const p = await db.collection('professionals').doc(uid).get();
+    email = p.exists ? p.data().email : '';
+  }
+  if (email) {
+    await sendEmail({
+      to: email, subject: `${title}${label ? `: ${label}` : ''}`, bulk: true,
+      html: `<div style="font-family:Arial,sans-serif;max-width:480px;margin:0 auto;background:#0A0800;color:#fff;border-radius:16px;padding:32px;">
+        <h1 style="color:#FFD47A;font-size:22px;margin:0 0 8px;">${title}</h1>
+        ${label ? `<p style="color:#C9A84C;font-size:15px;font-weight:700;margin:4px 0;">${label}</p>` : ''}
+        ${d.description ? `<p style="color:rgba(255,255,255,0.7);font-size:14px;line-height:1.6;">${String(d.description).substring(0, 300)}</p>` : ''}
+        <p style="color:rgba(255,255,255,0.8);font-size:14px;line-height:1.6;">Μπορείτε να δείτε το κινητό του πελάτη και να στείλετε προσφορά από την εφαρμογή, όσο το αίτημα είναι ενεργό.</p>
+        <a href="https://gorealai.web.app/app" style="display:inline-block;margin-top:14px;padding:13px 28px;background:#FFD47A;color:#000;border-radius:12px;font-weight:800;text-decoration:none;">Άνοιγμα αιτήματος</a>
+      </div>`,
+    }).catch((e) => console.error('free unlock email error:', e.message));
+  }
+}
+setInterval(openUnansweredRequests, 3 * 60 * 1000);
+
+// Από 1/1/2027: αφαιρεί το κινητό από όλα τα παλιότερα αιτήματα.
+async function secureOldRequestPhones() {
+  if (!firebaseReady || !paywallStarted()) return;
+  try {
+    const snap = await admin.firestore().collection('requests').where('userPhone', '>', '').limit(300).get();
+    for (const doc of snap.docs) await secureRequestPhone(doc.ref, doc.data());
+    if (snap.size) console.log(`🔐 Secured phone on ${snap.size} requests`);
+  } catch (e) {
+    console.error('secureOldRequestPhones error:', e.message);
+  }
+}
+setInterval(secureOldRequestPhones, 2 * 60 * 1000);
 
 // Η iOS 2.0.2 γράφει το professionals/{uid}.platform ως 'android' (το users
 // doc είναι σωστό 'ios'). Μέχρι να βγει νέα iOS έκδοση, το admin δείχνει

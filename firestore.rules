@@ -10,6 +10,21 @@ service cloud.firestore {
       return request.auth != null && request.auth.token.admin == true;
     }
 
+    // Από 1/1/2027 (Αθήνα) προσφορές και κινητό πελάτη μόνο για συνδρομητές ή
+    // για όσους άνοιξε το αίτημα ο server. Το paywallTest είναι για δοκιμή.
+    function myUser() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
+    }
+    function paywallOn() {
+      return request.time >= timestamp.value('2026-12-31T22:00:00Z')
+             || myUser().get('paywallTest', false) == true;
+    }
+    function hasPaidAccess() {
+      let u = myUser();
+      return u.get('isPremium', false) == true
+             && (u.get('premiumUntil', null) == null || u.premiumUntil > request.time);
+    }
+
     // ─── USERS ────────────────────────────────────────────
     match /users/{userId} {
       // Any logged-in user can read profiles; real admin can list all
@@ -64,6 +79,16 @@ service cloud.firestore {
                                      'status', 'selectedPro', 'offersViewed',
                                      'notifiedPros', 'callTapsCount']));
 
+      // Το κινητό του πελάτη. Γράφεται μόνο από τον server.
+      match /private/{docId} {
+        allow read: if request.auth != null
+                    && (isAdmin()
+                        || get(/databases/$(database)/documents/requests/$(requestId)).data.userId == request.auth.uid
+                        || hasPaidAccess()
+                        || request.auth.uid in get(/databases/$(database)/documents/requests/$(requestId)).data.get('unlockedProIds', []));
+        allow write: if false;
+      }
+
       // Ποιος επαγγελματίας πάτησε το κινητό του πελάτη (app ή email).
       // Ο καθένας γράφει/διαβάζει μόνο το δικό του έγγραφο· το admin όλα.
       match /callTaps/{proId} {
@@ -74,7 +99,9 @@ service cloud.firestore {
 
     // ─── OFFERS ───────────────────────────────────────────
     match /offers/{offerId} {
-      allow create: if request.auth != null;
+      allow create: if request.auth != null
+                    && (!paywallOn() || hasPaidAccess() || isAdmin()
+                        || request.auth.uid in get(/databases/$(database)/documents/requests/$(request.resource.data.requestId)).data.get('unlockedProIds', []));
       allow read: if request.auth != null;
       // «Οι προσφορές μου»: ο επαγγελματίας διορθώνει μόνο τιμή/μήνυμα της δικής του προσφοράς
       allow update: if request.auth != null
@@ -84,6 +111,12 @@ service cloud.firestore {
       // Ανάκληση της δικής του προσφοράς
       allow delete: if request.auth != null
                     && resource.data.professionalId == request.auth.uid;
+    }
+
+    // ─── ΔΩΡΕΑΝ ΑΝΟΙΓΜΑΤΑ (ημερολόγιο εναλλαγής, γράφει μόνο ο server) ──
+    match /freeUnlocks/{docId} {
+      allow read: if isAdmin();
+      allow write: if false;
     }
 
     // ─── PROFESSIONALS ────────────────────────────────────
