@@ -148,6 +148,10 @@ service cloud.firestore {
                          && !request.resource.data.diff(resource.data).affectedKeys()
                             .hasAny(['safetyVerifiedAt', 'safetyVerifiedUntil', 'isPro', 'proSince']))
                         || isAdmin());
+      // Ο πελάτης που αξιολογεί ενημερώνει μόνο τη βαθμολογία (όπως στο users).
+      allow update: if request.auth != null
+                    && request.resource.data.diff(resource.data).affectedKeys()
+                       .hasOnly(['reviewCount', 'averageRating']);
       allow delete: if request.auth != null
                     && (resource.data.userId == request.auth.uid || isAdmin());
     }
