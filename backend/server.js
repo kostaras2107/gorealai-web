@@ -2082,6 +2082,7 @@ const FREE_UNLOCK_WAIT_MS = 2 * 3600 * 1000;
 const FREE_UNLOCK_ROUND2_MS = 3600 * 1000;
 const FREE_UNLOCK_PER_ROUND = 2;
 const FREE_UNLOCK_PER_MONTH = 2;
+const FREE_CHAT_MS = 7 * 86400 * 1000; // Μηνύματα με τον πελάτη μετά από δωρεάν άνοιγμα
 
 const paywallStarted = () => Date.now() >= PAID_SUBS_START.getTime();
 const paywallOn = (u) => paywallStarted() || (u && u.paywallTest === true);
@@ -3249,6 +3250,9 @@ async function openUnansweredRequests() {
       });
       for (const p of picked) {
         batch.set(db.collection('users').doc(p.uid), { freeUnlockLastAt: ts }, { merge: true });
+        batch.set(db.collection('freeChats').doc(`${d.userId}_${p.uid}`), {
+          requestId: doc.id, until: admin.firestore.Timestamp.fromMillis(now + FREE_CHAT_MS),
+        });
         batch.set(db.collection('freeUnlocks').doc(), {
           requestId: doc.id, proId: p.uid, proName: p.u.name || '', profession: d.profession || '',
           location: d.location || '', round: round + 1, month, at: ts,

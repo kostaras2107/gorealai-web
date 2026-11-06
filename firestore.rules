@@ -19,10 +19,26 @@ service cloud.firestore {
       return request.time >= timestamp.value('2026-12-31T22:00:00Z')
              || myUser().get('paywallTest', false) == true;
     }
-    function hasPaidAccess() {
-      let u = myUser();
+    function paidUser(u) {
       return u.get('isPremium', false) == true
              && (u.get('premiumUntil', null) == null || u.premiumUntil > request.time);
+    }
+    function hasPaidAccess() {
+      return paidUser(myUser());
+    }
+    // chatId = {userId}_{proId}: μηνύματα μόνο με επαγγελματία συνδρομητή ή
+    // μετά από δωρεάν άνοιγμα αιτήματος (freeChats, γράφει ο server).
+    function proChatOpen(chatId) {
+      return (request.time < timestamp.value('2026-12-31T22:00:00Z')
+              && !(exists(/databases/$(database)/documents/users/$(request.auth.uid))
+                   && myUser().get('paywallTest', false) == true))
+             || proChatPaid(chatId);
+    }
+    function proChatPaid(chatId) {
+      let proDoc = /databases/$(database)/documents/users/$(chatId.split('_')[1]);
+      return (exists(proDoc) && paidUser(get(proDoc).data))
+             || (exists(/databases/$(database)/documents/freeChats/$(chatId))
+                 && get(/databases/$(database)/documents/freeChats/$(chatId)).data.until > request.time);
     }
 
     // ─── USERS ────────────────────────────────────────────
@@ -273,8 +289,16 @@ service cloud.firestore {
                         || chatId.matches('.*_' + request.auth.uid));
         // Only authenticated users can send messages (as themselves)
         allow create: if request.auth != null
-                      && request.resource.data.senderId == request.auth.uid;
+                      && request.resource.data.senderId == request.auth.uid
+                      && proChatOpen(chatId);
       }
+    }
+
+    match /freeChats/{chatId} {
+      allow read: if request.auth != null
+                  && (chatId.matches(request.auth.uid + '_.*')
+                      || chatId.matches('.*_' + request.auth.uid));
+      allow write: if false;
     }
 
     // ─── REVIEWS ──────────────────────────────────────────

@@ -931,6 +931,24 @@ Future<bool> _offerAccessAllowed(BuildContext context, Map<String, dynamic> requ
   return false;
 }
 
+// Μηνύματα μόνο με επαγγελματία συνδρομητή, ή μετά από δωρεάν άνοιγμα αιτήματος
+// (freeChats/{userId}_{proId}, το γράφει ο server για 7 μέρες).
+bool _proChatClosed(Map<String, dynamic>? pro, DateTime? freeChatUntil) =>
+    _paywallOnFor(pro) && !_hasPaidAccess(pro)
+    && !(freeChatUntil?.isAfter(DateTime.now()) ?? false);
+
+Future<bool> _proMessagesOpen(String userId, String proId) async {
+  try {
+    final fs = FirebaseFirestore.instance;
+    final pro = (await fs.collection('users').doc(proId).get()).data();
+    if (!_paywallOnFor(pro) || _hasPaidAccess(pro)) return true;
+    final free = await fs.collection('freeChats').doc('${userId}_$proId').get();
+    return !_proChatClosed(pro, (free.data()?['until'] as Timestamp?)?.toDate());
+  } catch (_) {
+    return true; // Αποφασίζουν οι κανόνες Firestore.
+  }
+}
+
 // Το κινητό του πελάτη: από το αίτημα (παλιά) ή από το προστατευμένο
 // requests/{id}/private/contact (από 1/1/2027).
 class _ClientPhone extends StatelessWidget {
@@ -16354,7 +16372,8 @@ class _ProfileScreenState extends State<ProfileScreen> with WidgetsBindingObserv
                     const SizedBox(height: 20),
                     _sectionHeader('ΣΥΝΔΡΟΜΗ'),
                     if (!_isPremium) _buildReferralCard(),
-                    _buildSubscriptionCard(),
+                    // Google Play: πληρωμή και τιμές συνδρομής μόνο στο web.
+                    if (kIsWeb || _isPremium) _buildSubscriptionCard(),
                   ],
 
                   const SizedBox(height: 20),
@@ -21911,6 +21930,14 @@ class _DirectRequestScreenState extends State<DirectRequestScreen> {
       final proId = (pro['userId'] ?? pro['id'] ?? pro['uid'] ?? '') as String;
       final proName = (pro['name'] ?? pro['displayName'] ?? 'Επαγγελματίας') as String;
 
+      if (!await _proMessagesOpen(user.uid, proId)) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('Ο επαγγελματίας δεν δέχεται μηνύματα αυτή τη στιγμή.')));
+        }
+        return;
+      }
+
       final List<String> photoUrls = [];
       for (int i = 0; i < _photos.length; i++) {
         try {
@@ -22451,12 +22478,38 @@ class _ChatScreenState extends State<ChatScreen> {
   String? _otherUid;
   bool _isBlocked = false;
   bool _iBlocked = false;
+  bool _docBlocked = false;
+  bool _paywallClosed = false;
+  Map<String, dynamic>? _proAccess;
+  DateTime? _freeChatUntil;
+  StreamSubscription<DocumentSnapshot<Map<String, dynamic>>>? _proAccessSub;
+
+  void _refreshPaywall() {
+    if (!mounted) return;
+    setState(() {
+      _paywallClosed = _proChatClosed(_proAccess, _freeChatUntil);
+      _isBlocked = _docBlocked || _paywallClosed;
+    });
+  }
+
+  void _watchPaywall() {
+    final fs = FirebaseFirestore.instance;
+    _proAccessSub = fs.collection('users').doc(widget.chatId.split('_').last).snapshots().listen((doc) {
+      _proAccess = doc.data();
+      _refreshPaywall();
+    }, onError: (Object _) {});
+    fs.collection('freeChats').doc(widget.chatId).get().then((doc) {
+      _freeChatUntil = (doc.data()?['until'] as Timestamp?)?.toDate();
+      _refreshPaywall();
+    }).catchError((Object _) {});
+  }
 
   @override
   void initState() {
     super.initState();
     _markAsRead();
     _loadOtherPhoto();
+    _watchPaywall();
     // Listen to chat doc for the other side's lastReadAt
     _chatDocSub = FirebaseFirestore.instance
         .collection('chats').doc(widget.chatId)
@@ -22470,7 +22523,8 @@ class _ChatScreenState extends State<ChatScreen> {
       if (ts != null && mounted) setState(() => _otherLastRead = ts.toDate());
       final blockedBy = ((d['blockedBy'] as List?) ?? []).whereType<String>().toList();
       if (mounted) setState(() {
-        _isBlocked = blockedBy.isNotEmpty;
+        _docBlocked = blockedBy.isNotEmpty;
+        _isBlocked = _docBlocked || _paywallClosed;
         _iBlocked = blockedBy.contains(widget.currentUserId);
       });
     }, onError: (Object _) {});
@@ -22635,6 +22689,7 @@ class _ChatScreenState extends State<ChatScreen> {
     _chatAudioTimer?.cancel();
     _audioRec.dispose();
     _chatDocSub?.cancel();
+    _proAccessSub?.cancel();
     super.dispose();
   }
 
@@ -23356,7 +23411,13 @@ class _ChatScreenState extends State<ChatScreen> {
                     const Icon(Icons.block, color: Colors.redAccent, size: 16),
                     const SizedBox(width: 10),
                     Expanded(child: Text(
-                        _iBlocked ? 'Έχεις αποκλείσει αυτή τη συνομιλία.' : 'Αυτή η συνομιλία έχει αποκλειστεί.',
+                        _paywallClosed && !_docBlocked
+                            ? (widget.isPro
+                                ? (kIsWeb
+                                    ? 'Για να στέλνετε και να λαμβάνετε μηνύματα χρειάζεται ενεργή συνδρομή.'
+                                    : 'Τα μηνύματα δεν είναι διαθέσιμα για τον λογαριασμό σας.')
+                                : 'Ο επαγγελματίας δεν δέχεται μηνύματα αυτή τη στιγμή.')
+                            : _iBlocked ? 'Έχεις αποκλείσει αυτή τη συνομιλία.' : 'Αυτή η συνομιλία έχει αποκλειστεί.',
                         style: const TextStyle(color: Colors.redAccent, fontSize: 12, fontWeight: FontWeight.w600))),
                   ]),
                 ),
