@@ -3530,7 +3530,7 @@ async function sendRatingPrompts() {
 
       // Επαφές: αποδοχή, κλήση/προβολή κινητού, μηνύματα μετά το αίτημα
       const contacted = new Set();
-      if (r.selectedPro) contacted.add(String(r.selectedPro));
+      if (r.selectedProId) contacted.add(String(r.selectedProId));
       try {
         const ev = await db.collection('contactEvents').where('requestId', '==', doc.id).get();
         ev.docs.forEach((e) => { if (e.data().proId) contacted.add(String(e.data().proId)); });

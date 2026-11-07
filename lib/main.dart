@@ -7142,6 +7142,8 @@ class _ProfessionalHomeScreenState extends State<ProfessionalHomeScreen> {
 
   // 'active' | 'won' | 'lost' | 'closed'
   String _myOfferState(Map<String, dynamic> r) {
+    final selectedId = (r['selectedProId'] as String? ?? '').trim();
+    if (selectedId.isNotEmpty) return selectedId == _proId ? 'won' : 'lost';
     final selected = (r['selectedPro'] as String? ?? '').trim();
     if (selected.isNotEmpty) return selected == (_proName ?? '').trim() ? 'won' : 'lost';
     final exp = (r['expiresAt'] as Timestamp?)?.toDate();
@@ -12788,7 +12790,12 @@ class _OffersScreenState extends State<OffersScreen>
       await FirebaseFirestore.instance
           .collection('requests')
           .doc(widget.requestId)
-          .update({'status': 'completed', 'selectedPro': offer['name'], 'dismissed': true});
+          .update({
+            'status': 'completed',
+            'selectedPro': offer['name'] ?? offer['professionalName'] ?? '',
+            'selectedProId': offer['professionalId'] ?? '',
+            'dismissed': true,
+          });
 
       // Notification + FCM push στον επαγγελματία
       final proId = offer['professionalId'] as String?;
@@ -13093,7 +13100,7 @@ class _OffersScreenState extends State<OffersScreen>
                               await FirebaseFirestore.instance
                                   .collection('requests')
                                   .doc(widget.requestId)
-                                  .update({'status': 'completed', 'selectedPro': null, 'dismissed': true});
+                                  .update({'status': 'completed', 'dismissed': true});
                             } catch (_) {}
                             if (!mounted) return;
                             Navigator.popUntil(context, (r) => r.isFirst);
