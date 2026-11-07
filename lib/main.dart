@@ -12016,6 +12016,25 @@ class _WaitingScreenState extends State<WaitingScreen>
     }
   }
 
+  // Ο πελάτης βλέπει και επιλέγει προσφορά χωρίς να περιμένει τη λήξη. Το αίτημα
+  // μένει ανοιχτό: αν γυρίσει πίσω, η μέτρηση συνεχίζει από τη σωστή ώρα.
+  Future<void> _openOffersEarly() async {
+    _timer?.cancel();
+    await Navigator.push(
+        context,
+        PageRouteBuilder(
+          transitionDuration: const Duration(milliseconds: 400),
+          pageBuilder: (_, __, ___) => OffersScreen(
+              requestId: widget.requestId,
+              userId: widget.userId,
+              description: widget.description,
+              criteria: widget.criteria,
+              requestOpen: true),
+          transitionsBuilder: (_, a, __, c) => FadeTransition(opacity: a, child: c),
+        ));
+    if (mounted) _initFromFirestore();
+  }
+
   void _goToOffers() {
     if (!mounted) return;
     Navigator.pushReplacement(
@@ -12210,6 +12229,30 @@ class _WaitingScreenState extends State<WaitingScreen>
                             fontWeight: FontWeight.w600)),
                   ]),
                 ),
+
+                if (_offersCount > 0) ...[
+                  const SizedBox(height: 16),
+                  GestureDetector(
+                    onTap: _openOffersEarly,
+                    child: Container(
+                      width: double.infinity,
+                      height: 52,
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(16),
+                        color: kGreen,
+                        boxShadow: [BoxShadow(
+                            color: kGreen.withValues(alpha: 0.3), blurRadius: 16, offset: const Offset(0, 4))],
+                      ),
+                      child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [
+                        const Icon(Icons.local_offer_rounded, color: Colors.black, size: 18),
+                        const SizedBox(width: 8),
+                        Flexible(child: FittedBox(fit: BoxFit.scaleDown,
+                          child: Text(_offersCount == 1 ? 'Δες την προσφορά' : 'Δες τις $_offersCount προσφορές',
+                              style: const TextStyle(color: Colors.black, fontSize: 15, fontWeight: FontWeight.w800)))),
+                      ]),
+                    ),
+                  ),
+                ],
 
                 const SizedBox(height: 18),
                 Row(children: [
@@ -12565,11 +12608,14 @@ double _offerScore(Map<String, dynamic> o, String criteria) {
 
 class OffersScreen extends StatefulWidget {
   final String requestId, userId, description, criteria;
+  // Άνοιξε πριν τη λήξη: η έξοδος χωρίς επιλογή δεν πρέπει να κλείνει το αίτημα.
+  final bool requestOpen;
   const OffersScreen(
       {required this.requestId,
       required this.userId,
       required this.description,
       required this.criteria,
+      this.requestOpen = false,
       super.key});
   @override
   State<OffersScreen> createState() => _OffersScreenState();
@@ -13095,6 +13141,10 @@ class _OffersScreenState extends State<OffersScreen>
                         const SizedBox(height: 8),
                         GestureDetector(
                           onTap: () async {
+                            if (widget.requestOpen) {
+                              Navigator.pop(context);
+                              return;
+                            }
                             // Close the request so it disappears from home screen
                             try {
                               await FirebaseFirestore.instance
@@ -13118,9 +13168,10 @@ class _OffersScreenState extends State<OffersScreen>
                               ),
                             ),
                             child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [
-                              Icon(Icons.close_rounded, color: _g(0.5), size: 16),
+                              Icon(widget.requestOpen ? Icons.hourglass_top_rounded : Icons.close_rounded,
+                                  color: _g(0.5), size: 16),
                               const SizedBox(width: 8),
-                              Text('Δεν επιλέγω κανέναν',
+                              Text(widget.requestOpen ? 'Περιμένω κι άλλες προσφορές' : 'Δεν επιλέγω κανέναν',
                                   textAlign: TextAlign.center,
                                   style: TextStyle(
                                       color: _g(0.6),
